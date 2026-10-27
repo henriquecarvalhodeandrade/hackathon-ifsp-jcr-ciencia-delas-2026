@@ -11,7 +11,10 @@ export interface MentorStatusProps {
 }
 
 /** Texto do selo de mentora conforme disponibilidade e vagas. */
-export function mentorStatusLabel({ available, openSlots }: Pick<MentorStatusProps, "available" | "openSlots">): string {
+export function mentorStatusLabel({
+  available,
+  openSlots,
+}: Pick<MentorStatusProps, "available" | "openSlots">): string {
   if (!available) return "Mentora · pausada";
   if (openSlots && openSlots > 0) return `Mentora · ${pluralize(openSlots, "vaga")}`;
   return "Mentora · sem vagas agora";

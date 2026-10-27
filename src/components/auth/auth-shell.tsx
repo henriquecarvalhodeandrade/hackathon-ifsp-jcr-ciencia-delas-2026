@@ -24,7 +24,14 @@ const PILLARS = [
  * Moldura das telas de autenticação: painel da marca (violeta, igual nos dois temas) à
  * esquerda no desktop e o formulário à direita. No celular, só o formulário.
  */
-export function AuthShell({ eyebrow, title, description, children, footer, className }: AuthShellProps) {
+export function AuthShell({
+  eyebrow,
+  title,
+  description,
+  children,
+  footer,
+  className,
+}: AuthShellProps) {
   return (
     <Container size="wide" className={cn("py-6 sm:py-12", className)}>
       <div className="mx-auto grid max-w-5xl overflow-hidden rounded-dialog border border-border bg-surface shadow-card lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -37,13 +44,16 @@ export function AuthShell({ eyebrow, title, description, children, footer, class
           <ConstellationPattern
             density="medium"
             align="end"
-            className="absolute inset-x-0 top-0 -z-10 h-3/5 w-full text-violeta-300/60 [mask-image:linear-gradient(to_bottom,black_30%,transparent_100%)]"
+            className="absolute inset-x-0 top-0 -z-10 h-3/5 w-full [mask-image:linear-gradient(to_bottom,black_30%,transparent_100%)] text-violeta-300/60"
           />
           <Logo size={30} className="text-white" />
           <div className="mt-auto grid gap-4">
-            <p className="font-serif text-4xl leading-tight font-semibold text-balance">Ciência também é delas.</p>
+            <p className="font-serif text-4xl leading-tight font-semibold text-balance">
+              Ciência também é delas.
+            </p>
             <p className="max-w-sm text-violeta-100">
-              Uma rede para conectar, apoiar e dar visibilidade a mulheres que fazem pesquisa no Brasil.
+              Uma rede para conectar, apoiar e dar visibilidade a mulheres que fazem pesquisa no
+              Brasil.
             </p>
           </div>
           <ul className="grid gap-3 text-sm text-violeta-100">
@@ -67,7 +77,11 @@ export function AuthShell({ eyebrow, title, description, children, footer, class
             {description && <p className="text-fg-muted">{description}</p>}
           </header>
           {children}
-          {footer && <div className="grid gap-2 border-t border-border pt-5 text-sm text-fg-muted">{footer}</div>}
+          {footer && (
+            <div className="grid gap-2 border-t border-border pt-5 text-sm text-fg-muted">
+              {footer}
+            </div>
+          )}
         </div>
       </div>
     </Container>

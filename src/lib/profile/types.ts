@@ -25,7 +25,9 @@ export type ProfileActionState =
     }
   | null;
 
-export type AuthFieldErrors = Partial<Record<"full_name" | "email" | "password" | "password_confirm" | "terms", string[]>>;
+export type AuthFieldErrors = Partial<
+  Record<"full_name" | "email" | "password" | "password_confirm" | "terms", string[]>
+>;
 
 export interface AuthFormValues {
   full_name?: string;
@@ -38,7 +40,12 @@ export type AuthActionState =
   | {
       ok: true;
       /** O que aconteceu, para a interface escolher a mensagem/estado. */
-      kind: "magic_link_sent" | "signup_email_sent" | "recovery_sent" | "confirmation_resent" | "password_updated";
+      kind:
+        | "magic_link_sent"
+        | "signup_email_sent"
+        | "recovery_sent"
+        | "confirmation_resent"
+        | "password_updated";
       message: string;
       values: AuthFormValues;
     }
@@ -52,6 +59,7 @@ export type AuthActionState =
     }
   | null;
 
-export type AvatarActionResult = { ok: true; message: string; avatarUrl: string | null } | { ok: false; error: string };
+export type AvatarActionResult =
+  { ok: true; message: string; avatarUrl: string | null } | { ok: false; error: string };
 
 export type DeleteAccountState = { ok: false; error: string } | null;

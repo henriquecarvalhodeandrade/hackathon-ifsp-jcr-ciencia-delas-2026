@@ -30,12 +30,22 @@ describe("signupSchema", () => {
   });
 
   it("limita a senha a 72 bytes (bcrypt) e recusa só espaços", () => {
-    expect(signupSchema.safeParse({ full_name: "Ana Souza", email: "a@b.co", password: "é".repeat(37), terms: "on" }).success).toBe(
-      false,
-    );
-    expect(signupSchema.safeParse({ full_name: "Ana Souza", email: "a@b.co", password: "        ", terms: "on" }).success).toBe(
-      false,
-    );
+    expect(
+      signupSchema.safeParse({
+        full_name: "Ana Souza",
+        email: "a@b.co",
+        password: "é".repeat(37),
+        terms: "on",
+      }).success,
+    ).toBe(false);
+    expect(
+      signupSchema.safeParse({
+        full_name: "Ana Souza",
+        email: "a@b.co",
+        password: "        ",
+        terms: "on",
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -51,9 +61,18 @@ describe("loginSchema e resetPasswordSchema", () => {
   });
 
   it("confere a confirmação da nova senha", () => {
-    const result = resetPasswordSchema.safeParse({ password: "senha-nova-123", password_confirm: "senha-nova-321" });
+    const result = resetPasswordSchema.safeParse({
+      password: "senha-nova-123",
+      password_confirm: "senha-nova-321",
+    });
     expect(result.success).toBe(false);
-    if (!result.success) expect(authFieldErrors(result.error).password_confirm?.[0]).toMatch(/não são iguais/);
-    expect(resetPasswordSchema.safeParse({ password: "senha-nova-123", password_confirm: "senha-nova-123" }).success).toBe(true);
+    if (!result.success)
+      expect(authFieldErrors(result.error).password_confirm?.[0]).toMatch(/não são iguais/);
+    expect(
+      resetPasswordSchema.safeParse({
+        password: "senha-nova-123",
+        password_confirm: "senha-nova-123",
+      }).success,
+    ).toBe(true);
   });
 });

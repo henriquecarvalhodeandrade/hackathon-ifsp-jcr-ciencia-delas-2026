@@ -33,12 +33,17 @@ function CheckEmail({ email, devNotice }: { email: string; devNotice?: React.Rea
           <MailCheck aria-hidden="true" className="size-6" />
         </span>
         <div className="grid gap-1.5">
-          <h2 id="confira-email" ref={headingRef} tabIndex={-1} className="font-display text-xl font-semibold outline-none">
+          <h2
+            id="confira-email"
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-xl font-semibold outline-none"
+          >
             Confira seu e-mail
           </h2>
           <p>
-            Enviamos um link de confirmação para <strong className="break-all">{email}</strong>. Abra-o para ativar sua
-            conta e completar seu perfil — ele vale por 1 hora.
+            Enviamos um link de confirmação para <strong className="break-all">{email}</strong>.
+            Abra-o para ativar sua conta e completar seu perfil — ele vale por 1 hora.
           </p>
         </div>
       </div>
@@ -54,7 +59,8 @@ function CheckEmail({ email, devNotice }: { email: string; devNotice?: React.Rea
 /** Cadastro: nome, e-mail, senha e aceite do código de conduta e da política de privacidade. */
 export function SignupForm({ next, devNotice }: SignupFormProps) {
   const [state, formAction] = useActionState<AuthActionState, FormData>(signUpAction, null);
-  if (state?.ok && state.values.email) return <CheckEmail email={state.values.email} devNotice={devNotice} />;
+  if (state?.ok && state.values.email)
+    return <CheckEmail email={state.values.email} devNotice={devNotice} />;
 
   const errors = state && !state.ok ? state.fieldErrors : undefined;
   const values = state?.values;
@@ -65,12 +71,28 @@ export function SignupForm({ next, devNotice }: SignupFormProps) {
       <input type="hidden" name="next" value={next} />
       <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
 
-      <Field label="Nome completo" required error={errors?.full_name} hint="É assim que você aparece para a comunidade.">
-        <Input name="full_name" autoComplete="name" defaultValue={values?.full_name} maxLength={120} />
+      <Field
+        label="Nome completo"
+        required
+        error={errors?.full_name}
+        hint="É assim que você aparece para a comunidade."
+      >
+        <Input
+          name="full_name"
+          autoComplete="name"
+          defaultValue={values?.full_name}
+          maxLength={120}
+        />
       </Field>
 
       <Field label="E-mail" required error={errors?.email}>
-        <Input name="email" type="email" autoComplete="email" inputMode="email" defaultValue={values?.email} />
+        <Input
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          defaultValue={values?.email}
+        />
       </Field>
 
       <Field

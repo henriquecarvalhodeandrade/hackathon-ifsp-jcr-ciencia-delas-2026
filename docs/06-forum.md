@@ -165,7 +165,7 @@ src/components/forum/
   action-button.tsx      (cliente) botão-formulário (fixar, trancar, solução) com erro inline
   forum-search.tsx       busca GET com next/form
   breadcrumbs.tsx, skeletons.tsx
-src/lib/forum/  actions.ts · queries.ts · schema.ts · text.ts · errors.ts · types.ts (+ *.test.ts)
+src/lib/forum/  actions.ts · queries.ts · schema.ts · text.ts · errors.ts · types.ts · client-action.ts (+ *.test.ts)
 src/components/moderation/report-button.tsx · src/lib/moderation/{actions,schema}.ts (+ teste)
 ```
 
@@ -184,6 +184,12 @@ composta só com `Dialog`, `FormMessage` e `SubmitButton` do design system.
   continua aqui"). A mensagem técnica do Postgres nunca chega à tela.
 - Sessão expirada / perfil incompleto dentro de uma action → mensagem pedindo para entrar de novo
   ou completar o perfil (sem perder o texto).
+- Rede caiu (ou erro inesperado no servidor) durante o envio: os formulários do fórum e da
+  denúncia chamam a action por `withConnectionFallback` (`src/lib/forum/client-action.ts`), que
+  devolve "Não conseguimos falar com o servidor… seu texto continua aqui" com os valores enviados,
+  em vez de deixar o erro subir para o error boundary (que trocaria a página e apagaria o texto).
+  `redirect()`/`notFound()` continuam funcionando (`unstable_rethrow`). As reações fazem o mesmo:
+  a reação otimista volta e aparece um aviso.
 
 ## 8. Denúncias (`ReportButton`)
 

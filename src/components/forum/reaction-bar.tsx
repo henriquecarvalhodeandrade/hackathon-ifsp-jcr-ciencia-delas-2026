@@ -10,8 +10,7 @@ import { REACTIONS } from "./reaction-icons";
 
 type Toggle = { kind: ReactionKindValue; active: boolean };
 
-const NETWORK_ERROR =
-  "Não conseguimos registrar a reação. Confira sua conexão e tente de novo.";
+const NETWORK_ERROR = "Não conseguimos registrar a reação. Confira sua conexão e tente de novo.";
 
 function applyToggle(state: ReactionState, { kind, active }: Toggle): ReactionState {
   const has = state.mine.includes(kind);

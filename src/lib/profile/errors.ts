@@ -47,7 +47,8 @@ const AUTH_MESSAGES: Record<string, string> = {
   user_banned: "Esta conta está suspensa. Se acha que é um engano, fale com a moderação.",
   session_not_found: "Sua sessão terminou. Entre de novo para continuar.",
   reauthentication_needed: "Por segurança, entre de novo antes de trocar a senha.",
-  captcha_failed: "Não conseguimos verificar que você é uma pessoa. Recarregue a página e tente de novo.",
+  captcha_failed:
+    "Não conseguimos verificar que você é uma pessoa. Recarregue a página e tente de novo.",
   request_timeout: GENERIC_AUTH_ERROR,
   validation_failed: "Alguns dados não passaram na validação. Confira os campos e tente de novo.",
 };
@@ -82,7 +83,10 @@ export function isUnknownAccountError(error: AuthErrorLike | null | undefined): 
 
 export function isEmailNotConfirmedError(error: AuthErrorLike | null | undefined): boolean {
   if (!error) return false;
-  return error.code === "email_not_confirmed" || (error.message ?? "").toLowerCase().includes("email not confirmed");
+  return (
+    error.code === "email_not_confirmed" ||
+    (error.message ?? "").toLowerCase().includes("email not confirmed")
+  );
 }
 
 export function isRateLimitError(error: AuthErrorLike | null | undefined): boolean {
@@ -102,7 +106,10 @@ export const GENERIC_SAVE_ERROR =
  * Mensagem amigável para um erro do Postgres/PostgREST.
  * Códigos `CD***` são regras de negócio do banco e já vêm com mensagem em pt-BR (docs/03 §8).
  */
-export function dbErrorMessage(error: DbErrorLike | null | undefined, fallback = GENERIC_SAVE_ERROR): string {
+export function dbErrorMessage(
+  error: DbErrorLike | null | undefined,
+  fallback = GENERIC_SAVE_ERROR,
+): string {
   if (!error) return fallback;
   const code = error.code ?? "";
   if (code.startsWith("CD") && error.message) return error.message;

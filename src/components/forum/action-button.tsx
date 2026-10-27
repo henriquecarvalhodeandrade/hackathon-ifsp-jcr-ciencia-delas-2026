@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { SubmitButton, type ButtonProps } from "@/components/ui";
 import type { SimpleActionState } from "@/lib/forum/actions";
+import { CONNECTION_ERROR, withConnectionFallback } from "@/lib/forum/client-action";
 import { cn } from "@/lib/utils";
 
 export interface ActionButtonProps {
@@ -28,7 +29,10 @@ export function ActionButton({
   size = "sm",
   className,
 }: ActionButtonProps) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction] = useActionState<SimpleActionState, FormData>(
+    withConnectionFallback(action, () => ({ ok: false, error: CONNECTION_ERROR })),
+    null,
+  );
   const failed = Boolean(state && !state.ok);
   return (
     <form action={formAction} className={cn("inline-flex flex-col items-start gap-1", className)}>

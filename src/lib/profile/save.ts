@@ -22,15 +22,26 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 export type SaveSectionOutcome =
   | { ok: true; userId: string; values: Partial<ProfileFormValues>; consentRevoked: boolean }
-  | { ok: false; error: string; fieldErrors?: ProfileFieldErrors; values: Partial<ProfileFormValues> };
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: ProfileFieldErrors;
+      values: Partial<ProfileFormValues>;
+    };
 
 export const NOT_CONFIGURED_ERROR =
   "O Supabase ainda não foi configurado neste ambiente. Veja docs/07-setup-e-deploy.md.";
-export const SESSION_EXPIRED_ERROR = "Sua sessão terminou. Entre de novo para continuar — nada foi perdido.";
-export const VALIDATION_ERROR = "Alguns campos precisam de atenção. Confira as mensagens abaixo de cada um.";
+export const SESSION_EXPIRED_ERROR =
+  "Sua sessão terminou. Entre de novo para continuar — nada foi perdido.";
+export const VALIDATION_ERROR =
+  "Alguns campos precisam de atenção. Confira as mensagens abaixo de cada um.";
 
 /** Substitui as áreas do perfil pelas escolhidas (apaga as que saíram, insere as novas). */
-async function replaceProfileAreas(supabase: ServerClient, userId: string, areaIds: number[]): Promise<string | null> {
+async function replaceProfileAreas(
+  supabase: ServerClient,
+  userId: string,
+  areaIds: number[],
+): Promise<string | null> {
   const { data: current, error: readError } = await supabase
     .from("profile_research_areas")
     .select("area_id")
@@ -71,13 +82,18 @@ export async function saveSectionForCurrentUser(
   if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR, values };
 
   const parsed = parseProfileSection(section, values);
-  if (!parsed.success) return { ok: false, error: VALIDATION_ERROR, fieldErrors: parsed.fieldErrors, values };
+  if (!parsed.success)
+    return { ok: false, error: VALIDATION_ERROR, fieldErrors: parsed.fieldErrors, values };
 
   const supabase = await createClient();
 
   let consentRevoked = false;
   if (section === "privacidade" && parsed.update.ai_consent === false) {
-    const { data } = await supabase.from("profiles").select("ai_consent").eq("id", user.id).maybeSingle();
+    const { data } = await supabase
+      .from("profiles")
+      .select("ai_consent")
+      .eq("id", user.id)
+      .maybeSingle();
     consentRevoked = Boolean(data?.ai_consent);
   }
 
@@ -93,7 +109,11 @@ export async function saveSectionForCurrentUser(
     return { ok: false, error: dbErrorMessage(error), values };
   }
   if (!updated) {
-    return { ok: false, error: "Não encontramos o seu perfil. Saia e entre de novo, por favor.", values };
+    return {
+      ok: false,
+      error: "Não encontramos o seu perfil. Saia e entre de novo, por favor.",
+      values,
+    };
   }
 
   if (parsed.areaIds) {
@@ -110,8 +130,7 @@ export async function saveSectionForCurrentUser(
 }
 
 export type CompleteOnboardingOutcome =
-  | { ok: true; seeksMentorship: boolean }
-  | { ok: false; error: string; step?: 1 | 2 };
+  { ok: true; seeksMentorship: boolean } | { ok: false; error: string; step?: 1 | 2 };
 
 /** Confere o mínimo necessário (nome, fase, 1 área) e marca o onboarding como concluído. */
 export async function completeOnboardingForCurrentUser(): Promise<CompleteOnboardingOutcome> {
@@ -126,7 +145,10 @@ export async function completeOnboardingForCurrentUser(): Promise<CompleteOnboar
       .select("full_name, career_stage, seeks_mentorship, onboarded_at")
       .eq("id", user.id)
       .maybeSingle(),
-    supabase.from("profile_research_areas").select("area_id", { count: "exact", head: true }).eq("profile_id", user.id),
+    supabase
+      .from("profile_research_areas")
+      .select("area_id", { count: "exact", head: true })
+      .eq("profile_id", user.id),
   ]);
   if (error || !profile) return { ok: false, error: dbErrorMessage(error) };
 
@@ -144,7 +166,11 @@ export async function completeOnboardingForCurrentUser(): Promise<CompleteOnboar
 }
 
 /** Mensagem de sucesso de cada seção. */
-export function sectionSavedMessage(section: ProfileSection, values: Partial<ProfileFormValues>, consentRevoked: boolean) {
+export function sectionSavedMessage(
+  section: ProfileSection,
+  values: Partial<ProfileFormValues>,
+  consentRevoked: boolean,
+) {
   switch (section) {
     case "sobre":
       return "Seus dados foram salvos.";

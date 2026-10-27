@@ -52,8 +52,8 @@ export default async function RedefinirSenhaPage() {
             </ButtonLink>
           }
         >
-          Por segurança, os links de redefinição valem por 1 hora e só funcionam uma vez. Peça outro — leva menos de um
-          minuto.
+          Por segurança, os links de redefinição valem por 1 hora e só funcionam uma vez. Peça outro
+          — leva menos de um minuto.
         </Alert>
       )}
     </AuthShell>

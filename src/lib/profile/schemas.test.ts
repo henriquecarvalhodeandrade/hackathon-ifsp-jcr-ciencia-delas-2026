@@ -40,7 +40,11 @@ describe("seção Sobre você", () => {
   });
 
   it("aponta nome curto, fase ausente e UF inválida", () => {
-    const result = parseProfileSection("sobre", { ...EMPTY_PROFILE_VALUES, full_name: "A", state: "ZZ" });
+    const result = parseProfileSection("sobre", {
+      ...EMPTY_PROFILE_VALUES,
+      full_name: "A",
+      state: "ZZ",
+    });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.fieldErrors.full_name?.[0]).toMatch(/nome completo/);
@@ -132,7 +136,10 @@ describe("seção Mentoria", () => {
       languages: [],
       mentoring_offer: "texto antigo que não deve ser apagado",
     });
-    expect(result).toEqual({ success: true, update: { seeks_mentorship: false, is_mentor: false } });
+    expect(result).toEqual({
+      success: true,
+      update: { seeks_mentorship: false, is_mentor: false },
+    });
   });
 
   it("mentoranda grava objetivos e preferências", () => {
@@ -246,7 +253,13 @@ describe("readSectionValues", () => {
   });
 
   it("lê só os campos da seção", () => {
-    const values = readSectionValues("sobre", form([["full_name", "Ana"], ["bio", "não é desta seção"]]));
+    const values = readSectionValues(
+      "sobre",
+      form([
+        ["full_name", "Ana"],
+        ["bio", "não é desta seção"],
+      ]),
+    );
     expect(values).toMatchObject({ full_name: "Ana", city: "" });
     expect(values).not.toHaveProperty("bio");
   });
@@ -292,10 +305,18 @@ describe("profileToFormValues", () => {
 
 describe("missingOnboardingStep e uniqueTags", () => {
   it("aponta a etapa incompleta", () => {
-    expect(missingOnboardingStep({ full_name: "", career_stage: "phd", areaCount: 1 })?.step).toBe(1);
-    expect(missingOnboardingStep({ full_name: "Ana Souza", career_stage: null, areaCount: 1 })?.step).toBe(1);
-    expect(missingOnboardingStep({ full_name: "Ana Souza", career_stage: "phd", areaCount: 0 })?.step).toBe(2);
-    expect(missingOnboardingStep({ full_name: "Ana Souza", career_stage: "phd", areaCount: 2 })).toBeNull();
+    expect(missingOnboardingStep({ full_name: "", career_stage: "phd", areaCount: 1 })?.step).toBe(
+      1,
+    );
+    expect(
+      missingOnboardingStep({ full_name: "Ana Souza", career_stage: null, areaCount: 1 })?.step,
+    ).toBe(1);
+    expect(
+      missingOnboardingStep({ full_name: "Ana Souza", career_stage: "phd", areaCount: 0 })?.step,
+    ).toBe(2);
+    expect(
+      missingOnboardingStep({ full_name: "Ana Souza", career_stage: "phd", areaCount: 2 }),
+    ).toBeNull();
   });
 
   it("remove repetidas sem diferenciar maiúsculas", () => {
@@ -324,7 +345,9 @@ describe("updateToFormValues", () => {
   });
 
   it("converte números e ignora colunas que não são do formulário", () => {
-    expect(updateToFormValues({ mentor_capacity: 3, onboarded_at: "2026-10-27", is_mentor: true })).toEqual({
+    expect(
+      updateToFormValues({ mentor_capacity: 3, onboarded_at: "2026-10-27", is_mentor: true }),
+    ).toEqual({
       mentor_capacity: "3",
       is_mentor: true,
     });

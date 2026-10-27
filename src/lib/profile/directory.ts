@@ -40,7 +40,9 @@ export function buildSearchOrFilter(term: string): string | null {
   const clean = sanitizeSearchTerm(term);
   if (clean.length < 2) return null;
   const pattern = `%${clean.replace(/ /g, "%")}%`;
-  return ["full_name", "institution", "headline"].map((column) => `${column}.ilike.${pattern}`).join(",");
+  return ["full_name", "institution", "headline"]
+    .map((column) => `${column}.ilike.${pattern}`)
+    .join(",");
 }
 
 export function parseDirectoryFilters(params: RawParams): DirectoryFilters {
@@ -75,7 +77,10 @@ export function filtersToSearchParams(filters: DirectoryFilters): Record<string,
 }
 
 /** Intervalo inclusivo para `.range()` do supabase-js. */
-export function pageRange(page: number, pageSize = DIRECTORY_PAGE_SIZE): { from: number; to: number } {
+export function pageRange(
+  page: number,
+  pageSize = DIRECTORY_PAGE_SIZE,
+): { from: number; to: number } {
   const from = (Math.max(1, page) - 1) * pageSize;
   return { from, to: from + pageSize - 1 };
 }

@@ -120,7 +120,10 @@ type ProfileRow = Pick<
 >;
 
 /** Valores iniciais do formulário a partir do perfil salvo. */
-export function profileToFormValues(profile: ProfileRow, areaIds: readonly number[]): ProfileFormValues {
+export function profileToFormValues(
+  profile: ProfileRow,
+  areaIds: readonly number[],
+): ProfileFormValues {
   return {
     full_name: profile.full_name ?? "",
     pronouns: profile.pronouns ?? "",
@@ -188,7 +191,10 @@ function checked(formData: FormData, name: string): boolean {
 }
 
 /** Lê do FormData só os campos da seção enviada. */
-export function readSectionValues(section: ProfileSection, formData: FormData): Partial<ProfileFormValues> {
+export function readSectionValues(
+  section: ProfileSection,
+  formData: FormData,
+): Partial<ProfileFormValues> {
   switch (section) {
     case "sobre":
       return {
@@ -222,7 +228,8 @@ export function readSectionValues(section: ProfileSection, formData: FormData): 
         languages: list(formData, "languages"),
       };
       // O onboarding não mostra a disponibilidade: sem a marca, não mexemos no valor salvo.
-      if (formData.has(AVAILABILITY_MARKER)) values.mentor_available = checked(formData, "mentor_available");
+      if (formData.has(AVAILABILITY_MARKER))
+        values.mentor_available = checked(formData, "mentor_available");
       return values;
     }
     case "privacidade":

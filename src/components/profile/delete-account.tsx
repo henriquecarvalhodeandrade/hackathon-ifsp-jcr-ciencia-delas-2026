@@ -16,7 +16,10 @@ const WORD = "EXCLUIR";
 /** Diálogo de exclusão definitiva da conta (pede para digitar EXCLUIR). */
 export function DeleteAccountDialog() {
   const [open, setOpen] = useState(false);
-  const [state, formAction] = useActionState<DeleteAccountState, FormData>(deleteAccountAction, null);
+  const [state, formAction] = useActionState<DeleteAccountState, FormData>(
+    deleteAccountAction,
+    null,
+  );
 
   return (
     <Dialog
@@ -45,7 +48,12 @@ export function DeleteAccountDialog() {
         </div>
         <FormMessage tone="error">{state?.error}</FormMessage>
         <Field label={`Para confirmar, digite ${WORD}`} required>
-          <Input name="confirmation" autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+          <Input
+            name="confirmation"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+          />
         </Field>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="ghost" onClick={() => setOpen(false)}>

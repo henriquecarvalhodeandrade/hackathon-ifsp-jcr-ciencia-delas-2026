@@ -45,7 +45,10 @@ const formats = Object.keys(MEETING_FORMATS) as [MeetingFormat, ...MeetingFormat
 const languages = Object.keys(LANGUAGES) as [LanguageCode, ...LanguageCode[]];
 
 /** Colunas que a própria usuária pode alterar (o banco recusa id, role, created_at, updated_at). */
-export type ProfileUpdate = Omit<TablesUpdate<"profiles">, "id" | "role" | "created_at" | "updated_at">;
+export type ProfileUpdate = Omit<
+  TablesUpdate<"profiles">,
+  "id" | "role" | "created_at" | "updated_at"
+>;
 
 export type SectionParseResult =
   | { success: true; update: ProfileUpdate; areaIds?: number[] }
@@ -125,9 +128,15 @@ const researchSchema = z.object({
     .transform((ids) => [...new Set(ids.map((id) => id.trim()).filter(Boolean))])
     .pipe(
       z
-        .array(z.string().regex(/^\d{1,5}$/, { error: "Recebemos uma área inválida. Recarregue a página." }))
+        .array(
+          z
+            .string()
+            .regex(/^\d{1,5}$/, { error: "Recebemos uma área inválida. Recarregue a página." }),
+        )
         .min(PROFILE_LIMITS.areas.min, { error: "Escolha pelo menos uma área de pesquisa." })
-        .max(PROFILE_LIMITS.areas.max, { error: `Escolha no máximo ${PROFILE_LIMITS.areas.max} áreas.` }),
+        .max(PROFILE_LIMITS.areas.max, {
+          error: `Escolha no máximo ${PROFILE_LIMITS.areas.max} áreas.`,
+        }),
     )
     .transform((ids) => ids.map(Number)),
   keywords: z
@@ -140,7 +149,9 @@ const researchSchema = z.object({
             error: `Cada palavra-chave pode ter até ${PROFILE_LIMITS.keywords.maxLength} caracteres.`,
           }),
         )
-        .max(PROFILE_LIMITS.keywords.max, { error: `Use no máximo ${PROFILE_LIMITS.keywords.max} palavras-chave.` }),
+        .max(PROFILE_LIMITS.keywords.max, {
+          error: `Use no máximo ${PROFILE_LIMITS.keywords.max} palavras-chave.`,
+        }),
     ),
   bio: optionalText(PROFILE_LIMITS.bio),
   lattes_url: optionalUrl("lattes"),
@@ -168,7 +179,9 @@ const mentorshipSchema = z
       .transform((items) => [...new Set(items)]),
     languages: z
       .array(z.enum(languages, { error: "Escolha idiomas da lista." }))
-      .max(PROFILE_LIMITS.languages.max, { error: `Escolha no máximo ${PROFILE_LIMITS.languages.max} idiomas.` })
+      .max(PROFILE_LIMITS.languages.max, {
+        error: `Escolha no máximo ${PROFILE_LIMITS.languages.max} idiomas.`,
+      })
       .transform((items) => [...new Set(items)]),
   })
   .superRefine((data, ctx) => {
@@ -179,7 +192,8 @@ const mentorshipSchema = z
         ctx.addIssue({
           code: "custom",
           path: ["mentoring_offer"],
-          message: "Conte em pelo menos 20 caracteres como você pode ajudar — é isso que as mentorandas leem primeiro.",
+          message:
+            "Conte em pelo menos 20 caracteres como você pode ajudar — é isso que as mentorandas leem primeiro.",
         });
       }
       const capacity = Number(data.mentor_capacity);
@@ -194,13 +208,25 @@ const mentorshipSchema = z
     }
     if (participates) {
       if (data.mentorship_topics.length === 0) {
-        ctx.addIssue({ code: "custom", path: ["mentorship_topics"], message: "Escolha pelo menos um tema." });
+        ctx.addIssue({
+          code: "custom",
+          path: ["mentorship_topics"],
+          message: "Escolha pelo menos um tema.",
+        });
       }
       if (data.meeting_formats.length === 0) {
-        ctx.addIssue({ code: "custom", path: ["meeting_formats"], message: "Escolha pelo menos um formato de encontro." });
+        ctx.addIssue({
+          code: "custom",
+          path: ["meeting_formats"],
+          message: "Escolha pelo menos um formato de encontro.",
+        });
       }
       if (data.languages.length === 0) {
-        ctx.addIssue({ code: "custom", path: ["languages"], message: "Escolha pelo menos um idioma." });
+        ctx.addIssue({
+          code: "custom",
+          path: ["languages"],
+          message: "Escolha pelo menos um idioma.",
+        });
       }
     }
   });
@@ -267,7 +293,11 @@ export function missingOnboardingStep(profile: {
   career_stage: string | null;
   areaCount: number;
 }): { step: 1 | 2; message: string } | null {
-  if (!profile.full_name || profile.full_name.trim().length < PROFILE_LIMITS.fullName.min || !profile.career_stage) {
+  if (
+    !profile.full_name ||
+    profile.full_name.trim().length < PROFILE_LIMITS.fullName.min ||
+    !profile.career_stage
+  ) {
     return { step: 1, message: "Falta completar a etapa “Sobre você” (nome e fase da carreira)." };
   }
   if (profile.areaCount < 1) {

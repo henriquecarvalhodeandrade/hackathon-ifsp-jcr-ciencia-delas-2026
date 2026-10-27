@@ -13,7 +13,9 @@ const PLACEHOLDER_ORIGIN = "http://ciencia-delas.invalid";
 const BLOCKED_PREFIXES = ["/auth", "/entrar", "/cadastro", "/recuperar-senha", "/api"] as const;
 
 function hasBlockedPrefix(pathname: string): boolean {
-  return BLOCKED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return BLOCKED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 /**
@@ -43,7 +45,11 @@ export function safeNextPath(raw: unknown, fallback = "/forum"): string {
 }
 
 /** Monta `/rota?next=<destino>` só quando há um destino diferente do padrão. */
-export function withNext(path: string, next: string | null | undefined, defaultNext?: string): string {
+export function withNext(
+  path: string,
+  next: string | null | undefined,
+  defaultNext?: string,
+): string {
   if (!next || next === defaultNext) return path;
   const safe = safeNextPath(next, "");
   if (!safe) return path;

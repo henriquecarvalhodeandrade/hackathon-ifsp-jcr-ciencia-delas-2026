@@ -12,11 +12,18 @@ export function LocalMailboxNotice() {
   return (
     <Alert variant="info" icon={<Inbox aria-hidden="true" />} title="Ambiente de desenvolvimento">
       Os e-mails de acesso ficam no Mailpit:{" "}
-      <a href={url} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-2">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold underline underline-offset-2"
+      >
         {url.replace(/^https?:\/\//, "")}
         <span className="sr-only"> (abre em nova aba)</span>
       </a>
-      . O link do e-mail aponta para o endereço do <code className="font-mono text-sm">NEXT_PUBLIC_SITE_URL</code>.
+      . O link do e-mail usa o <code className="font-mono text-sm">site_url</code> de{" "}
+      <code className="font-mono text-sm">supabase/config.toml</code> (porta 3000) — se o app
+      estiver em outra porta, troque-a no link.
     </Alert>
   );
 }

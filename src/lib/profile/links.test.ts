@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { displayUrl, normalizeOrcid, normalizeProfileUrl, orcidCheckDigit, orcidUrl } from "./links";
+import {
+  displayUrl,
+  normalizeOrcid,
+  normalizeProfileUrl,
+  orcidCheckDigit,
+  orcidUrl,
+} from "./links";
 
 describe("normalizeProfileUrl", () => {
   it("completa https:// quando falta", () => {
@@ -47,9 +53,18 @@ describe("ORCID", () => {
   });
 
   it("aceita iD puro, URL e dígitos colados", () => {
-    expect(normalizeOrcid("0000-0002-1825-0097")).toEqual({ ok: true, value: "0000-0002-1825-0097" });
-    expect(normalizeOrcid("https://orcid.org/0000-0002-1825-0097")).toEqual({ ok: true, value: "0000-0002-1825-0097" });
-    expect(normalizeOrcid("orcid.org/000000021694233x")).toEqual({ ok: true, value: "0000-0002-1694-233X" });
+    expect(normalizeOrcid("0000-0002-1825-0097")).toEqual({
+      ok: true,
+      value: "0000-0002-1825-0097",
+    });
+    expect(normalizeOrcid("https://orcid.org/0000-0002-1825-0097")).toEqual({
+      ok: true,
+      value: "0000-0002-1825-0097",
+    });
+    expect(normalizeOrcid("orcid.org/000000021694233x")).toEqual({
+      ok: true,
+      value: "0000-0002-1694-233X",
+    });
   });
 
   it("recusa formato errado e dígito verificador que não confere", () => {
@@ -61,13 +76,17 @@ describe("ORCID", () => {
 
   it("monta o link público", () => {
     expect(orcidUrl("0000-0002-1825-0097")).toBe("https://orcid.org/0000-0002-1825-0097");
-    expect(orcidUrl("https://orcid.org/0000-0002-1825-0097")).toBe("https://orcid.org/0000-0002-1825-0097");
+    expect(orcidUrl("https://orcid.org/0000-0002-1825-0097")).toBe(
+      "https://orcid.org/0000-0002-1825-0097",
+    );
   });
 });
 
 describe("displayUrl", () => {
   it("encurta o endereço para exibir", () => {
     expect(displayUrl("https://www.exemplo.com.br/")).toBe("exemplo.com.br");
-    expect(displayUrl("https://exemplo.com/um/caminho/bem/comprido/demais/mesmo", 20)).toBe("exemplo.com/um/cami…");
+    expect(displayUrl("https://exemplo.com/um/caminho/bem/comprido/demais/mesmo", 20)).toBe(
+      "exemplo.com/um/cami…",
+    );
   });
 });

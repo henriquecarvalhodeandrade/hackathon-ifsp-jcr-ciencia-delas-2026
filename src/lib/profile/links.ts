@@ -47,13 +47,19 @@ export function normalizeProfileUrl(input: string, kind: ProfileLinkKind): Norma
   try {
     url = new URL(candidate);
   } catch {
-    return { ok: false, error: "Esse endereço não parece válido. Confira se copiou o link inteiro." };
+    return {
+      ok: false,
+      error: "Esse endereço não parece válido. Confira se copiou o link inteiro.",
+    };
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     return { ok: false, error: "Use um endereço que comece com https://." };
   }
   if (!url.hostname.includes(".") || url.username || url.password) {
-    return { ok: false, error: "Esse endereço não parece válido. Confira se copiou o link inteiro." };
+    return {
+      ok: false,
+      error: "Esse endereço não parece válido. Confira se copiou o link inteiro.",
+    };
   }
 
   const rule = KIND_RULES[kind];
@@ -89,7 +95,10 @@ export function normalizeOrcid(input: string): NormalizeResult {
     return { ok: false, error: "O ORCID iD tem 16 dígitos no formato 0000-0000-0000-0000." };
   }
   if (orcidCheckDigit(compact.slice(0, 15)) !== compact[15]) {
-    return { ok: false, error: "Esse ORCID iD não confere (o último dígito não bate). Copie de orcid.org." };
+    return {
+      ok: false,
+      error: "Esse ORCID iD não confere (o último dígito não bate). Copie de orcid.org.",
+    };
   }
   return { ok: true, value: compact.match(/.{4}/g)!.join("-") };
 }
@@ -102,6 +111,9 @@ export function orcidUrl(orcid: string): string {
 
 /** Rótulo curto para exibir um link (sem protocolo nem "www."). */
 export function displayUrl(href: string, max = 40): string {
-  const clean = href.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+  const clean = href
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/$/, "");
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }

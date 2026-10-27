@@ -18,7 +18,11 @@ export type AvatarOutcome = { ok: true; avatarUrl: string | null } | { ok: false
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /** Apaga da pasta da usuária todos os arquivos, exceto `keep` (melhor esforço). */
-async function cleanupAvatarFolder(supabase: ServerClient, userId: string, keep: string | null): Promise<void> {
+async function cleanupAvatarFolder(
+  supabase: ServerClient,
+  userId: string,
+  keep: string | null,
+): Promise<void> {
   try {
     const { data } = await supabase.storage.from(AVATAR_BUCKET).list(userId, { limit: 100 });
     const stale = (data ?? []).map((file) => file.name).filter((name) => name && name !== keep);
@@ -31,13 +35,15 @@ async function cleanupAvatarFolder(supabase: ServerClient, userId: string, keep:
 }
 
 export async function setAvatarForCurrentUser(publicUrl: unknown): Promise<AvatarOutcome> {
-  if (!isSupabaseConfigured() || !env.supabaseUrl) return { ok: false, error: NOT_CONFIGURED_ERROR };
+  if (!isSupabaseConfigured() || !env.supabaseUrl)
+    return { ok: false, error: NOT_CONFIGURED_ERROR };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
 
   const url = typeof publicUrl === "string" ? publicUrl.trim() : "";
   const fileName = ownAvatarFileName(url, env.supabaseUrl, user.id);
-  if (!fileName) return { ok: false, error: "Não reconhecemos esse arquivo. Envie a foto de novo, por favor." };
+  if (!fileName)
+    return { ok: false, error: "Não reconhecemos esse arquivo. Envie a foto de novo, por favor." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
@@ -74,19 +80,23 @@ export type DeleteAccountOutcome = { ok: true } | { ok: false; error: string };
  * usuário do Auth — o banco remove em cascata perfil, áreas, mentorias, tópicos e respostas
  * (inclusive anônimos), papers, votos, comentários e notificações.
  */
-export async function deleteCurrentUserAccount(confirmation: unknown): Promise<DeleteAccountOutcome> {
+export async function deleteCurrentUserAccount(
+  confirmation: unknown,
+): Promise<DeleteAccountOutcome> {
   if (!isSupabaseConfigured()) return { ok: false, error: NOT_CONFIGURED_ERROR };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
 
-  const typed = typeof confirmation === "string" ? confirmation.trim().toLocaleUpperCase("pt-BR") : "";
+  const typed =
+    typeof confirmation === "string" ? confirmation.trim().toLocaleUpperCase("pt-BR") : "";
   if (typed !== DELETE_CONFIRMATION_WORD) {
     return { ok: false, error: `Para confirmar, digite ${DELETE_CONFIRMATION_WORD} no campo.` };
   }
   if (!canSelfDeleteAccount()) {
     return {
       ok: false,
-      error: "A exclusão automática não está disponível neste ambiente. Escreva para a equipe (veja a página de Privacidade).",
+      error:
+        "A exclusão automática não está disponível neste ambiente. Escreva para a equipe (veja a página de Privacidade).",
     };
   }
 
@@ -102,7 +112,10 @@ export async function deleteCurrentUserAccount(confirmation: unknown): Promise<D
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) {
     console.warn(`[perfil] falha ao excluir conta (${error.status ?? ""} ${error.code ?? ""})`);
-    return { ok: false, error: "Não conseguimos excluir sua conta agora. Tente de novo em alguns minutos." };
+    return {
+      ok: false,
+      error: "Não conseguimos excluir sua conta agora. Tente de novo em alguns minutos.",
+    };
   }
   return { ok: true };
 }

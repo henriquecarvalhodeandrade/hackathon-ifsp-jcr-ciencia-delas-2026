@@ -16,13 +16,22 @@ import { PrivacyFields } from "./privacy-fields";
 import { ResearchFields } from "./research-fields";
 
 const STEPS: ReadonlyArray<{ section: ProfileSection; title: string; description: string }> = [
-  { section: "sobre", title: "Sobre você", description: "Como você quer se apresentar para a comunidade." },
+  {
+    section: "sobre",
+    title: "Sobre você",
+    description: "Como você quer se apresentar para a comunidade.",
+  },
   {
     section: "pesquisa",
     title: "Sua pesquisa",
-    description: "Áreas e palavras-chave ajudam a encontrar mentoras e pesquisadoras com interesses parecidos.",
+    description:
+      "Áreas e palavras-chave ajudam a encontrar mentoras e pesquisadoras com interesses parecidos.",
   },
-  { section: "mentoria", title: "Mentoria", description: "Você quer orientação, quer orientar — ou as duas coisas?" },
+  {
+    section: "mentoria",
+    title: "Mentoria",
+    description: "Você quer orientação, quer orientar — ou as duas coisas?",
+  },
   {
     section: "privacidade",
     title: "Privacidade e IA",
@@ -43,8 +52,16 @@ export interface OnboardingWizardProps {
  * Onboarding em 4 etapas. Cada etapa é salva no servidor ao avançar (nada se perde se a
  * pessoa sair no meio); a última marca o perfil como concluído e redireciona.
  */
-export function OnboardingWizard({ initialValues, areaGroups, next, initialStep }: OnboardingWizardProps) {
-  const [state, formAction] = useActionState<ProfileActionState, FormData>(saveOnboardingStepAction, null);
+export function OnboardingWizard({
+  initialValues,
+  areaGroups,
+  next,
+  initialStep,
+}: OnboardingWizardProps) {
+  const [state, formAction] = useActionState<ProfileActionState, FormData>(
+    saveOnboardingStepAction,
+    null,
+  );
   const [step, setStep] = useState(initialStep);
   const [furthest, setFurthest] = useState(initialStep);
   const [saved, setSaved] = useState<ProfileFormValues>(initialValues);
@@ -70,7 +87,9 @@ export function OnboardingWizard({ initialValues, areaGroups, next, initialStep 
   const current = STEPS[step - 1]!;
   const isLast = step === STEPS.length;
   const errorHere =
-    state !== null && !state.ok && (state.goToStep ? state.goToStep === step : state.section === current.section);
+    state !== null &&
+    !state.ok &&
+    (state.goToStep ? state.goToStep === step : state.section === current.section);
   const values: Partial<ProfileFormValues> =
     errorHere && state && !state.ok && !state.goToStep ? { ...saved, ...state.values } : saved;
   const errors = errorHere && state && !state.ok ? state.fieldErrors : undefined;
@@ -116,6 +135,7 @@ export function OnboardingWizard({ initialValues, areaGroups, next, initialStep 
                   {isDone ? <Check className="size-4" strokeWidth={3} /> : number}
                 </span>
                 <span
+                  aria-hidden="true"
                   className={cn(
                     "hidden text-left text-sm leading-tight font-semibold sm:block",
                     isCurrent ? "text-fg" : "text-fg-muted",
@@ -133,7 +153,10 @@ export function OnboardingWizard({ initialValues, areaGroups, next, initialStep 
               <li
                 key={item.section}
                 aria-current={isCurrent ? "step" : undefined}
-                className={cn("border-t-2 pt-2", number <= furthest ? "border-primary" : "border-border")}
+                className={cn(
+                  "border-t-2 pt-2",
+                  number <= furthest ? "border-primary" : "border-border",
+                )}
               >
                 {canVisit ? (
                   <button
@@ -144,7 +167,9 @@ export function OnboardingWizard({ initialValues, areaGroups, next, initialStep 
                     {content}
                   </button>
                 ) : (
-                  <span className="flex w-full flex-col items-center gap-2 p-1 sm:flex-row sm:items-center">{content}</span>
+                  <span className="flex w-full flex-col items-center gap-2 p-1 sm:flex-row sm:items-center">
+                    {content}
+                  </span>
                 )}
               </li>
             );
@@ -175,7 +200,9 @@ export function OnboardingWizard({ initialValues, areaGroups, next, initialStep 
           <input type="hidden" name="step" value={step} />
           {isLast && next && <input type="hidden" name="next" value={next} />}
 
-          <FormMessage tone="error">{errorHere && state && !state.ok ? state.error : null}</FormMessage>
+          <FormMessage tone="error">
+            {errorHere && state && !state.ok ? state.error : null}
+          </FormMessage>
 
           <div key={`${current.section}-${version}`}>
             {current.section === "sobre" && <AboutFields values={values} errors={errors} />}

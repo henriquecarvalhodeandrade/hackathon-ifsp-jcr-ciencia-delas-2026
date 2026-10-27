@@ -11,7 +11,12 @@ export interface ProfileLinksProps {
 /** Lista de links acadêmicos do perfil (abrem em nova aba, sem repassar a origem). */
 export function ProfileLinks({ lattes_url, orcid, linkedin_url, website_url }: ProfileLinksProps) {
   const links = [
-    lattes_url && { href: lattes_url, label: "Currículo Lattes", detail: displayUrl(lattes_url, 34), icon: GraduationCap },
+    lattes_url && {
+      href: lattes_url,
+      label: "Currículo Lattes",
+      detail: displayUrl(lattes_url, 34),
+      icon: GraduationCap,
+    },
     orcid && {
       href: orcidUrl(orcid),
       label: "ORCID",
@@ -19,8 +24,18 @@ export function ProfileLinks({ lattes_url, orcid, linkedin_url, website_url }: P
       icon: Fingerprint,
       mono: true,
     },
-    linkedin_url && { href: linkedin_url, label: "LinkedIn", detail: displayUrl(linkedin_url, 34), icon: UserRound },
-    website_url && { href: website_url, label: "Site", detail: displayUrl(website_url, 34), icon: Globe },
+    linkedin_url && {
+      href: linkedin_url,
+      label: "LinkedIn",
+      detail: displayUrl(linkedin_url, 34),
+      icon: UserRound,
+    },
+    website_url && {
+      href: website_url,
+      label: "Site",
+      detail: displayUrl(website_url, 34),
+      icon: Globe,
+    },
   ].filter(Boolean) as Array<{
     href: string;
     label: string;
@@ -44,11 +59,20 @@ export function ProfileLinks({ lattes_url, orcid, linkedin_url, website_url }: P
             <Icon aria-hidden="true" className="size-5 shrink-0 text-primary" />
             <span className="grid min-w-0 flex-1">
               <span className="text-sm font-semibold text-fg">{label}</span>
-              <span className={mono ? "truncate font-mono text-xs text-fg-subtle" : "truncate text-xs text-fg-subtle"}>
+              <span
+                className={
+                  mono
+                    ? "truncate font-mono text-xs text-fg-subtle"
+                    : "truncate text-xs text-fg-subtle"
+                }
+              >
                 {detail}
               </span>
             </span>
-            <ExternalLink aria-hidden="true" className="size-4 shrink-0 text-fg-subtle group-hover:text-fg" />
+            <ExternalLink
+              aria-hidden="true"
+              className="size-4 shrink-0 text-fg-subtle group-hover:text-fg"
+            />
             <span className="sr-only">(abre em nova aba)</span>
           </a>
         </li>

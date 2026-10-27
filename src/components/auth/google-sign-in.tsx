@@ -32,7 +32,10 @@ function GoogleMark() {
 
 /** Botão "Continuar com Google" (só aparece quando NEXT_PUBLIC_AUTH_GOOGLE_ENABLED=true). */
 export function GoogleSignIn({ next }: { next: string }) {
-  const [state, formAction] = useActionState<AuthActionState, FormData>(signInWithGoogleAction, null);
+  const [state, formAction] = useActionState<AuthActionState, FormData>(
+    signInWithGoogleAction,
+    null,
+  );
   return (
     <form action={formAction} className="grid gap-3">
       <input type="hidden" name="next" value={next} />

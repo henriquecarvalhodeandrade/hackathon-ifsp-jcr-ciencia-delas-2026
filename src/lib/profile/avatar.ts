@@ -25,7 +25,11 @@ export function isAvatarMimeType(type: string): type is AvatarMimeType {
 }
 
 /** Caminho do objeto no bucket. */
-export function avatarObjectPath(userId: string, mimeType: AvatarMimeType, now = Date.now()): string {
+export function avatarObjectPath(
+  userId: string,
+  mimeType: AvatarMimeType,
+  now = Date.now(),
+): string {
   return `${userId}/avatar-${now}.${AVATAR_MIME_TYPES[mimeType]}`;
 }
 
@@ -50,6 +54,7 @@ export function ownAvatarFileName(url: string, supabaseUrl: string, userId: stri
 /** Mensagem de erro (pt-BR) para um arquivo escolhido, ou null se ele pode seguir. */
 export function avatarFileProblem(file: { type: string; size: number }): string | null {
   if (!isAvatarMimeType(file.type)) return "Use uma imagem PNG, JPG ou WebP.";
-  if (file.size > AVATAR_MAX_SOURCE_BYTES) return "Essa imagem é grande demais. Escolha uma de até 15 MB.";
+  if (file.size > AVATAR_MAX_SOURCE_BYTES)
+    return "Essa imagem é grande demais. Escolha uma de até 15 MB.";
   return null;
 }

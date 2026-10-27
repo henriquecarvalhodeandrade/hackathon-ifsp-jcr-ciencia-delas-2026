@@ -34,7 +34,13 @@ export function LoginForm({ next }: LoginFormProps) {
         </FormMessage>
 
         <Field label="E-mail" required error={errors?.email}>
-          <Input name="email" type="email" autoComplete="email" inputMode="email" defaultValue={email} />
+          <Input
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            defaultValue={email}
+          />
         </Field>
 
         <div className="grid gap-2">
@@ -57,11 +63,18 @@ export function LoginForm({ next }: LoginFormProps) {
         <Separator label="ou, sem senha" />
 
         <div className="grid gap-2">
-          <IntentSubmitButton intent="magic" variant="outline" fullWidth pendingText="Enviando link…">
+          <IntentSubmitButton
+            intent="magic"
+            variant="outline"
+            fullWidth
+            pendingText="Enviando link…"
+          >
             <Mail aria-hidden="true" />
             Receber link de acesso por e-mail
           </IntentSubmitButton>
-          <p className="text-center text-sm text-fg-subtle">Enviamos um link que vale por 1 hora para o e-mail acima.</p>
+          <p className="text-center text-sm text-fg-subtle">
+            Enviamos um link que vale por 1 hora para o e-mail acima.
+          </p>
         </div>
       </form>
 

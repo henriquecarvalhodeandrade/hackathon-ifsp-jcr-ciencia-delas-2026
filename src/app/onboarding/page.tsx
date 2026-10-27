@@ -31,7 +31,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: S
       <Container size="narrow" className="py-10">
         <h1 className="sr-only">Complete seu perfil</h1>
         <Alert variant="danger" title="Não encontramos o seu perfil">
-          Isso não deveria acontecer. Saia e entre de novo; se continuar, avise a equipe pela página Sobre.
+          Isso não deveria acontecer. Saia e entre de novo; se continuar, avise a equipe pela página
+          Sobre.
         </Alert>
       </Container>
     );
@@ -39,14 +40,17 @@ export default async function OnboardingPage({ searchParams }: { searchParams: S
 
   const [areas, areaIds] = await Promise.all([getResearchAreas(), getProfileAreaIds(profile.id)]);
   const values = profileToFormValues(profile, areaIds);
-  const initialStep = !values.full_name.trim() || !values.career_stage ? 1 : areaIds.length === 0 ? 2 : 3;
+  const initialStep =
+    !values.full_name.trim() || !values.career_stage ? 1 : areaIds.length === 0 ? 2 : 3;
   const firstName = values.full_name.trim().split(/\s+/)[0];
 
   return (
     <Container size="narrow" className="pb-16">
       <PageHeader
         eyebrow="Boas-vindas"
-        title={firstName ? `Bem-vinda à Ciência Delas, ${firstName}!` : "Bem-vinda à Ciência Delas!"}
+        title={
+          firstName ? `Bem-vinda à Ciência Delas, ${firstName}!` : "Bem-vinda à Ciência Delas!"
+        }
         description="Conte um pouco sobre você e sua pesquisa para encontrarmos mentoras e conexões. Leva uns 5 minutos — e dá para mudar tudo depois, no seu perfil."
       />
       <OnboardingWizard

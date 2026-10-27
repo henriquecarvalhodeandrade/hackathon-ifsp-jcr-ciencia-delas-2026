@@ -5,7 +5,10 @@ import { BR_STATES, CAREER_STAGE_OPTIONS } from "@/lib/constants";
 import type { ProfileFieldErrors, ProfileFormValues } from "@/lib/profile/form-values";
 import { PROFILE_LIMITS } from "@/lib/profile/schemas";
 
-const UF_OPTIONS = Object.entries(BR_STATES).map(([value, label]) => ({ value, label: `${value} — ${label}` }));
+const UF_OPTIONS = Object.entries(BR_STATES).map(([value, label]) => ({
+  value,
+  label: `${value} — ${label}`,
+}));
 
 export interface SectionFieldsProps {
   values: Partial<ProfileFormValues>;
@@ -32,10 +35,18 @@ export function AboutFields({ values, errors }: SectionFieldsProps) {
           hint="Uma linha sobre você. Ex.: Mestranda em ecologia · polinização"
           error={errors?.headline}
         >
-          <Input name="headline" maxLength={PROFILE_LIMITS.headline} defaultValue={values.headline} />
+          <Input
+            name="headline"
+            maxLength={PROFILE_LIMITS.headline}
+            defaultValue={values.headline}
+          />
         </Field>
         <Field label="Pronomes" optional hint="Ex.: ela/dela" error={errors?.pronouns}>
-          <Input name="pronouns" maxLength={PROFILE_LIMITS.pronouns} defaultValue={values.pronouns} />
+          <Input
+            name="pronouns"
+            maxLength={PROFILE_LIMITS.pronouns}
+            defaultValue={values.pronouns}
+          />
         </Field>
       </div>
 
@@ -53,7 +64,12 @@ export function AboutFields({ values, errors }: SectionFieldsProps) {
         />
       </Field>
 
-      <Field label="Instituição" optional hint="Onde você estuda ou trabalha." error={errors?.institution}>
+      <Field
+        label="Instituição"
+        optional
+        hint="Onde você estuda ou trabalha."
+        error={errors?.institution}
+      >
         <Input
           name="institution"
           autoComplete="organization"
@@ -64,10 +80,20 @@ export function AboutFields({ values, errors }: SectionFieldsProps) {
 
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_14rem]">
         <Field label="Cidade" optional error={errors?.city}>
-          <Input name="city" autoComplete="address-level2" maxLength={PROFILE_LIMITS.city} defaultValue={values.city} />
+          <Input
+            name="city"
+            autoComplete="address-level2"
+            maxLength={PROFILE_LIMITS.city}
+            defaultValue={values.city}
+          />
         </Field>
         <Field label="Estado" optional error={errors?.state}>
-          <Select name="state" placeholder="Selecione…" options={UF_OPTIONS} defaultValue={values.state ?? ""} />
+          <Select
+            name="state"
+            placeholder="Selecione…"
+            options={UF_OPTIONS}
+            defaultValue={values.state ?? ""}
+          />
         </Field>
       </div>
     </div>

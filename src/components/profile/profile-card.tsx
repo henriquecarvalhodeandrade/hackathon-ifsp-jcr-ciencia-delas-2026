@@ -32,12 +32,18 @@ export function ProfileCard({ profile, openSlots, isSelf = false }: ProfileCardP
         <Avatar name={profile.full_name} src={profile.avatar_url} seed={profile.id} size="lg" />
         <div className="grid min-w-0 flex-1 gap-1">
           <h3 className="font-display text-lg leading-snug font-semibold text-fg">
-            <CardLink href={`/pesquisadoras/${profile.id}`}>{profile.full_name || "Pesquisadora"}</CardLink>
+            <CardLink href={`/pesquisadoras/${profile.id}`}>
+              {profile.full_name || "Pesquisadora"}
+            </CardLink>
             {profile.pronouns && (
-              <span className="ml-2 align-middle text-xs font-medium text-fg-subtle">({profile.pronouns})</span>
+              <span className="ml-2 align-middle text-xs font-medium text-fg-subtle">
+                ({profile.pronouns})
+              </span>
             )}
           </h3>
-          {profile.headline && <p className="line-clamp-2 text-sm text-fg-muted">{profile.headline}</p>}
+          {profile.headline && (
+            <p className="line-clamp-2 text-sm text-fg-muted">{profile.headline}</p>
+          )}
         </div>
       </div>
 
@@ -59,8 +65,14 @@ export function ProfileCard({ profile, openSlots, isSelf = false }: ProfileCardP
       )}
 
       <div className="flex flex-wrap gap-1.5">
-        {profile.career_stage && <Badge variant="outline">{CAREER_STAGES[profile.career_stage].label}</Badge>}
-        <MentorStatus isMentor={profile.is_mentor} available={profile.mentor_available} openSlots={openSlots} />
+        {profile.career_stage && (
+          <Badge variant="outline">{CAREER_STAGES[profile.career_stage].label}</Badge>
+        )}
+        <MentorStatus
+          isMentor={profile.is_mentor}
+          available={profile.mentor_available}
+          openSlots={openSlots}
+        />
         {isSelf && <Badge variant="primary">Você</Badge>}
       </div>
 

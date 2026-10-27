@@ -15,8 +15,10 @@ import {
   Textarea,
 } from "@/components/ui";
 import { REPORT_REASONS } from "@/lib/constants";
+import { CONNECTION_ERROR_KEEP_TEXT, withConnectionFallback } from "@/lib/forum/client-action";
 import { createReport, type ReportState } from "@/lib/moderation/actions";
 import {
+  readReportForm,
   REPORT_DETAILS_MAX,
   REPORT_TARGET_LABELS,
   type ReportTarget,
@@ -111,7 +113,14 @@ function ReportForm({
   targetId: string;
   onClose: () => void;
 }) {
-  const [state, formAction] = useActionState<ReportState, FormData>(createReport, null);
+  const [state, formAction] = useActionState<ReportState, FormData>(
+    withConnectionFallback(createReport, (formData) => ({
+      ok: false,
+      error: CONNECTION_ERROR_KEEP_TEXT,
+      values: readReportForm(formData),
+    })),
+    null,
+  );
   const errors = state && !state.ok ? state.fieldErrors : undefined;
 
   if (state?.ok) {

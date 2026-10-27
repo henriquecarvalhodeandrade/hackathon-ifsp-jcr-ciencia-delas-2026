@@ -10,8 +10,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { groupAreas } from "@/lib/profile/areas";
-import { filtersToSearchParams, hasActiveFilters, parseDirectoryFilters } from "@/lib/profile/directory";
-import { getDirectoryPage, getMentorAvailability, getOwnOpenSlots, getResearchAreas } from "@/lib/profile/queries";
+import {
+  filtersToSearchParams,
+  hasActiveFilters,
+  parseDirectoryFilters,
+} from "@/lib/profile/directory";
+import {
+  getDirectoryPage,
+  getMentorAvailability,
+  getOwnOpenSlots,
+  getResearchAreas,
+} from "@/lib/profile/queries";
 import { formatNumber, pluralize } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -33,7 +42,9 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
   const ownSlots = me.is_mentor ? await getOwnOpenSlots(me.id, me.mentor_capacity) : null;
   const areaGroups = groupAreas(areas);
   const active = hasActiveFilters(filters);
-  const areaName = filters.area ? areas.find((area) => area.slug === filters.area)?.name : undefined;
+  const areaName = filters.area
+    ? areas.find((area) => area.slug === filters.area)?.name
+    : undefined;
   const firstPageQuery = new URLSearchParams(filtersToSearchParams(filters)).toString();
   const firstPageHref = firstPageQuery ? `/pesquisadoras?${firstPageQuery}` : "/pesquisadoras";
 
@@ -53,7 +64,12 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
           )
         }
       >
-        <DirectoryFilters key={JSON.stringify(filters)} filters={filters} areaGroups={areaGroups} hasActive={active} />
+        <DirectoryFilters
+          key={JSON.stringify(filters)}
+          filters={filters}
+          areaGroups={areaGroups}
+          hasActive={active}
+        />
       </PageHeader>
 
       <Section spacing="sm" aria-labelledby="resultados-titulo">
@@ -67,14 +83,16 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
           </h2>
           {!page.error && page.totalPages > 1 && (
             <p className="text-sm text-fg-subtle">
-              Página {formatNumber(Math.min(page.page, page.totalPages))} de {formatNumber(page.totalPages)}
+              Página {formatNumber(Math.min(page.page, page.totalPages))} de{" "}
+              {formatNumber(page.totalPages)}
             </p>
           )}
         </div>
 
         {page.error ? (
           <Alert variant="danger" title="Não conseguimos carregar o diretório agora">
-            Verifique sua conexão e recarregue a página. Se continuar, tente de novo em alguns minutos.
+            Verifique sua conexão e recarregue a página. Se continuar, tente de novo em alguns
+            minutos.
           </Alert>
         ) : page.outOfRange ? (
           <EmptyState
@@ -89,7 +107,9 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
             <EmptyState
               icon={<SearchX />}
               headingLevel="h3"
-              title={areaName ? `Ninguém em ${areaName} com esses filtros` : "Ninguém com esses filtros"}
+              title={
+                areaName ? `Ninguém em ${areaName} com esses filtros` : "Ninguém com esses filtros"
+              }
               description="Tente outra área, remova um filtro ou busque por parte do nome. A comunidade está crescendo!"
               action={<ButtonLink href="/pesquisadoras">Ver todas as pesquisadoras</ButtonLink>}
             />
@@ -109,7 +129,11 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
                 key={profile.id}
                 profile={profile}
                 isSelf={profile.id === me.id}
-                openSlots={profile.id === me.id ? ownSlots : (availability.get(profile.id)?.openSlots ?? null)}
+                openSlots={
+                  profile.id === me.id
+                    ? ownSlots
+                    : (availability.get(profile.id)?.openSlots ?? null)
+                }
               />
             ))}
           </ul>

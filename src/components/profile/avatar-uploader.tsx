@@ -44,7 +44,11 @@ export function AvatarUploader({ userId, name, avatarUrl }: AvatarUploaderProps)
     setStatus({ tone: "info", text: "Preparando e enviando sua foto…" });
     try {
       const prepared = await prepareAvatar(file);
-      const type = isAvatarMimeType(prepared.type) ? prepared.type : isAvatarMimeType(file.type) ? file.type : null;
+      const type = isAvatarMimeType(prepared.type)
+        ? prepared.type
+        : isAvatarMimeType(file.type)
+          ? file.type
+          : null;
       if (!type) {
         setStatus({ tone: "error", text: "Use uma imagem PNG, JPG ou WebP." });
         return;
@@ -60,7 +64,10 @@ export function AvatarUploader({ userId, name, avatarUrl }: AvatarUploaderProps)
         .from(AVATAR_BUCKET)
         .upload(path, prepared, { contentType: type, cacheControl: "31536000", upsert: false });
       if (uploadError) {
-        setStatus({ tone: "error", text: "Não conseguimos enviar a foto. Verifique sua conexão e tente de novo." });
+        setStatus({
+          tone: "error",
+          text: "Não conseguimos enviar a foto. Verifique sua conexão e tente de novo.",
+        });
         return;
       }
 
@@ -74,7 +81,10 @@ export function AvatarUploader({ userId, name, avatarUrl }: AvatarUploaderProps)
       setPreview(result.avatarUrl);
       setStatus({ tone: "success", text: result.message });
     } catch {
-      setStatus({ tone: "error", text: "Algo deu errado ao enviar a foto. Tente de novo em instantes." });
+      setStatus({
+        tone: "error",
+        text: "Algo deu errado ao enviar a foto. Tente de novo em instantes.",
+      });
     } finally {
       setBusy(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -100,11 +110,17 @@ export function AvatarUploader({ userId, name, avatarUrl }: AvatarUploaderProps)
 
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-      <Avatar name={name} src={preview} seed={userId} size="2xl" alt={preview ? `Sua foto de perfil` : undefined} />
+      <Avatar
+        name={name}
+        src={preview}
+        seed={userId}
+        size="2xl"
+        alt={preview ? `Sua foto de perfil` : undefined}
+      />
       <div className="grid flex-1 gap-3">
         <p id={hintId} className="text-sm text-fg-muted">
-          PNG, JPG ou WebP. Recortamos um quadrado central de até 512 px e removemos os dados escondidos da foto (como
-          a localização).
+          PNG, JPG ou WebP. Recortamos um quadrado central de até 512 px e removemos os dados
+          escondidos da foto (como a localização).
         </p>
         <div className="flex flex-wrap gap-2">
           <label htmlFor={inputId} className="sr-only">

@@ -5,22 +5,44 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { refreshMyEmbedding } from "@/lib/matching/service";
-import { deleteCurrentUserAccount, removeAvatarForCurrentUser, setAvatarForCurrentUser } from "@/lib/profile/account";
+import {
+  deleteCurrentUserAccount,
+  removeAvatarForCurrentUser,
+  setAvatarForCurrentUser,
+} from "@/lib/profile/account";
 import { isProfileSection } from "@/lib/profile/form-values";
 import { saveSectionForCurrentUser, sectionSavedMessage } from "@/lib/profile/save";
-import type { AvatarActionResult, DeleteAccountState, ProfileActionState } from "@/lib/profile/types";
+import type {
+  AvatarActionResult,
+  DeleteAccountState,
+  ProfileActionState,
+} from "@/lib/profile/types";
 import { createClient } from "@/lib/supabase/server";
 
 /** Salva uma seção do /perfil (campo oculto `section`). */
-export async function saveProfileSectionAction(_prev: ProfileActionState, formData: FormData): Promise<ProfileActionState> {
+export async function saveProfileSectionAction(
+  _prev: ProfileActionState,
+  formData: FormData,
+): Promise<ProfileActionState> {
   const section = formData.get("section");
   if (!isProfileSection(section)) {
-    return { ok: false, section: "sobre", error: "Seção desconhecida. Recarregue a página, por favor.", values: {} };
+    return {
+      ok: false,
+      section: "sobre",
+      error: "Seção desconhecida. Recarregue a página, por favor.",
+      values: {},
+    };
   }
 
   const outcome = await saveSectionForCurrentUser(section, formData);
   if (!outcome.ok) {
-    return { ok: false, section, error: outcome.error, fieldErrors: outcome.fieldErrors, values: outcome.values };
+    return {
+      ok: false,
+      section,
+      error: outcome.error,
+      fieldErrors: outcome.fieldErrors,
+      values: outcome.values,
+    };
   }
 
   after(async () => {
@@ -51,7 +73,10 @@ export async function removeAvatarAction(): Promise<AvatarActionResult> {
 }
 
 /** Exclui a conta (exige digitar EXCLUIR), encerra a sessão e volta para /entrar. */
-export async function deleteAccountAction(_prev: DeleteAccountState, formData: FormData): Promise<DeleteAccountState> {
+export async function deleteAccountAction(
+  _prev: DeleteAccountState,
+  formData: FormData,
+): Promise<DeleteAccountState> {
   const outcome = await deleteCurrentUserAccount(formData.get("confirmation"));
   if (!outcome.ok) return { ok: false, error: outcome.error };
 

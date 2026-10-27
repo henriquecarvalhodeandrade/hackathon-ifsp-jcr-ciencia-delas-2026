@@ -1,8 +1,5 @@
-import type { Metadata } from "next";
 import { Compass } from "lucide-react";
 import { ButtonLink, Container, EmptyState } from "@/components/ui";
-
-export const metadata: Metadata = { title: "Categoria não encontrada" };
 
 /** Categoria inexistente (slug errado). */
 export default function CategoryNotFound() {

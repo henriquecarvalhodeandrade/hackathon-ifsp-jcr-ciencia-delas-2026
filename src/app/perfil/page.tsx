@@ -45,7 +45,13 @@ function SectionCard({
   aside?: React.ReactNode;
 }) {
   return (
-    <Card as="section" id={id} aria-labelledby={`${id}-titulo`} padding="lg" className="scroll-mt-24">
+    <Card
+      as="section"
+      id={id}
+      aria-labelledby={`${id}-titulo`}
+      padding="lg"
+      className="scroll-mt-24"
+    >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
           <h2 id={`${id}-titulo`} className="font-display text-xl font-semibold text-fg">
@@ -102,15 +108,27 @@ export default async function PerfilPage() {
         </nav>
 
         <div className="grid min-w-0 gap-6">
-          <SectionCard id="foto" title="Foto" description="Opcional. Sem foto, mostramos suas iniciais.">
-            <AvatarUploader userId={profile.id} name={profile.full_name} avatarUrl={profile.avatar_url} />
+          <SectionCard
+            id="foto"
+            title="Foto"
+            description="Opcional. Sem foto, mostramos suas iniciais."
+          >
+            <AvatarUploader
+              userId={profile.id}
+              name={profile.full_name}
+              avatarUrl={profile.avatar_url}
+            />
           </SectionCard>
 
           <SectionCard id="sobre" title="Sobre você">
             <ProfileSectionForm section="sobre" initialValues={values} />
           </SectionCard>
 
-          <SectionCard id="pesquisa" title="Sua pesquisa" description="Áreas, palavras-chave, apresentação e links.">
+          <SectionCard
+            id="pesquisa"
+            title="Sua pesquisa"
+            description="Áreas, palavras-chave, apresentação e links."
+          >
             <ProfileSectionForm section="pesquisa" initialValues={values} areaGroups={areaGroups} />
           </SectionCard>
 
@@ -144,7 +162,11 @@ export default async function PerfilPage() {
               )
             }
           >
-            <ProfileSectionForm section="privacidade" initialValues={values} submitLabel="Salvar preferência" />
+            <ProfileSectionForm
+              section="privacidade"
+              initialValues={values}
+              submitLabel="Salvar preferência"
+            />
           </SectionCard>
 
           <SectionCard id="conta" title="Conta e segurança">
@@ -156,7 +178,9 @@ export default async function PerfilPage() {
                 </div>
                 <div className="grid gap-0.5">
                   <dt className="text-sm text-fg-subtle">Na comunidade desde</dt>
-                  <dd className="font-semibold text-fg">{formatDate(profile.created_at, { dateStyle: "long" })}</dd>
+                  <dd className="font-semibold text-fg">
+                    {formatDate(profile.created_at, { dateStyle: "long" })}
+                  </dd>
                 </div>
               </dl>
               <div className="flex flex-wrap gap-3">
@@ -169,8 +193,8 @@ export default async function PerfilPage() {
               <div className="grid gap-3 rounded-card border border-danger/30 bg-danger-soft p-4 text-danger-soft-fg sm:p-5">
                 <h3 className="font-display text-lg font-semibold">Excluir minha conta</h3>
                 <p className="text-sm">
-                  Pela LGPD, você pode pedir a exclusão dos seus dados a qualquer momento. Tudo o que está ligado à
-                  sua conta é apagado — veja os detalhes na{" "}
+                  Pela LGPD, você pode pedir a exclusão dos seus dados a qualquer momento. Tudo o
+                  que está ligado à sua conta é apagado — veja os detalhes na{" "}
                   <Link href="/privacidade" className="font-semibold underline underline-offset-2">
                     política de privacidade
                   </Link>
@@ -182,8 +206,8 @@ export default async function PerfilPage() {
                   </div>
                 ) : (
                   <Alert variant="info" title="Exclusão feita pela equipe">
-                    Neste ambiente a exclusão automática está desligada. Escreva para a equipe pelos contatos da página
-                    de Privacidade e faremos a exclusão em até 15 dias.
+                    Neste ambiente a exclusão automática está desligada. Escreva para a equipe pelos
+                    contatos da página de Privacidade e faremos a exclusão em até 15 dias.
                   </Alert>
                 )}
               </div>

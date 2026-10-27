@@ -31,9 +31,13 @@ export function PrivacyFields({ values }: SectionFieldsProps) {
       </div>
 
       <p className="text-sm text-fg-muted">
-        Sem essa autorização, nenhum dado seu é enviado a serviços de IA. Você continua usando o fórum, a vitrine e o
-        diretório de pesquisadoras normalmente — e pode pedir mentoria diretamente a quem quiser. Saiba mais em{" "}
-        <Link href="/privacidade" className="font-semibold text-primary underline underline-offset-2">
+        Sem essa autorização, nenhum dado seu é enviado a serviços de IA. Você continua usando o
+        fórum, a vitrine e o diretório de pesquisadoras normalmente — e pode pedir mentoria
+        diretamente a quem quiser. Saiba mais em{" "}
+        <Link
+          href="/privacidade"
+          className="font-semibold text-primary underline underline-offset-2"
+        >
           Privacidade
         </Link>
         .

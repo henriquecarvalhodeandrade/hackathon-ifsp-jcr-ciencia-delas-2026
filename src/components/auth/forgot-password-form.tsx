@@ -11,7 +11,10 @@ import type { AuthActionState } from "@/lib/profile/types";
 
 /** Pede o link de redefinição de senha por e-mail. */
 export function ForgotPasswordForm() {
-  const [state, formAction] = useActionState<AuthActionState, FormData>(requestPasswordResetAction, null);
+  const [state, formAction] = useActionState<AuthActionState, FormData>(
+    requestPasswordResetAction,
+    null,
+  );
   const errors = state && !state.ok ? state.fieldErrors : undefined;
 
   return (
@@ -20,7 +23,13 @@ export function ForgotPasswordForm() {
         {state ? (state.ok ? state.message : state.error) : null}
       </FormMessage>
       <Field label="E-mail da sua conta" required error={errors?.email}>
-        <Input name="email" type="email" autoComplete="email" inputMode="email" defaultValue={state?.values.email} />
+        <Input
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          defaultValue={state?.values.email}
+        />
       </Field>
       <SubmitButton size="lg" fullWidth pendingText="Enviando…">
         <Send aria-hidden="true" />

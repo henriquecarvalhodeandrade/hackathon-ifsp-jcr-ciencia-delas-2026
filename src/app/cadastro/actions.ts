@@ -19,7 +19,10 @@ const DEFAULT_NEXT = "/onboarding";
  * mostra "confira seu e-mail"; se o Supabase devolver a sessão na hora (confirmação
  * desligada), segue direto para o onboarding.
  */
-export async function signUpAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+export async function signUpAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
   const values = {
     full_name: formText(formData, "full_name"),
     email: formText(formData, "email").trim(),
@@ -34,7 +37,13 @@ export async function signUpAction(_prev: AuthActionState, formData: FormData): 
     password: formText(formData, "password"),
     terms: formData.get("terms") ?? undefined,
   });
-  if (!parsed.success) return { ok: false, error: VALIDATION_ERROR, fieldErrors: authFieldErrors(parsed.error), values };
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: VALIDATION_ERROR,
+      fieldErrors: authFieldErrors(parsed.error),
+      values,
+    };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({

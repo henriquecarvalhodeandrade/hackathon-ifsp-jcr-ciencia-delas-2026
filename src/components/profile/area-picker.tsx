@@ -60,7 +60,10 @@ export function AreaPicker({
   const errorId = message ? `${id}-erro` : undefined;
 
   return (
-    <fieldset className="grid gap-3" aria-describedby={[hintId, statusId, errorId].filter(Boolean).join(" ")}>
+    <fieldset
+      className="grid gap-3"
+      aria-describedby={[hintId, statusId, errorId].filter(Boolean).join(" ")}
+    >
       <legend className="mb-1 text-sm font-semibold text-fg">
         {legend}
         <span aria-hidden="true" className="ml-0.5 text-danger">
@@ -73,7 +76,9 @@ export function AreaPicker({
 
       <div className="grid gap-2 rounded-control border border-dashed border-border-strong bg-surface-2 p-3">
         {selected.length === 0 ? (
-          <p className="text-sm text-fg-subtle">Nenhuma área escolhida ainda. Abra uma grande área abaixo.</p>
+          <p className="text-sm text-fg-subtle">
+            Nenhuma área escolhida ainda. Abra uma grande área abaixo.
+          </p>
         ) : (
           <ul aria-label="Áreas escolhidas" className="flex flex-wrap gap-2">
             {selected.map((value) => {
@@ -149,7 +154,10 @@ export function AreaPicker({
                   options={options}
                   value={groupSelected}
                   onValueChange={(next) =>
-                    setSelected((prev) => [...prev.filter((value) => !optionIds.has(value)), ...next])
+                    setSelected((prev) => [
+                      ...prev.filter((value) => !optionIds.has(value)),
+                      ...next,
+                    ])
                   }
                 />
               </div>

@@ -4,7 +4,12 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { Pencil, Save } from "lucide-react";
 import { Button, Field, FormMessage, SubmitButton } from "@/components/ui";
 import { updatePost, type PostEditState } from "@/lib/forum/actions";
-import { FORUM_LIMITS } from "@/lib/forum/schema";
+import {
+  CONNECTION_ERROR_KEEP_TEXT,
+  freshNonce,
+  withConnectionFallback,
+} from "@/lib/forum/client-action";
+import { FORUM_LIMITS, readFormString } from "@/lib/forum/schema";
 import { MarkdownEditor } from "./markdown-editor";
 
 export interface EditablePostProps {
@@ -87,7 +92,15 @@ function PostEditForm({
   body: string;
   onDone: () => void;
 }) {
-  const [state, formAction] = useActionState<PostEditState, FormData>(updatePost, null);
+  const [state, formAction] = useActionState<PostEditState, FormData>(
+    withConnectionFallback(updatePost, (formData) => ({
+      ok: false,
+      error: CONNECTION_ERROR_KEEP_TEXT,
+      values: { body: readFormString(formData, "body") },
+      nonce: freshNonce(),
+    })),
+    null,
+  );
   const formRef = useRef<HTMLFormElement>(null);
 
   // Fecha só depois do commit que traz o resultado — o mesmo que traz a página

@@ -36,7 +36,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);
   return {
-    title: category ? `${category.name} · Fórum` : "Categoria do fórum",
+    // O `metadata` de um not-found.tsx aninhado é ignorado pelo Next: o título do 404 vem daqui.
+    title: category ? `${category.name} · Fórum` : "Categoria não encontrada",
     description: category?.description || undefined,
     robots: { index: false },
   };

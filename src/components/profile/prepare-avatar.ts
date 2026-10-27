@@ -19,7 +19,17 @@ export async function prepareAvatar(file: File): Promise<Blob> {
     const context = canvas.getContext("2d");
     if (!context) return file;
     context.imageSmoothingQuality = "high";
-    context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
+    context.drawImage(
+      bitmap,
+      (bitmap.width - side) / 2,
+      (bitmap.height - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      size,
+      size,
+    );
     bitmap.close();
 
     const toBlob = (type: string, quality: number) =>

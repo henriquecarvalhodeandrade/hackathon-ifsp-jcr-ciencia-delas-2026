@@ -37,13 +37,33 @@ describe("buildSearchOrFilter", () => {
 describe("parseDirectoryFilters", () => {
   it("normaliza e valida os parâmetros", () => {
     expect(
-      parseDirectoryFilters({ q: " computação ", area: "Ecologia", stage: "phd", uf: "sp", mentoras: "1", pagina: "3" }),
-    ).toEqual({ q: "computação", area: "ecologia", stage: "phd", uf: "SP", mentoras: true, page: 3 });
+      parseDirectoryFilters({
+        q: " computação ",
+        area: "Ecologia",
+        stage: "phd",
+        uf: "sp",
+        mentoras: "1",
+        pagina: "3",
+      }),
+    ).toEqual({
+      q: "computação",
+      area: "ecologia",
+      stage: "phd",
+      uf: "SP",
+      mentoras: true,
+      page: 3,
+    });
   });
 
   it("descarta valores inválidos", () => {
     expect(
-      parseDirectoryFilters({ area: "drop table;", stage: "chefe", uf: "XX", mentoras: "talvez", pagina: "-2" }),
+      parseDirectoryFilters({
+        area: "drop table;",
+        stage: "chefe",
+        uf: "XX",
+        mentoras: "talvez",
+        pagina: "-2",
+      }),
     ).toEqual({ q: "", area: "", stage: "", uf: "", mentoras: false, page: 1 });
     expect(parseDirectoryFilters({ pagina: ["2", "5"] }).page).toBe(2);
     expect(parseDirectoryFilters({ pagina: "99999" }).page).toBe(1000);

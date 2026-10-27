@@ -28,20 +28,20 @@ Sumário
 
 ## 1. Rotas
 
-| Rota | Acesso | O que faz |
-| --- | --- | --- |
-| `/entrar` | pública (logada → `/forum`, pelo proxy) | E-mail + senha **ou** link mágico (mesmo formulário, dois botões). Google se habilitado. Respeita `?next=`. Mostra aviso após exclusão de conta (`?conta=excluida`). |
-| `/cadastro` | pública (logada → `/forum`) | Nome, e-mail, senha (≥ 8) e aceite do código de conduta + privacidade. Mostra "Confira seu e-mail". |
-| `/recuperar-senha` | pública | Envia o link de redefinição (resposta sempre neutra). |
-| `/redefinir-senha` | exige sessão (link de recuperação ou login) | Nova senha + confirmação. Sem sessão, explica que o link expirou e oferece um novo. |
-| `GET /auth/confirm` | pública | Destino dos links de e-mail (`token_hash` + `type`): `verifyOtp`, grava a sessão e redireciona. |
-| `GET /auth/callback` | pública | Retorno do OAuth/PKCE (`code`): `exchangeCodeForSession` e redireciona. |
-| `POST /auth/sair` | sessão | Encerra a sessão neste navegador e volta para `/` (303). GET → 405; POST de outra origem → 403. |
-| `/auth/erro` | pública | Explica o problema (`?motivo=link-expirado | link-invalido | outro-navegador | oauth | configuracao`). |
-| `/onboarding` | sessão (proxy) | Assistente de 4 etapas. Quem já concluiu vai para `?next` ou `/perfil`. |
-| `/perfil` | sessão + onboarding | Edição em cartões: foto, sobre você, pesquisa, mentoria, privacidade e IA, conta e segurança. |
-| `/pesquisadoras` | sessão + onboarding | Diretório com busca e filtros (`q`, `area`, `stage`, `uf`, `mentoras=1`, `pagina`), 24 por página. |
-| `/pesquisadoras/[id]` | sessão + onboarding | Perfil público para membros: apresentação, áreas, mentoria, papers, tópicos, links, denúncia. |
+| Rota                  | Acesso                                      | O que faz                                                                                                                                                            |
+| --------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/entrar`             | pública (logada → `/forum`, pelo proxy)     | E-mail + senha **ou** link mágico (mesmo formulário, dois botões). Google se habilitado. Respeita `?next=`. Mostra aviso após exclusão de conta (`?conta=excluida`). |
+| `/cadastro`           | pública (logada → `/forum`)                 | Nome, e-mail, senha (≥ 8) e aceite do código de conduta + privacidade. Mostra "Confira seu e-mail".                                                                  |
+| `/recuperar-senha`    | pública                                     | Envia o link de redefinição (resposta sempre neutra).                                                                                                                |
+| `/redefinir-senha`    | exige sessão (link de recuperação ou login) | Nova senha + confirmação. Sem sessão, explica que o link expirou e oferece um novo.                                                                                  |
+| `GET /auth/confirm`   | pública                                     | Destino dos links de e-mail (`token_hash` + `type`): `verifyOtp`, grava a sessão e redireciona.                                                                      |
+| `GET /auth/callback`  | pública                                     | Retorno do OAuth/PKCE (`code`): `exchangeCodeForSession` e redireciona.                                                                                              |
+| `POST /auth/sair`     | sessão                                      | Encerra a sessão neste navegador e volta para `/` (303). GET → 405; POST de outra origem → 403.                                                                      |
+| `/auth/erro`          | pública                                     | Explica o problema (`?motivo=link-expirado                                                                                                                           | link-invalido | outro-navegador | oauth | configuracao`). |
+| `/onboarding`         | sessão (proxy)                              | Assistente de 4 etapas. Quem já concluiu vai para `?next` ou `/perfil`.                                                                                              |
+| `/perfil`             | sessão + onboarding                         | Edição em cartões: foto, sobre você, pesquisa, mentoria, privacidade e IA, conta e segurança.                                                                        |
+| `/pesquisadoras`      | sessão + onboarding                         | Diretório com busca e filtros (`q`, `area`, `stage`, `uf`, `mentoras=1`, `pagina`), 24 por página.                                                                   |
+| `/pesquisadoras/[id]` | sessão + onboarding                         | Perfil público para membros: apresentação, áreas, mentoria, papers, tópicos, links, denúncia.                                                                        |
 
 "Sessão + onboarding" = `requireOnboardedProfile()` (`src/lib/auth.ts`): sem sessão vai para
 `/entrar?next=…`; sem onboarding vai para `/onboarding?next=…`. O proxy (`src/proxy.ts`) faz só a
@@ -92,14 +92,14 @@ curto (`cd_auth_next`, httpOnly, 1 hora). O `/auth/confirm` consome o cookie nos
 Aberto em outro navegador, vale o destino do e-mail.
 
 Todo `next` passa por `safeNextPath()` (`src/lib/profile/redirect.ts`): só caminhos internos
-(`/…`), nada de `//`, `\`, protocolos, espaços ou rotas de autenticação (evita *open redirect* e
+(`/…`), nada de `//`, `\`, protocolos, espaços ou rotas de autenticação (evita _open redirect_ e
 laços). Testado em `redirect.test.ts`.
 
 ### Google (opcional)
 
 O botão "Continuar com Google" só aparece com `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED=true`. A action
 chama `signInWithOAuth({ provider: "google", redirectTo: SITE/auth/callback?next=… })` (fluxo
-PKCE: o *code verifier* fica num cookie) e o `/auth/callback` troca o `code` pela sessão.
+PKCE: o _code verifier_ fica num cookie) e o `/auth/callback` troca o `code` pela sessão.
 Configuração na [seção 8](#google).
 
 ### Recuperação de senha
@@ -121,12 +121,12 @@ Assistente com estado no cliente (`OnboardingWizard`) e **uma Server Action por 
 (`saveOnboardingStepAction`): cada "Salvar e continuar" grava a etapa, então nada se perde se a
 pessoa sair no meio. Ao voltar, o assistente começa na primeira etapa incompleta.
 
-| Etapa | Campos | Regras (zod, iguais aos CHECKs do banco) |
-| --- | --- | --- |
-| 1. Sobre você | nome completo, pronomes, título curto, fase da carreira, instituição, cidade, estado (UF) | nome 3–120; fase obrigatória (`CAREER_STAGES`); UF da lista; limites 30/160/160/80 |
-| 2. Sua pesquisa | áreas (CNPq, agrupadas por grande área), palavras-chave, apresentação, Lattes, ORCID, LinkedIn, site | 1–5 áreas; até 15 palavras-chave (minúsculas, sem repetir, ≤ 60); bio ≤ 2.000; links normalizados (abaixo) |
-| 3. Mentoria | "Quero ser mentorada", "Quero ser mentora", objetivos, oferta + vagas, temas, formatos, idiomas | mentora: oferta ≥ 20 caracteres e vagas 1–20; participando: ≥ 1 tema (máx. 8), ≥ 1 formato, ≥ 1 idioma |
-| 4. Privacidade e IA | consentimento de IA (opcional) | texto exato de `docs/04-mentoria-com-ia.md` §6.4 (18+ e aviso do plano gratuito do Gemini) |
+| Etapa               | Campos                                                                                               | Regras (zod, iguais aos CHECKs do banco)                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 1. Sobre você       | nome completo, pronomes, título curto, fase da carreira, instituição, cidade, estado (UF)            | nome 3–120; fase obrigatória (`CAREER_STAGES`); UF da lista; limites 30/160/160/80                         |
+| 2. Sua pesquisa     | áreas (CNPq, agrupadas por grande área), palavras-chave, apresentação, Lattes, ORCID, LinkedIn, site | 1–5 áreas; até 15 palavras-chave (minúsculas, sem repetir, ≤ 60); bio ≤ 2.000; links normalizados (abaixo) |
+| 3. Mentoria         | "Quero ser mentorada", "Quero ser mentora", objetivos, oferta + vagas, temas, formatos, idiomas      | mentora: oferta ≥ 20 caracteres e vagas 1–20; participando: ≥ 1 tema (máx. 8), ≥ 1 formato, ≥ 1 idioma     |
+| 4. Privacidade e IA | consentimento de IA (opcional)                                                                       | texto exato de `docs/04-mentoria-com-ia.md` §6.4 (18+ e aviso do plano gratuito do Gemini)                 |
 
 Ao concluir: a action confere o mínimo (nome, fase e 1 área — senão volta para a etapa que falta),
 grava `onboarded_at`, agenda `refreshMyEmbedding()` com `after()` (não atrasa a resposta; sem
@@ -188,8 +188,9 @@ em `after()`.
 - Só perfis com `onboarded_at`; ordem alfabética; 24 por página (`Pagination`, `?pagina=`).
 - Cartão: foto, nome, pronomes, título, instituição, cidade/UF, fase, selo de mentora
   ("Mentora · 2 vagas", "Mentora · sem vagas agora", "Mentora · pausada"), até 3 áreas.
-- Estados: vazio com filtros ("Ninguém com esses filtros"), vazio total, erro de carregamento e
-  `loading.tsx` com a mesma grade.
+- Estados: vazio com filtros ("Ninguém com esses filtros"), vazio total, página além da última
+  (`?pagina=99` → "Esta página não tem resultados" + link para a primeira, mantendo os filtros),
+  erro de carregamento e `loading.tsx` com a mesma grade.
 
 **Vagas abertas:** a usuária não enxerga as mentorias das outras (RLS). As vagas vêm da RPC
 `get_mentor_candidates(p_limit: 100)` (SECURITY DEFINER, já calcula `open_slots`); as próprias
@@ -198,10 +199,14 @@ vagas são contadas direto (ela participa das próprias mentorias).
 ### `/pesquisadoras/[id]`
 
 - `generateMetadata` com o nome (dados memoizados com `React.cache`, sem consulta duplicada).
-- Id que não é UUID, perfil inexistente ou sem onboarding → `not-found.tsx` (com `noindex`).
+- Id que não é UUID, perfil inexistente ou sem onboarding → `not-found.tsx` (título "Perfil não
+  encontrado", com `noindex`).
 - CTA: **Pedir mentoria** → `/mentoria?mentora=<id>` (mentora disponível, com vaga, não é a
-  própria); "Acompanhar seu pedido" / "Ver nossa mentoria" quando já existe pedido; "Editar meu
-  perfil" na própria página.
+  própria). Se já existe pedido em aberto entre as duas (consulta direta a `mentorship_requests`,
+  nos dois sentidos — o RLS só mostra pedidos de que ela participa, e funciona mesmo com a mentora
+  sem vagas ou pausada): "Acompanhar seu pedido" (`?aba=enviadas`), "Responder ao pedido dela"
+  (a mentora vendo a mentoranda, `?aba=recebidas`) ou "Ver nossa mentoria" (aceito, `?aba=ativas`).
+  "Editar meu perfil" na própria página.
 - Seções: Sobre (bio, áreas como filtros do diretório, palavras-chave), Como posso ajudar
   (mentoras: oferta, temas, formatos, idiomas, capacidade), Papers na Vitrine (não ocultos),
   No fórum (só tópicos **não anônimos** — anônimos têm `author_id` nulo e nunca aparecem), Links
@@ -216,31 +221,32 @@ valores enviados** (o React 19 limpa o formulário depois de cada action) e conf
 servidor. Erros do Postgres com código `CD***` mostram a mensagem pt-BR do banco; os demais viram
 mensagens amigáveis (`src/lib/profile/errors.ts`).
 
-| Função | Arquivo | Faz |
-| --- | --- | --- |
-| `signInAction` | `src/app/entrar/actions.ts` | senha (`redirect(next)`) ou link mágico |
-| `signUpAction` | `src/app/cadastro/actions.ts` | cadastro (+ cookie de `next`) |
-| `resendConfirmationAction` | `src/components/auth/actions.ts` | reenvia a confirmação (resposta neutra) |
-| `signInWithGoogleAction` | `src/components/auth/actions.ts` | inicia o OAuth (só com a flag) |
-| `requestPasswordResetAction` | `src/app/recuperar-senha/actions.ts` | envia o link de redefinição |
-| `updatePasswordAction` | `src/app/redefinir-senha/actions.ts` | troca a senha (exige sessão) |
-| `saveOnboardingStepAction` | `src/app/onboarding/actions.ts` | grava a etapa; a última conclui e redireciona |
-| `saveProfileSectionAction` | `src/app/perfil/actions.ts` | grava um cartão do perfil |
-| `saveAvatarAction` / `removeAvatarAction` | `src/app/perfil/actions.ts` | foto de perfil |
-| `deleteAccountAction` | `src/app/perfil/actions.ts` | exclusão definitiva (exige "EXCLUIR") |
-| `GET /auth/confirm`, `GET /auth/callback`, `POST /auth/sair` | `src/app/auth/*/route.ts` | ver [seção 1](#1-rotas) |
+| Função                                                       | Arquivo                              | Faz                                           |
+| ------------------------------------------------------------ | ------------------------------------ | --------------------------------------------- |
+| `signInAction`                                               | `src/app/entrar/actions.ts`          | senha (`redirect(next)`) ou link mágico       |
+| `signUpAction`                                               | `src/app/cadastro/actions.ts`        | cadastro (+ cookie de `next`)                 |
+| `resendConfirmationAction`                                   | `src/components/auth/actions.ts`     | reenvia a confirmação (resposta neutra)       |
+| `signInWithGoogleAction`                                     | `src/components/auth/actions.ts`     | inicia o OAuth (só com a flag)                |
+| `requestPasswordResetAction`                                 | `src/app/recuperar-senha/actions.ts` | envia o link de redefinição                   |
+| `updatePasswordAction`                                       | `src/app/redefinir-senha/actions.ts` | troca a senha (exige sessão)                  |
+| `saveOnboardingStepAction`                                   | `src/app/onboarding/actions.ts`      | grava a etapa; a última conclui e redireciona |
+| `saveProfileSectionAction`                                   | `src/app/perfil/actions.ts`          | grava um cartão do perfil                     |
+| `saveAvatarAction` / `removeAvatarAction`                    | `src/app/perfil/actions.ts`          | foto de perfil                                |
+| `deleteAccountAction`                                        | `src/app/perfil/actions.ts`          | exclusão definitiva (exige "EXCLUIR")         |
+| `GET /auth/confirm`, `GET /auth/callback`, `POST /auth/sair` | `src/app/auth/*/route.ts`            | ver [seção 1](#1-rotas)                       |
 
 ## 7. Acesso a dados e segurança
 
-| Dado | Como é lido/escrito | Proteção |
-| --- | --- | --- |
-| `profiles` (própria) | `update()` com a sessão — **nunca `upsert()`** (o `id` não tem GRANT de UPDATE) | RLS "edita o próprio perfil" + GRANT por coluna (sem `role`) |
-| `profiles` (outras) | `select` com **colunas públicas explícitas** | RLS: só `authenticated` lê (visitantes não veem perfis) |
-| `profile_research_areas` | lê as atuais, apaga as que saíram, insere as novas | RLS: insert/delete só das próprias |
-| `research_areas` | leitura pública, memoizada por requisição | — |
-| Storage `avatars` | upload no navegador; limpeza no servidor com a sessão | políticas da pasta `<uid>/` |
-| Vagas de mentoras | `rpc("get_mentor_candidates")` | SECURITY DEFINER, só agregados |
-| Exclusão de conta | `createAdminClient().auth.admin.deleteUser(uid)` | único uso da chave secreta; uid vem da sessão |
+| Dado                                    | Como é lido/escrito                                                             | Proteção                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `profiles` (própria)                    | `update()` com a sessão — **nunca `upsert()`** (o `id` não tem GRANT de UPDATE) | RLS "edita o próprio perfil" + GRANT por coluna (sem `role`) |
+| `profiles` (outras)                     | `select` com **colunas públicas explícitas**                                    | RLS: só `authenticated` lê (visitantes não veem perfis)      |
+| `profile_research_areas`                | lê as atuais, apaga as que saíram, insere as novas                              | RLS: insert/delete só das próprias                           |
+| `research_areas`                        | leitura pública, memoizada por requisição                                       | —                                                            |
+| Storage `avatars`                       | upload no navegador; limpeza no servidor com a sessão                           | políticas da pasta `<uid>/`                                  |
+| Vagas de mentoras                       | `rpc("get_mentor_candidates")`                                                  | SECURITY DEFINER, só agregados                               |
+| Pedido em aberto com a pessoa do perfil | `select status, mentee_id` em `mentorship_requests`                             | RLS: só participantes                                        |
+| Exclusão de conta                       | `createAdminClient().auth.admin.deleteUser(uid)`                                | único uso da chave secreta; uid vem da sessão                |
 
 Outros cuidados: nenhum id de usuária vem do cliente; `next` sempre validado; respostas neutras
 em link mágico, reenvio e recuperação; `POST /auth/sair` recusa outras origens; links externos
@@ -250,36 +256,36 @@ do perfil com `rel="noopener noreferrer nofollow"`; o diretório e os perfis tê
 
 ### Variáveis
 
-| Variável | Para quê |
-| --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | base dos links de e-mail/OAuth (`emailRedirectTo`, `redirectTo`) |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente do Supabase |
-| `SUPABASE_SECRET_KEY` | **só** para a exclusão de conta pelo próprio app (opcional) |
-| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | `true` mostra o botão do Google |
+| Variável                                                           | Para quê                                                         |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                                             | base dos links de e-mail/OAuth (`emailRedirectTo`, `redirectTo`) |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente do Supabase                                              |
+| `SUPABASE_SECRET_KEY`                                              | **só** para a exclusão de conta pelo próprio app (opcional)      |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`                                  | `true` mostra o botão do Google                                  |
 
 ### Supabase (local e Cloud)
 
-- **URL Configuration:** *Site URL* = URL pública do app; *Redirect URLs* = `https://<app>/**`
+- **URL Configuration:** _Site URL_ = URL pública do app; _Redirect URLs_ = `https://<app>/**`
   (e `http://localhost:3000/**` para desenvolvimento). Os e-mails usam `{{ .SiteURL }}`.
 - **Modelos de e-mail:** os arquivos de `supabase/templates/` já apontam para
   `/auth/confirm?token_hash={{ .TokenHash }}&type=…&next=…`. No Cloud, copie cada um em
-  *Authentication → Email Templates* (ou `npx supabase config push`).
+  _Authentication → Email Templates_ (ou `npx supabase config push`).
 - **Confirmação de e-mail** ligada (padrão). **Senha mínima:** 8.
 - **Limite de e-mails:** o SMTP embutido do Supabase envia poucos e-mails por hora. Para uso real,
-  configure um SMTP próprio (*Authentication → SMTP*), por exemplo o do Resend.
+  configure um SMTP próprio (_Authentication → SMTP_), por exemplo o do Resend.
 - **Local:** os e-mails ficam no **Mailpit** (<http://127.0.0.1:54324>). As telas mostram esse
   aviso só em desenvolvimento com o Supabase local. O link do e-mail usa o `site_url` do
   `config.toml` (porta 3000); se o app estiver em outra porta, troque a porta no link.
 
 ### Google
 
-1. Google Cloud Console → *APIs e serviços → Credenciais → Criar ID do cliente OAuth* (tipo
-   "Aplicativo da Web"). Em *URIs de redirecionamento autorizados* coloque
+1. Google Cloud Console → _APIs e serviços → Credenciais → Criar ID do cliente OAuth_ (tipo
+   "Aplicativo da Web"). Em _URIs de redirecionamento autorizados_ coloque
    `https://<ref>.supabase.co/auth/v1/callback` (local: `http://127.0.0.1:54321/auth/v1/callback`).
-2. Supabase → *Authentication → Providers → Google*: cole Client ID e Secret e ative. Local: em
+2. Supabase → _Authentication → Providers → Google_: cole Client ID e Secret e ative. Local: em
    `supabase/config.toml`, `[auth.external.google] enabled = true` e as variáveis
    `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`.
-3. Confirme que `https://<app>/auth/callback` está nas *Redirect URLs* do Supabase.
+3. Confirme que `https://<app>/auth/callback` está nas _Redirect URLs_ do Supabase.
 4. Defina `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED=true` e reinicie o app.
 
 O perfil é criado pelo mesmo trigger (nome e foto vêm de `name`/`picture` do Google) e a pessoa

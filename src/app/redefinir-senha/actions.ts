@@ -9,14 +9,18 @@ import type { AuthActionState } from "@/lib/profile/types";
 import { createClient } from "@/lib/supabase/server";
 
 /** Troca a senha da usuária logada (sessão vinda do link de recuperação ou do login normal). */
-export async function updatePasswordAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+export async function updatePasswordAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
   if (!isSupabaseConfigured()) return { ok: false, error: NOT_CONFIGURED_ERROR, values: {} };
 
   const user = await getCurrentUser();
   if (!user) {
     return {
       ok: false,
-      error: "Seu link expirou ou a sessão terminou. Peça um novo link de redefinição para continuar.",
+      error:
+        "Seu link expirou ou a sessão terminou. Peça um novo link de redefinição para continuar.",
       values: {},
     };
   }
@@ -25,7 +29,13 @@ export async function updatePasswordAction(_prev: AuthActionState, formData: For
     password: formText(formData, "password"),
     password_confirm: formText(formData, "password_confirm"),
   });
-  if (!parsed.success) return { ok: false, error: VALIDATION_ERROR, fieldErrors: authFieldErrors(parsed.error), values: {} };
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: VALIDATION_ERROR,
+      fieldErrors: authFieldErrors(parsed.error),
+      values: {},
+    };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
@@ -39,5 +49,10 @@ export async function updatePasswordAction(_prev: AuthActionState, formData: For
     };
   }
 
-  return { ok: true, kind: "password_updated", message: "Senha atualizada. Use a nova senha no próximo acesso.", values: {} };
+  return {
+    ok: true,
+    kind: "password_updated",
+    message: "Senha atualizada. Use a nova senha no próximo acesso.",
+    values: {},
+  };
 }

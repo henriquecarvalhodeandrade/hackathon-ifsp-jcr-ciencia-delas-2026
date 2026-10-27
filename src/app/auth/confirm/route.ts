@@ -12,7 +12,14 @@ import { createClient } from "@/lib/supabase/server";
  * grava a sessão nos cookies e redireciona.
  */
 
-const OTP_TYPES: readonly EmailOtpType[] = ["signup", "invite", "magiclink", "recovery", "email_change", "email"];
+const OTP_TYPES: readonly EmailOtpType[] = [
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email",
+];
 
 /** Destino padrão por tipo de link (quando não há ?next válido). */
 const DEFAULT_NEXT: Record<EmailOtpType, string> = {

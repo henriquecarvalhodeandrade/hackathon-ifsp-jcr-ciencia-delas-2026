@@ -15,7 +15,12 @@ import {
   Switch,
 } from "@/components/ui";
 import { createThread, updateThread, type ThreadFormState } from "@/lib/forum/actions";
-import { FORUM_LIMITS, type ThreadFormValues } from "@/lib/forum/schema";
+import {
+  CONNECTION_ERROR_KEEP_TEXT,
+  freshNonce,
+  withConnectionFallback,
+} from "@/lib/forum/client-action";
+import { FORUM_LIMITS, readThreadForm, type ThreadFormValues } from "@/lib/forum/schema";
 import type { CategorySummary, ForumCategory } from "@/lib/forum/types";
 import { CategoryIcon } from "./category-icon";
 import { MarkdownEditor } from "./markdown-editor";
@@ -44,7 +49,12 @@ export type ThreadFormProps =
 /** Formulário de tópico (novo ou edição), com prévia de Markdown e anonimato quando permitido. */
 export function ThreadForm(props: ThreadFormProps) {
   const [state, formAction] = useActionState<ThreadFormState, FormData>(
-    props.mode === "create" ? createThread : updateThread,
+    withConnectionFallback(props.mode === "create" ? createThread : updateThread, (formData) => ({
+      ok: false,
+      error: CONNECTION_ERROR_KEEP_TEXT,
+      values: readThreadForm(formData),
+      nonce: freshNonce(),
+    })),
     null,
   );
   const formRef = useRef<HTMLFormElement>(null);

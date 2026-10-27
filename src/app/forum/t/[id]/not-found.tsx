@@ -1,8 +1,5 @@
-import type { Metadata } from "next";
 import { MessagesSquare } from "lucide-react";
 import { ButtonLink, Container, EmptyState } from "@/components/ui";
-
-export const metadata: Metadata = { title: "Tópico não encontrado" };
 
 /** Tópico inexistente, apagado ou link quebrado. */
 export default function ThreadNotFound() {

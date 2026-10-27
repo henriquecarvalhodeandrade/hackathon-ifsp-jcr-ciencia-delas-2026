@@ -49,7 +49,8 @@ export default async function EntrarPage({ searchParams }: { searchParams: Searc
     >
       {accountDeleted && (
         <Alert variant="success" title="Sua conta foi excluída">
-          Apagamos seu perfil e o que você publicou. Obrigada por ter feito parte — as portas continuam abertas.
+          Apagamos seu perfil e o que você publicou. Obrigada por ter feito parte — as portas
+          continuam abertas.
         </Alert>
       )}
       {isGoogleAuthEnabled() && (

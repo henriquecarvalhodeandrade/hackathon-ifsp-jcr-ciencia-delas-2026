@@ -4,7 +4,12 @@ import { useActionState, useEffect, useRef } from "react";
 import { Send } from "lucide-react";
 import { Field, FormMessage, SubmitButton, Switch } from "@/components/ui";
 import { createPost, type PostFormState } from "@/lib/forum/actions";
-import { FORUM_LIMITS } from "@/lib/forum/schema";
+import {
+  CONNECTION_ERROR_KEEP_TEXT,
+  freshNonce,
+  withConnectionFallback,
+} from "@/lib/forum/client-action";
+import { FORUM_LIMITS, readPostForm } from "@/lib/forum/schema";
 import { MarkdownEditor } from "./markdown-editor";
 
 export interface ReplyFormProps {
@@ -15,7 +20,15 @@ export interface ReplyFormProps {
 
 /** Formulário de resposta no fim do tópico. Após publicar, rola até a resposta nova. */
 export function ReplyForm({ threadId, allowAnonymous }: ReplyFormProps) {
-  const [state, formAction] = useActionState<PostFormState, FormData>(createPost, null);
+  const [state, formAction] = useActionState<PostFormState, FormData>(
+    withConnectionFallback(createPost, (formData) => ({
+      ok: false,
+      error: CONNECTION_ERROR_KEEP_TEXT,
+      values: readPostForm(formData),
+      nonce: freshNonce(),
+    })),
+    null,
+  );
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

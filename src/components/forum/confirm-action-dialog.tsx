@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button, Dialog, FormMessage, SubmitButton, type ButtonProps } from "@/components/ui";
 import type { SimpleActionState } from "@/lib/forum/actions";
+import { CONNECTION_ERROR, withConnectionFallback } from "@/lib/forum/client-action";
 
 type Action = (prev: SimpleActionState, formData: FormData) => Promise<SimpleActionState>;
 
@@ -84,11 +85,14 @@ function ConfirmForm({
   onClose: () => void;
 }) {
   const [state, formAction] = useActionState<SimpleActionState, FormData>(
-    async (prev, formData) => {
-      const result = await action(prev, formData);
-      if (result?.ok) onClose();
-      return result;
-    },
+    withConnectionFallback(
+      async (prev: SimpleActionState, formData: FormData) => {
+        const result = await action(prev, formData);
+        if (result?.ok) onClose();
+        return result;
+      },
+      () => ({ ok: false, error: CONNECTION_ERROR }),
+    ),
     null,
   );
 

@@ -22,8 +22,16 @@ export interface ProfileSectionFormProps {
 }
 
 /** Um cartão do /perfil: os mesmos campos do onboarding, com o próprio botão "Salvar". */
-export function ProfileSectionForm({ section, initialValues, areaGroups = [], submitLabel = "Salvar" }: ProfileSectionFormProps) {
-  const [state, formAction] = useActionState<ProfileActionState, FormData>(saveProfileSectionAction, null);
+export function ProfileSectionForm({
+  section,
+  initialValues,
+  areaGroups = [],
+  submitLabel = "Salvar",
+}: ProfileSectionFormProps) {
+  const [state, formAction] = useActionState<ProfileActionState, FormData>(
+    saveProfileSectionAction,
+    null,
+  );
   const [version, setVersion] = useState(0);
   const [seenState, setSeenState] = useState<ProfileActionState>(state);
   if (state !== seenState) {
@@ -31,7 +39,9 @@ export function ProfileSectionForm({ section, initialValues, areaGroups = [], su
     setVersion((v) => v + 1);
   }
 
-  const values: Partial<ProfileFormValues> = state ? { ...initialValues, ...state.values } : initialValues;
+  const values: Partial<ProfileFormValues> = state
+    ? { ...initialValues, ...state.values }
+    : initialValues;
   const errors = state && !state.ok ? state.fieldErrors : undefined;
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -45,8 +55,12 @@ export function ProfileSectionForm({ section, initialValues, areaGroups = [], su
       <input type="hidden" name="section" value={section} />
       <div key={version}>
         {section === "sobre" && <AboutFields values={values} errors={errors} />}
-        {section === "pesquisa" && <ResearchFields values={values} errors={errors} areaGroups={areaGroups} />}
-        {section === "mentoria" && <MentorshipFields values={values} errors={errors} showAvailability />}
+        {section === "pesquisa" && (
+          <ResearchFields values={values} errors={errors} areaGroups={areaGroups} />
+        )}
+        {section === "mentoria" && (
+          <MentorshipFields values={values} errors={errors} showAvailability />
+        )}
         {section === "privacidade" && <PrivacyFields values={values} errors={errors} />}
       </div>
       <div className="grid gap-3 border-t border-border pt-5 sm:flex sm:items-center sm:justify-between">

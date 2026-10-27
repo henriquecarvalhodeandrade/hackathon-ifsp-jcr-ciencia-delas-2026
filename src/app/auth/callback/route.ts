@@ -31,8 +31,13 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    console.warn(`[auth] exchangeCodeForSession falhou (${error.status ?? ""} ${error.code ?? ""})`);
-    const motivo = error.code === "bad_code_verifier" || error.code === "flow_state_not_found" ? "outro-navegador" : "link-expirado";
+    console.warn(
+      `[auth] exchangeCodeForSession falhou (${error.status ?? ""} ${error.code ?? ""})`,
+    );
+    const motivo =
+      error.code === "bad_code_verifier" || error.code === "flow_state_not_found"
+        ? "outro-navegador"
+        : "link-expirado";
     return redirectTo(request, `/auth/erro?motivo=${motivo}`);
   }
   return redirectTo(request, next);

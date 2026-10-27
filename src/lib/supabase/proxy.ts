@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { AUTH_ROUTES, PROTECTED_PREFIXES } from "@/lib/constants";
 import { env, isSupabaseConfigured } from "@/lib/env";
+import { safeNextPath } from "@/lib/profile/redirect";
 
 function matchesPrefix(pathname: string, prefixes: readonly string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -64,10 +65,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isLoggedIn && matchesPrefix(pathname, AUTH_ROUTES)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/forum";
-    url.search = "";
-    return withSessionCookies(NextResponse.redirect(url), supabaseResponse);
+    // Quem já está logada volta para o destino pedido (?next=), se for um caminho interno seguro.
+    const target = safeNextPath(request.nextUrl.searchParams.get("next"), "/forum");
+    return withSessionCookies(NextResponse.redirect(new URL(target, request.url)), supabaseResponse);
   }
 
   return supabaseResponse;

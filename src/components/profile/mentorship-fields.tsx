@@ -31,7 +31,11 @@ function topicsLegend(seeks: boolean, mentor: boolean): string {
  * continuam no formulário (com o texto já digitado), mas o servidor só os grava quando a
  * chave correspondente está ligada.
  */
-export function MentorshipFields({ values, errors, showAvailability = false }: MentorshipFieldsProps) {
+export function MentorshipFields({
+  values,
+  errors,
+  showAvailability = false,
+}: MentorshipFieldsProps) {
   const [seeks, setSeeks] = useState(Boolean(values.seeks_mentorship));
   const [mentor, setMentor] = useState(Boolean(values.is_mentor));
   const participates = seeks || mentor;
@@ -62,7 +66,8 @@ export function MentorshipFields({ values, errors, showAvailability = false }: M
       {!participates && (
         <p className="flex items-start gap-2 text-sm text-fg-muted">
           <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info" />
-          Tudo bem participar só do fórum e da vitrine. Você pode ativar a mentoria quando quiser, no seu perfil.
+          Tudo bem participar só do fórum e da vitrine. Você pode ativar a mentoria quando quiser,
+          no seu perfil.
         </p>
       )}
 

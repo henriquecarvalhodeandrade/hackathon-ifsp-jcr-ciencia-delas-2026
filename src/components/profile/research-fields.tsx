@@ -45,13 +45,20 @@ export function ResearchFields({ values, errors, areaGroups }: ResearchFieldsPro
         hint="Em poucas linhas: o que você pesquisa, o que te move, o que procura na comunidade."
         error={errors?.bio}
       >
-        <Textarea name="bio" maxLength={PROFILE_LIMITS.bio} showCount rows={5} defaultValue={values.bio} />
+        <Textarea
+          name="bio"
+          maxLength={PROFILE_LIMITS.bio}
+          showCount
+          rows={5}
+          defaultValue={values.bio}
+        />
       </Field>
 
       <fieldset className="grid gap-4">
         <legend className="mb-1 text-sm font-semibold text-fg">Links acadêmicos</legend>
         <p className="-mt-1 text-sm text-fg-muted">
-          Opcionais. Aparecem no seu perfil para outras pessoas da comunidade e nunca são enviados para a IA.
+          Opcionais. Aparecem no seu perfil para outras pessoas da comunidade e nunca são enviados
+          para a IA.
         </p>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Currículo Lattes" optional error={errors?.lattes_url}>

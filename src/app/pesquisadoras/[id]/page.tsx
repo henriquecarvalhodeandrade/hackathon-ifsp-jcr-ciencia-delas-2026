@@ -93,12 +93,15 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
     getMemberPapers(profile.id),
     getMemberThreads(profile.id),
     profile.is_mentor && !isSelf ? getMentorAvailability() : Promise.resolve(null),
-    profile.is_mentor && isSelf ? getOwnOpenSlots(profile.id, profile.mentor_capacity) : Promise.resolve(null),
+    profile.is_mentor && isSelf
+      ? getOwnOpenSlots(profile.id, profile.mentor_capacity)
+      : Promise.resolve(null),
     isSelf ? Promise.resolve(null) : getOpenRequestBetween(me.id, profile.id),
   ]);
   const mentorInfo = availability?.get(profile.id) ?? null;
   const openSlots = isSelf ? ownSlots : (mentorInfo?.openSlots ?? null);
-  const canRequest = profile.is_mentor && !isSelf && profile.mentor_available && (openSlots ?? 0) > 0;
+  const canRequest =
+    profile.is_mentor && !isSelf && profile.mentor_available && (openSlots ?? 0) > 0;
   const requestCta = openRequest
     ? openRequest.status === "accepted"
       ? { href: "/mentoria?aba=ativas", label: "Ver nossa mentoria" }
@@ -125,7 +128,9 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
         <Avatar name={profile.full_name} src={profile.avatar_url} seed={profile.id} size="2xl" />
         <div className="grid min-w-0 flex-1 gap-3">
           <div className="grid gap-1.5">
-            {profile.career_stage && <p className="eyebrow text-primary">{CAREER_STAGES[profile.career_stage].label}</p>}
+            {profile.career_stage && (
+              <p className="eyebrow text-primary">{CAREER_STAGES[profile.career_stage].label}</p>
+            )}
             <h1 className="font-display text-3xl leading-tight font-semibold tracking-[-0.025em] text-balance text-fg sm:text-4xl">
               {profile.full_name || "Pesquisadora"}
               {profile.pronouns && (
@@ -151,7 +156,8 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
             )}
             <li className="flex items-center gap-1.5">
               <CalendarDays aria-hidden="true" className="size-4 shrink-0" />
-              Na comunidade desde {formatDate(profile.created_at, { month: "long", year: "numeric" })}
+              Na comunidade desde{" "}
+              {formatDate(profile.created_at, { month: "long", year: "numeric" })}
             </li>
           </ul>
           <div className="flex flex-wrap gap-2">
@@ -201,7 +207,10 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                 {isSelf ? (
                   <>
                     Você ainda não escreveu uma apresentação.{" "}
-                    <Link href="/perfil#pesquisa" className="font-semibold text-primary underline underline-offset-2">
+                    <Link
+                      href="/perfil#pesquisa"
+                      className="font-semibold text-primary underline underline-offset-2"
+                    >
                       Escrever agora
                     </Link>
                   </>
@@ -242,7 +251,11 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
           </ProfileSection>
 
           {profile.is_mentor && (
-            <ProfileSection id="mentoria-titulo" title="Como posso ajudar" icon={<HeartHandshake />}>
+            <ProfileSection
+              id="mentoria-titulo"
+              title="Como posso ajudar"
+              icon={<HeartHandshake />}
+            >
               <div className="grid gap-5">
                 {profile.mentoring_offer ? (
                   <p className="whitespace-pre-line text-fg">{profile.mentoring_offer}</p>
@@ -269,7 +282,9 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                       <Video aria-hidden="true" className="size-4" /> Formatos
                     </dt>
                     <dd className="font-semibold text-fg">
-                      {profile.meeting_formats.map((format) => MEETING_FORMATS[format]).join(", ") || "—"}
+                      {profile.meeting_formats
+                        .map((format) => MEETING_FORMATS[format])
+                        .join(", ") || "—"}
                     </dd>
                   </div>
                   <div className="grid gap-1">
@@ -277,8 +292,9 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                       <Languages aria-hidden="true" className="size-4" /> Idiomas
                     </dt>
                     <dd className="font-semibold text-fg">
-                      {profile.languages.map((code) => LANGUAGES[code as keyof typeof LANGUAGES] ?? code).join(", ") ||
-                        "—"}
+                      {profile.languages
+                        .map((code) => LANGUAGES[code as keyof typeof LANGUAGES] ?? code)
+                        .join(", ") || "—"}
                     </dd>
                   </div>
                   <div className="grid gap-1">
@@ -324,7 +340,11 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                     ? "Divulgue um trabalho seu (ou de outra pesquisadora) na Vitrine Delas."
                     : "Quando ela divulgar trabalhos na Vitrine Delas, eles aparecem aqui."
                 }
-                action={isSelf ? <ButtonLink href="/papers/novo">Divulgar um paper</ButtonLink> : undefined}
+                action={
+                  isSelf ? (
+                    <ButtonLink href="/papers/novo">Divulgar um paper</ButtonLink>
+                  ) : undefined
+                }
               />
             ) : (
               <ul className="divide-y divide-border">
@@ -344,7 +364,9 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <MessageCircle aria-hidden="true" className="size-3.5" />
-                        <span className="tabular">{pluralize(paper.comment_count, "comentário")}</span>
+                        <span className="tabular">
+                          {pluralize(paper.comment_count, "comentário")}
+                        </span>
                       </span>
                     </p>
                   </li>
@@ -372,7 +394,9 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                     </Link>
                     <p className="flex flex-wrap gap-x-3 text-sm text-fg-subtle">
                       {thread.category && <span>{thread.category.name}</span>}
-                      <time dateTime={toIsoString(thread.created_at)}>{formatRelativeTime(thread.created_at)}</time>
+                      <time dateTime={toIsoString(thread.created_at)}>
+                        {formatRelativeTime(thread.created_at)}
+                      </time>
                       <span className="tabular">{pluralize(thread.reply_count, "resposta")}</span>
                     </p>
                   </li>
@@ -381,7 +405,8 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
             )}
             {threads.total > threads.items.length && (
               <p className="mt-3 text-sm text-fg-subtle">
-                Mostrando os {formatNumber(threads.items.length)} mais recentes de {formatNumber(threads.total)}.
+                Mostrando os {formatNumber(threads.items.length)} mais recentes de{" "}
+                {formatNumber(threads.total)}.
               </p>
             )}
           </ProfileSection>
@@ -404,7 +429,10 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                 {isSelf ? (
                   <>
                     Adicione Lattes, ORCID ou LinkedIn em{" "}
-                    <Link href="/perfil#pesquisa" className="font-semibold text-primary underline underline-offset-2">
+                    <Link
+                      href="/perfil#pesquisa"
+                      className="font-semibold text-primary underline underline-offset-2"
+                    >
                       Meu perfil
                     </Link>
                     .
@@ -422,7 +450,8 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                 Algo errado neste perfil?
               </h2>
               <p className="mt-1 mb-3 text-sm text-fg-muted">
-                Perfis falsos, assédio ou conteúdo ofensivo podem ser denunciados. A moderação analisa em sigilo.
+                Perfis falsos, assédio ou conteúdo ofensivo podem ser denunciados. A moderação
+                analisa em sigilo.
               </p>
               <ReportButton targetType="profile" targetId={profile.id} />
             </Card>

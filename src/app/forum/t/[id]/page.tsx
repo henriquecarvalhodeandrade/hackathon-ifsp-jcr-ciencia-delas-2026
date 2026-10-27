@@ -46,9 +46,13 @@ const idSchema = z.guid();
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
   const fallback: Metadata = { title: "Tópico do fórum", robots: { index: false } };
-  if (!idSchema.safeParse(id).success || !(await getCurrentUser())) return fallback;
+  // Sem sessão o título não é consultado (o fórum é só para membros).
+  if (!(await getCurrentUser())) return fallback;
+  // (O `metadata` de um not-found.tsx aninhado é ignorado pelo Next — o título do 404 vem daqui.)
+  const missing: Metadata = { title: "Tópico não encontrado", robots: { index: false } };
+  if (!idSchema.safeParse(id).success) return missing;
   const summary = await getThreadSummary(id);
-  if (!summary) return fallback;
+  if (!summary) return missing;
   return {
     title: summary.title,
     description: truncate(markdownToPlainText(summary.body), 160),

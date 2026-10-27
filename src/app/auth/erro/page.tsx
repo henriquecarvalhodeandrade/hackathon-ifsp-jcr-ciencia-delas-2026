@@ -33,12 +33,14 @@ const REASONS = {
   oauth: {
     icon: <ShieldAlert />,
     title: "Não foi possível entrar com o Google",
-    description: "O acesso foi cancelado ou recusado. Você pode tentar de novo ou entrar com seu e-mail.",
+    description:
+      "O acesso foi cancelado ou recusado. Você pode tentar de novo ou entrar com seu e-mail.",
   },
   configuracao: {
     icon: <Settings />,
     title: "A autenticação ainda não foi configurada",
-    description: "Este ambiente está sem as chaves do Supabase. Veja o guia em docs/07-setup-e-deploy.md.",
+    description:
+      "Este ambiente está sem as chaves do Supabase. Veja o guia em docs/07-setup-e-deploy.md.",
   },
 } as const;
 

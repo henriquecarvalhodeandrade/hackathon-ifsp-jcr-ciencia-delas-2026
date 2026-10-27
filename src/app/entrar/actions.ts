@@ -5,8 +5,17 @@ import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/env";
 import { authRedirectUrl } from "@/lib/profile/auth-config";
 import { rememberAuthNext } from "@/lib/profile/auth-next";
-import { authFieldErrors, formText, loginSchema, magicLinkSchema } from "@/lib/profile/auth-schemas";
-import { authErrorMessage, isEmailNotConfirmedError, isUnknownAccountError } from "@/lib/profile/errors";
+import {
+  authFieldErrors,
+  formText,
+  loginSchema,
+  magicLinkSchema,
+} from "@/lib/profile/auth-schemas";
+import {
+  authErrorMessage,
+  isEmailNotConfirmedError,
+  isUnknownAccountError,
+} from "@/lib/profile/errors";
 import { safeNextPath, withNext } from "@/lib/profile/redirect";
 import { NOT_CONFIGURED_ERROR, VALIDATION_ERROR } from "@/lib/profile/save";
 import type { AuthActionState } from "@/lib/profile/types";
@@ -19,7 +28,10 @@ const DEFAULT_NEXT = "/forum";
  *   intent=password → e-mail + senha (redireciona para ?next)
  *   intent=magic    → link mágico por e-mail (resposta neutra, sem revelar se a conta existe)
  */
-export async function signInAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+export async function signInAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
   const intent = formText(formData, "intent") === "magic" ? "magic" : "password";
   const values = { email: formText(formData, "email").trim() };
   const next = safeNextPath(formText(formData, "next"), DEFAULT_NEXT);
@@ -29,7 +41,13 @@ export async function signInAction(_prev: AuthActionState, formData: FormData): 
 
   if (intent === "magic") {
     const parsed = magicLinkSchema.safeParse(values);
-    if (!parsed.success) return { ok: false, error: VALIDATION_ERROR, fieldErrors: authFieldErrors(parsed.error), values };
+    if (!parsed.success)
+      return {
+        ok: false,
+        error: VALIDATION_ERROR,
+        fieldErrors: authFieldErrors(parsed.error),
+        values,
+      };
 
     const { error } = await supabase.auth.signInWithOtp({
       email: parsed.data.email,
@@ -53,7 +71,13 @@ export async function signInAction(_prev: AuthActionState, formData: FormData): 
   }
 
   const parsed = loginSchema.safeParse({ ...values, password: formText(formData, "password") });
-  if (!parsed.success) return { ok: false, error: VALIDATION_ERROR, fieldErrors: authFieldErrors(parsed.error), values };
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: VALIDATION_ERROR,
+      fieldErrors: authFieldErrors(parsed.error),
+      values,
+    };
 
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {

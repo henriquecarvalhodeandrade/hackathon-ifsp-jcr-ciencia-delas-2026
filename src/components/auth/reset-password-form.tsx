@@ -20,7 +20,12 @@ function PasswordUpdated({ message }: { message: string }) {
       <div className="flex items-start gap-4 rounded-card border border-success/30 bg-success-soft p-5 text-success-soft-fg">
         <CircleCheck aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-success" />
         <div className="grid gap-1">
-          <h2 id="senha-atualizada" ref={headingRef} tabIndex={-1} className="font-display text-xl font-semibold outline-none">
+          <h2
+            id="senha-atualizada"
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-xl font-semibold outline-none"
+          >
             Tudo certo!
           </h2>
           <p>{message}</p>

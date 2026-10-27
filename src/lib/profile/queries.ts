@@ -4,7 +4,13 @@ import type { Enums } from "@/lib/database.types";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { areaIdsForFilter, sortAreas, type ResearchArea } from "./areas";
-import { buildSearchOrFilter, DIRECTORY_PAGE_SIZE, isUuid, pageRange, type DirectoryFilters } from "./directory";
+import {
+  buildSearchOrFilter,
+  DIRECTORY_PAGE_SIZE,
+  isUuid,
+  pageRange,
+  type DirectoryFilters,
+} from "./directory";
 
 /**
  * Leituras de perfis para as páginas (sessão da usuária + RLS). Perfis de OUTRAS pessoas
@@ -18,7 +24,10 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 export const getResearchAreas = cache(async (): Promise<ResearchArea[]> => {
   if (!isSupabaseConfigured()) return [];
   const supabase = await createClient();
-  const { data, error } = await supabase.from("research_areas").select("id, slug, name, big_area").order("id");
+  const { data, error } = await supabase
+    .from("research_areas")
+    .select("id, slug, name, big_area")
+    .order("id");
   if (error) {
     console.warn(`[perfil] falha ao carregar áreas de pesquisa (${error.code})`);
     return [];
@@ -27,7 +36,10 @@ export const getResearchAreas = cache(async (): Promise<ResearchArea[]> => {
 });
 
 /** Áreas do próprio perfil (ids). */
-export async function getProfileAreaIds(profileId: string, client?: ServerClient): Promise<number[]> {
+export async function getProfileAreaIds(
+  profileId: string,
+  client?: ServerClient,
+): Promise<number[]> {
   const supabase = client ?? (await createClient());
   const { data, error } = await supabase
     .from("profile_research_areas")
@@ -73,13 +85,18 @@ export interface OpenRequestBetween {
  * Consulta direta (o RLS só mostra pedidos de que ela participa) — ao contrário da RPC de
  * candidatas, funciona também quando a mentora está sem vagas ou pausada.
  */
-export async function getOpenRequestBetween(myId: string, otherId: string): Promise<OpenRequestBetween | null> {
+export async function getOpenRequestBetween(
+  myId: string,
+  otherId: string,
+): Promise<OpenRequestBetween | null> {
   if (!isUuid(myId) || !isUuid(otherId) || myId === otherId) return null;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("mentorship_requests")
     .select("status, mentee_id")
-    .or(`and(mentee_id.eq.${myId},mentor_id.eq.${otherId}),and(mentee_id.eq.${otherId},mentor_id.eq.${myId})`)
+    .or(
+      `and(mentee_id.eq.${myId},mentor_id.eq.${otherId}),and(mentee_id.eq.${otherId},mentor_id.eq.${myId})`,
+    )
     .in("status", ["pending", "accepted"])
     .order("created_at", { ascending: false })
     .limit(1)
@@ -189,7 +206,14 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
     areas: sortAreas(row.research_areas ?? []),
   }));
   const totalPages = Math.ceil(total / DIRECTORY_PAGE_SIZE);
-  return { items, total, totalPages, page: filters.page, error: false, outOfRange: items.length === 0 && filters.page > 1 };
+  return {
+    items,
+    total,
+    totalPages,
+    page: filters.page,
+    error: false,
+    outOfRange: items.length === 0 && filters.page > 1,
+  };
 }
 
 export interface MemberProfile extends DirectoryProfile {
@@ -237,13 +261,19 @@ export interface MemberPaper {
 }
 
 /** Papers que a pesquisadora divulgou na Vitrine (não ocultos). */
-export async function getMemberPapers(profileId: string, limit = 6): Promise<{ items: MemberPaper[]; total: number }> {
+export async function getMemberPapers(
+  profileId: string,
+  limit = 6,
+): Promise<{ items: MemberPaper[]; total: number }> {
   const supabase = await createClient();
   const { data, count, error } = await supabase
     .from("papers")
-    .select("id, title, year, venue, vote_count, comment_count, created_at, area:research_areas(name)", {
-      count: "exact",
-    })
+    .select(
+      "id, title, year, venue, vote_count, comment_count, created_at, area:research_areas(name)",
+      {
+        count: "exact",
+      },
+    )
     .eq("submitted_by", profileId)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
@@ -261,11 +291,16 @@ export interface MemberThread {
 }
 
 /** Tópicos recentes NÃO anônimos (os anônimos têm author_id NULL e nunca aparecem aqui). */
-export async function getMemberThreads(profileId: string, limit = 5): Promise<{ items: MemberThread[]; total: number }> {
+export async function getMemberThreads(
+  profileId: string,
+  limit = 5,
+): Promise<{ items: MemberThread[]; total: number }> {
   const supabase = await createClient();
   const { data, count, error } = await supabase
     .from("forum_threads")
-    .select("id, title, reply_count, created_at, category:forum_categories(slug, name)", { count: "exact" })
+    .select("id, title, reply_count, created_at, category:forum_categories(slug, name)", {
+      count: "exact",
+    })
     .eq("author_id", profileId)
     .eq("is_anonymous", false)
     .order("created_at", { ascending: false })
