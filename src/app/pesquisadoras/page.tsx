@@ -34,6 +34,8 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
   const areaGroups = groupAreas(areas);
   const active = hasActiveFilters(filters);
   const areaName = filters.area ? areas.find((area) => area.slug === filters.area)?.name : undefined;
+  const firstPageQuery = new URLSearchParams(filtersToSearchParams(filters)).toString();
+  const firstPageHref = firstPageQuery ? `/pesquisadoras?${firstPageQuery}` : "/pesquisadoras";
 
   return (
     <Container className="pb-16">
@@ -57,7 +59,7 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
       <Section spacing="sm" aria-labelledby="resultados-titulo">
         <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="resultados-titulo" className="font-display text-xl font-semibold text-fg">
-            {page.error
+            {page.error || page.outOfRange
               ? "Resultados"
               : page.total === 0
                 ? "Nenhuma pesquisadora encontrada"
@@ -74,6 +76,14 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
           <Alert variant="danger" title="Não conseguimos carregar o diretório agora">
             Verifique sua conexão e recarregue a página. Se continuar, tente de novo em alguns minutos.
           </Alert>
+        ) : page.outOfRange ? (
+          <EmptyState
+            icon={<SearchX />}
+            headingLevel="h3"
+            title="Esta página não tem resultados"
+            description="A lista é mais curta do que isso. Volte para a primeira página — os filtros continuam valendo."
+            action={<ButtonLink href={firstPageHref}>Ir para a primeira página</ButtonLink>}
+          />
         ) : page.items.length === 0 ? (
           active ? (
             <EmptyState

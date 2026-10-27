@@ -79,7 +79,7 @@ export function AuthorName({
       {!author && isOwnAnonymous && (
         <Badge
           variant="primary"
-          title="Só você vê este selo: a autoria continua anônima para as outras membros."
+          title="Só você vê este selo: a autoria continua anônima para as outras integrantes."
         >
           você
         </Badge>

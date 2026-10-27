@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CheckCircle2, Lock, MessageSquare, Pin } from "lucide-react";
-import { Badge, ChipLink } from "@/components/ui";
+import { Badge, CardLink, ChipLink } from "@/components/ui";
 import type { ThreadListItem } from "@/lib/forum/types";
 import {
   cn,
@@ -69,12 +69,7 @@ function ThreadRow({
   const hasReplies = thread.replyCount > 0;
 
   return (
-    <li
-      className={cn(
-        "relative flex gap-3 px-4 py-4 transition-colors hover:bg-surface-2 sm:gap-4 sm:px-5",
-        "has-[[data-row-link]:focus-visible]:outline-2 has-[[data-row-link]:focus-visible]:-outline-offset-2 has-[[data-row-link]:focus-visible]:outline-focus",
-      )}
-    >
+    <li className="relative flex gap-3 px-4 py-4 transition-colors hover:bg-surface-2 sm:gap-4 sm:px-5">
       <ForumAvatar author={thread.author} className="mt-0.5" />
 
       <div className="grid min-w-0 flex-1 gap-1.5">
@@ -102,13 +97,12 @@ function ThreadRow({
         )}
 
         <Heading className="font-display text-base leading-snug font-semibold text-pretty text-fg sm:text-[1.0625rem]">
-          <Link
+          <CardLink
             href={`/forum/t/${thread.id}`}
-            data-row-link=""
-            className="transition-colors after:absolute after:inset-0 after:content-[''] hover:text-primary focus-visible:outline-none"
+            className="transition-colors after:rounded-none hover:text-primary"
           >
             {thread.title}
-          </Link>
+          </CardLink>
         </Heading>
 
         {showExcerpt && thread.excerpt && (

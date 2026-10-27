@@ -300,7 +300,7 @@ export default async function ThreadPage({ params }: { params: Params }) {
             <>
               {thread.isLocked && (
                 <Alert variant="info" icon={<ShieldCheck />} title="Tópico trancado">
-                  As membros não podem responder. Como moderadora, você ainda pode publicar um
+                  As integrantes não podem responder. Como moderadora, você ainda pode publicar um
                   aviso.
                 </Alert>
               )}

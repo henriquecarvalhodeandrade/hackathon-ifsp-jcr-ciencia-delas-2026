@@ -150,7 +150,7 @@ src/app/forum/
   t/[id]/page.tsx, loading.tsx, not-found.tsx
   t/[id]/editar/page.tsx, loading.tsx
 src/components/forum/
-  category-icon.tsx      mapa estático kebab-case → lucide (shield-heart → ShieldPlus; padrão MessagesSquare)
+  category-icon.tsx      CategoryIcon do fórum (tamanho padrão) sobre o mapa do design system (CATEGORY_ICONS)
   category-grid.tsx      cartões de categoria (2 colunas compactas no celular)
   thread-list.tsx        linhas de tópico (link esticado, selos, tags, reações)
   author.tsx             ForumAvatar (escudo neutro p/ anônimas) e AuthorName (+ selo "você")
@@ -225,9 +225,11 @@ As denúncias são tratadas no painel `/admin` (moderação).
 
 - Um `h1` por página; tópico → `h2` "N respostas" → `h3` por resposta (títulos em Markdown são
   rebaixados: `#` vira `h2` no tópico e `h4` nas respostas).
-- Linhas de tópico usam link "esticado" com **foco visível na linha inteira**
-  (`has-[[data-row-link]:focus-visible]:outline`); links internos (autora, categoria, tags) ficam
-  acima (`relative z-10`).
+- Linhas de tópico usam o `CardLink` do design system (link "esticado" com `after:rounded-none`
+  e **anel de foco na linha inteira**); links internos (autora, categoria, tags) ficam acima
+  (`relative z-10`).
+- Cada resposta tem a âncora `#post-<id>` — o mesmo formato dos links das notificações (triggers
+  do banco) e do `/admin`, então "Nova resposta no seu tópico" rola direto até a resposta.
 - Reações: `role="group"` com nome ("Reagir ao tópico de …"), botões com `aria-pressed`, contagem
   também para leitor de tela; erro anunciado em `aria-live`.
 - Formulários: rótulos visíveis (`Field`), erros ligados por `aria-describedby`, `FormMessage`

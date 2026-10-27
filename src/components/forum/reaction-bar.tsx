@@ -2,13 +2,16 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { buttonVariants } from "@/components/ui";
-import { toggleReaction } from "@/lib/forum/actions";
+import { toggleReaction, type ReactionResult } from "@/lib/forum/actions";
 import type { ReactionKindValue } from "@/lib/forum/schema";
 import type { ReactionState } from "@/lib/forum/types";
 import { cn, formatNumber, pluralize } from "@/lib/utils";
 import { REACTIONS } from "./reaction-icons";
 
 type Toggle = { kind: ReactionKindValue; active: boolean };
+
+const NETWORK_ERROR =
+  "Não conseguimos registrar a reação. Confira sua conexão e tente de novo.";
 
 function applyToggle(state: ReactionState, { kind, active }: Toggle): ReactionState {
   const has = state.mine.includes(kind);
@@ -49,7 +52,11 @@ export function ReactionBar({
     setError(null);
     startTransition(async () => {
       setOptimistic({ kind, active });
-      const result = await toggleReaction({ threadId, postId: postId ?? null, kind, active });
+      // Falha de rede rejeita a promessa: sem o catch, o erro iria para o error boundary e
+      // derrubaria a página inteira por causa de uma reação.
+      const result = await toggleReaction({ threadId, postId: postId ?? null, kind, active }).catch(
+        (): ReactionResult => ({ ok: false, error: NETWORK_ERROR }),
+      );
       if (!result.ok) setError(result.error);
     });
   }

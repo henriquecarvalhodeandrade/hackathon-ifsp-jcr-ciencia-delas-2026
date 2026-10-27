@@ -127,11 +127,13 @@ export interface DirectoryPage {
   totalPages: number;
   page: number;
   error: boolean;
+  /** A página pedida fica além da última (ex.: ?pagina=99). */
+  outOfRange: boolean;
 }
 
 /** Página do diretório de pesquisadoras (só perfis com onboarding concluído). */
 export async function getDirectoryPage(filters: DirectoryFilters): Promise<DirectoryPage> {
-  const empty = { items: [], total: 0, totalPages: 0, page: filters.page };
+  const empty = { items: [], total: 0, totalPages: 0, page: filters.page, outOfRange: false };
   if (!isSupabaseConfigured()) return { ...empty, error: true };
 
   const supabase = await createClient();
@@ -166,7 +168,7 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
 
   if (error) {
     // Página além do fim (PGRST103) não é erro para a usuária: só não há resultados.
-    if (error.code === "PGRST103") return { ...empty, error: false };
+    if (error.code === "PGRST103") return { ...empty, error: false, outOfRange: true };
     console.warn(`[perfil] falha ao listar pesquisadoras (${error.code})`);
     return { ...empty, error: true };
   }
@@ -186,7 +188,8 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
     mentor_available: row.mentor_available,
     areas: sortAreas(row.research_areas ?? []),
   }));
-  return { items, total, totalPages: Math.ceil(total / DIRECTORY_PAGE_SIZE), page: filters.page, error: false };
+  const totalPages = Math.ceil(total / DIRECTORY_PAGE_SIZE);
+  return { items, total, totalPages, page: filters.page, error: false, outOfRange: items.length === 0 && filters.page > 1 };
 }
 
 export interface MemberProfile extends DirectoryProfile {

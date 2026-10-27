@@ -49,7 +49,8 @@ type Params = Promise<{ id: string }>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
   const profile = await getMemberProfile(id);
-  return { title: profile?.full_name || "Pesquisadora", robots: { index: false } };
+  if (!profile) return { title: "Perfil não encontrado", robots: { index: false } };
+  return { title: profile.full_name || "Pesquisadora", robots: { index: false } };
 }
 
 function ProfileSection({

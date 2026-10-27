@@ -196,7 +196,7 @@ function ThreadFields({
             name="anonymous"
             defaultChecked={values.anonymous}
             label="Publicar anonimamente"
-            description="Seu nome e sua foto não aparecem para as outras membros. Você continua podendo editar e apagar o tópico."
+            description="Seu nome e sua foto não aparecem para as outras integrantes. Você continua podendo editar e apagar o tópico."
           />
           <p className="flex items-start gap-2 text-sm text-fg-muted">
             <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-secondary" />
