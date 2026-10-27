@@ -3,7 +3,12 @@
  * da disponibilidade atual das mentoras e dos pedidos em aberto da mentoranda. Puro e testável.
  */
 import type { MentorSuggestion } from "@/lib/matching/service";
-import { CAREER_STAGES, MENTORSHIP_TOPICS, type CareerStage, type MentorshipStatus } from "@/lib/constants";
+import {
+  CAREER_STAGES,
+  MENTORSHIP_TOPICS,
+  type CareerStage,
+  type MentorshipStatus,
+} from "@/lib/constants";
 import { suggestionSourceLabel, sharedItems } from "./presentation";
 
 export interface MatchCardData {
@@ -37,6 +42,29 @@ export interface CandidateAvailability {
   existing_request_status: string | null;
 }
 
+/** Mentoras disponíveis agora (RPC get_mentor_candidates, que tem limite de linhas). */
+export interface CandidatePool {
+  byMentor: ReadonlyMap<string, CandidateAvailability>;
+  /**
+   * false quando a RPC devolveu o máximo de linhas: a lista pode estar cortada, então ficar
+   * de fora dela NÃO quer dizer que a mentora está sem vagas.
+   */
+  complete: boolean;
+}
+
+export type CandidateLookup =
+  | { kind: "available"; candidate: CandidateAvailability }
+  | { kind: "unavailable" }
+  | { kind: "unknown" };
+
+/** Situação de uma mentora no conjunto de candidatas (null = a RPC falhou). */
+export function lookupCandidate(pool: CandidatePool | null, mentorId: string): CandidateLookup {
+  if (!pool) return { kind: "unknown" };
+  const candidate = pool.byMentor.get(mentorId);
+  if (candidate) return { kind: "available", candidate };
+  return pool.complete ? { kind: "unavailable" } : { kind: "unknown" };
+}
+
 export interface MatchCardContext {
   menteeAreaIds: readonly number[];
   menteeTopics: readonly string[];
@@ -44,7 +72,7 @@ export interface MatchCardContext {
   /** Modelo de IA gravado nas sugestões (para o selo). */
   model: string | null;
   /** Mentoras disponíveis agora (RPC get_mentor_candidates). null = não deu para conferir. */
-  candidates: ReadonlyMap<string, CandidateAvailability> | null;
+  candidates: CandidatePool | null;
   /** mentor_id → status do pedido em aberto (pending/accepted) da mentoranda. */
   openRequests: ReadonlyMap<string, MentorshipStatus>;
 }
@@ -64,9 +92,11 @@ function asOpenStatus(value: string | null | undefined): MatchCardData["requestS
 
 export function buildMatchCard(suggestion: MentorSuggestion, ctx: MatchCardContext): MatchCardData {
   const mentor = suggestion.mentor;
-  const candidate = ctx.candidates?.get(suggestion.mentorId) ?? null;
+  const lookup = lookupCandidate(ctx.candidates, suggestion.mentorId);
+  const candidate = lookup.kind === "available" ? lookup.candidate : null;
   const requestStatus =
-    asOpenStatus(ctx.openRequests.get(suggestion.mentorId)) ?? asOpenStatus(candidate?.existing_request_status);
+    asOpenStatus(ctx.openRequests.get(suggestion.mentorId)) ??
+    asOpenStatus(candidate?.existing_request_status);
 
   const sharedAreaIds = sharedItems(mentor.area_ids, ctx.menteeAreaIds);
   const sharedAreas = sharedAreaIds
@@ -78,7 +108,7 @@ export function buildMatchCard(suggestion: MentorSuggestion, ctx: MatchCardConte
     .map(topicLabel);
 
   const openSlots = candidate ? (candidate.open_slots ?? null) : null;
-  const knownUnavailable = ctx.candidates !== null && candidate === null;
+  const knownUnavailable = lookup.kind === "unavailable";
 
   let unavailableReason: string | null = null;
   if (requestStatus === "pending") unavailableReason = "Você já enviou um pedido para ela.";
@@ -131,7 +161,7 @@ export type DeepLinkState =
 export function resolveDeepLink(input: {
   mentor: DeepLinkMentorInfo | null;
   viewerId: string;
-  candidates: ReadonlyMap<string, CandidateAvailability> | null;
+  candidates: CandidatePool | null;
   openRequests: ReadonlyMap<string, MentorshipStatus>;
 }): DeepLinkState {
   const { mentor, viewerId, candidates, openRequests } = input;
@@ -141,16 +171,19 @@ export function resolveDeepLink(input: {
   const open = asOpenStatus(openRequests.get(mentor.id));
   if (open) return { kind: "open_request", status: open };
   if (!mentor.mentor_available) return { kind: "unavailable" };
-  if (candidates) {
-    const candidate = candidates.get(mentor.id);
-    if (!candidate) return { kind: "unavailable" };
-    const existing = asOpenStatus(candidate.existing_request_status);
+  const lookup = lookupCandidate(candidates, mentor.id);
+  if (lookup.kind === "unavailable") return { kind: "unavailable" };
+  if (lookup.kind === "available") {
+    const existing = asOpenStatus(lookup.candidate.existing_request_status);
     if (existing) return { kind: "open_request", status: existing };
-    return { kind: "ok", openSlots: candidate.open_slots ?? null };
+    return { kind: "ok", openSlots: lookup.candidate.open_slots ?? null };
   }
   return { kind: "ok", openSlots: null };
 }
 
-export function buildMatchCards(suggestions: readonly MentorSuggestion[], ctx: MatchCardContext): MatchCardData[] {
+export function buildMatchCards(
+  suggestions: readonly MentorSuggestion[],
+  ctx: MatchCardContext,
+): MatchCardData[] {
   return [...suggestions].sort((a, b) => a.rank - b.rank).map((s) => buildMatchCard(s, ctx));
 }

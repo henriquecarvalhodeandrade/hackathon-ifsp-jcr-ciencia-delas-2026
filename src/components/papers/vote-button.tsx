@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useEffect, useId, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { Tooltip } from "@/components/ui";
 import { toggleVote } from "@/lib/papers/actions";
-import { cn, formatNumber, pluralize } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 
 export type VoteViewer = "member" | "guest" | "owner";
 
@@ -19,8 +19,13 @@ export interface VoteButtonProps {
   loginHref?: string;
   /** vertical (coluna do cartão) ou horizontal (página do paper). */
   layout?: "vertical" | "horizontal";
-  /** Mostra o total de destaques ao lado do botão (padrão true). */
+  /** Mostra o total de destaques ao lado do botão (padrão true). Escondido, continua para leitores de tela. */
   showCount?: boolean;
+  /**
+   * De que lado da tela o botão fica: a dica e o aviso de erro se abrem para dentro
+   * ("start" = botão à esquerda, "end" = botão à direita), sem sair da tela no celular.
+   */
+  align?: "start" | "end";
   className?: string;
 }
 
@@ -31,9 +36,16 @@ const OWN_PAPER_HINT = "Você não pode destacar o próprio paper";
 const baseButton =
   "relative z-10 inline-flex items-center justify-center gap-2 rounded-control border font-semibold transition-[background-color,border-color,color] duration-150 ease-out-soft active:translate-y-px [&_svg]:size-5";
 
+/** Ancora a bolha do <Tooltip> (centralizada por padrão) na borda do botão. */
+const TOOLTIP_ALIGN = {
+  start: "[&>[role=tooltip]]:left-0 [&>[role=tooltip]]:translate-x-0",
+  end: "[&>[role=tooltip]]:right-0 [&>[role=tooltip]]:left-auto [&>[role=tooltip]]:translate-x-0",
+} as const;
+
 /**
  * Botão de destaque (voto) com atualização otimista. Visitantes veem um link para entrar;
- * quem enviou o paper vê o botão desabilitado com a explicação.
+ * quem enviou o paper vê o botão indisponível (focável) com a explicação.
+ * O nome acessível é FIXO ("Destacar “título”"): o estado vem do aria-pressed (docs/02 §13).
  */
 export function VoteButton({
   paperId,
@@ -44,8 +56,10 @@ export function VoteButton({
   loginHref = "/entrar",
   layout = "vertical",
   showCount = true,
+  align = "start",
   className,
 }: VoteButtonProps) {
+  const countId = `destaques-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [confirmed, setConfirmed] = useState<VoteState>({ voted, count });
   const [lastProps, setLastProps] = useState<VoteState>({ voted, count });
   const [error, setError] = useState<string | null>(null);
@@ -66,55 +80,73 @@ export function VoteButton({
   }, [error]);
 
   const vertical = layout === "vertical";
-  const countLabel = showCount ? (
-    <span aria-hidden="true" className={cn("tabular font-bold text-fg", vertical ? "text-sm" : "text-base")}>
+  const name = `Destacar “${paperTitle}”`;
+  const unit = optimistic.count === 1 ? "destaque" : "destaques";
+  const countLabel = (
+    <span
+      id={countId}
+      className={cn(
+        showCount ? "font-bold text-fg tabular" : "sr-only",
+        vertical ? "text-sm" : "text-base",
+      )}
+    >
       {formatNumber(optimistic.count)}
+      <span className="sr-only"> {unit} no total</span>
     </span>
-  ) : null;
-  const srCount = <span className="sr-only">{pluralize(optimistic.count, "destaque")} no total</span>;
+  );
+  const wrapper = cn(
+    "flex items-center gap-1",
+    vertical ? "flex-col" : "flex-row gap-3",
+    className,
+  );
+  const size = vertical ? "size-10" : "h-11 px-4 text-[0.9375rem]";
 
   if (viewer === "guest") {
     return (
-      <div className={cn("flex items-center gap-1", vertical ? "flex-col" : "flex-row gap-3", className)}>
+      <div className={wrapper}>
         <Link
           href={loginHref}
           aria-label={`Entre para destacar “${paperTitle}”`}
+          aria-describedby={countId}
           className={cn(
             baseButton,
             "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:bg-accent-soft hover:text-accent-strong",
-            vertical ? "size-10" : "h-11 px-4 text-[0.9375rem]",
+            size,
           )}
         >
           <Star aria-hidden="true" />
           {!vertical && <span>Entre para destacar</span>}
         </Link>
         {countLabel}
-        {srCount}
       </div>
     );
   }
 
   if (viewer === "owner") {
     return (
-      <div className={cn("flex items-center gap-1", vertical ? "flex-col" : "flex-row gap-3", className)}>
-        <Tooltip content={OWN_PAPER_HINT} side={vertical ? "bottom" : "top"}>
+      <div className={wrapper}>
+        <Tooltip
+          content={OWN_PAPER_HINT}
+          side={vertical ? "bottom" : "top"}
+          className={TOOLTIP_ALIGN[align]}
+        >
           <button
             type="button"
             aria-disabled="true"
-            aria-label={`Destacar “${paperTitle}” (indisponível: você enviou este paper)`}
+            aria-label={name}
+            aria-describedby={countId}
             onClick={(event) => event.preventDefault()}
             className={cn(
               baseButton,
               "cursor-not-allowed border-border bg-surface-2 text-fg-subtle",
-              vertical ? "size-10" : "h-11 px-4 text-[0.9375rem]",
+              size,
             )}
           >
             <Star aria-hidden="true" />
-            {!vertical && <span>Seu paper</span>}
+            {!vertical && <span>Destacar</span>}
           </button>
         </Tooltip>
         {countLabel}
-        {srCount}
       </div>
     );
   }
@@ -137,28 +169,26 @@ export function VoteButton({
 
   const active = optimistic.voted;
   return (
-    <div className={cn("relative flex items-center gap-1", vertical ? "flex-col" : "flex-row gap-3", className)}>
+    <div className={cn("relative", wrapper)}>
       <button
         type="button"
         onClick={handleClick}
         aria-pressed={active}
         aria-busy={isPending || undefined}
-        aria-label={
-          active ? `Remover destaque de “${paperTitle}” (você destacou este paper)` : `Destacar “${paperTitle}”`
-        }
+        aria-label={name}
+        aria-describedby={countId}
         className={cn(
           baseButton,
           active
             ? "border-accent-strong bg-accent-soft text-accent-strong hover:bg-accent-soft"
             : "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:bg-accent-soft hover:text-accent-strong",
-          vertical ? "size-10" : "h-11 px-4 text-[0.9375rem]",
+          size,
         )}
       >
         <Star aria-hidden="true" className={cn(active && "fill-accent")} />
-        {!vertical && <span>{active ? "Destacado" : "Destacar"}</span>}
+        {!vertical && <span>Destacar</span>}
       </button>
       {countLabel}
-      {srCount}
       <span aria-live="polite" className="sr-only">
         {error ?? ""}
       </span>
@@ -166,8 +196,8 @@ export function VoteButton({
         <p
           aria-hidden="true"
           className={cn(
-            "absolute z-20 w-56 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs font-medium text-danger-soft-fg shadow-overlay",
-            vertical ? "top-full left-0 mt-1" : "top-full left-0 mt-2",
+            "absolute top-full z-20 mt-1 w-56 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs font-medium text-danger-soft-fg shadow-overlay",
+            align === "end" ? "right-0" : "left-0",
           )}
         >
           {error}

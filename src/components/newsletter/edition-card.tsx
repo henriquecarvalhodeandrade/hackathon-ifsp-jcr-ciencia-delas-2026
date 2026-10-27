@@ -5,7 +5,13 @@ import { formatEditionPeriod } from "@/lib/newsletter/week";
 import { pluralize, truncate } from "@/lib/utils";
 
 /** Cartão de uma edição no arquivo público. O cartão inteiro leva à edição (CardLink). */
-export function EditionCard({ edition, headingLevel = "h3" }: { edition: EditionListItem; headingLevel?: "h2" | "h3" }) {
+export function EditionCard({
+  edition,
+  headingLevel = "h3",
+}: {
+  edition: EditionListItem;
+  headingLevel?: "h2" | "h3";
+}) {
   const Heading = headingLevel;
   const period = formatEditionPeriod(edition.period_start, edition.period_end);
   const counts = [
@@ -27,8 +33,12 @@ export function EditionCard({ edition, headingLevel = "h3" }: { edition: Edition
           {edition.title}
         </CardLink>
       </Heading>
-      {edition.summary && <p className="text-[0.9375rem] text-fg-muted">{truncate(edition.summary, 170)}</p>}
-      {counts.length > 0 && <p className="mt-auto pt-1 text-sm text-fg-subtle">{counts.join(" · ")}</p>}
+      {edition.summary && (
+        <p className="text-[0.9375rem] text-fg-muted">{truncate(edition.summary, 170)}</p>
+      )}
+      {counts.length > 0 && (
+        <p className="mt-auto pt-1 text-sm text-fg-subtle">{counts.join(" · ")}</p>
+      )}
     </Card>
   );
 }

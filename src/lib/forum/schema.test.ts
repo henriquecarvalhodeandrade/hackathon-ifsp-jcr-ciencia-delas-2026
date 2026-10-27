@@ -56,7 +56,11 @@ describe("readThreadForm + createThreadSchema", () => {
     expect(values.tags).toEqual(["carreira", "indústria"]);
     expect(values.anonymous).toBe(true);
     const parsed = createThreadSchema.parse(values);
-    expect(parsed).toMatchObject({ categoryId: 2, title: "Doutorado ou indústria?", anonymous: true });
+    expect(parsed).toMatchObject({
+      categoryId: 2,
+      title: "Doutorado ou indústria?",
+      anonymous: true,
+    });
   });
 
   it("devolve mensagens em pt-BR por campo", () => {
@@ -95,7 +99,10 @@ describe("readThreadForm + createThreadSchema", () => {
 
 describe("createPostSchema", () => {
   it("valida o corpo da resposta e o id do tópico", () => {
-    const ok = createPostSchema.safeParse({ threadId: THREAD_ID, ...readPostForm(form([["body", " Obrigada! "]])) });
+    const ok = createPostSchema.safeParse({
+      threadId: THREAD_ID,
+      ...readPostForm(form([["body", " Obrigada! "]])),
+    });
     expect(ok.success && ok.data.body).toBe("Obrigada!");
 
     const bad = createPostSchema.safeParse({ threadId: "nao-e-uuid", body: "a", anonymous: false });
@@ -108,13 +115,27 @@ describe("createPostSchema", () => {
 
 describe("reactionSchema", () => {
   it("aceita reação em tópico ou resposta e recusa campos extras", () => {
-    expect(reactionSchema.safeParse({ threadId: THREAD_ID, kind: "support", active: true }).success).toBe(true);
     expect(
-      reactionSchema.safeParse({ threadId: THREAD_ID, postId: POST_ID, kind: "useful", active: false }).success,
+      reactionSchema.safeParse({ threadId: THREAD_ID, kind: "support", active: true }).success,
     ).toBe(true);
-    expect(reactionSchema.safeParse({ threadId: THREAD_ID, kind: "like", active: true }).success).toBe(false);
     expect(
-      reactionSchema.safeParse({ threadId: THREAD_ID, kind: "support", active: true, userId: POST_ID }).success,
+      reactionSchema.safeParse({
+        threadId: THREAD_ID,
+        postId: POST_ID,
+        kind: "useful",
+        active: false,
+      }).success,
+    ).toBe(true);
+    expect(
+      reactionSchema.safeParse({ threadId: THREAD_ID, kind: "like", active: true }).success,
+    ).toBe(false);
+    expect(
+      reactionSchema.safeParse({
+        threadId: THREAD_ID,
+        kind: "support",
+        active: true,
+        userId: POST_ID,
+      }).success,
     ).toBe(false);
   });
 });

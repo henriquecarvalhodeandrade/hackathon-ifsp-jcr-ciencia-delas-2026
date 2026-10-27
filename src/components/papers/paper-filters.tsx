@@ -45,7 +45,10 @@ export function PaperFilters({
       )}
     >
       <input type="hidden" name="periodo" value={order} />
-      {hidden && Object.entries(hidden).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
+      {hidden &&
+        Object.entries(hidden).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       {withSearch ? (
         <Field label="Buscar pelo título">
           <Input
@@ -60,7 +63,14 @@ export function PaperFilters({
         </Field>
       ) : null}
       <Field label="Área">
-        <AreaSelect key={areaSlug ?? "todas"} areas={areas} mode="filter" name="area" defaultValue={areaSlug ?? ""} placeholder="Todas as áreas" />
+        <AreaSelect
+          key={areaSlug ?? "todas"}
+          areas={areas}
+          mode="filter"
+          name="area"
+          defaultValue={areaSlug ?? ""}
+          placeholder="Todas as áreas"
+        />
       </Field>
       <div className="flex gap-2">
         <Button type="submit" variant="secondary" className="h-11 flex-1 sm:flex-none">

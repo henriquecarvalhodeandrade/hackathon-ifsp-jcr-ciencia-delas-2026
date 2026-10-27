@@ -1,8 +1,29 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CheckCircle2, EyeOff, Lock, LockOpen, MessagesSquare, Pencil, Pin, PinOff, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  EyeOff,
+  Lock,
+  LockOpen,
+  MessagesSquare,
+  Pencil,
+  Pin,
+  PinOff,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { z } from "zod";
-import { Alert, Badge, ButtonLink, Card, ChipLink, Container, EmptyState, Markdown, PageHeader } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  ButtonLink,
+  Card,
+  ChipLink,
+  Container,
+  EmptyState,
+  Markdown,
+  PageHeader,
+} from "@/components/ui";
 import { ActionButton } from "@/components/forum/action-button";
 import { AuthorName, ForumAvatar } from "@/components/forum/author";
 import { Breadcrumbs } from "@/components/forum/breadcrumbs";
@@ -47,8 +68,12 @@ export default async function ThreadPage({ params }: { params: Params }) {
   const moderator = isModerator(profile);
   const canEdit = thread.isOwner;
   const canDelete = thread.isOwner || moderator;
-  const solution = thread.solutionPostId ? posts.find((p) => p.id === thread.solutionPostId) : undefined;
-  const threadTarget = thread.author ? `ao tópico de ${thread.author.full_name}` : "ao tópico anônimo";
+  const solution = thread.solutionPostId
+    ? posts.find((p) => p.id === thread.solutionPostId)
+    : undefined;
+  const threadTarget = thread.author
+    ? `ao tópico de ${thread.author.full_name}`
+    : "ao tópico anônimo";
 
   return (
     <Container size="narrow">
@@ -104,11 +129,19 @@ export default async function ThreadPage({ params }: { params: Params }) {
             <div className="flex items-center gap-3">
               <ForumAvatar author={thread.author} />
               <div className="grid min-w-0 gap-0.5 text-sm">
-                <AuthorName author={thread.author} isOwnAnonymous={thread.isAnonymous && thread.isOwner} />
+                <AuthorName
+                  author={thread.author}
+                  isOwnAnonymous={thread.isAnonymous && thread.isOwner}
+                />
                 <p className="text-fg-subtle">
-                  {thread.author?.headline && <span className="text-fg-muted">{thread.author.headline} · </span>}
+                  {thread.author?.headline && (
+                    <span className="text-fg-muted">{thread.author.headline} · </span>
+                  )}
                   publicado{" "}
-                  <time dateTime={toIsoString(thread.createdAt)} title={formatDateTime(thread.createdAt)}>
+                  <time
+                    dateTime={toIsoString(thread.createdAt)}
+                    title={formatDateTime(thread.createdAt)}
+                  >
                     {formatRelativeTime(thread.createdAt)}
                   </time>
                   {thread.editedAt && (
@@ -126,7 +159,10 @@ export default async function ThreadPage({ params }: { params: Params }) {
           <ul aria-label="Tags" className="mt-6 flex flex-wrap gap-1.5">
             {thread.tags.map((tag) => (
               <li key={tag}>
-                <ChipLink href={`/forum?tag=${encodeURIComponent(tag)}`} className="h-7 px-2.5 text-xs">
+                <ChipLink
+                  href={`/forum?tag=${encodeURIComponent(tag)}`}
+                  className="h-7 px-2.5 text-xs"
+                >
                   {tag}
                 </ChipLink>
               </li>
@@ -135,10 +171,19 @@ export default async function ThreadPage({ params }: { params: Params }) {
         )}
 
         <div className="mt-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-y border-border py-3">
-          <ReactionBar threadId={thread.id} reactions={thread.reactions} targetLabel={threadTarget} />
+          <ReactionBar
+            threadId={thread.id}
+            reactions={thread.reactions}
+            targetLabel={threadTarget}
+          />
           <div className="flex flex-wrap items-start gap-1">
             {canEdit && (
-              <ButtonLink href={`/forum/t/${thread.id}/editar`} variant="ghost" size="sm" className="text-fg-muted">
+              <ButtonLink
+                href={`/forum/t/${thread.id}/editar`}
+                variant="ghost"
+                size="sm"
+                className="text-fg-muted"
+              >
                 <Pencil aria-hidden="true" />
                 Editar
               </ButtonLink>
@@ -149,7 +194,9 @@ export default async function ThreadPage({ params }: { params: Params }) {
                 hiddenFields={{ threadId: thread.id }}
                 title="Excluir este tópico?"
                 description={`${
-                  posts.length > 0 ? `As ${pluralize(posts.length, "resposta")} também serão apagadas. ` : ""
+                  posts.length > 0
+                    ? `As ${pluralize(posts.length, "resposta")} também serão apagadas. `
+                    : ""
                 }Essa ação não pode ser desfeita.`}
                 confirmLabel="Sim, excluir tópico"
                 pendingLabel="Excluindo…"
@@ -167,7 +214,10 @@ export default async function ThreadPage({ params }: { params: Params }) {
             aria-labelledby="moderacao-titulo"
             className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-dashed border-border-strong bg-surface-2 px-4 py-3"
           >
-            <h2 id="moderacao-titulo" className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+            <h2
+              id="moderacao-titulo"
+              className="flex items-center gap-1.5 text-sm font-semibold text-fg"
+            >
               <ShieldCheck aria-hidden="true" className="size-4 text-secondary" />
               Moderação
             </h2>
@@ -197,13 +247,14 @@ export default async function ThreadPage({ params }: { params: Params }) {
             title="Esta dúvida foi resolvida"
             className="mt-6"
             actions={
-              <ButtonLink href={`#resposta-${solution.id}`} variant="outline" size="sm">
+              <ButtonLink href={`#post-${solution.id}`} variant="outline" size="sm">
                 Ver a resposta escolhida
               </ButtonLink>
             }
           >
             Quem abriu o tópico marcou a resposta{" "}
-            {solution.author ? `de ${solution.author.full_name}` : "de uma participante anônima"} como solução.
+            {solution.author ? `de ${solution.author.full_name}` : "de uma participante anônima"}{" "}
+            como solução.
           </Alert>
         )}
       </article>
@@ -242,14 +293,15 @@ export default async function ThreadPage({ params }: { params: Params }) {
         <div className="mt-5 grid gap-4">
           {thread.isLocked && !moderator ? (
             <Alert variant="warning" icon={<Lock />} title="Tópico trancado">
-              A moderação trancou este tópico e ele não aceita novas respostas. Se quiser continuar a conversa, abra um
-              tópico novo na mesma categoria.
+              A moderação trancou este tópico e ele não aceita novas respostas. Se quiser continuar
+              a conversa, abra um tópico novo na mesma categoria.
             </Alert>
           ) : (
             <>
               {thread.isLocked && (
                 <Alert variant="info" icon={<ShieldCheck />} title="Tópico trancado">
-                  As membros não podem responder. Como moderadora, você ainda pode publicar um aviso.
+                  As membros não podem responder. Como moderadora, você ainda pode publicar um
+                  aviso.
                 </Alert>
               )}
               <Card padding="md">

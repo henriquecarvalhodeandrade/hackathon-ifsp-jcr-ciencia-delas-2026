@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROFILE_VALUES, readSectionValues, profileToFormValues, AVAILABILITY_MARKER } from "./form-values";
+import {
+  AVAILABILITY_MARKER,
+  EMPTY_PROFILE_VALUES,
+  profileToFormValues,
+  readSectionValues,
+  updateToFormValues,
+} from "./form-values";
 import { missingOnboardingStep, parseProfileSection, uniqueTags } from "./schemas";
 
 function form(entries: Array<[string, string]>): FormData {
@@ -295,5 +301,32 @@ describe("missingOnboardingStep e uniqueTags", () => {
   it("remove repetidas sem diferenciar maiúsculas", () => {
     expect(uniqueTags(["R", "r ", "  Python", "python", ""])).toEqual(["r", "python"]);
     expect(uniqueTags(["Ana", "ana"], false)).toEqual(["Ana"]);
+  });
+});
+
+describe("updateToFormValues", () => {
+  it("devolve ao formulário os valores normalizados que foram gravados", () => {
+    const result = parseProfileSection("pesquisa", {
+      ...EMPTY_PROFILE_VALUES,
+      area_ids: ["7", "3"],
+      orcid: "orcid.org/0000000218250097",
+      lattes_url: "lattes.cnpq.br/1",
+      keywords: ["R", "r"],
+    });
+    if (!result.success) throw new Error("esperava sucesso");
+    expect(updateToFormValues(result.update, result.areaIds)).toMatchObject({
+      area_ids: ["7", "3"],
+      orcid: "0000-0002-1825-0097",
+      lattes_url: "https://lattes.cnpq.br/1",
+      keywords: ["r"],
+      bio: "",
+    });
+  });
+
+  it("converte números e ignora colunas que não são do formulário", () => {
+    expect(updateToFormValues({ mentor_capacity: 3, onboarded_at: "2026-10-27", is_mentor: true })).toEqual({
+      mentor_capacity: "3",
+      is_mentor: true,
+    });
   });
 });

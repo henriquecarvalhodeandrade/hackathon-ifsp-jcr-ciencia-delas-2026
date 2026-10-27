@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export function ForumSearch({
   action,
   defaultValue,
-  placeholder = "Buscar tópicos por título ou texto",
+  placeholder = "Buscar por título ou texto",
   className,
 }: {
   /** Caminho da listagem (ex.: "/forum" ou "/forum/c/carreira"). */
@@ -21,7 +21,12 @@ export function ForumSearch({
   className?: string;
 }) {
   return (
-    <Form action={action} role="search" aria-label="Buscar no fórum" className={cn("flex gap-2", className)}>
+    <Form
+      action={action}
+      role="search"
+      aria-label="Buscar no fórum"
+      className={cn("flex gap-2", className)}
+    >
       <div className="min-w-0 flex-1">
         <label htmlFor="busca-forum" className="sr-only">
           Buscar no fórum

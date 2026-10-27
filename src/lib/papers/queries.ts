@@ -53,7 +53,12 @@ export interface PaperComment {
   created_at: string;
   updated_at: string;
   author_id: string;
-  author: { id: string; full_name: string; avatar_url: string | null; headline: string | null } | null;
+  author: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+    headline: string | null;
+  } | null;
 }
 
 export interface PaperSubmitter {
@@ -98,7 +103,8 @@ export const getResearchAreas = cache(async (): Promise<AreaRow[]> => {
   return data ?? [];
 });
 
-export type ListResult<T> = { ok: true; items: T[]; total: number } | { ok: false; items: T[]; total: 0 };
+export type ListResult<T> =
+  { ok: true; items: T[]; total: number } | { ok: false; items: T[]; total: 0 };
 
 /**
  * Vitrine paginada. Períodos usam a RPC `get_paper_ranking`; "recent" e a busca (?q=, no
@@ -119,8 +125,21 @@ export async function listVitrine(options: {
   // Slug de área desconhecido: nenhum resultado (em vez de ignorar o filtro em silêncio).
   if (areaSlug && !areaIds) return { ok: true, items: [], total: 0 };
 
+  const countPapers = async () => {
+    let countQuery = supabase
+      .from("papers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_hidden", false);
+    if (q) countQuery = countQuery.ilike("title", `%${escapeLikePattern(q)}%`);
+    if (areaIds) countQuery = countQuery.in("area_id", areaIds);
+    return countQuery;
+  };
+
   if (q || order === "recent") {
-    let query = supabase.from("papers").select(LIST_COLUMNS, { count: "exact" }).eq("is_hidden", false);
+    let query = supabase
+      .from("papers")
+      .select(LIST_COLUMNS, { count: "exact" })
+      .eq("is_hidden", false);
     if (q) query = query.ilike("title", `%${escapeLikePattern(q)}%`);
     if (areaIds) query = query.in("area_id", areaIds);
     query =
@@ -128,6 +147,15 @@ export async function listVitrine(options: {
         ? query.order("created_at", { ascending: false })
         : query.order("vote_count", { ascending: false }).order("created_at", { ascending: false });
     const { data, error, count } = await query.order("id").range(from, from + PAPERS_PAGE_SIZE - 1);
+    if (error?.code === "PGRST103") {
+      // Página além do fim: o PostgREST responde 416 sem contagem — contamos à parte.
+      const counted = await countPapers();
+      return {
+        ok: !counted.error,
+        items: [],
+        total: counted.count ?? 0,
+      } as ListResult<PaperListItem>;
+    }
     if (error) {
       console.error("[papers] falha na lista da Vitrine", error.code, error.message);
       return { ok: false, items: [], total: 0 };
@@ -139,9 +167,6 @@ export async function listVitrine(options: {
     };
   }
 
-  let countQuery = supabase.from("papers").select("id", { count: "exact", head: true }).eq("is_hidden", false);
-  if (areaIds) countQuery = countQuery.in("area_id", areaIds);
-
   const [ranking, counted] = await Promise.all([
     supabase.rpc("get_paper_ranking", {
       p_period: order,
@@ -149,7 +174,7 @@ export async function listVitrine(options: {
       p_limit: PAPERS_PAGE_SIZE,
       p_offset: from,
     }),
-    countQuery,
+    countPapers(),
   ]);
   if (ranking.error || counted.error) {
     const error = ranking.error ?? counted.error;
@@ -218,7 +243,10 @@ export async function listRanking(options: {
 }
 
 /** Quais destes papers a usuária logada já destacou. */
-export async function getVotedPaperIds(userId: string | null, paperIds: string[]): Promise<Set<string>> {
+export async function getVotedPaperIds(
+  userId: string | null,
+  paperIds: string[],
+): Promise<Set<string>> {
   if (!userId || paperIds.length === 0) return new Set();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -236,7 +264,11 @@ export async function getVotedPaperIds(userId: string | null, paperIds: string[]
 /** Paper completo (visível pelo RLS: públicos; ocultos só para quem enviou e moderação). */
 export const getPaperDetail = cache(async (id: string): Promise<PaperDetail | null> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("papers").select(DETAIL_COLUMNS).eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("papers")
+    .select(DETAIL_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
   if (error) {
     console.error("[papers] falha ao carregar paper", error.code, error.message);
     throw new Error("Não foi possível carregar o paper.");
@@ -256,11 +288,15 @@ export async function getPaperSubmitter(profileId: string): Promise<PaperSubmitt
 }
 
 /** Só membros: comentários com a autora (colunas públicas do perfil). */
-export async function getPaperComments(paperId: string): Promise<{ ok: boolean; comments: PaperComment[] }> {
+export async function getPaperComments(
+  paperId: string,
+): Promise<{ ok: boolean; comments: PaperComment[] }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("paper_comments")
-    .select("id, body, created_at, updated_at, author_id, author:profiles(id, full_name, avatar_url, headline)")
+    .select(
+      "id, body, created_at, updated_at, author_id, author:profiles(id, full_name, avatar_url, headline)",
+    )
     .eq("paper_id", paperId)
     .order("created_at", { ascending: true })
     .limit(200);

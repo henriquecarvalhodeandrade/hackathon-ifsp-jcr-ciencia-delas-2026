@@ -13,13 +13,23 @@ import { personMeta } from "./person-summary";
  */
 export function MatchCard({ match }: { match: MatchCardData }) {
   const headingId = `sugestao-${match.mentorId}`;
-  const meta = personMeta({ career_stage: null, institution: match.institution, state: match.state });
+  const meta = personMeta({
+    career_stage: null,
+    institution: match.institution,
+    state: match.state,
+  });
 
   return (
     <Card as="article" aria-labelledby={headingId} className="flex flex-col gap-4 p-5 sm:p-6">
       <div className="flex items-start gap-3 sm:gap-4">
         {/* Avatar menor no celular: o medidor de afinidade divide a linha com o nome. */}
-        <Avatar name={match.name} src={match.avatarUrl} seed={match.mentorId} size="md" className="sm:hidden" />
+        <Avatar
+          name={match.name}
+          src={match.avatarUrl}
+          seed={match.mentorId}
+          size="md"
+          className="sm:hidden"
+        />
         <Avatar
           name={match.name}
           src={match.avatarUrl}
@@ -37,7 +47,9 @@ export function MatchCard({ match }: { match: MatchCardData }) {
             <Badge variant="primary">Mentora</Badge>
             {match.careerStage && <Badge variant="outline">{match.careerStage}</Badge>}
             {match.openSlots !== null && match.openSlots > 0 && (
-              <Badge variant="success">{pluralize(match.openSlots, "vaga aberta", "vagas abertas")}</Badge>
+              <Badge variant="success">
+                {pluralize(match.openSlots, "vaga aberta", "vagas abertas")}
+              </Badge>
             )}
           </div>
         </div>
@@ -56,12 +68,15 @@ export function MatchCard({ match }: { match: MatchCardData }) {
         <p>{match.reason}</p>
         {match.source === "ai" && (
           <p className="mt-2 text-xs text-fg-subtle">
-            Texto gerado por IA a partir das áreas e temas dos perfis. Revise antes de enviar o pedido.
+            Texto gerado por IA a partir das áreas e temas dos perfis. Revise antes de enviar o
+            pedido.
           </p>
         )}
       </div>
 
-      {(match.sharedAreas.length > 0 || match.sharedTopics.length > 0 || match.otherTopics.length > 0) && (
+      {(match.sharedAreas.length > 0 ||
+        match.sharedTopics.length > 0 ||
+        match.otherTopics.length > 0) && (
         <dl className="grid gap-2.5 text-sm">
           {(match.sharedAreas.length > 0 || match.sharedTopics.length > 0) && (
             <div className="grid gap-1.5">
@@ -153,9 +168,17 @@ function MatchAction({ match }: { match: MatchCardData }) {
           <HeartHandshake aria-hidden="true" />
           Pedir mentoria
         </Button>
-        {match.unavailableReason && <p className="text-sm text-fg-subtle">{match.unavailableReason}</p>}
+        {match.unavailableReason && (
+          <p className="text-sm text-fg-subtle">{match.unavailableReason}</p>
+        )}
       </div>
     );
   }
-  return <RequestMentorshipDialog mentorId={match.mentorId} mentorName={match.name} starters={match.starters} />;
+  return (
+    <RequestMentorshipDialog
+      mentorId={match.mentorId}
+      mentorName={match.name}
+      starters={match.starters}
+    />
+  );
 }

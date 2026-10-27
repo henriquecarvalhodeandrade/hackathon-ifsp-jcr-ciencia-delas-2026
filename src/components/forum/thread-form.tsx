@@ -3,14 +3,27 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { EyeOff, Save, Send, ShieldCheck } from "lucide-react";
-import { Badge, ButtonLink, Field, FormMessage, Input, KeywordInput, Select, SubmitButton, Switch } from "@/components/ui";
+import {
+  Badge,
+  ButtonLink,
+  Field,
+  FormMessage,
+  Input,
+  KeywordInput,
+  Select,
+  SubmitButton,
+  Switch,
+} from "@/components/ui";
 import { createThread, updateThread, type ThreadFormState } from "@/lib/forum/actions";
 import { FORUM_LIMITS, type ThreadFormValues } from "@/lib/forum/schema";
 import type { CategorySummary, ForumCategory } from "@/lib/forum/types";
 import { CategoryIcon } from "./category-icon";
 import { MarkdownEditor } from "./markdown-editor";
 
-type CategoryOption = Pick<ForumCategory, "id" | "slug" | "name" | "description" | "allow_anonymous">;
+type CategoryOption = Pick<
+  ForumCategory,
+  "id" | "slug" | "name" | "description" | "allow_anonymous"
+>;
 
 export type ThreadFormProps =
   | {
@@ -87,7 +100,8 @@ function ThreadFields({
   errors: NonNullable<ThreadFormState>["fieldErrors"];
 }) {
   const [categoryId, setCategoryId] = useState(values.categoryId);
-  const selected = props.mode === "create" ? props.categories.find((c) => String(c.id) === categoryId) : undefined;
+  const selected =
+    props.mode === "create" ? props.categories.find((c) => String(c.id) === categoryId) : undefined;
   const allowAnonymous = props.mode === "create" && Boolean(selected?.allow_anonymous);
 
   return (
@@ -99,9 +113,12 @@ function ThreadFields({
           hint={selected?.description || "Escolha o espaço que mais combina com o assunto."}
           error={errors?.categoryId}
         >
+          {/* Não controlado de propósito: o React 19 reseta o <form> depois da action e um
+              <select value> controlado voltaria para a 1ª opção. defaultValue marca a opção
+              como defaultSelected, que é o que o reset restaura. */}
           <Select
             name="categoryId"
-            value={categoryId}
+            defaultValue={values.categoryId}
             onChange={(event) => setCategoryId(event.currentTarget.value)}
             placeholder="Selecione uma categoria…"
             options={props.categories.map((c) => ({
@@ -123,7 +140,9 @@ function ThreadFields({
               </Badge>
             )}
           </p>
-          <p className="text-sm text-fg-subtle">A categoria e o anonimato não mudam depois da publicação.</p>
+          <p className="text-sm text-fg-subtle">
+            A categoria e o anonimato não mudam depois da publicação.
+          </p>
         </div>
       )}
 
@@ -133,7 +152,12 @@ function ThreadFields({
         hint="Uma pergunta ou frase curta que resuma o assunto."
         error={errors?.title}
       >
-        <Input name="title" defaultValue={values.title} maxLength={FORUM_LIMITS.titleMax} autoComplete="off" />
+        <Input
+          name="title"
+          defaultValue={values.title}
+          maxLength={FORUM_LIMITS.titleMax}
+          autoComplete="off"
+        />
       </Field>
 
       <Field
@@ -177,15 +201,20 @@ function ThreadFields({
           <p className="flex items-start gap-2 text-sm text-fg-muted">
             <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-secondary" />
             <span>
-              Por segurança, a moderação consegue ver a autoria e só usa essa informação em casos graves, como ameaças
-              ou assédio. Saiba mais no{" "}
-              <Link href="/conduta" className="font-semibold text-primary underline underline-offset-2">
+              Por segurança, a moderação consegue ver a autoria e só usa essa informação em casos
+              graves, como ameaças ou assédio. Saiba mais no{" "}
+              <Link
+                href="/conduta"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
                 código de conduta
               </Link>
               .
             </span>
           </p>
-          {errors?.anonymous?.[0] && <p className="text-sm font-medium text-danger">{errors.anonymous[0]}</p>}
+          {errors?.anonymous?.[0] && (
+            <p className="text-sm font-medium text-danger">{errors.anonymous[0]}</p>
+          )}
         </div>
       )}
     </div>

@@ -1,22 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MessagesSquare, Plus, SearchX, Tag, X } from "lucide-react";
-import { ButtonLink, Container, EmptyState, PageHeader, Pagination, Section } from "@/components/ui";
+import {
+  ButtonLink,
+  Container,
+  EmptyState,
+  PageHeader,
+  Pagination,
+  Section,
+} from "@/components/ui";
 import { CategoryGrid } from "@/components/forum/category-grid";
 import { ForumSearch } from "@/components/forum/forum-search";
 import { ThreadList } from "@/components/forum/thread-list";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { getForumCategories, listThreads } from "@/lib/forum/queries";
-import { FORUM_PAGE_SIZE, parsePage, sanitizeSearchTerm, sanitizeTag, totalPages } from "@/lib/forum/text";
+import {
+  FORUM_PAGE_SIZE,
+  parsePage,
+  sanitizeSearchTerm,
+  sanitizeTag,
+  totalPages,
+} from "@/lib/forum/text";
 import { pluralize } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Fórum",
-  description: "Conversas da comunidade Ciência Delas: carreira, bolsas, pesquisa, maternidade e apoio.",
+  description:
+    "Conversas da comunidade Ciência Delas: carreira, bolsas, pesquisa, maternidade e apoio.",
   robots: { index: false },
 };
 
-type SearchParams = Promise<{ q?: string | string[]; tag?: string | string[]; pagina?: string | string[] }>;
+type SearchParams = Promise<{
+  q?: string | string[];
+  tag?: string | string[];
+  pagina?: string | string[];
+}>;
 
 export default async function ForumPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -66,7 +84,10 @@ export default async function ForumPage({ searchParams }: { searchParams: Search
       {filtering ? (
         <Section spacing="sm" className="pt-0" aria-label="Resultados da busca">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold text-fg sm:text-2xl" aria-live="polite">
+            <h2
+              className="font-display text-xl font-semibold text-fg sm:text-2xl"
+              aria-live="polite"
+            >
               {pluralize(recent.total, "resultado")}
               {q && <> para “{q}”</>}
               {tag && (
@@ -101,7 +122,13 @@ export default async function ForumPage({ searchParams }: { searchParams: Search
               }
             />
           )}
-          <Pagination page={page} totalPages={pages} basePath="/forum" searchParams={paginationParams} className="mt-6" />
+          <Pagination
+            page={page}
+            totalPages={pages}
+            basePath="/forum"
+            searchParams={paginationParams}
+            className="mt-6"
+          />
         </Section>
       ) : (
         <>
@@ -137,7 +164,9 @@ export default async function ForumPage({ searchParams }: { searchParams: Search
             ) : (
               <EmptyState
                 icon={<MessagesSquare />}
-                title={page > 1 ? "Esta página está vazia" : "O fórum está esperando a primeira conversa"}
+                title={
+                  page > 1 ? "Esta página está vazia" : "O fórum está esperando a primeira conversa"
+                }
                 description={
                   page > 1
                     ? "Volte para a primeira página para ver as conversas mais recentes."

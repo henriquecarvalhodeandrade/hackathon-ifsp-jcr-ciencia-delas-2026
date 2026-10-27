@@ -10,20 +10,16 @@ export interface PostgrestLikeError {
 }
 
 export type MentorshipOperation =
-  | "request"
-  | "cancel"
-  | "respond"
-  | "complete"
-  | "availability"
-  | "consent"
-  | "generic";
+  "request" | "cancel" | "respond" | "complete" | "availability" | "consent" | "generic";
 
 const FALLBACK: Record<MentorshipOperation, string> = {
-  request: "Não conseguimos enviar o seu pedido agora. Tente de novo em instantes — sua mensagem continua aqui.",
+  request:
+    "Não conseguimos enviar o seu pedido agora. Tente de novo em instantes — sua mensagem continua aqui.",
   cancel: "Não conseguimos cancelar agora. Tente de novo em instantes.",
   respond: "Não conseguimos registrar a sua resposta agora. Tente de novo em instantes.",
   complete: "Não conseguimos concluir a mentoria agora. Tente de novo em instantes.",
-  availability: "Não conseguimos atualizar a sua disponibilidade agora. Tente de novo em instantes.",
+  availability:
+    "Não conseguimos atualizar a sua disponibilidade agora. Tente de novo em instantes.",
   consent: "Não conseguimos salvar a sua autorização agora. Tente de novo em instantes.",
   generic: "Algo não saiu como esperado. Tente de novo em instantes.",
 };

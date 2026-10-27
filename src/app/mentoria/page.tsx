@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import { HeartHandshake, Inbox, Send, Settings2, Sparkles } from "lucide-react";
 import { z } from "zod";
-import { Alert, ButtonLink, Container, EmptyState, PageHeader, TabNav, type TabNavItem } from "@/components/ui";
+import {
+  Alert,
+  ButtonLink,
+  Container,
+  EmptyState,
+  PageHeader,
+  TabNav,
+  type TabNavItem,
+} from "@/components/ui";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import {

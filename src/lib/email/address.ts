@@ -12,7 +12,10 @@ export function parseAddress(value: string): ParsedAddress {
   const trimmed = value.trim();
   const match = /^(.*?)\s*<\s*([^<>\s]+@[^<>\s]+)\s*>$/.exec(trimmed);
   if (match) {
-    const name = match[1]!.trim().replace(/^"(.*)"$/, "$1").trim();
+    const name = match[1]!
+      .trim()
+      .replace(/^"(.*)"$/, "$1")
+      .trim();
     return { email: match[2]!, name: name || null };
   }
   return { email: trimmed, name: null };
@@ -40,7 +43,10 @@ export function maskEmail(value: string): string {
 }
 
 /** Converte o cabeçalho Retry-After (segundos ou data HTTP) em milissegundos. */
-export function parseRetryAfter(value: string | null | undefined, now: number = Date.now()): number | null {
+export function parseRetryAfter(
+  value: string | null | undefined,
+  now: number = Date.now(),
+): number | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (/^\d+(\.\d+)?$/.test(trimmed)) return Math.round(Number(trimmed) * 1000);

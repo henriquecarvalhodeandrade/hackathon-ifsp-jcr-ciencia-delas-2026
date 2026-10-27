@@ -39,7 +39,15 @@ export function ForumAvatar({
       </span>
     );
   }
-  return <Avatar name={author.full_name} src={author.avatar_url} seed={author.id} size={size} className={className} />;
+  return (
+    <Avatar
+      name={author.full_name}
+      src={author.avatar_url}
+      seed={author.id}
+      size={size}
+      className={className}
+    />
+  );
 }
 
 /** Nome da autora (link para o perfil) ou "Anônima"; selo "você" na própria autoria anônima. */
@@ -58,7 +66,10 @@ export function AuthorName({
       {author ? (
         <Link
           href={`/pesquisadoras/${author.id}`}
-          className={cn("font-semibold text-fg transition-colors hover:text-primary hover:underline", linkClassName)}
+          className={cn(
+            "font-semibold text-fg transition-colors hover:text-primary hover:underline",
+            linkClassName,
+          )}
         >
           {author.full_name || "Pesquisadora"}
         </Link>
@@ -66,7 +77,10 @@ export function AuthorName({
         <span className="font-semibold text-fg-muted">{ANONYMOUS_LABEL}</span>
       )}
       {!author && isOwnAnonymous && (
-        <Badge variant="primary" title="Só você vê este selo: a autoria continua anônima para as outras membros.">
+        <Badge
+          variant="primary"
+          title="Só você vê este selo: a autoria continua anônima para as outras membros."
+        >
           você
         </Badge>
       )}

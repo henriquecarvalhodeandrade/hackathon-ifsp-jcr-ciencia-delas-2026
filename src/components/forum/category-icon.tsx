@@ -47,7 +47,16 @@ export function categoryIconFor(name: string | null | undefined): LucideIcon {
   return (name && CATEGORY_ICONS[name]) || MessagesSquare;
 }
 
-export function CategoryIcon({ icon, className }: { icon: string | null | undefined; className?: string }) {
+export function CategoryIcon({
+  icon,
+  className,
+}: {
+  icon: string | null | undefined;
+  className?: string;
+}) {
   // createElement: o ícone vem de um mapa estático (não é um componente criado no render).
-  return createElement(categoryIconFor(icon), { "aria-hidden": true, className: cn("size-5", className) });
+  return createElement(categoryIconFor(icon), {
+    "aria-hidden": true,
+    className: cn("size-5", className),
+  });
 }

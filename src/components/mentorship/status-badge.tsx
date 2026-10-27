@@ -12,7 +12,13 @@ const ICONS: Record<MentorshipStatus, typeof Hourglass> = {
 };
 
 /** Selo de status do pedido (ícone + texto: nunca só cor). */
-export function MentorshipStatusBadge({ status, className }: { status: MentorshipStatus; className?: string }) {
+export function MentorshipStatusBadge({
+  status,
+  className,
+}: {
+  status: MentorshipStatus;
+  className?: string;
+}) {
   const Icon = ICONS[status] ?? Hourglass;
   return (
     <Badge variant={statusTone(status)} size="md" className={className}>

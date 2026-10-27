@@ -34,7 +34,13 @@ function openRequestsByMentor(sent: readonly RequestItem[]): Map<string, Mentors
   return map;
 }
 
-export async function SuggestionsTab({ supabase, profile, sent, areaNames, deepLinkId }: SuggestionsTabProps) {
+export async function SuggestionsTab({
+  supabase,
+  profile,
+  sent,
+  areaNames,
+  deepLinkId,
+}: SuggestionsTabProps) {
   const openRequests = openRequestsByMentor(sent);
   const canMatch = profile.seeks_mentorship && profile.ai_consent;
   const needsCandidates = Boolean(deepLinkId) || canMatch;
@@ -44,14 +50,17 @@ export async function SuggestionsTab({ supabase, profile, sent, areaNames, deepL
     deepLinkId ? loadDeepLinkMentor(supabase, deepLinkId) : Promise.resolve(null),
   ]);
 
-  const deepLink = deepLinkId
-    ? (
-        <DeepLinkCard
-          mentor={deepLinkMentor}
-          state={resolveDeepLink({ mentor: deepLinkMentor, viewerId: profile.id, candidates, openRequests })}
-        />
-      )
-    : null;
+  const deepLink = deepLinkId ? (
+    <DeepLinkCard
+      mentor={deepLinkMentor}
+      state={resolveDeepLink({
+        mentor: deepLinkMentor,
+        viewerId: profile.id,
+        candidates,
+        openRequests,
+      })}
+    />
+  ) : null;
 
   if (!profile.seeks_mentorship) {
     return (
@@ -122,6 +131,7 @@ export async function SuggestionsTab({ supabase, profile, sent, areaNames, deepL
           </ul>
         ) : (
           <EmptyState
+            headingLevel="h3"
             icon={<Telescope />}
             title="Ainda não buscamos mentoras para você"
             description="Clique em “Encontrar mentoras”: comparamos suas áreas, temas e etapa da carreira com as mentoras que têm vagas. Quanto mais completo o seu perfil, melhores as sugestões."

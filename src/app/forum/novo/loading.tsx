@@ -1,4 +1,8 @@
-import { ForumLoadingShell, PageHeaderSkeleton, ThreadFormSkeleton } from "@/components/forum/skeletons";
+import {
+  ForumLoadingShell,
+  PageHeaderSkeleton,
+  ThreadFormSkeleton,
+} from "@/components/forum/skeletons";
 
 export default function NewThreadLoading() {
   return (

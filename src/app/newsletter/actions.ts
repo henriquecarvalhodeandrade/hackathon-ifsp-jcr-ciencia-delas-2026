@@ -44,7 +44,9 @@ const subscribeSchema = z.object({
   areas: z
     .array(z.string().regex(/^\d{1,4}$/, { error: "Área inválida." }))
     .max(9, { error: "Escolha no máximo 9 áreas." }),
-  consent: z.literal("on", { error: "Para receber a newsletter, marque a caixa de consentimento." }),
+  consent: z.literal("on", {
+    error: "Para receber a newsletter, marque a caixa de consentimento.",
+  }),
   age: z.literal("on", { error: "A newsletter é para maiores de 18 anos. Confirme a sua idade." }),
 });
 
@@ -56,7 +58,10 @@ function devNotice(): string | undefined {
     : "Ambiente de desenvolvimento: sem RESEND_API_KEY, nenhum e-mail foi enviado — o link de confirmação foi registrado no console do servidor.";
 }
 
-export async function subscribeToNewsletter(_prev: SubscribeState, formData: FormData): Promise<SubscribeState> {
+export async function subscribeToNewsletter(
+  _prev: SubscribeState,
+  formData: FormData,
+): Promise<SubscribeState> {
   const values: SubscribeValues = {
     email: String(formData.get("email") ?? "").trim(),
     areas: formData.getAll("areas").map(String),
@@ -72,7 +77,8 @@ export async function subscribeToNewsletter(_prev: SubscribeState, formData: For
   if (!canAcceptSubscriptions()) {
     return {
       ok: false,
-      error: "As inscrições por e-mail ainda não estão abertas. Enquanto isso, acompanhe as edições aqui no site.",
+      error:
+        "As inscrições por e-mail ainda não estão abertas. Enquanto isso, acompanhe as edições aqui no site.",
       values,
     };
   }
@@ -123,11 +129,13 @@ export async function confirmNewsletterSubscription(
   formData: FormData,
 ): Promise<TokenActionState> {
   const token = String(formData.get("token") ?? "").trim();
-  if (!isUuid(token)) return { ok: false, error: "Este link de confirmação não é válido. Inscreva-se de novo." };
+  if (!isUuid(token))
+    return { ok: false, error: "Este link de confirmação não é válido. Inscreva-se de novo." };
   try {
     const outcome = await confirmSubscription(token);
     if (outcome === "confirmed" || outcome === "already_active") {
-      revalidatePath("/newsletter");
+      // Sem revalidatePath: as páginas da newsletter são dinâmicas (nada em cache) e revalidar
+      // re-renderizaria esta página, trocando o painel de sucesso (aria-live) pelo estado do servidor.
       return {
         ok: true,
         message:
@@ -137,9 +145,15 @@ export async function confirmNewsletterSubscription(
       };
     }
     if (outcome === "expired") {
-      return { ok: false, error: "Este link expirou. Inscreva-se de novo para receber um link novo." };
+      return {
+        ok: false,
+        error: "Este link expirou. Inscreva-se de novo para receber um link novo.",
+      };
     }
-    return { ok: false, error: "Não encontramos esta inscrição. O link pode ter sido substituído por um mais novo." };
+    return {
+      ok: false,
+      error: "Não encontramos esta inscrição. O link pode ter sido substituído por um mais novo.",
+    };
   } catch (error) {
     console.error("[newsletter] confirmação falhou", error);
     return { ok: false, error: GENERIC_ERROR };
@@ -155,9 +169,11 @@ export async function unsubscribeFromNewsletter(
   try {
     const outcome = await unsubscribeByToken(token);
     if (outcome === "invalid") {
-      return { ok: false, error: "Não encontramos esta inscrição. Talvez os dados já tenham sido excluídos." };
+      return {
+        ok: false,
+        error: "Não encontramos esta inscrição. Talvez os dados já tenham sido excluídos.",
+      };
     }
-    revalidatePath("/newsletter");
     return {
       ok: true,
       message:
@@ -184,6 +200,12 @@ export async function deleteNewsletterData(formData: FormData): Promise<void> {
     }
   }
   if (outcome === "deleted") revalidatePath("/newsletter");
+  // Em falha, mantém o token na URL para a pessoa poder tentar de novo na mesma página.
+  const retry = outcome === "error" ? `token=${encodeURIComponent(token)}&` : "";
   // redirect() lança de propósito: fica fora do try/catch.
-  redirect(outcome === "deleted" ? "/newsletter/cancelar?excluido=1" : `/newsletter/cancelar?erro=${outcome}`);
+  redirect(
+    outcome === "deleted"
+      ? "/newsletter/cancelar?excluido=1"
+      : `/newsletter/cancelar?${retry}erro=${outcome}`,
+  );
 }

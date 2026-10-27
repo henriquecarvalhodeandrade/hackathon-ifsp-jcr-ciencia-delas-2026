@@ -46,8 +46,8 @@ export default function PrivacyPage() {
             rankings e o Boletim.
           </li>
           <li>
-            A IA da mentoria só é usada com o seu <strong>consentimento</strong>, para maiores de 18 anos, e nunca
-            recebe seu nome, e-mail ou contatos.
+            As sugestões de mentoria só são geradas com o seu <strong>consentimento</strong>, para maiores de 18 anos,
+            e a IA nunca recebe seu nome, e-mail ou contatos.
           </li>
           <li>O Boletim exige confirmação por e-mail e tem descadastro em um clique.</li>
           <li>Não vendemos dados, não usamos cookies de publicidade nem ferramentas de rastreamento.</li>
@@ -98,8 +98,8 @@ export default function PrivacyPage() {
         <ul>
           <li>Notificações (respostas, pedidos de mentoria, comentários) e o histórico de leitura delas.</li>
           <li>
-            Sugestões de mentoria calculadas para você e, com consentimento, uma representação numérica do seu perfil
-            (embedding) usada para medir afinidade.
+            Com o seu consentimento, as sugestões de mentoria calculadas para você e uma representação numérica do
+            seu perfil (embedding) usada para medir afinidade.
           </li>
           <li>
             Registros técnicos mantidos pelos provedores de infraestrutura (como endereço IP, data e hora de acesso),
@@ -137,13 +137,16 @@ export default function PrivacyPage() {
                 <td>Execução do contrato (art. 7º, V)</td>
               </tr>
               <tr>
-                <td>Sugestões de mentoria com IA e afinidade por embeddings</td>
+                <td>
+                  Sugerir mentoras para você: afinidade por regras internas e por embeddings e, quando disponível,
+                  explicação por IA
+                </td>
                 <td>Dados de pesquisa do perfil, sem identificação direta</td>
                 <td>Consentimento (art. 7º, I), revogável a qualquer momento</td>
               </tr>
               <tr>
-                <td>Sugestões de mentoria sem IA (regras internas)</td>
-                <td>Áreas, temas, etapa da carreira e vagas</td>
+                <td>Indicar você a quem busca mentoria, se você se cadastrou como mentora</td>
+                <td>Áreas, temas, etapa da carreira, formatos, idiomas e vagas</td>
                 <td>Execução do contrato (art. 7º, V)</td>
               </tr>
               <tr>
@@ -199,8 +202,9 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Revogação.</strong> Desmarque o consentimento em <Link href="/perfil">Meu perfil</Link> quando
-            quiser: a análise do seu perfil (embedding) é apagada automaticamente e as sugestões passam a ser
-            calculadas só com regras dentro da plataforma.
+            quiser: a representação do seu perfil (embedding) é apagada automaticamente e deixamos de gerar e de
+            mostrar sugestões para você. O diretório de pesquisadoras e os pedidos diretos de mentoria continuam
+            funcionando.
           </li>
         </ul>
       </DocSection>
@@ -331,8 +335,11 @@ export default function PrivacyPage() {
           </li>
           <li>Cancelar o Boletim: pelo link no rodapé de qualquer edição.</li>
           <li>
-            Acesso, cópia dos dados, exclusão da conta ou qualquer outro pedido: pelo contato abaixo. Respondemos em
-            até 15 dias.
+            Excluir a conta: em <Link href="/perfil">Meu perfil</Link>, na seção “Excluir minha conta” (onde a
+            exclusão automática estiver ligada), ou pelo contato abaixo.
+          </li>
+          <li>
+            Acesso, cópia dos dados ou qualquer outro pedido: pelo contato abaixo. Respondemos em até 15 dias.
           </li>
         </ul>
         <p>

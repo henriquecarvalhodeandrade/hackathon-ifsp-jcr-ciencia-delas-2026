@@ -103,7 +103,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       <PageHeader
         eyebrow="Moderação"
         title="Painel de moderação"
-        description="Denúncias, Boletim e papéis da comunidade. Cada decisão afeta pessoas reais: aja com cuidado e registre o porquê."
+        description={`${isAdmin ? "Denúncias, Boletim e papéis da comunidade." : "Denúncias e membras da comunidade."} Cada decisão afeta pessoas reais: aja com cuidado e registre o porquê.`}
         actions={
           <Badge variant={isAdmin ? "primary" : "info"} size="md">
             <ShieldCheck aria-hidden="true" />
@@ -116,7 +116,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
 
       {tab === "denuncias" && (
         <TabSection id="aba-denuncias" title="Denúncias">
-          <ReportsPanel data={reports} status={reportStatus} page={page} isAdmin={isAdmin} />
+          <ReportsPanel data={reports} status={reportStatus} page={reports.page} isAdmin={isAdmin} />
         </TabSection>
       )}
 
@@ -140,7 +140,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             data={members}
             q={q}
             role={role}
-            page={page}
+            page={members.page}
             isAdmin={isAdmin}
             currentProfileId={profile.id}
           />

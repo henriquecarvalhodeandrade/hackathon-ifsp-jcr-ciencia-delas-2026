@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { rankPapersByWindowVotes, rankThreadsByActivity, toNewsletterPaper, type PaperCandidate, type ThreadCandidate } from "./select";
+import {
+  rankPapersByWindowVotes,
+  rankThreadsByActivity,
+  toNewsletterPaper,
+  type PaperCandidate,
+  type ThreadCandidate,
+} from "./select";
 
-function paper(id: string, vote_count: number, created_at = "2026-10-01T00:00:00Z"): PaperCandidate {
-  return { id, title: `Paper ${id}`, authors: ["Ana"], plain_summary: null, vote_count, created_at, area_id: null, area_name: null };
+function paper(
+  id: string,
+  vote_count: number,
+  created_at = "2026-10-01T00:00:00Z",
+): PaperCandidate {
+  return {
+    id,
+    title: `Paper ${id}`,
+    authors: ["Ana"],
+    plain_summary: null,
+    vote_count,
+    created_at,
+    area_id: null,
+    area_name: null,
+  };
 }
 
 describe("rankPapersByWindowVotes", () => {
@@ -16,7 +35,13 @@ describe("rankPapersByWindowVotes", () => {
     ];
     const ranked = rankPapersByWindowVotes(
       votes,
-      [paper("a", 5), paper("b", 2), paper("c", 5, "2026-10-20T00:00:00Z"), paper("d", 1), paper("e", 99)],
+      [
+        paper("a", 5),
+        paper("b", 2),
+        paper("c", 5, "2026-10-20T00:00:00Z"),
+        paper("d", 1),
+        paper("e", 99),
+      ],
       3,
     );
     expect(ranked.map((p) => p.id)).toEqual(["b", "c", "a"]);
@@ -25,7 +50,14 @@ describe("rankPapersByWindowVotes", () => {
 
 describe("toNewsletterPaper", () => {
   it("gera o formato do contrato com url interna", () => {
-    expect(toNewsletterPaper({ ...paper("x", 3), area_id: 10, area_name: "Computação", plain_summary: " Resumo " })).toEqual({
+    expect(
+      toNewsletterPaper({
+        ...paper("x", 3),
+        area_id: 10,
+        area_name: "Computação",
+        plain_summary: " Resumo ",
+      }),
+    ).toEqual({
       id: "x",
       title: "Paper x",
       authors: ["Ana"],

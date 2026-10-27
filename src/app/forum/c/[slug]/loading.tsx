@@ -1,4 +1,8 @@
-import { ForumLoadingShell, PageHeaderSkeleton, ThreadListSkeleton } from "@/components/forum/skeletons";
+import {
+  ForumLoadingShell,
+  PageHeaderSkeleton,
+  ThreadListSkeleton,
+} from "@/components/forum/skeletons";
 
 export default function CategoryLoading() {
   return (

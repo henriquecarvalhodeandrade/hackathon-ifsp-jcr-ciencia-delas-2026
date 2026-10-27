@@ -29,11 +29,17 @@ function isAuthorized(request: Request): boolean {
 
 async function handle(request: Request) {
   if (!isAuthorized(request)) {
-    return Response.json({ ok: false, error: "Não autorizado." }, { status: 401, headers: NO_STORE });
+    return Response.json(
+      { ok: false, error: "Não autorizado." },
+      { status: 401, headers: NO_STORE },
+    );
   }
   if (!isAdminConfigured()) {
     return Response.json(
-      { ok: false, error: "SUPABASE_SECRET_KEY não configurada: a newsletter precisa do cliente admin." },
+      {
+        ok: false,
+        error: "SUPABASE_SECRET_KEY não configurada: a newsletter precisa do cliente admin.",
+      },
       { status: 503, headers: NO_STORE },
     );
   }
@@ -44,7 +50,10 @@ async function handle(request: Request) {
     console.info(
       `[cron] newsletter ${result.slug}: ${result.send ? `${result.send.sent} enviados, ${result.send.failed} falhas` : "sem envio"}`,
     );
-    return Response.json({ ok: true, durationMs: Date.now() - startedAt, ...result }, { headers: NO_STORE });
+    return Response.json(
+      { ok: true, durationMs: Date.now() - startedAt, ...result },
+      { headers: NO_STORE },
+    );
   } catch (error) {
     console.error("[cron] newsletter falhou", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";

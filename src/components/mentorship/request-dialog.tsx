@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { HeartHandshake, Plus, Send } from "lucide-react";
 import {
   Button,
@@ -47,21 +47,32 @@ export function RequestMentorshipDialog({
   triggerSize = "md",
 }: RequestMentorshipDialogProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [message, setMessage] = useState(() => defaultRequestMessage(mentorName, starters[0]));
-  const [state, formAction] = useActionState<ActionState<RequestValues>, FormData>(createRequestAction, null);
+  const [state, formAction] = useActionState<ActionState<RequestValues>, FormData>(
+    createRequestAction,
+    null,
+  );
   const errors = state && !state.ok ? state.fieldErrors : undefined;
   const name = firstName(mentorName) || mentorName;
   const extraStarters = starters.slice(1);
 
+  function handleOpenChange(value: boolean) {
+    setOpen(value);
+    // Aberto sozinho pelo link direto, o diálogo não tem para onde devolver o foco ao fechar
+    // (ele estava no <body>): leva o foco ao botão "Pedir mentoria" do cartão.
+    if (!value && defaultOpen) requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
   return (
     <Dialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       size="lg"
       title={`Pedir mentoria a ${name}`}
       description="Conte quem você é, o que pesquisa e como ela pode ajudar. Ela recebe uma notificação e responde por aqui."
       trigger={
-        <Button variant={triggerVariant} size={triggerSize}>
+        <Button ref={triggerRef} variant={triggerVariant} size={triggerSize}>
           <HeartHandshake aria-hidden="true" />
           {triggerLabel}
         </Button>
@@ -82,6 +93,7 @@ export function RequestMentorshipDialog({
             rows={8}
             maxLength={REQUEST_MESSAGE_MAX}
             showCount
+            data-autofocus
             value={message}
             onChange={(event) => setMessage(event.currentTarget.value)}
           />
@@ -117,12 +129,12 @@ export function RequestMentorshipDialog({
         )}
 
         <p className="text-sm text-fg-subtle">
-          {name} verá seu nome, seu perfil, esta mensagem e a afinidade calculada. Seu e-mail só aparece para ela se ela
-          aceitar o pedido.
+          {name} verá seu nome, seu perfil, esta mensagem e a afinidade calculada. Seu e-mail só
+          aparece para ela se ela aceitar o pedido.
         </p>
 
         <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
-          <Button variant="ghost" onClick={() => setOpen(false)}>
+          <Button variant="ghost" onClick={() => handleOpenChange(false)}>
             Cancelar
           </Button>
           <SubmitButton pendingText="Enviando pedido…">

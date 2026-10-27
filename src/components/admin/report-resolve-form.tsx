@@ -71,7 +71,8 @@ export function ReportResolveForm({ reportId, status }: { reportId: string; stat
           aria-describedby={`${noteId}-dica`}
         />
         <p id={`${noteId}-dica`} className="text-sm text-fg-subtle">
-          Fica registrada só para a moderação. A denunciante não é avisada automaticamente.
+          Fica no histórico da denúncia. A denunciante não é avisada, mas consegue consultar a própria denúncia:
+          escreva só o necessário, sem dados pessoais.
         </p>
       </div>
       <FormMessage tone="error">{error?.message}</FormMessage>

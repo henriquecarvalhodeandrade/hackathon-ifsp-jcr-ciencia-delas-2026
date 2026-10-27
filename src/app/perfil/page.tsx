@@ -76,7 +76,7 @@ export default async function PerfilPage() {
       <PageHeader
         eyebrow="Sua conta"
         title="Meu perfil"
-        description="O que você escreve aqui aparece para as membros da comunidade e orienta as sugestões de mentoria."
+        description="O que você escreve aqui aparece para quem faz parte da comunidade e orienta as sugestões de mentoria."
         actions={
           <ButtonLink href={`/pesquisadoras/${profile.id}`} variant="outline">
             <Eye aria-hidden="true" />
@@ -155,7 +155,7 @@ export default async function PerfilPage() {
                   <dd className="font-semibold break-all text-fg">{user?.email ?? "—"}</dd>
                 </div>
                 <div className="grid gap-0.5">
-                  <dt className="text-sm text-fg-subtle">Membro desde</dt>
+                  <dt className="text-sm text-fg-subtle">Na comunidade desde</dt>
                   <dd className="font-semibold text-fg">{formatDate(profile.created_at, { dateStyle: "long" })}</dd>
                 </div>
               </dl>

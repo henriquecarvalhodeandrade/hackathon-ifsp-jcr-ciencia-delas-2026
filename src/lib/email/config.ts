@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 /**
  * Configuração do transporte de e-mail.
  *
- * Variáveis próprias deste módulo (ainda não estão em src/lib/env.ts):
+ * Variáveis próprias deste módulo (documentadas em .env.example):
  *   MAILPIT_URL — só fora de produção. Caixa de e-mails falsa do Supabase local
  *                 (padrão: deduzida de NEXT_PUBLIC_SUPABASE_URL http://127.0.0.1:54321 → :54324).
  *                 Use MAILPIT_URL=off para desligar.

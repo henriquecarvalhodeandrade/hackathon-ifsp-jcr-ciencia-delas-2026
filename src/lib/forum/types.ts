@@ -5,7 +5,10 @@ import type { ReactionKindValue } from "./schema";
 
 export type ForumCategory = Tables<"forum_categories">;
 export type ForumCategoryWithCount = ForumCategory & { threadCount: number };
-export type CategorySummary = Pick<ForumCategory, "id" | "slug" | "name" | "icon" | "allow_anonymous">;
+export type CategorySummary = Pick<
+  ForumCategory,
+  "id" | "slug" | "name" | "icon" | "allow_anonymous"
+>;
 
 export type ForumAuthor = {
   id: string;
@@ -74,4 +77,3 @@ export type ThreadView = {
 };
 
 export type ThreadDetail = { thread: ThreadView; posts: PostView[] };
-

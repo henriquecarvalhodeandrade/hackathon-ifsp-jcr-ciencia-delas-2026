@@ -12,7 +12,13 @@ export const PAPERS_PAGE_SIZE = 12;
 export const RANKING_LIMIT = 20;
 
 /** Ordem das abas. "recent" é uma lista simples (mais novos primeiro), fora da RPC de ranking. */
-export const RANKING_PERIOD_ORDER: readonly RankingPeriod[] = ["hot", "week", "month", "year", "all"];
+export const RANKING_PERIOD_ORDER: readonly RankingPeriod[] = [
+  "hot",
+  "week",
+  "month",
+  "year",
+  "all",
+];
 
 export type VitrineOrder = RankingPeriod | "recent";
 
@@ -25,14 +31,24 @@ export const VITRINE_ORDER_ORDER: readonly VitrineOrder[] = [...RANKING_PERIOD_O
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
-export function parseRankingPeriod(value: string | string[] | undefined, fallback: RankingPeriod): RankingPeriod {
+export function parseRankingPeriod(
+  value: string | string[] | undefined,
+  fallback: RankingPeriod,
+): RankingPeriod {
   const v = first(value);
-  return v && (RANKING_PERIOD_ORDER as readonly string[]).includes(v) ? (v as RankingPeriod) : fallback;
+  return v && (RANKING_PERIOD_ORDER as readonly string[]).includes(v)
+    ? (v as RankingPeriod)
+    : fallback;
 }
 
-export function parseVitrineOrder(value: string | string[] | undefined, fallback: VitrineOrder = "hot"): VitrineOrder {
+export function parseVitrineOrder(
+  value: string | string[] | undefined,
+  fallback: VitrineOrder = "hot",
+): VitrineOrder {
   const v = first(value);
-  return v && (VITRINE_ORDER_ORDER as readonly string[]).includes(v) ? (v as VitrineOrder) : fallback;
+  return v && (VITRINE_ORDER_ORDER as readonly string[]).includes(v)
+    ? (v as VitrineOrder)
+    : fallback;
 }
 
 /** Página 1-based; valores inválidos viram 1. Limita a 500 para evitar offsets absurdos. */
@@ -41,9 +57,12 @@ export function parsePage(value: string | string[] | undefined): number {
   return Number.isFinite(v) && v >= 1 ? Math.min(v, 500) : 1;
 }
 
-/** Busca: texto aparado, espaços colapsados, no máximo 100 caracteres. */
+/**
+ * Busca: texto aparado, espaços colapsados, no máximo 100 caracteres. O `*` sai porque o
+ * PostgREST o trata como `%` em `ilike` (sem escape possível): "abelhas*" busca "abelhas".
+ */
 export function parseSearch(value: string | string[] | undefined): string {
-  return (first(value) ?? "").replace(/\s+/g, " ").trim().slice(0, 100);
+  return (first(value) ?? "").replace(/\*/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
 }
 
 /** Slug de área: só letras minúsculas, números e hífen (o resto é ignorado). */
@@ -92,14 +111,21 @@ export interface AreaGroup {
 export function groupAreas(areas: readonly AreaRow[]): AreaGroup[] {
   const groups = new Map<string, AreaGroup>();
   for (const area of areas) {
-    const group = groups.get(area.big_area) ?? { bigArea: area.big_area, parent: null, children: [] };
+    const group = groups.get(area.big_area) ?? {
+      bigArea: area.big_area,
+      parent: null,
+      children: [],
+    };
     if (isBigArea(area)) group.parent = area;
     else group.children.push(area);
     groups.set(area.big_area, group);
   }
   const collator = new Intl.Collator("pt-BR");
   return [...groups.values()]
-    .map((g) => ({ ...g, children: [...g.children].sort((a, b) => collator.compare(a.name, b.name)) }))
+    .map((g) => ({
+      ...g,
+      children: [...g.children].sort((a, b) => collator.compare(a.name, b.name)),
+    }))
     .sort((a, b) => collator.compare(a.bigArea, b.bigArea));
 }
 
@@ -126,7 +152,23 @@ export const PAPER_RELATION_DISPLAY: Record<PaperRelation, string> = {
 };
 
 export function relationDisplay(relation: string): string | null {
-  return relation in PAPER_RELATION_DISPLAY ? PAPER_RELATION_DISPLAY[relation as PaperRelation] : null;
+  return relation in PAPER_RELATION_DISPLAY
+    ? PAPER_RELATION_DISPLAY[relation as PaperRelation]
+    : null;
+}
+
+/** Frase para visitantes, que não veem o perfil de quem indicou: "Indicado por uma coautora do trabalho." */
+const PAPER_RELATION_SENTENCE: Record<PaperRelation, string> = {
+  author: "Indicado pela autora principal do trabalho.",
+  coauthor: "Indicado por uma coautora do trabalho.",
+  advisor: "Indicado pela orientadora ou supervisora do trabalho.",
+  reader: "Indicado por uma leitora da comunidade.",
+};
+
+export function relationSentence(relation: string): string {
+  return relation in PAPER_RELATION_SENTENCE
+    ? PAPER_RELATION_SENTENCE[relation as PaperRelation]
+    : "Indicado por uma pesquisadora da comunidade.";
 }
 
 /** "#1 da semana", "#2 em alta"... */
@@ -140,6 +182,19 @@ export function rankBadgeLabel(position: number, period: RankingPeriod): string 
   };
   return `#${position} ${suffix[period]}`;
 }
+
+/**
+ * Como cada ordenação funciona, em linguagem simples (votos se chamam "destaques" na interface).
+ * Espelha a RPC `get_paper_ranking` e `src/lib/ranking/hot.ts`.
+ */
+export const VITRINE_ORDER_EXPLANATIONS: Record<VitrineOrder, string> = {
+  hot: "Papers novos que recebem destaques sobem mais rápido: a pontuação é destaques ÷ (horas desde o envio + 2)^1,5 e cai com o tempo.",
+  week: "Papers com mais destaques recebidos nos últimos 7 dias.",
+  month: "Papers com mais destaques recebidos nos últimos 30 dias.",
+  year: "Papers com mais destaques recebidos nos últimos 365 dias.",
+  all: "Papers com mais destaques desde que entraram na Vitrine.",
+  recent: "Os papers que chegaram por último à Vitrine aparecem primeiro.",
+};
 
 /** Janela de cada período, para compor frases ("3 destaques nos últimos 7 dias"). */
 export const PERIOD_WINDOW_TEXT: Record<RankingPeriod, string> = {

@@ -2,7 +2,14 @@ import Link from "next/link";
 import { CheckCircle2, Lock, MessageSquare, Pin } from "lucide-react";
 import { Badge, ChipLink } from "@/components/ui";
 import type { ThreadListItem } from "@/lib/forum/types";
-import { cn, formatNumber, formatRelativeTime, pluralize, toIsoString, truncate } from "@/lib/utils";
+import {
+  cn,
+  formatNumber,
+  formatRelativeTime,
+  pluralize,
+  toIsoString,
+  truncate,
+} from "@/lib/utils";
 import { AuthorName, ForumAvatar } from "./author";
 import { CategoryIcon } from "./category-icon";
 import { ReactionSummary } from "./reaction-summary";
@@ -109,7 +116,11 @@ function ThreadRow({
         )}
 
         <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg-subtle">
-          <AuthorName author={thread.author} isOwnAnonymous={thread.isOwnAnonymous} linkClassName="relative z-10" />
+          <AuthorName
+            author={thread.author}
+            isOwnAnonymous={thread.isOwnAnonymous}
+            linkClassName="relative z-10"
+          />
           {showCategory && thread.category && (
             <>
               <span aria-hidden="true">·</span>
@@ -125,7 +136,9 @@ function ThreadRow({
           <span aria-hidden="true">·</span>
           <span>
             {hasReplies ? "última resposta " : "aberto "}
-            <time dateTime={toIsoString(thread.lastActivityAt)}>{formatRelativeTime(thread.lastActivityAt)}</time>
+            <time dateTime={toIsoString(thread.lastActivityAt)}>
+              {formatRelativeTime(thread.lastActivityAt)}
+            </time>
           </span>
           <span aria-hidden="true" className="sm:hidden">
             ·
@@ -136,7 +149,8 @@ function ThreadRow({
           </span>
         </p>
 
-        {(visibleTags.length > 0 || thread.reactions.support + thread.reactions.useful + thread.reactions.celebrate > 0) && (
+        {(visibleTags.length > 0 ||
+          thread.reactions.support + thread.reactions.useful + thread.reactions.celebrate > 0) && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-0.5">
             {visibleTags.length > 0 && (
               <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
@@ -151,7 +165,9 @@ function ThreadRow({
                   </li>
                 ))}
                 {hiddenTags > 0 && (
-                  <li className="inline-flex h-7 items-center text-xs text-fg-subtle">+{formatNumber(hiddenTags)}</li>
+                  <li className="inline-flex h-7 items-center text-xs text-fg-subtle">
+                    +{formatNumber(hiddenTags)}
+                  </li>
                 )}
               </ul>
             )}
@@ -161,7 +177,12 @@ function ThreadRow({
       </div>
 
       <div className="hidden w-16 shrink-0 flex-col items-end justify-start pt-0.5 text-right sm:flex">
-        <span className={cn("tabular font-display text-xl leading-none font-semibold", hasReplies ? "text-fg" : "text-fg-subtle")}>
+        <span
+          className={cn(
+            "font-display text-xl leading-none font-semibold tabular",
+            hasReplies ? "text-fg" : "text-fg-subtle",
+          )}
+        >
           {formatNumber(thread.replyCount)}
         </span>
         <span className="mt-1 text-xs text-fg-subtle">

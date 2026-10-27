@@ -44,7 +44,8 @@ export const getForumCategories = cache(async (): Promise<ForumCategoryWithCount
     .select("*, forum_threads(count)")
     .order("sort_order")
     .order("name");
-  if (error) throw new Error(`Não foi possível carregar as categorias do fórum (${error.code ?? "erro"}).`);
+  if (error)
+    throw new Error(`Não foi possível carregar as categorias do fórum (${error.code ?? "erro"}).`);
   return (data ?? []).map(({ forum_threads, ...category }) => ({
     ...category,
     threadCount: forum_threads?.[0]?.count ?? 0,
@@ -54,15 +55,24 @@ export const getForumCategories = cache(async (): Promise<ForumCategoryWithCount
 /** Só as categorias (sem contagem) — formulários. */
 export const getCategoryOptions = cache(async (): Promise<ForumCategory[]> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("forum_categories").select("*").order("sort_order").order("name");
-  if (error) throw new Error(`Não foi possível carregar as categorias do fórum (${error.code ?? "erro"}).`);
+  const { data, error } = await supabase
+    .from("forum_categories")
+    .select("*")
+    .order("sort_order")
+    .order("name");
+  if (error)
+    throw new Error(`Não foi possível carregar as categorias do fórum (${error.code ?? "erro"}).`);
   return data ?? [];
 });
 
 export const getCategoryBySlug = cache(async (slug: string): Promise<ForumCategory | null> => {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 60) return null;
   const supabase = await createClient();
-  const { data } = await supabase.from("forum_categories").select("*").eq("slug", slug).maybeSingle();
+  const { data } = await supabase
+    .from("forum_categories")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
   return data ?? null;
 });
 
@@ -79,7 +89,9 @@ export type ListThreadsOptions = {
   pageSize?: number;
 };
 
-export async function listThreads(opts: ListThreadsOptions): Promise<{ items: ThreadListItem[]; total: number }> {
+export async function listThreads(
+  opts: ListThreadsOptions,
+): Promise<{ items: ThreadListItem[]; total: number }> {
   const supabase = await createClient();
   const pageSize = opts.pageSize ?? FORUM_PAGE_SIZE;
   const { from, to } = pageRange(opts.page ?? 1, pageSize);
@@ -108,7 +120,10 @@ export async function listThreads(opts: ListThreadsOptions): Promise<{ items: Th
   const anonIds = rows.filter((r) => r.is_anonymous).map((r) => r.id);
 
   const [countsRes, ownRes] = await Promise.all([
-    supabase.from("forum_thread_reaction_counts").select("thread_id, kind, total").in("thread_id", ids),
+    supabase
+      .from("forum_thread_reaction_counts")
+      .select("thread_id, kind, total")
+      .in("thread_id", ids),
     anonIds.length > 0
       ? supabase
           .from("forum_anonymous_authorship")
@@ -153,7 +168,9 @@ export const getThreadSummary = cache(async (id: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("forum_threads")
-    .select("id, title, body, is_anonymous, author_id, category:forum_categories!forum_threads_category_id_fkey(slug, name)")
+    .select(
+      "id, title, body, is_anonymous, author_id, category:forum_categories!forum_threads_category_id_fkey(slug, name)",
+    )
     .eq("id", id)
     .maybeSingle();
   return data ?? null;
@@ -182,10 +199,12 @@ export async function getThreadDetail(id: string, viewerId: string): Promise<Thr
       .limit(MAX_POSTS_PER_THREAD),
   ]);
 
-  if (threadRes.error) throw new Error(`Não foi possível carregar o tópico (${threadRes.error.code ?? "erro"}).`);
+  if (threadRes.error)
+    throw new Error(`Não foi possível carregar o tópico (${threadRes.error.code ?? "erro"}).`);
   const row = threadRes.data;
   if (!row || !row.category) return null;
-  if (postsRes.error) throw new Error(`Não foi possível carregar as respostas (${postsRes.error.code ?? "erro"}).`);
+  if (postsRes.error)
+    throw new Error(`Não foi possível carregar as respostas (${postsRes.error.code ?? "erro"}).`);
   const postRows = postsRes.data ?? [];
 
   const [threadReactionsRes, postReactionsRes, ownAnonRes] = await Promise.all([
@@ -195,8 +214,14 @@ export async function getThreadDetail(id: string, viewerId: string): Promise<Thr
           .from("forum_reactions")
           .select("post_id, kind, user_id, post:forum_posts!inner(thread_id)")
           .eq("post.thread_id", id)
-      : Promise.resolve({ data: [] as { post_id: string | null; kind: string; user_id: string }[], error: null }),
-    supabase.from("forum_anonymous_authorship").select("thread_id, post_id").eq("user_id", viewerId),
+      : Promise.resolve({
+          data: [] as { post_id: string | null; kind: string; user_id: string }[],
+          error: null,
+        }),
+    supabase
+      .from("forum_anonymous_authorship")
+      .select("thread_id, post_id")
+      .eq("user_id", viewerId),
   ]);
 
   const threadReactions: ReactionState = { counts: emptyReactionCounts(), mine: [] };

@@ -41,7 +41,9 @@ export const respondSchema = z.object({
 export type RespondInput = z.infer<typeof respondSchema>;
 
 export const availabilitySchema = z.object({
-  available: z.enum(["true", "false"], { error: "Escolha se quer receber novos pedidos." }).transform((v) => v === "true"),
+  available: z
+    .enum(["true", "false"], { error: "Escolha se quer receber novos pedidos." })
+    .transform((v) => v === "true"),
 });
 
 export const consentSchema = z.object({

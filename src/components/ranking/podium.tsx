@@ -12,7 +12,10 @@ export interface RankedPaperViewer {
   loginHref: string;
 }
 
-export function viewerFor(paper: Pick<PaperListItem, "submitted_by">, viewer: RankedPaperViewer): VoteViewer {
+export function viewerFor(
+  paper: Pick<PaperListItem, "submitted_by">,
+  viewer: RankedPaperViewer,
+): VoteViewer {
   if (!viewer.userId) return "guest";
   return paper.submitted_by === viewer.userId ? "owner" : "member";
 }
@@ -25,8 +28,20 @@ const PLACE = [
     card: "border-accent-strong/60 ring-2 ring-accent/50",
     badge: "bg-accent text-accent-fg",
   },
-  { label: "2º lugar", order: "sm:order-1", step: "sm:h-12", card: "", badge: "bg-primary-soft text-primary-soft-fg" },
-  { label: "3º lugar", order: "sm:order-3", step: "sm:h-6", card: "", badge: "bg-secondary-soft text-secondary-soft-fg" },
+  {
+    label: "2º lugar",
+    order: "sm:order-1",
+    step: "sm:h-12",
+    card: "",
+    badge: "bg-primary-soft text-primary-soft-fg",
+  },
+  {
+    label: "3º lugar",
+    order: "sm:order-3",
+    step: "sm:h-6",
+    card: "",
+    badge: "bg-secondary-soft text-secondary-soft-fg",
+  },
 ] as const;
 
 /** Pódio dos 3 primeiros: o 1º fica no centro (telas largas) e mais alto. */
@@ -55,7 +70,7 @@ export function Podium({
               <div className="flex items-center justify-between gap-3">
                 <span
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-pill px-3 font-display text-sm font-bold",
+                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-pill px-3 font-display text-sm font-bold whitespace-nowrap",
                     place.badge,
                   )}
                 >
@@ -63,21 +78,25 @@ export function Podium({
                   {place.label}
                 </span>
                 {paper.area && (
-                  <Badge variant="outline" className="truncate">
-                    {paper.area.name}
+                  <Badge variant="outline" className="min-w-0" title={paper.area.name}>
+                    <span className="truncate">{paper.area.name}</span>
                   </Badge>
                 )}
               </div>
               <h3 className="font-serif text-lg leading-snug font-semibold text-pretty break-words text-fg">
                 <CardLink href={`/papers/${paper.id}`}>{paper.title}</CardLink>
               </h3>
-              <p className="line-clamp-2 text-sm text-fg-muted">{shortAuthorList(paper.authors, 2)}</p>
+              <p className="line-clamp-2 text-sm text-fg-muted">
+                {shortAuthorList(paper.authors, 2)}
+              </p>
               <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-3">
                 <p className="grid">
-                  <span className="tabular font-display text-2xl leading-none font-semibold text-fg">
+                  <span className="font-display text-2xl leading-none font-semibold text-fg tabular">
                     {formatNumber(rankingVotes(period, paper))}
                   </span>
-                  <span className="text-xs text-fg-subtle">{periodVotesCaption(period, rankingVotes(period, paper))}</span>
+                  <span className="text-xs text-fg-subtle">
+                    {periodVotesCaption(period, rankingVotes(period, paper))}
+                  </span>
                 </p>
                 <VoteButton
                   paperId={paper.id}
@@ -87,6 +106,7 @@ export function Podium({
                   viewer={viewerFor(paper, viewer)}
                   loginHref={viewer.loginHref}
                   showCount={false}
+                  align="end"
                 />
               </div>
             </Card>

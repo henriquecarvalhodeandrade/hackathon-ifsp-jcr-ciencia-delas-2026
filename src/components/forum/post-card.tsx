@@ -18,14 +18,16 @@ export interface PostCardProps {
 
 /** Uma resposta do tópico: autora/anônima, corpo em Markdown, reações e ações permitidas. */
 export function PostCard({ post, thread, viewerIsModerator }: PostCardProps) {
-  const headingId = `resposta-${post.id}-autora`;
+  // Âncora `#post-<id>`: é o formato dos links das notificações (triggers do banco) e do /admin.
+  const anchorId = `post-${post.id}`;
+  const headingId = `${anchorId}-autora`;
   const authorLabel = post.author ? `à resposta de ${post.author.full_name}` : "à resposta anônima";
   const canDelete = post.isOwner || viewerIsModerator;
   const canChooseSolution = thread.isOwner || viewerIsModerator;
 
   return (
     <article
-      id={`resposta-${post.id}`}
+      id={anchorId}
       aria-labelledby={headingId}
       className={cn(
         "scroll-mt-24 rounded-card border bg-surface p-4 shadow-card sm:p-5",
@@ -35,7 +37,10 @@ export function PostCard({ post, thread, viewerIsModerator }: PostCardProps) {
       <header className="flex items-start gap-3">
         <ForumAvatar author={post.author} size="sm" className="mt-0.5" />
         <div className="grid min-w-0 flex-1 gap-0.5">
-          <h3 id={headingId} className="flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-[0.9375rem]">
+          <h3
+            id={headingId}
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-[0.9375rem]"
+          >
             <AuthorName author={post.author} isOwnAnonymous={post.isAnonymous && post.isOwner} />
             {post.isSolution && (
               <Badge variant="success">
@@ -54,7 +59,9 @@ export function PostCard({ post, thread, viewerIsModerator }: PostCardProps) {
                 <span title={`Editada em ${formatDateTime(post.editedAt)}`}>editada</span>
               </>
             )}
-            {post.author?.headline && <span className="hidden sm:inline"> · {post.author.headline}</span>}
+            {post.author?.headline && (
+              <span className="hidden sm:inline"> · {post.author.headline}</span>
+            )}
           </p>
         </div>
       </header>
@@ -66,7 +73,12 @@ export function PostCard({ post, thread, viewerIsModerator }: PostCardProps) {
           body={post.body}
           canEdit={post.isOwner}
           reactions={
-            <ReactionBar threadId={thread.id} postId={post.id} reactions={post.reactions} targetLabel={authorLabel} />
+            <ReactionBar
+              threadId={thread.id}
+              postId={post.id}
+              reactions={post.reactions}
+              targetLabel={authorLabel}
+            />
           }
           actions={
             <>
@@ -78,7 +90,11 @@ export function PostCard({ post, thread, viewerIsModerator }: PostCardProps) {
                   pendingText={post.isSolution ? "Desmarcando…" : "Marcando…"}
                   className={post.isSolution ? "text-fg-muted" : "text-success"}
                 >
-                  {post.isSolution ? <CircleSlash aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
+                  {post.isSolution ? (
+                    <CircleSlash aria-hidden="true" />
+                  ) : (
+                    <CircleCheck aria-hidden="true" />
+                  )}
                   {post.isSolution ? "Desmarcar solução" : "Marcar como solução"}
                 </ActionButton>
               )}

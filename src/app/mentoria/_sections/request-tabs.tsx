@@ -14,12 +14,20 @@ import { capacitySummary, tabHref } from "@/lib/mentorship/presentation";
 import { loadContacts, type RequestItem, type ServerClient } from "@/lib/mentorship/queries";
 import { pluralize } from "@/lib/utils";
 
-function SectionTitle({ id, children, count }: { id: string; children: React.ReactNode; count?: number }) {
+function SectionTitle({
+  id,
+  children,
+  count,
+}: {
+  id: string;
+  children: React.ReactNode;
+  count?: number;
+}) {
   return (
     <h2 id={id} className="flex items-center gap-2 font-display text-xl font-semibold text-fg">
       {children}
       {count !== undefined && count > 0 && (
-        <span className="tabular rounded-pill bg-surface-2 px-2 py-0.5 text-sm font-semibold text-fg-subtle">
+        <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-sm font-semibold text-fg-subtle tabular">
           {count}
         </span>
       )}
@@ -31,7 +39,13 @@ function SectionTitle({ id, children, count }: { id: string; children: React.Rea
 // Enviadas
 // ---------------------------------------------------------------------------
 
-export function SentTab({ sent, seeksMentorship }: { sent: readonly RequestItem[]; seeksMentorship: boolean }) {
+export function SentTab({
+  sent,
+  seeksMentorship,
+}: {
+  sent: readonly RequestItem[];
+  seeksMentorship: boolean;
+}) {
   if (sent.length === 0) {
     return (
       <EmptyState
@@ -88,7 +102,13 @@ export function SentTab({ sent, seeksMentorship }: { sent: readonly RequestItem[
 // Recebidas
 // ---------------------------------------------------------------------------
 
-export function ReceivedTab({ profile, received }: { profile: Profile; received: readonly RequestItem[] }) {
+export function ReceivedTab({
+  profile,
+  received,
+}: {
+  profile: Profile;
+  received: readonly RequestItem[];
+}) {
   const pending = received.filter((r) => r.status === "pending");
   const history = received.filter((r) => r.status !== "pending").slice(0, 20);
   const accepted = received.filter((r) => r.status === "accepted").length;
@@ -97,7 +117,11 @@ export function ReceivedTab({ profile, received }: { profile: Profile; received:
 
   return (
     <div className="grid gap-10">
-      <Card as="section" aria-labelledby="minha-disponibilidade" className="grid gap-5 p-5 sm:p-6 md:grid-cols-[1fr_auto] md:items-start">
+      <Card
+        as="section"
+        aria-labelledby="minha-disponibilidade"
+        className="grid gap-5 p-5 sm:p-6 md:grid-cols-[1fr_auto] md:items-start"
+      >
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <h2 id="minha-disponibilidade" className="font-display text-xl font-semibold text-fg">
@@ -148,8 +172,8 @@ export function ReceivedTab({ profile, received }: { profile: Profile; received:
         </SectionTitle>
         {pending.length > 0 && capacity.full && (
           <Alert variant="warning" title="Suas vagas estão todas ocupadas">
-            Você pode recusar pedidos normalmente. Para aceitar, primeiro conclua uma mentoria ativa ou aumente sua
-            capacidade no perfil.
+            Você pode recusar pedidos normalmente. Para aceitar, primeiro conclua uma mentoria ativa
+            ou aumente sua capacidade no perfil.
           </Alert>
         )}
         {pending.length > 0 ? (

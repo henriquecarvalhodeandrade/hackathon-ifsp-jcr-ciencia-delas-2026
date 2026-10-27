@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { cleanAbstract, crossrefWorkUrl, decodeEntities, parseCrossrefWork, stripMarkup } from "./crossref";
+import {
+  cleanAbstract,
+  crossrefWorkUrl,
+  decodeEntities,
+  parseCrossrefWork,
+  stripMarkup,
+} from "./crossref";
 
 describe("decodeEntities / stripMarkup", () => {
   it("decodifica entidades nomeadas e numéricas", () => {
-    expect(decodeEntities("Ci&#234;ncia &amp; inova&#x00E7;&#227;o &lt;3")).toBe("Ciência & inovação <3");
+    expect(decodeEntities("Ci&#234;ncia &amp; inova&#x00E7;&#227;o &lt;3")).toBe(
+      "Ciência & inovação <3",
+    );
     expect(decodeEntities("&desconhecida; &#0;")).toBe("&desconhecida; &#0;");
   });
 
   it("remove tags HTML/MathML e colapsa espaços", () => {
     expect(stripMarkup("<p>Um</p><p>Dois</p>")).toBe("Um Dois");
-    expect(stripMarkup("Efeito <i>Hall</i>   quântico\n em <sub>2</sub>D")).toBe("Efeito Hall quântico em 2D");
+    expect(stripMarkup("Efeito <i>Hall</i>   quântico\n em <sub>2</sub>D")).toBe(
+      "Efeito Hall quântico em 2D",
+    );
   });
 });
 
@@ -98,13 +108,19 @@ describe("parseCrossrefWork", () => {
   });
 
   it("ignora anos fora da faixa", () => {
-    expect(parseCrossrefWork({ DOI: "10.5555/a", issued: { "date-parts": [[1500]] } })?.year).toBeNull();
-    expect(parseCrossrefWork({ DOI: "10.5555/a", issued: { "date-parts": [[null]] } })?.year).toBeNull();
+    expect(
+      parseCrossrefWork({ DOI: "10.5555/a", issued: { "date-parts": [[1500]] } })?.year,
+    ).toBeNull();
+    expect(
+      parseCrossrefWork({ DOI: "10.5555/a", issued: { "date-parts": [[null]] } })?.year,
+    ).toBeNull();
   });
 });
 
 describe("crossrefWorkUrl", () => {
   it("preserva as barras e codifica o resto", () => {
-    expect(crossrefWorkUrl("10.1002/(sici)1097#x")).toBe("https://api.crossref.org/works/10.1002/(sici)1097%23x");
+    expect(crossrefWorkUrl("10.1002/(sici)1097#x")).toBe(
+      "https://api.crossref.org/works/10.1002/(sici)1097%23x",
+    );
   });
 });

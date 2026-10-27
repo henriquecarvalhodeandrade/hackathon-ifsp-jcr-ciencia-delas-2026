@@ -83,8 +83,9 @@ export function MarkdownEditor({
         ]}
       />
       <p className="text-xs text-fg-subtle">
-        Aceita Markdown: <code className="font-mono">**negrito**</code>, <code className="font-mono">_itálico_</code>,
-        listas com <code className="font-mono">-</code>, <code className="font-mono">[link](https://…)</code> e{" "}
+        Aceita Markdown: <code className="font-mono">**negrito**</code>,{" "}
+        <code className="font-mono">_itálico_</code>, listas com{" "}
+        <code className="font-mono">-</code>, <code className="font-mono">[link](https://…)</code> e{" "}
         <code className="font-mono">`código`</code>.
       </p>
     </div>

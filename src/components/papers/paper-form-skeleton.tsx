@@ -16,7 +16,10 @@ export function PaperFormSkeleton({ label }: { label: string }) {
         </div>
         <div className="grid gap-8">
           {[0, 1].map((i) => (
-            <div key={i} className="grid gap-5 rounded-card border border-border bg-surface p-6 shadow-card">
+            <div
+              key={i}
+              className="grid gap-5 rounded-card border border-border bg-surface p-6 shadow-card"
+            >
               <Skeleton className="h-6 w-56" />
               <Skeleton className="h-11 w-full" />
               <Skeleton className="h-11 w-full" />

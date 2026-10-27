@@ -2,17 +2,35 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EyeOff, Plus, SearchX, Tag, X } from "lucide-react";
-import { Alert, ButtonLink, Container, EmptyState, PageHeader, Pagination, Section } from "@/components/ui";
+import {
+  Alert,
+  ButtonLink,
+  Container,
+  EmptyState,
+  PageHeader,
+  Pagination,
+  Section,
+} from "@/components/ui";
 import { CategoryIcon } from "@/components/forum/category-icon";
 import { ForumSearch } from "@/components/forum/forum-search";
 import { ThreadList } from "@/components/forum/thread-list";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { getCategoryBySlug, listThreads } from "@/lib/forum/queries";
-import { FORUM_PAGE_SIZE, parsePage, sanitizeSearchTerm, sanitizeTag, totalPages } from "@/lib/forum/text";
+import {
+  FORUM_PAGE_SIZE,
+  parsePage,
+  sanitizeSearchTerm,
+  sanitizeTag,
+  totalPages,
+} from "@/lib/forum/text";
 import { pluralize } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
-type SearchParams = Promise<{ q?: string | string[]; tag?: string | string[]; pagina?: string | string[] }>;
+type SearchParams = Promise<{
+  q?: string | string[];
+  tag?: string | string[];
+  pagina?: string | string[];
+}>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
@@ -77,12 +95,16 @@ export default async function ForumCategoryPage({
         <div className="grid gap-4">
           {category.allow_anonymous && (
             <Alert variant="info" icon={<EyeOff />} title="Este espaço aceita publicações anônimas">
-              Você pode abrir tópicos e responder sem mostrar seu nome. A moderação consegue ver a autoria apenas para
-              agir em casos graves de segurança. Leia o{" "}
+              Você pode abrir tópicos e responder sem mostrar seu nome. A moderação consegue ver a
+              autoria apenas para agir em casos graves de segurança. Leia o{" "}
               <Link href="/conduta">código de conduta</Link>.
             </Alert>
           )}
-          <ForumSearch action={basePath} defaultValue={q} placeholder={`Buscar em ${category.name}`} />
+          <ForumSearch
+            action={basePath}
+            defaultValue={q}
+            placeholder={`Buscar em ${category.name}`}
+          />
         </div>
       </PageHeader>
 
@@ -110,7 +132,12 @@ export default async function ForumCategoryPage({
         </div>
 
         {items.length > 0 ? (
-          <ThreadList threads={items} showCategory={false} showExcerpt={Boolean(q)} tagBasePath={basePath} />
+          <ThreadList
+            threads={items}
+            showCategory={false}
+            showExcerpt={Boolean(q)}
+            tagBasePath={basePath}
+          />
         ) : filtering ? (
           <EmptyState
             icon={<SearchX />}
@@ -119,7 +146,11 @@ export default async function ForumCategoryPage({
             action={
               <>
                 <ButtonLink
-                  href={q ? `/forum?q=${encodeURIComponent(q)}` : `/forum?tag=${encodeURIComponent(tag)}`}
+                  href={
+                    q
+                      ? `/forum?q=${encodeURIComponent(q)}`
+                      : `/forum?tag=${encodeURIComponent(tag)}`
+                  }
                   variant="outline"
                 >
                   Buscar no fórum todo
@@ -148,7 +179,13 @@ export default async function ForumCategoryPage({
             }
           />
         )}
-        <Pagination page={page} totalPages={pages} basePath={basePath} searchParams={paginationParams} className="mt-6" />
+        <Pagination
+          page={page}
+          totalPages={pages}
+          basePath={basePath}
+          searchParams={paginationParams}
+          className="mt-6"
+        />
       </Section>
     </Container>
   );

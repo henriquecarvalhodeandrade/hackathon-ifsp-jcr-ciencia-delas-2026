@@ -27,7 +27,7 @@ export function ReplyForm({ threadId, allowAnonymous }: ReplyFormProps) {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => {
       document
-        .getElementById(`resposta-${state.postId}`)
+        .getElementById(`post-${state.postId}`)
         ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
     });
   }, [state]);
@@ -38,7 +38,9 @@ export function ReplyForm({ threadId, allowAnonymous }: ReplyFormProps) {
   return (
     <form ref={formRef} action={formAction} noValidate className="grid gap-4">
       <input type="hidden" name="threadId" value={threadId} />
-      <FormMessage tone={state?.ok ? "success" : "error"}>{state ? (state.ok ? state.message : state.error) : null}</FormMessage>
+      <FormMessage tone={state?.ok ? "success" : "error"}>
+        {state ? (state.ok ? state.message : state.error) : null}
+      </FormMessage>
 
       <div key={state?.nonce ?? "inicial"} className="grid gap-4">
         <Field label="Sua resposta" required error={errors?.body}>
@@ -59,7 +61,9 @@ export function ReplyForm({ threadId, allowAnonymous }: ReplyFormProps) {
               label="Responder anonimamente"
               description="Seu nome não aparece. A moderação pode ver a autoria apenas em casos graves de segurança."
             />
-            {errors?.anonymous?.[0] && <p className="text-sm font-medium text-danger">{errors.anonymous[0]}</p>}
+            {errors?.anonymous?.[0] && (
+              <p className="text-sm font-medium text-danger">{errors.anonymous[0]}</p>
+            )}
           </div>
         )}
       </div>

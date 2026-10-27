@@ -64,7 +64,9 @@ describe("formatEditionPeriod", () => {
     expect(formatEditionPeriod("2026-09-28", "2026-10-04")).toBe("28 de set. a 4 de out. de 2026");
   });
   it("anos diferentes", () => {
-    expect(formatEditionPeriod("2026-12-28", "2027-01-03")).toBe("28 de dez. de 2026 a 3 de jan. de 2027");
+    expect(formatEditionPeriod("2026-12-28", "2027-01-03")).toBe(
+      "28 de dez. de 2026 a 3 de jan. de 2027",
+    );
   });
   it("datas ausentes", () => {
     expect(formatEditionPeriod(null, null)).toBeNull();

@@ -40,7 +40,6 @@ export async function getProfileAreaIds(profileId: string, client?: ServerClient
 
 export interface MentorAvailability {
   openSlots: number;
-  existingRequestStatus: Enums<"mentorship_status"> | null;
 }
 
 /**
@@ -58,13 +57,36 @@ export const getMentorAvailability = cache(async (): Promise<Map<string, MentorA
     return map;
   }
   for (const row of data ?? []) {
-    map.set(row.mentor_id, {
-      openSlots: row.open_slots,
-      existingRequestStatus: row.existing_request_status ?? null,
-    });
+    map.set(row.mentor_id, { openSlots: row.open_slots });
   }
   return map;
 });
+
+export interface OpenRequestBetween {
+  status: Extract<Enums<"mentorship_status">, "pending" | "accepted">;
+  /** Papel da usuária logada nesse pedido. */
+  myRole: "mentee" | "mentor";
+}
+
+/**
+ * Pedido em aberto (pendente ou aceito) entre a usuária logada e outra pessoa, nos dois sentidos.
+ * Consulta direta (o RLS só mostra pedidos de que ela participa) — ao contrário da RPC de
+ * candidatas, funciona também quando a mentora está sem vagas ou pausada.
+ */
+export async function getOpenRequestBetween(myId: string, otherId: string): Promise<OpenRequestBetween | null> {
+  if (!isUuid(myId) || !isUuid(otherId) || myId === otherId) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("mentorship_requests")
+    .select("status, mentee_id")
+    .or(`and(mentee_id.eq.${myId},mentor_id.eq.${otherId}),and(mentee_id.eq.${otherId},mentor_id.eq.${myId})`)
+    .in("status", ["pending", "accepted"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data || (data.status !== "pending" && data.status !== "accepted")) return null;
+  return { status: data.status, myRole: data.mentee_id === myId ? "mentee" : "mentor" };
+}
 
 /** Vagas da própria usuária como mentora (ela participa das próprias mentorias, então o RLS deixa contar). */
 export async function getOwnOpenSlots(profileId: string, capacity: number): Promise<number> {

@@ -27,10 +27,13 @@ export interface EditionWindow {
   end: Date;
 }
 
-const PAPER_COLUMNS = "id, title, authors, plain_summary, vote_count, created_at, area_id, area:research_areas(name)";
+const PAPER_COLUMNS =
+  "id, title, authors, plain_summary, vote_count, created_at, area_id, area:research_areas(name)";
 
 function fail(what: string, error: { message: string } | null): never {
-  throw new Error(`Falha ao buscar ${what} para a newsletter: ${error?.message ?? "erro desconhecido"}`);
+  throw new Error(
+    `Falha ao buscar ${what} para a newsletter: ${error?.message ?? "erro desconhecido"}`,
+  );
 }
 
 type PaperRow = {
@@ -75,7 +78,11 @@ async function collectPapers(admin: AdminClient, startIso: string, endIso: strin
       .in("id", votedIds.slice(0, 500))
       .eq("is_hidden", false);
     if (error) fail("papers", error);
-    ranked = rankPapersByWindowVotes(votes ?? [], ((data ?? []) as PaperRow[]).map(toCandidate), EDITION_LIMITS.papers);
+    ranked = rankPapersByWindowVotes(
+      votes ?? [],
+      ((data ?? []) as PaperRow[]).map(toCandidate),
+      EDITION_LIMITS.papers,
+    );
   }
 
   // Semana sem destaques: mostra as novidades da Vitrine (papers indicados na janela).
@@ -94,28 +101,50 @@ async function collectPapers(admin: AdminClient, startIso: string, endIso: strin
   return ranked.map(toNewsletterPaper);
 }
 
-async function collectThreads(admin: AdminClient, window: EditionWindow, startIso: string, endIso: string) {
+async function collectThreads(
+  admin: AdminClient,
+  window: EditionWindow,
+  startIso: string,
+  endIso: string,
+) {
   const [posts, reactions, created] = await Promise.all([
-    admin.from("forum_posts").select("thread_id").gte("created_at", startIso).lt("created_at", endIso).limit(10_000),
+    admin
+      .from("forum_posts")
+      .select("thread_id")
+      .gte("created_at", startIso)
+      .lt("created_at", endIso)
+      .limit(10_000),
     admin
       .from("forum_reactions")
       .select("thread_id, post_id")
       .gte("created_at", startIso)
       .lt("created_at", endIso)
       .limit(10_000),
-    admin.from("forum_threads").select("id").gte("created_at", startIso).lt("created_at", endIso).limit(1_000),
+    admin
+      .from("forum_threads")
+      .select("id")
+      .gte("created_at", startIso)
+      .lt("created_at", endIso)
+      .limit(1_000),
   ]);
   if (posts.error) fail("respostas do fórum", posts.error);
   if (reactions.error) fail("reações do fórum", reactions.error);
   if (created.error) fail("tópicos do fórum", created.error);
 
   const postThreadIds = (posts.data ?? []).map((p) => p.thread_id);
-  const reactionThreadIds = (reactions.data ?? []).flatMap((r) => (r.thread_id ? [r.thread_id] : []));
+  const reactionThreadIds = (reactions.data ?? []).flatMap((r) =>
+    r.thread_id ? [r.thread_id] : [],
+  );
 
   // Reações em respostas contam para o tópico da resposta.
-  const reactedPostIds = [...new Set((reactions.data ?? []).flatMap((r) => (r.post_id ? [r.post_id] : [])))];
+  const reactedPostIds = [
+    ...new Set((reactions.data ?? []).flatMap((r) => (r.post_id ? [r.post_id] : []))),
+  ];
   if (reactedPostIds.length) {
-    const { data, error } = await admin.from("forum_posts").select("id, thread_id").in("id", reactedPostIds.slice(0, 1_000));
+    const { data, error } = await admin
+      .from("forum_posts")
+      .select("id, thread_id")
+      .in("id", reactedPostIds.slice(0, 1_000));
     if (error) fail("respostas reagidas", error);
     const threadOf = new Map((data ?? []).map((p) => [p.id, p.thread_id]));
     for (const r of reactions.data ?? []) {
@@ -124,12 +153,16 @@ async function collectThreads(admin: AdminClient, window: EditionWindow, startIs
     }
   }
 
-  const candidateIds = [...new Set([...postThreadIds, ...reactionThreadIds, ...(created.data ?? []).map((t) => t.id)])];
+  const candidateIds = [
+    ...new Set([...postThreadIds, ...reactionThreadIds, ...(created.data ?? []).map((t) => t.id)]),
+  ];
   if (candidateIds.length === 0) return [];
 
   const { data, error } = await admin
     .from("forum_threads")
-    .select("id, title, reply_count, created_at, is_anonymous, category:forum_categories(name, allow_anonymous)")
+    .select(
+      "id, title, reply_count, created_at, is_anonymous, category:forum_categories(name, allow_anonymous)",
+    )
     .in("id", candidateIds.slice(0, 500));
   if (error) fail("tópicos", error);
 
@@ -211,7 +244,10 @@ async function collectStats(admin: AdminClient, startIso: string, endIso: string
 }
 
 /** Monta o `content` (CONTRACT §9) da janela informada. Lança Error em falha de consulta. */
-export async function collectEditionContent(admin: AdminClient, window: EditionWindow): Promise<NewsletterContent> {
+export async function collectEditionContent(
+  admin: AdminClient,
+  window: EditionWindow,
+): Promise<NewsletterContent> {
   const startIso = window.start.toISOString();
   const endIso = window.end.toISOString();
   const [papers, threads, mentors, stats] = await Promise.all([

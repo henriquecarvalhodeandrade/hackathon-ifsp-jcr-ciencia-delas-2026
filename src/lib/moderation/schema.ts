@@ -36,7 +36,9 @@ export const reportSchema = z
     details: z
       .string()
       .trim()
-      .max(REPORT_DETAILS_MAX, { error: `Use no máximo ${REPORT_DETAILS_MAX} caracteres nos detalhes.` }),
+      .max(REPORT_DETAILS_MAX, {
+        error: `Use no máximo ${REPORT_DETAILS_MAX} caracteres nos detalhes.`,
+      }),
   })
   .superRefine((value, ctx) => {
     if (value.reason === "other" && value.details.length < REPORT_OTHER_DETAILS_MIN) {

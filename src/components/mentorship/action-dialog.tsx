@@ -71,7 +71,10 @@ export function MentorshipActionDialog({
           <Button variant="ghost" onClick={() => setOpen(false)}>
             {cancelLabel}
           </Button>
-          <SubmitButton variant={tone === "danger" ? "danger" : "primary"} pendingText={pendingLabel}>
+          <SubmitButton
+            variant={tone === "danger" ? "danger" : "primary"}
+            pendingText={pendingLabel}
+          >
             {confirmLabel}
           </SubmitButton>
         </div>

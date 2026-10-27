@@ -49,11 +49,19 @@ const titleSchema = z
 const threadBodySchema = z
   .string()
   .trim()
-  .min(L.threadBodyMin, { error: `Escreva pelo menos ${L.threadBodyMin} caracteres para contextualizar.` })
-  .max(L.threadBodyMax, { error: `O texto pode ter até ${formatNumber(L.threadBodyMax)} caracteres.` });
+  .min(L.threadBodyMin, {
+    error: `Escreva pelo menos ${L.threadBodyMin} caracteres para contextualizar.`,
+  })
+  .max(L.threadBodyMax, {
+    error: `O texto pode ter até ${formatNumber(L.threadBodyMax)} caracteres.`,
+  });
 
 const tagsSchema = z
-  .array(z.string().max(L.tagMaxLength, { error: `Cada tag pode ter até ${L.tagMaxLength} caracteres.` }))
+  .array(
+    z
+      .string()
+      .max(L.tagMaxLength, { error: `Cada tag pode ter até ${L.tagMaxLength} caracteres.` }),
+  )
   .max(L.tagsMax, { error: `Use no máximo ${L.tagsMax} tags.` });
 
 const idSchema = z.guid({ error: "Não encontramos esse conteúdo." });
@@ -80,7 +88,9 @@ const postBodySchema = z
   .string()
   .trim()
   .min(L.postBodyMin, { error: `Escreva pelo menos ${L.postBodyMin} caracteres.` })
-  .max(L.postBodyMax, { error: `A resposta pode ter até ${formatNumber(L.postBodyMax)} caracteres.` });
+  .max(L.postBodyMax, {
+    error: `A resposta pode ter até ${formatNumber(L.postBodyMax)} caracteres.`,
+  });
 
 export const createPostSchema = z.object({
   threadId: idSchema,

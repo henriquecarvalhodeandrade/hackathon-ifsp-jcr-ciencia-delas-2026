@@ -1,5 +1,9 @@
 import { Skeleton } from "@/components/ui";
-import { ForumLoadingShell, PageHeaderSkeleton, ThreadListSkeleton } from "@/components/forum/skeletons";
+import {
+  ForumLoadingShell,
+  PageHeaderSkeleton,
+  ThreadListSkeleton,
+} from "@/components/forum/skeletons";
 
 export default function ForumLoading() {
   return (

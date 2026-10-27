@@ -73,7 +73,15 @@ function preheaderBlock(text: string): string {
   return `<div style="display:none;font-size:1px;color:${C.page};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(text)}${filler}</div>`;
 }
 
-function layout({ title, preheader, body }: { title: string; preheader: string; body: string }): string {
+function layout({
+  title,
+  preheader,
+  body,
+}: {
+  title: string;
+  preheader: string;
+  body: string;
+}): string {
   return `<!doctype html>
 <html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -148,7 +156,10 @@ export function editionPreheader(edition: EditionForRender): string {
 }
 
 /** E-mail semanal da edição, personalizado com o link de descadastro da destinatária. */
-export function renderEditionEmail(edition: EditionForRender, ctx: EditionEmailContext): RenderedEmail {
+export function renderEditionEmail(
+  edition: EditionForRender,
+  ctx: EditionEmailContext,
+): RenderedEmail {
   const { content } = edition;
   const period = formatEditionPeriod(edition.period_start, edition.period_end);
   const eyebrow = period ? `${NEWSLETTER_NAME} · ${period}` : NEWSLETTER_NAME;
@@ -157,7 +168,9 @@ export function renderEditionEmail(edition: EditionForRender, ctx: EditionEmailC
   const preheader = editionPreheader(edition);
   const summary = edition.summary?.trim();
 
-  const rows: string[] = [headerRow(eyebrow, edition.title, "A newsletter semanal da Ciência Delas")];
+  const rows: string[] = [
+    headerRow(eyebrow, edition.title, "A newsletter semanal da Ciência Delas"),
+  ];
 
   if (summary) {
     rows.push(`<tr><td class="cd-px" style="padding:32px 40px 0;">
@@ -175,7 +188,10 @@ ${[
   [stats.mentorships, stats.mentorships === 1 ? "mentoria iniciada" : "mentorias iniciadas"],
 ]
   .map(
-    ([value, label]) => `<td class="cd-stat" width="33%" align="center" style="padding:16px 8px;font-family:${SANS};">
+    ([
+      value,
+      label,
+    ]) => `<td class="cd-stat" width="33%" align="center" style="padding:16px 8px;font-family:${SANS};">
 <p style="margin:0;font-size:26px;line-height:30px;font-weight:700;color:${C.header};">${formatNumber(Number(value))}</p>
 <p style="margin:2px 0 0;font-size:13px;line-height:18px;color:${C.muted};">${escapeHtml(String(label))}</p>
 </td>`,
@@ -208,7 +224,9 @@ ${paper.plain_summary ? `<p style="margin:8px 0 0;font-family:${SANS};font-size:
     rows.push(sectionTitle("Conversas no fórum"));
     for (const thread of content.threads) {
       const url = absoluteUrl(ctx.siteUrl, thread.url);
-      const meta = [thread.category || null, pluralize(thread.replies, "resposta")].filter(Boolean).join(" · ");
+      const meta = [thread.category || null, pluralize(thread.replies, "resposta")]
+        .filter(Boolean)
+        .join(" · ");
       rows.push(`<tr><td class="cd-px" style="padding:10px 40px 4px;">
 <p style="margin:0;font-family:${SANS};font-size:16px;line-height:24px;font-weight:700;"><a href="${escapeHtml(url)}" style="color:${C.text};">${escapeHtml(thread.title)}</a></p>
 <p style="margin:2px 0 0;font-family:${SANS};font-size:13px;line-height:20px;color:${C.subtle};">${escapeHtml(meta)}</p>
@@ -257,14 +275,17 @@ ${button(webUrl, "Ver a edição no site")}
       lines.push(`${i + 1}. ${paper.title}`);
       if (paper.authors.length) lines.push(`   ${formatAuthorsList(paper.authors)}`);
       lines.push(`   ${pluralize(paper.votes, "destaque")}${paper.area ? ` · ${paper.area}` : ""}`);
-      if (paper.plain_summary) lines.push(`   Resumo acessível: ${truncate(paper.plain_summary, 280)}`);
+      if (paper.plain_summary)
+        lines.push(`   Resumo acessível: ${truncate(paper.plain_summary, 280)}`);
       lines.push(`   ${absoluteUrl(ctx.siteUrl, paper.url)}`, "");
     });
   }
   if (content.threads.length) {
     lines.push("CONVERSAS NO FÓRUM (para membras)", "");
     for (const thread of content.threads) {
-      lines.push(`- ${thread.title} (${[thread.category, pluralize(thread.replies, "resposta")].filter(Boolean).join(" · ")})`);
+      lines.push(
+        `- ${thread.title} (${[thread.category, pluralize(thread.replies, "resposta")].filter(Boolean).join(" · ")})`,
+      );
       lines.push(`  ${absoluteUrl(ctx.siteUrl, thread.url)}`);
     }
     lines.push("");

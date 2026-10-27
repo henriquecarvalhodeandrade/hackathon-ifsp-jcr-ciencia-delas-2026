@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { defaultRequestMessage } from "./presentation";
-import { availabilitySchema, consentSchema, fieldErrorsOf, requestIdSchema, requestSchema, respondSchema } from "./schemas";
+import {
+  availabilitySchema,
+  consentSchema,
+  fieldErrorsOf,
+  requestIdSchema,
+  requestSchema,
+  respondSchema,
+} from "./schemas";
 
 const MENTOR = "d1000000-0000-4000-8000-000000000001";
 
@@ -24,7 +31,10 @@ describe("requestSchema", () => {
   });
 
   it("recusa o rascunho padrão sem personalizar", () => {
-    const parsed = requestSchema.safeParse({ mentor_id: MENTOR, message: defaultRequestMessage("Marina") });
+    const parsed = requestSchema.safeParse({
+      mentor_id: MENTOR,
+      message: defaultRequestMessage("Marina"),
+    });
     expect(parsed.success).toBe(false);
     if (!parsed.success) expect(fieldErrorsOf(parsed.error).message?.[0]).toMatch(/colchetes/);
   });
@@ -46,23 +56,34 @@ describe("requestSchema", () => {
 
 describe("respondSchema", () => {
   it("resposta vazia vira null", () => {
-    const parsed = respondSchema.parse({ request_id: MENTOR, decision: "accepted", response_message: "   " });
+    const parsed = respondSchema.parse({
+      request_id: MENTOR,
+      decision: "accepted",
+      response_message: "   ",
+    });
     expect(parsed.response_message).toBeNull();
   });
   it("só aceita aceitar/recusar", () => {
-    expect(respondSchema.safeParse({ request_id: MENTOR, decision: "completed", response_message: "" }).success).toBe(
-      false,
-    );
+    expect(
+      respondSchema.safeParse({ request_id: MENTOR, decision: "completed", response_message: "" })
+        .success,
+    ).toBe(false);
   });
   it("limita a resposta a 1.000 caracteres", () => {
-    const parsed = respondSchema.safeParse({ request_id: MENTOR, decision: "declined", response_message: "a".repeat(1001) });
+    const parsed = respondSchema.safeParse({
+      request_id: MENTOR,
+      decision: "declined",
+      response_message: "a".repeat(1001),
+    });
     expect(parsed.success).toBe(false);
   });
 });
 
 describe("outros esquemas", () => {
   it("requestId exige uuid", () => {
-    expect(requestIdSchema.safeParse({ request_id: "c1000000-0000-4000-8000-000000000003" }).success).toBe(true);
+    expect(
+      requestIdSchema.safeParse({ request_id: "c1000000-0000-4000-8000-000000000003" }).success,
+    ).toBe(true);
     expect(requestIdSchema.safeParse({ request_id: "" }).success).toBe(false);
   });
   it("disponibilidade vira booleano", () => {
@@ -74,6 +95,7 @@ describe("outros esquemas", () => {
     expect(consentSchema.safeParse({ ai_consent: "on" }).success).toBe(true);
     const missing = consentSchema.safeParse({ ai_consent: undefined });
     expect(missing.success).toBe(false);
-    if (!missing.success) expect(fieldErrorsOf(missing.error).ai_consent?.[0]).toMatch(/marque a caixa/);
+    if (!missing.success)
+      expect(fieldErrorsOf(missing.error).ai_consent?.[0]).toMatch(/marque a caixa/);
   });
 });

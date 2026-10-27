@@ -149,6 +149,28 @@ export function profileToFormValues(profile: ProfileRow, areaIds: readonly numbe
   };
 }
 
+const FORM_FIELDS = new Set<string>(Object.keys(EMPTY_PROFILE_VALUES));
+
+/**
+ * Converte o `update` já validado/normalizado (ORCID com hífens, links com https://, tags sem
+ * repetição…) de volta para valores de formulário — assim a tela mostra o que foi gravado.
+ */
+export function updateToFormValues(
+  update: Readonly<Record<string, unknown>>,
+  areaIds?: readonly number[],
+): Partial<ProfileFormValues> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(update)) {
+    if (!FORM_FIELDS.has(key)) continue;
+    if (value === null || value === undefined) out[key] = "";
+    else if (typeof value === "number") out[key] = String(value);
+    else if (Array.isArray(value)) out[key] = value.map(String);
+    else out[key] = value;
+  }
+  if (areaIds) out.area_ids = areaIds.map(String);
+  return out as Partial<ProfileFormValues>;
+}
+
 /** Marca enviada pelo /perfil junto do campo "disponível para novos pedidos". */
 export const AVAILABILITY_MARKER = "_has_availability";
 

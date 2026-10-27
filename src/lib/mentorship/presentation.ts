@@ -122,7 +122,10 @@ export const RESPONSE_MESSAGE_MAX = 1000;
  * Rascunho inicial do pedido de mentoria. A mentoranda edita antes de enviar; a pergunta para
  * puxar conversa (quando houver) entra no fim para dar um ponto de partida concreto.
  */
-export function defaultRequestMessage(mentorName: string | null | undefined, starter?: string | null): string {
+export function defaultRequestMessage(
+  mentorName: string | null | undefined,
+  starter?: string | null,
+): string {
   const name = firstName(mentorName);
   const greeting = name ? `Olá, ${name}! ` : "Olá! ";
   const body =
@@ -141,7 +144,10 @@ export function appendStarter(message: string, starter: string): string {
 }
 
 /** Itens em comum entre duas listas, na ordem da primeira, sem repetição. */
-export function sharedItems<T>(a: readonly T[] | null | undefined, b: readonly T[] | null | undefined): T[] {
+export function sharedItems<T>(
+  a: readonly T[] | null | undefined,
+  b: readonly T[] | null | undefined,
+): T[] {
   if (!a?.length || !b?.length) return [];
   const other = new Set(b);
   const seen = new Set<T>();
@@ -168,7 +174,10 @@ export interface CapacitySummary {
   percent: number;
 }
 
-export function capacitySummary(accepted: number, capacity: number | null | undefined): CapacitySummary {
+export function capacitySummary(
+  accepted: number,
+  capacity: number | null | undefined,
+): CapacitySummary {
   const cap = Math.max(0, Math.floor(capacity ?? 0));
   const used = Math.max(0, Math.floor(accepted));
   const openSlots = Math.max(0, cap - used);
@@ -188,6 +197,7 @@ export function capacitySummary(accepted: number, capacity: number | null | unde
 export const NOTICE_KEYS = [
   "enviado",
   "cancelado",
+  "mentoria-cancelada",
   "aceito",
   "recusado",
   "concluido",
@@ -212,6 +222,11 @@ const NOTICES: Record<NoticeKey, Notice> = {
     title: "Pedido cancelado",
     body: "Avisamos a mentora. Se quiser, você pode procurar outra mentora nas sugestões.",
   },
+  "mentoria-cancelada": {
+    variant: "info",
+    title: "Mentoria cancelada",
+    body: "Avisamos a mentora, e a mentoria agora aparece em “Encerradas”. Quando quiser, você pode buscar outra mentora nas sugestões.",
+  },
   aceito: {
     variant: "success",
     title: "Mentoria aceita!",
@@ -220,7 +235,7 @@ const NOTICES: Record<NoticeKey, Notice> = {
   recusado: {
     variant: "info",
     title: "Pedido recusado",
-    body: "Avisamos a pesquisadora com cuidado. Obrigada por responder — isso ajuda ela a seguir buscando.",
+    body: "Avisamos a pesquisadora com cuidado. Obrigada por responder: assim ela pode seguir em busca de outra mentora.",
   },
   concluido: {
     variant: "success",

@@ -21,12 +21,17 @@ import { isSupabaseConfigured } from "@/lib/env";
 import {
   RANKING_LIMIT,
   RANKING_PERIOD_ORDER,
+  VITRINE_ORDER_EXPLANATIONS,
   buildHref,
   parseAreaSlug,
   parseRankingPeriod,
 } from "@/lib/papers/params";
-import { getCommunityLeaderboard, getResearchAreas, getVotedPaperIds, listRanking } from "@/lib/papers/queries";
-import { RANKING_PERIOD_EXPLANATIONS } from "@/lib/ranking/hot";
+import {
+  getCommunityLeaderboard,
+  getResearchAreas,
+  getVotedPaperIds,
+  listRanking,
+} from "@/lib/papers/queries";
 
 export const metadata: Metadata = {
   title: "Ranking",
@@ -68,12 +73,20 @@ export default async function RankingPage({ searchParams }: { searchParams: Sear
         label="Tipo de ranking"
         items={[
           {
-            href: buildHref("/ranking", { periodo: period === "week" ? null : period, area: areaSlug }),
+            href: buildHref("/ranking", {
+              periodo: period === "week" ? null : period,
+              area: areaSlug,
+            }),
             label: "Papers",
             icon: <Trophy aria-hidden="true" />,
             active: tab === "papers",
           },
-          { href: "/ranking?aba=comunidade", label: "Comunidade", icon: <Users aria-hidden="true" />, active: tab === "comunidade" },
+          {
+            href: "/ranking?aba=comunidade",
+            label: "Comunidade",
+            icon: <Users aria-hidden="true" />,
+            active: tab === "comunidade",
+          },
         ]}
       />
     </PageHeader>
@@ -115,20 +128,32 @@ async function PapersTab({
     getResearchAreas(),
     listRanking({ period, areaSlug, limit: RANKING_LIMIT }),
   ]);
-  const votedIds = await getVotedPaperIds(userId, result.items.map((p) => p.id));
-  const currentHref = buildHref("/ranking", { periodo: period === "week" ? null : period, area: areaSlug });
+  const votedIds = await getVotedPaperIds(
+    userId,
+    result.items.map((p) => p.id),
+  );
+  const currentHref = buildHref("/ranking", {
+    periodo: period === "week" ? null : period,
+    area: areaSlug,
+  });
   const viewer = { userId, votedIds, loginHref: `/entrar?next=${encodeURIComponent(currentHref)}` };
   const areaName = areaSlug ? areas.find((a) => a.slug === areaSlug)?.name : undefined;
 
   return (
     <div className="grid gap-6">
       <div className="grid gap-4">
-        <nav aria-label="Período do ranking" className="-mx-4 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0">
+        <nav
+          aria-label="Período do ranking"
+          className="-mx-4 scrollbar-none overflow-x-auto px-4 sm:mx-0 sm:px-0"
+        >
           <ul className="flex min-w-max gap-2">
             {RANKING_PERIOD_ORDER.map((value) => (
               <li key={value}>
                 <ChipLink
-                  href={buildHref("/ranking", { periodo: value === "week" ? null : value, area: areaSlug })}
+                  href={buildHref("/ranking", {
+                    periodo: value === "week" ? null : value,
+                    area: areaSlug,
+                  })}
                   active={value === period}
                 >
                   {RANKING_PERIODS[value]}
@@ -149,8 +174,8 @@ async function PapersTab({
           <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info" />
           <p>
             <span className="font-semibold text-fg">Como este ranking funciona: </span>
-            {RANKING_PERIOD_EXPLANATIONS[period]} Empates são decididos pelo total de destaques e, depois, pelo paper
-            mais novo.{" "}
+            {VITRINE_ORDER_EXPLANATIONS[period]} Empates são decididos pelo total de destaques e,
+            depois, pelo paper mais novo.{" "}
             <a
               href={DOCS_URL}
               target="_blank"
@@ -175,13 +200,20 @@ async function PapersTab({
         ) : result.items.length === 0 ? (
           <EmptyState
             icon={<Telescope />}
-            title={areaName ? `Ainda não há destaques em ${areaName} neste período` : "Ainda não há destaques neste período"}
+            title={
+              areaName
+                ? `Ainda não há destaques em ${areaName} neste período`
+                : "Ainda não há destaques neste período"
+            }
             description="Que tal explorar a Vitrine e destacar os papers que você recomenda? Cada destaque ajuda uma pesquisadora a ganhar visibilidade."
             action={
               <>
                 <ButtonLink href="/papers">Explorar a Vitrine</ButtonLink>
                 {period !== "all" && (
-                  <ButtonLink href={buildHref("/ranking", { periodo: "all", area: areaSlug })} variant="outline">
+                  <ButtonLink
+                    href={buildHref("/ranking", { periodo: "all", area: areaSlug })}
+                    variant="outline"
+                  >
                     Ver todos os tempos
                   </ButtonLink>
                 )}
@@ -191,7 +223,12 @@ async function PapersTab({
         ) : (
           <>
             <Podium papers={result.items} period={period} viewer={viewer} />
-            <RankingList papers={result.items.slice(3)} period={period} startAt={4} viewer={viewer} />
+            <RankingList
+              papers={result.items.slice(3)}
+              period={period}
+              startAt={4}
+              viewer={viewer}
+            />
           </>
         )}
       </section>
@@ -232,7 +269,9 @@ async function CommunityTab({ userId }: { userId: string | null }) {
           <h2 id="titulo-comunidade" className="font-display text-2xl font-semibold text-fg">
             Quem mais fortalece a rede
           </h2>
-          <p className="text-fg-muted">Um agradecimento a quem orienta, compartilha pesquisa e responde dúvidas.</p>
+          <p className="text-fg-muted">
+            Um agradecimento a quem orienta, compartilha pesquisa e responde dúvidas.
+          </p>
         </div>
         {!result.ok ? (
           <Alert variant="danger" title="Não conseguimos carregar o ranking da comunidade agora.">
@@ -263,7 +302,8 @@ async function CommunityTab({ userId }: { userId: string | null }) {
                   </>
                 }
               >
-                Toda participação conta: indicar papers, responder no fórum e oferecer mentoria somam pontos.
+                Toda participação conta: indicar papers, responder no fórum e oferecer mentoria
+                somam pontos.
               </Alert>
             )}
           </>

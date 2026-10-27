@@ -81,8 +81,9 @@ export function MentorshipSteps({ viewer }: { viewer: LandingViewer | null }) {
         <p className="mt-10 flex items-start gap-2 rounded-card bg-surface-2 p-4 text-[0.9375rem] text-fg-muted sm:items-center">
           <Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info sm:mt-0" />
           <span>
-            Com a sua autorização (e 18 anos ou mais), usamos IA gratuita para explicar as combinações — sem enviar seu
-            nome, e-mail ou contatos. Sem autorização, as sugestões são calculadas só com regras dentro da plataforma.{" "}
+            As sugestões dependem da sua autorização (e de você ter 18 anos ou mais): analisamos o seu perfil de pesquisa
+            e, quando a IA gratuita está disponível, ela explica as combinações — sem receber seu nome, e-mail ou
+            contatos. Sem autorização, você ainda encontra mentoras no diretório e pode pedir mentoria diretamente.{" "}
             <Link href="/privacidade#ia" className="font-semibold text-primary underline underline-offset-2">
               Como tratamos seus dados
             </Link>

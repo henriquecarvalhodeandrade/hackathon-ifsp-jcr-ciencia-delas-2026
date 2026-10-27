@@ -1,7 +1,7 @@
 import "server-only";
 import type { MentorshipStatus } from "@/lib/constants";
 import type { createClient } from "@/lib/supabase/server";
-import type { CandidateAvailability } from "./view-models";
+import type { CandidateAvailability, CandidatePool } from "./view-models";
 
 /**
  * Leituras da página /mentoria. Todas com o cliente da sessão (RLS): a usuária só enxerga os
@@ -10,7 +10,8 @@ import type { CandidateAvailability } from "./view-models";
 
 export type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const PERSON_COLUMNS = "id, full_name, avatar_url, headline, institution, state, career_stage, mentorship_topics";
+const PERSON_COLUMNS =
+  "id, full_name, avatar_url, headline, institution, state, career_stage, mentorship_topics";
 
 export interface Person {
   id: string;
@@ -78,7 +79,9 @@ export async function loadAreaIdsByProfile(
     .select("profile_id, area_id")
     .in("profile_id", ids);
   if (error) {
-    console.warn(`[mentoria] profile_research_areas — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    console.warn(
+      `[mentoria] profile_research_areas — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
+    );
     return out;
   }
   for (const row of data ?? []) {
@@ -107,7 +110,9 @@ export async function loadMyRequests(
     .limit(200);
 
   if (error) {
-    console.warn(`[mentoria] mentorship_requests — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    console.warn(
+      `[mentoria] mentorship_requests — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
+    );
     return { items: [], failed: true };
   }
 
@@ -141,24 +146,39 @@ export async function loadMyRequests(
   return { items, failed: false };
 }
 
+/** Máximo de linhas que a RPC get_mentor_candidates devolve (limite do próprio banco). */
+const CANDIDATE_LIMIT = 100;
+
 /**
  * Mentoras disponíveis agora (com vaga e recebendo pedidos), via RPC SECURITY DEFINER.
  * Retorna null se a RPC falhar — a interface deixa o banco decidir no momento do pedido.
+ * Se a lista vier cheia (limite atingido), `complete` é false: quem ficou de fora pode ter vaga.
  */
 export async function loadCandidateAvailability(
   supabase: ServerClient,
-): Promise<Map<string, CandidateAvailability> | null> {
-  const { data, error } = await supabase.rpc("get_mentor_candidates", { p_limit: 100 });
+): Promise<CandidatePool | null> {
+  const { data, error } = await supabase.rpc("get_mentor_candidates", {
+    p_limit: CANDIDATE_LIMIT,
+  });
   if (error) {
-    console.warn(`[mentoria] get_mentor_candidates — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    console.warn(
+      `[mentoria] get_mentor_candidates — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
+    );
     return null;
   }
-  return new Map(
-    (data ?? []).map((c) => [
-      c.mentor_id,
-      { open_slots: c.open_slots ?? null, existing_request_status: c.existing_request_status ?? null },
-    ]),
-  );
+  const rows = data ?? [];
+  return {
+    byMentor: new Map<string, CandidateAvailability>(
+      rows.map((c) => [
+        c.mentor_id,
+        {
+          open_slots: c.open_slots ?? null,
+          existing_request_status: c.existing_request_status ?? null,
+        },
+      ]),
+    ),
+    complete: rows.length < CANDIDATE_LIMIT,
+  };
 }
 
 export interface Contact {
@@ -175,7 +195,9 @@ export async function loadContacts(
     requestIds.map(async (id) => {
       const { data, error } = await supabase.rpc("get_mentorship_contact", { p_request_id: id });
       if (error) {
-        console.warn(`[mentoria] get_mentorship_contact — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+        console.warn(
+          `[mentoria] get_mentorship_contact — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
+        );
         return [id, null] as const;
       }
       const row = data?.[0];
@@ -202,7 +224,10 @@ export interface DeepLinkMentor {
 }
 
 /** Perfil público da mentora aberta por link direto (?mentora=<id>). */
-export async function loadDeepLinkMentor(supabase: ServerClient, mentorId: string): Promise<DeepLinkMentor | null> {
+export async function loadDeepLinkMentor(
+  supabase: ServerClient,
+  mentorId: string,
+): Promise<DeepLinkMentor | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select(
@@ -211,7 +236,9 @@ export async function loadDeepLinkMentor(supabase: ServerClient, mentorId: strin
     .eq("id", mentorId)
     .maybeSingle();
   if (error) {
-    console.warn(`[mentoria] perfil da mentora — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    console.warn(
+      `[mentoria] perfil da mentora — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
+    );
     return null;
   }
   if (!data) return null;
@@ -244,5 +271,8 @@ export async function loadSuggestionMatch(
     .eq("mentee_id", menteeId)
     .eq("mentor_id", mentorId)
     .maybeSingle();
-  return { score: data?.score ?? null, reason: data?.reason?.trim() ? data.reason.slice(0, 1500) : null };
+  return {
+    score: data?.score ?? null,
+    reason: data?.reason?.trim() ? data.reason.slice(0, 1500) : null,
+  };
 }

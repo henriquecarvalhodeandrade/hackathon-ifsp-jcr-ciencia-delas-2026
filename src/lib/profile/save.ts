@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dbErrorMessage } from "./errors";
 import {
   readSectionValues,
+  updateToFormValues,
   type ProfileFieldErrors,
   type ProfileFormValues,
   type ProfileSection,
@@ -100,7 +101,12 @@ export async function saveSectionForCurrentUser(
     if (areaError) return { ok: false, error: areaError, values };
   }
 
-  return { ok: true, userId: user.id, values, consentRevoked };
+  return {
+    ok: true,
+    userId: user.id,
+    values: { ...values, ...updateToFormValues(parsed.update, parsed.areaIds) },
+    consentRevoked,
+  };
 }
 
 export type CompleteOnboardingOutcome =

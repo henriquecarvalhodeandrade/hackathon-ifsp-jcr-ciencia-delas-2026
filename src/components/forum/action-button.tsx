@@ -38,7 +38,10 @@ export function ActionButton({
       <SubmitButton variant={variant} size={size} pendingText={pendingText}>
         {children}
       </SubmitButton>
-      <span aria-live="polite" className={failed ? "max-w-xs text-sm font-medium text-danger" : "sr-only"}>
+      <span
+        aria-live="polite"
+        className={failed ? "max-w-xs text-sm font-medium text-danger" : "sr-only"}
+      >
         {state ? (state.ok ? state.message : state.error) : ""}
       </span>
     </form>

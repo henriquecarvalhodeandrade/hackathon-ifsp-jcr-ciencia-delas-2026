@@ -4,8 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentProfile, getCurrentUser, type Profile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
-import { findMentorsForCurrentUser, MatchingError, refreshMyEmbedding } from "@/lib/matching/service";
+import {
+  findMentorsForCurrentUser,
+  MatchingError,
+  refreshMyEmbedding,
+} from "@/lib/matching/service";
 import { fallbackMessage, friendlyMentorshipError } from "@/lib/mentorship/errors";
+import { isOpenStatus } from "@/lib/mentorship/presentation";
 import { loadCandidateAvailability, loadSuggestionMatch } from "@/lib/mentorship/queries";
 import {
   availabilitySchema,
@@ -15,7 +20,13 @@ import {
   requestSchema,
   respondSchema,
 } from "@/lib/mentorship/schemas";
-import type { ActionState, FindMentorsState, RequestValues, RespondValues } from "@/lib/mentorship/types";
+import type {
+  ActionState,
+  FindMentorsState,
+  RequestValues,
+  RespondValues,
+} from "@/lib/mentorship/types";
+import { lookupCandidate } from "@/lib/mentorship/view-models";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -31,7 +42,8 @@ type Member = { userId: string; profile: Profile };
 const NOT_SIGNED_IN = "Sua sessão expirou. Entre de novo para continuar.";
 
 async function getMember(): Promise<Member | { error: string }> {
-  if (!isSupabaseConfigured()) return { error: "O Supabase ainda não foi configurado neste ambiente." };
+  if (!isSupabaseConfigured())
+    return { error: "O Supabase ainda não foi configurado neste ambiente." };
   const user = await getCurrentUser();
   if (!user) return { error: NOT_SIGNED_IN };
   const profile = await getCurrentProfile();
@@ -50,7 +62,10 @@ function str(formData: FormData, name: string): string {
 // Sugestões
 // ---------------------------------------------------------------------------
 
-export async function findMentorsAction(_prev: FindMentorsState, _formData: FormData): Promise<FindMentorsState> {
+export async function findMentorsAction(
+  _prev: FindMentorsState,
+  _formData: FormData,
+): Promise<FindMentorsState> {
   void _formData;
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error };
@@ -72,8 +87,13 @@ export async function findMentorsAction(_prev: FindMentorsState, _formData: Form
     result = await findMentorsForCurrentUser({ limit: 6 });
   } catch (error) {
     if (error instanceof MatchingError) return { ok: false, error: error.message };
-    console.error(`[mentoria] findMentors falhou — ${error instanceof Error ? error.message.slice(0, 200) : "erro"}`);
-    return { ok: false, error: "Não conseguimos buscar mentoras agora. Tente de novo em instantes." };
+    console.error(
+      `[mentoria] findMentors falhou — ${error instanceof Error ? error.message.slice(0, 200) : "erro"}`,
+    );
+    return {
+      ok: false,
+      error: "Não conseguimos buscar mentoras agora. Tente de novo em instantes.",
+    };
   }
 
   revalidatePath(PATH);
@@ -85,13 +105,20 @@ export async function findMentorsAction(_prev: FindMentorsState, _formData: Form
   return { ok: true, count: result.suggestions.length, source: result.source, warnings };
 }
 
-export async function grantAiConsentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function grantAiConsentAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error };
 
   const parsed = consentSchema.safeParse({ ai_consent: formData.get("ai_consent") ?? undefined });
   if (!parsed.success) {
-    return { ok: false, error: "Confira a autorização abaixo.", fieldErrors: fieldErrorsOf(parsed.error) };
+    return {
+      ok: false,
+      error: "Confira a autorização abaixo.",
+      fieldErrors: fieldErrorsOf(parsed.error),
+    };
   }
 
   const supabase = await createClient();
@@ -101,7 +128,8 @@ export async function grantAiConsentAction(_prev: ActionState, formData: FormDat
     .eq("id", member.userId)
     .select("id");
   if (error || !data?.length) {
-    if (error) console.warn(`[mentoria] consentimento — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    if (error)
+      console.warn(`[mentoria] consentimento — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
     return { ok: false, error: friendlyMentorshipError(error, "consent") };
   }
 
@@ -119,7 +147,10 @@ export async function createRequestAction(
   _prev: ActionState<RequestValues>,
   formData: FormData,
 ): Promise<ActionState<RequestValues>> {
-  const values: RequestValues = { mentor_id: str(formData, "mentor_id"), message: str(formData, "message") };
+  const values: RequestValues = {
+    mentor_id: str(formData, "mentor_id"),
+    message: str(formData, "message"),
+  };
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error, values };
 
@@ -140,23 +171,21 @@ export async function createRequestAction(
   const supabase = await createClient();
 
   // Confere vagas e pedidos em aberto antes (o banco valida de novo no insert).
-  const candidates = await loadCandidateAvailability(supabase);
-  if (candidates) {
-    const candidate = candidates.get(mentorId);
-    if (candidate?.existing_request_status) {
-      return {
-        ok: false,
-        error: "Você já tem um pedido em aberto ou uma mentoria ativa com esta mentora.",
-        values,
-      };
-    }
-    if (!candidate) {
-      return {
-        ok: false,
-        error: "Esta mentora está sem vagas ou pausou novos pedidos no momento. Que tal escolher outra sugestão?",
-        values,
-      };
-    }
+  const availability = lookupCandidate(await loadCandidateAvailability(supabase), mentorId);
+  if (availability.kind === "available" && availability.candidate.existing_request_status) {
+    return {
+      ok: false,
+      error: "Você já tem um pedido em aberto ou uma mentoria ativa com esta mentora.",
+      values,
+    };
+  }
+  if (availability.kind === "unavailable") {
+    return {
+      ok: false,
+      error:
+        "Esta mentora está sem vagas ou pausou novos pedidos no momento. Que tal escolher outra sugestão?",
+      values,
+    };
   }
 
   const match = await loadSuggestionMatch(supabase, member.userId, mentorId);
@@ -177,27 +206,42 @@ export async function createRequestAction(
   redirect(`${PATH}?aba=enviadas&aviso=enviado`);
 }
 
-export async function cancelRequestAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function cancelRequestAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error };
   const parsed = requestIdSchema.safeParse({ request_id: str(formData, "request_id") });
   if (!parsed.success) return { ok: false, error: fallbackMessage("cancel") };
 
+  const closed = "Este pedido já foi encerrado ou não está mais disponível. Recarregue a página.";
   const supabase = await createClient();
+  // Lê o status atual (só pedidos da própria mentoranda) para escolher o aviso certo e
+  // garantir que a atualização valha só para esse estado.
+  const { data: current, error: readError } = await supabase
+    .from("mentorship_requests")
+    .select("status")
+    .eq("id", parsed.data.request_id)
+    .eq("mentee_id", member.userId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: friendlyMentorshipError(readError, "cancel") };
+  if (!current || !isOpenStatus(current.status)) return { ok: false, error: closed };
+
   const { data, error } = await supabase
     .from("mentorship_requests")
     .update({ status: "cancelled" })
     .eq("id", parsed.data.request_id)
     .eq("mentee_id", member.userId)
-    .in("status", ["pending", "accepted"])
+    .eq("status", current.status)
     .select("id");
   if (error) return { ok: false, error: friendlyMentorshipError(error, "cancel") };
-  if (!data?.length) {
-    return { ok: false, error: "Este pedido já foi encerrado ou não está mais disponível. Recarregue a página." };
-  }
+  if (!data?.length) return { ok: false, error: closed };
 
   revalidatePath(PATH);
-  redirect(`${PATH}?aba=enviadas&aviso=cancelado`);
+  redirect(
+    `${PATH}?aba=enviadas&aviso=${current.status === "accepted" ? "mentoria-cancelada" : "cancelado"}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -221,7 +265,10 @@ export async function respondRequestAction(
     const fieldErrors = fieldErrorsOf(parsed.error);
     return {
       ok: false,
-      error: fieldErrors.response_message?.[0] ?? fieldErrors.decision?.[0] ?? fallbackMessage("respond"),
+      error:
+        fieldErrors.response_message?.[0] ??
+        fieldErrors.decision?.[0] ??
+        fallbackMessage("respond"),
       fieldErrors,
       values,
     };
@@ -246,10 +293,17 @@ export async function respondRequestAction(
   }
 
   revalidatePath(PATH);
-  redirect(decision === "accepted" ? `${PATH}?aba=ativas&aviso=aceito` : `${PATH}?aba=recebidas&aviso=recusado`);
+  redirect(
+    decision === "accepted"
+      ? `${PATH}?aba=ativas&aviso=aceito`
+      : `${PATH}?aba=recebidas&aviso=recusado`,
+  );
 }
 
-export async function setAvailabilityAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function setAvailabilityAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error };
   if (!member.profile.is_mentor) {
@@ -264,7 +318,8 @@ export async function setAvailabilityAction(_prev: ActionState, formData: FormDa
     .update({ mentor_available: parsed.data.available })
     .eq("id", member.userId)
     .select("mentor_available");
-  if (error || !data?.length) return { ok: false, error: friendlyMentorshipError(error, "availability") };
+  if (error || !data?.length)
+    return { ok: false, error: friendlyMentorshipError(error, "availability") };
 
   revalidatePath(PATH);
   return {
@@ -279,7 +334,10 @@ export async function setAvailabilityAction(_prev: ActionState, formData: FormDa
 // Mentorias ativas (as duas participantes)
 // ---------------------------------------------------------------------------
 
-export async function completeMentorshipAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function completeMentorshipAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error };
   const parsed = requestIdSchema.safeParse({ request_id: str(formData, "request_id") });
@@ -295,7 +353,10 @@ export async function completeMentorshipAction(_prev: ActionState, formData: For
     .select("id");
   if (error) return { ok: false, error: friendlyMentorshipError(error, "complete") };
   if (!data?.length) {
-    return { ok: false, error: "Esta mentoria já foi encerrada. Recarregue a página para ver o status atual." };
+    return {
+      ok: false,
+      error: "Esta mentoria já foi encerrada. Recarregue a página para ver o status atual.",
+    };
   }
 
   revalidatePath(PATH);

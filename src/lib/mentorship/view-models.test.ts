@@ -5,9 +5,11 @@ import {
   buildMatchCard,
   buildMatchCards,
   careerStageLabel,
+  lookupCandidate,
   resolveDeepLink,
   topicLabel,
   type CandidateAvailability,
+  type CandidatePool,
   type MatchCardContext,
 } from "./view-models";
 
@@ -45,6 +47,10 @@ function suggestion(overrides: Partial<MentorSuggestion> = {}): MentorSuggestion
   };
 }
 
+function pool(entries: [string, CandidateAvailability][] = [], complete = true): CandidatePool {
+  return { byMentor: new Map(entries), complete };
+}
+
 function ctx(overrides: Partial<MatchCardContext> = {}): MatchCardContext {
   return {
     menteeAreaIds: [11, 99],
@@ -54,7 +60,7 @@ function ctx(overrides: Partial<MatchCardContext> = {}): MatchCardContext {
       [11, "Engenharia de Software"],
     ]),
     model: null,
-    candidates: new Map<string, CandidateAvailability>([[MENTOR, { open_slots: 2, existing_request_status: null }]]),
+    candidates: pool([[MENTOR, { open_slots: 2, existing_request_status: null }]]),
     openRequests: new Map<string, MentorshipStatus>(),
     ...overrides,
   };
@@ -67,7 +73,10 @@ describe("buildMatchCard", () => {
     expect(card.sharedAreas).toEqual(["Engenharia de Software"]);
     expect(card.sharedTopics).toEqual(["Ingresso na pós-graduação"]);
     expect(card.otherTopics).toEqual(["Programação e análise de dados", "Networking e eventos"]);
-    expect(card.starters).toEqual(["Como foi sua escolha de mestrado?", "Que eventos você recomenda?"]);
+    expect(card.starters).toEqual([
+      "Como foi sua escolha de mestrado?",
+      "Que eventos você recomenda?",
+    ]);
     expect(card.careerStage).toBe("Docente");
     expect(card.openSlots).toBe(2);
     expect(card.canRequest).toBe(true);
@@ -75,33 +84,51 @@ describe("buildMatchCard", () => {
   });
 
   it("selo de IA usa o modelo salvo", () => {
-    const card = buildMatchCard(suggestion({ source: "ai" }), ctx({ model: "gemini-3.5-flash-lite" }));
+    const card = buildMatchCard(
+      suggestion({ source: "ai" }),
+      ctx({ model: "gemini-3.5-flash-lite" }),
+    );
     expect(card.sourceLabel).toBe("Sugestão por IA (Gemini)");
   });
 
   it("bloqueia novo pedido quando já existe um pendente ou aceito", () => {
-    const pending = buildMatchCard(suggestion(), ctx({ openRequests: new Map([[MENTOR, "pending"]]) }));
+    const pending = buildMatchCard(
+      suggestion(),
+      ctx({ openRequests: new Map([[MENTOR, "pending"]]) }),
+    );
     expect(pending.requestStatus).toBe("pending");
     expect(pending.canRequest).toBe(false);
 
     const accepted = buildMatchCard(
       suggestion(),
-      ctx({ candidates: new Map([[MENTOR, { open_slots: 1, existing_request_status: "accepted" }]]) }),
+      ctx({
+        candidates: pool([[MENTOR, { open_slots: 1, existing_request_status: "accepted" }]]),
+      }),
     );
     expect(accepted.requestStatus).toBe("accepted");
     expect(accepted.canRequest).toBe(false);
   });
 
   it("ignora pedidos encerrados", () => {
-    const card = buildMatchCard(suggestion(), ctx({ openRequests: new Map([[MENTOR, "declined"]]) }));
+    const card = buildMatchCard(
+      suggestion(),
+      ctx({ openRequests: new Map([[MENTOR, "declined"]]) }),
+    );
     expect(card.requestStatus).toBeNull();
     expect(card.canRequest).toBe(true);
   });
 
   it("mentora fora da lista de disponíveis fica sem botão", () => {
-    const card = buildMatchCard(suggestion(), ctx({ candidates: new Map() }));
+    const card = buildMatchCard(suggestion(), ctx({ candidates: pool() }));
     expect(card.canRequest).toBe(false);
     expect(card.unavailableReason).toMatch(/sem vagas/);
+    expect(card.openSlots).toBeNull();
+  });
+
+  it("lista cortada pelo limite da RPC: ficar de fora não bloqueia o pedido", () => {
+    const card = buildMatchCard(suggestion(), ctx({ candidates: pool([], false) }));
+    expect(card.canRequest).toBe(true);
+    expect(card.unavailableReason).toBeNull();
     expect(card.openSlots).toBeNull();
   });
 
@@ -114,7 +141,12 @@ describe("buildMatchCard", () => {
   it("ordena pelo rank e limita a nota a 0..100", () => {
     const cards = buildMatchCards(
       [
-        suggestion({ mentorId: OTHER, rank: 2, score: 140, mentor: { ...suggestion().mentor, id: OTHER } }),
+        suggestion({
+          mentorId: OTHER,
+          rank: 2,
+          score: 140,
+          mentor: { ...suggestion().mentor, id: OTHER },
+        }),
         suggestion({ rank: 1, score: -3 }),
       ],
       ctx({ candidates: null }),
@@ -137,43 +169,84 @@ describe("rótulos", () => {
 
 describe("resolveDeepLink", () => {
   const mentor = { id: MENTOR, is_mentor: true, mentor_available: true, onboarded: true };
-  const candidates = new Map<string, CandidateAvailability>([[MENTOR, { open_slots: 3, existing_request_status: null }]]);
+  const candidates = pool([[MENTOR, { open_slots: 3, existing_request_status: null }]]);
   const none = new Map<string, MentorshipStatus>();
 
   it("libera o pedido para mentora disponível", () => {
-    expect(resolveDeepLink({ mentor, viewerId: ME, candidates, openRequests: none })).toEqual({ kind: "ok", openSlots: 3 });
+    expect(resolveDeepLink({ mentor, viewerId: ME, candidates, openRequests: none })).toEqual({
+      kind: "ok",
+      openSlots: 3,
+    });
   });
   it("casos que bloqueiam", () => {
-    expect(resolveDeepLink({ mentor: null, viewerId: ME, candidates, openRequests: none }).kind).toBe("not_found");
-    expect(resolveDeepLink({ mentor, viewerId: MENTOR, candidates, openRequests: none }).kind).toBe("self");
     expect(
-      resolveDeepLink({ mentor: { ...mentor, is_mentor: false }, viewerId: ME, candidates, openRequests: none }).kind,
+      resolveDeepLink({ mentor: null, viewerId: ME, candidates, openRequests: none }).kind,
+    ).toBe("not_found");
+    expect(resolveDeepLink({ mentor, viewerId: MENTOR, candidates, openRequests: none }).kind).toBe(
+      "self",
+    );
+    expect(
+      resolveDeepLink({
+        mentor: { ...mentor, is_mentor: false },
+        viewerId: ME,
+        candidates,
+        openRequests: none,
+      }).kind,
     ).toBe("not_mentor");
     expect(
-      resolveDeepLink({ mentor: { ...mentor, mentor_available: false }, viewerId: ME, candidates, openRequests: none })
-        .kind,
+      resolveDeepLink({
+        mentor: { ...mentor, mentor_available: false },
+        viewerId: ME,
+        candidates,
+        openRequests: none,
+      }).kind,
     ).toBe("unavailable");
-    expect(resolveDeepLink({ mentor, viewerId: ME, candidates: new Map(), openRequests: none }).kind).toBe(
-      "unavailable",
-    );
+    expect(
+      resolveDeepLink({ mentor, viewerId: ME, candidates: pool(), openRequests: none }).kind,
+    ).toBe("unavailable");
+  });
+  it("lista cortada pelo limite da RPC: libera e deixa o banco validar", () => {
+    expect(
+      resolveDeepLink({ mentor, viewerId: ME, candidates: pool([], false), openRequests: none }),
+    ).toEqual({ kind: "ok", openSlots: null });
   });
   it("pedido já aberto tem prioridade sobre falta de vaga", () => {
     expect(
-      resolveDeepLink({ mentor, viewerId: ME, candidates: new Map(), openRequests: new Map([[MENTOR, "accepted"]]) }),
+      resolveDeepLink({
+        mentor,
+        viewerId: ME,
+        candidates: pool(),
+        openRequests: new Map([[MENTOR, "accepted"]]),
+      }),
     ).toEqual({ kind: "open_request", status: "accepted" });
     expect(
       resolveDeepLink({
         mentor,
         viewerId: ME,
-        candidates: new Map([[MENTOR, { open_slots: 1, existing_request_status: "pending" }]]),
+        candidates: pool([[MENTOR, { open_slots: 1, existing_request_status: "pending" }]]),
         openRequests: none,
       }),
     ).toEqual({ kind: "open_request", status: "pending" });
   });
   it("sem RPC, libera e deixa o banco validar", () => {
-    expect(resolveDeepLink({ mentor, viewerId: ME, candidates: null, openRequests: none })).toEqual({
-      kind: "ok",
-      openSlots: null,
-    });
+    expect(resolveDeepLink({ mentor, viewerId: ME, candidates: null, openRequests: none })).toEqual(
+      {
+        kind: "ok",
+        openSlots: null,
+      },
+    );
+  });
+});
+
+describe("lookupCandidate", () => {
+  const entry: [string, CandidateAvailability] = [
+    MENTOR,
+    { open_slots: 1, existing_request_status: null },
+  ];
+  it("distingue disponível, sem vaga confirmada e desconhecido", () => {
+    expect(lookupCandidate(pool([entry]), MENTOR).kind).toBe("available");
+    expect(lookupCandidate(pool([entry]), OTHER).kind).toBe("unavailable");
+    expect(lookupCandidate(pool([entry], false), OTHER).kind).toBe("unknown");
+    expect(lookupCandidate(null, MENTOR).kind).toBe("unknown");
   });
 });

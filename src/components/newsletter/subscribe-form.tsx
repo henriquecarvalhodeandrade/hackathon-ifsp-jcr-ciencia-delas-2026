@@ -3,9 +3,19 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { CircleAlert, MailCheck, Mail, Send } from "lucide-react";
-import { Alert, Button, Checkbox, ChipGroup, Field, FormMessage, Input, SubmitButton } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  ChipGroup,
+  Field,
+  FormMessage,
+  Input,
+  SubmitButton,
+} from "@/components/ui";
 import { subscribeToNewsletter, type SubscribeState } from "@/app/newsletter/actions";
 import { NEWSLETTER_AGE_TEXT, NEWSLETTER_CONSENT_TEXT } from "@/lib/newsletter/constants";
+import { useFocusOnMount } from "./use-focus-on-mount";
 
 export interface SubscribeFormProps {
   /** Grandes áreas do CNPq (opções de interesse). */
@@ -43,45 +53,79 @@ function CheckboxError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-function SubscribeFormInner({ areas, accountEmail, disabled, onReset }: SubscribeFormProps & { onReset: () => void }) {
+/** Painel que substitui o formulário após o envio; recebe o foco (o botão clicado deixou de existir). */
+function SubscribeSuccess({
+  message,
+  devNotice,
+  onReset,
+}: {
+  message: string;
+  devNotice?: string;
+  onReset: () => void;
+}) {
+  const titleRef = useFocusOnMount<HTMLParagraphElement>();
+  return (
+    <div className="grid gap-4" role="status" aria-live="polite">
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success"
+        >
+          <MailCheck className="size-5" />
+        </span>
+        <div className="grid gap-1">
+          <p
+            ref={titleRef}
+            tabIndex={-1}
+            className="rounded-control font-display text-xl font-semibold text-fg"
+          >
+            Confira seu e-mail
+          </p>
+          <p className="text-fg-muted">{message}</p>
+        </div>
+      </div>
+      {devNotice && (
+        <Alert variant="warning" title="Só no desenvolvimento">
+          {devNotice}
+        </Alert>
+      )}
+      <div>
+        <Button variant="outline" onClick={onReset}>
+          Inscrever outro e-mail
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SubscribeFormInner({
+  areas,
+  accountEmail,
+  disabled,
+  onReset,
+  focusEmail,
+}: SubscribeFormProps & { onReset: () => void; focusEmail: boolean }) {
   const [state, formAction] = useActionState<SubscribeState, FormData>(subscribeToNewsletter, null);
+  // Depois de "Inscrever outro e-mail" o formulário volta: o foco vai para o campo de e-mail.
+  const emailRef = useFocusOnMount<HTMLInputElement>(focusEmail);
   const errors = state && !state.ok ? state.fieldErrors : undefined;
   const values = state?.values;
   const email = values?.email ?? accountEmail ?? "";
-  const usingAccountEmail = Boolean(accountEmail) && email.toLowerCase() === accountEmail?.toLowerCase();
+  const usingAccountEmail =
+    Boolean(accountEmail) && email.toLowerCase() === accountEmail?.toLowerCase();
 
   if (state?.ok) {
     return (
-      <div className="grid gap-4" role="status" aria-live="polite">
-        <div className="flex items-start gap-3">
-          <span
-            aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success"
-          >
-            <MailCheck className="size-5" />
-          </span>
-          <div className="grid gap-1">
-            <p className="font-display text-xl font-semibold text-fg">Confira seu e-mail</p>
-            <p className="text-fg-muted">{state.message}</p>
-          </div>
-        </div>
-        {state.devNotice && (
-          <Alert variant="warning" title="Só no desenvolvimento">
-            {state.devNotice}
-          </Alert>
-        )}
-        <div>
-          <Button variant="outline" onClick={onReset}>
-            Inscrever outro e-mail
-          </Button>
-        </div>
-      </div>
+      <SubscribeSuccess message={state.message} devNotice={state.devNotice} onReset={onReset} />
     );
   }
 
   return (
-    <form action={formAction} noValidate className="grid gap-5">
-      <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
+    <form action={formAction} noValidate className="grid">
+      {/* Região aria-live sempre montada; o espaçamento só aparece quando há mensagem. */}
+      <FormMessage tone="error" className="has-[p]:mb-5">
+        {state && !state.ok ? state.error : null}
+      </FormMessage>
 
       <fieldset disabled={disabled} className="grid gap-5 disabled:opacity-70">
         {/* Armadilha para robôs: fora da tela e escondida de leitores de tela. */}
@@ -95,10 +139,15 @@ function SubscribeFormInner({ areas, accountEmail, disabled, onReset }: Subscrib
         <Field
           label="Seu e-mail"
           required
-          hint={accountEmail ? "Preenchemos com o e-mail da sua conta. Pode trocar se preferir." : undefined}
+          hint={
+            accountEmail
+              ? "Preenchemos com o e-mail da sua conta. Pode trocar se preferir."
+              : undefined
+          }
           error={errors?.email}
         >
           <Input
+            ref={emailRef}
             key={`email-${email}`}
             name="email"
             type="email"
@@ -168,5 +217,12 @@ function SubscribeFormInner({ areas, accountEmail, disabled, onReset }: Subscrib
 /** Formulário de inscrição (double opt-in) com consentimento LGPD e confirmação de idade. */
 export function SubscribeForm(props: SubscribeFormProps) {
   const [round, setRound] = useState(0);
-  return <SubscribeFormInner key={round} {...props} onReset={() => setRound((r) => r + 1)} />;
+  return (
+    <SubscribeFormInner
+      key={round}
+      {...props}
+      focusEmail={round > 0}
+      onReset={() => setRound((r) => r + 1)}
+    />
+  );
 }

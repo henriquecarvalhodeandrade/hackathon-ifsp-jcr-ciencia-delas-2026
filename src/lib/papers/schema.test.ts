@@ -19,7 +19,8 @@ const valid: PaperFormValues = {
   url: "",
   title: "  Redes neurais leves para folhas de café  ",
   authors: ["Ana Souza", " Bia Lima ", "ana souza", ""],
-  abstract: "Este trabalho apresenta um modelo leve de visão computacional para celulares de campo.",
+  abstract:
+    "Este trabalho apresenta um modelo leve de visão computacional para celulares de campo.",
   venue: " ",
   year: "2026",
   area_id: "13",
@@ -69,8 +70,14 @@ describe("validatePaperForm", () => {
   });
 
   it("marca a origem do resumo acessível", () => {
-    const ai = validatePaperForm({ ...valid, plain_summary: "Um resumo simples.", plain_summary_source: "ai" }, NOW);
-    const author = validatePaperForm({ ...valid, plain_summary: "Um resumo simples.", plain_summary_source: "" }, NOW);
+    const ai = validatePaperForm(
+      { ...valid, plain_summary: "Um resumo simples.", plain_summary_source: "ai" },
+      NOW,
+    );
+    const author = validatePaperForm(
+      { ...valid, plain_summary: "Um resumo simples.", plain_summary_source: "" },
+      NOW,
+    );
     expect(ai.success && ai.data.plain_summary_source).toBe("ai");
     expect(author.success && author.data.plain_summary_source).toBe("author");
   });
@@ -89,7 +96,10 @@ describe("validatePaperForm", () => {
   });
 
   it("aceita só o link quando não há DOI", () => {
-    const result = validatePaperForm({ ...valid, doi: "", url: "https://repositorio.ifsp.edu.br/x" }, NOW);
+    const result = validatePaperForm(
+      { ...valid, doi: "", url: "https://repositorio.ifsp.edu.br/x" },
+      NOW,
+    );
     expect(result.success && result.data.url).toBe("https://repositorio.ifsp.edu.br/x");
   });
 
@@ -126,7 +136,9 @@ describe("validatePaperForm", () => {
 describe("commentSchema", () => {
   it("valida tamanho e id do paper", () => {
     const id = "b1000000-0000-4000-8000-000000000001";
-    expect(commentSchema.safeParse({ paper_id: id, body: "  Ótimo trabalho!  " }).data?.body).toBe("Ótimo trabalho!");
+    expect(commentSchema.safeParse({ paper_id: id, body: "  Ótimo trabalho!  " }).data?.body).toBe(
+      "Ótimo trabalho!",
+    );
     expect(commentSchema.safeParse({ paper_id: id, body: " a " }).success).toBe(false);
     expect(commentSchema.safeParse({ paper_id: id, body: "x".repeat(3001) }).success).toBe(false);
     expect(commentSchema.safeParse({ paper_id: "nao-e-uuid", body: "Olá!" }).success).toBe(false);
@@ -174,7 +186,14 @@ describe("paperToFormValues / mergeCrossrefIntoValues", () => {
       area_id: "20",
     });
     expect(
-      filledByCrossref({ doi: "x", title: "t", authors: [], venue: "Nature", year: 2013, abstract: null }),
+      filledByCrossref({
+        doi: "x",
+        title: "t",
+        authors: [],
+        venue: "Nature",
+        year: 2013,
+        abstract: null,
+      }),
     ).toEqual(["título", "revista ou evento", "ano"]);
   });
 });

@@ -14,9 +14,13 @@ export interface PersonSummaryData {
   career_stage: string | null;
 }
 
-export function personMeta(person: Pick<PersonSummaryData, "career_stage" | "institution" | "state">): string {
+export function personMeta(
+  person: Pick<PersonSummaryData, "career_stage" | "institution" | "state">,
+): string {
   const state = person.state ? (BR_STATES[person.state as BrState] ? person.state : null) : null;
-  return [careerStageLabel(person.career_stage), person.institution, state].filter(Boolean).join(" · ");
+  return [careerStageLabel(person.career_stage), person.institution, state]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** Avatar + nome (link para o perfil) + título + etapa/instituição/UF. */

@@ -32,7 +32,7 @@ export function PasswordInput({ className, ...props }: PasswordInputProps) {
         aria-pressed={visible}
         aria-controls={props.id}
         onClick={() => setVisible((value) => !value)}
-        className="absolute top-1/2 right-1.5 -translate-y-1/2"
+        className="absolute top-1.5 right-1.5"
       >
         {visible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
       </Button>

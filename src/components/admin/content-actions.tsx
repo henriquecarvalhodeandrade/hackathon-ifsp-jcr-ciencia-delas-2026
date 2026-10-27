@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { deleteReportedContent, moderateThreadAction, setPaperVisibility } from "@/lib/admin/actions";
 import type { ReportTargetPreview } from "@/lib/admin/queries";
-import { ActionForm, runAndAnnounce } from "./action-form";
+import { ActionForm, runInConfirmDialog } from "./action-form";
 import { RevealAuthorDialog } from "./reveal-author-dialog";
 
 type DeletableKind = "thread" | "post" | "paper" | "paper_comment";
@@ -15,7 +15,8 @@ const DELETE_COPY: Record<DeletableKind, { trigger: string; title: string; descr
   thread: {
     trigger: "Excluir tópico",
     title: "Excluir este tópico?",
-    description: "O tópico e todas as respostas serão apagados de vez. As denúncias abertas sobre ele serão encerradas.",
+    description:
+      "O tópico e todas as respostas serão apagados de vez. As denúncias abertas sobre eles serão encerradas.",
   },
   post: {
     trigger: "Excluir resposta",
@@ -26,7 +27,7 @@ const DELETE_COPY: Record<DeletableKind, { trigger: string; title: string; descr
     trigger: "Excluir paper",
     title: "Excluir este paper da Vitrine?",
     description:
-      "O paper, seus destaques e comentários serão apagados de vez. Se a dúvida for passageira, prefira ocultar.",
+      "O paper, seus destaques e comentários serão apagados de vez, e as denúncias abertas sobre eles, encerradas. Se a dúvida for passageira, prefira ocultar.",
   },
   paper_comment: {
     trigger: "Excluir comentário",
@@ -50,9 +51,7 @@ function DeleteButton({ kind, id }: { kind: DeletableKind; id: string }) {
       confirmLabel="Sim, excluir"
       pendingLabel="Excluindo…"
       hiddenFields={{ targetType: kind, targetId: id }}
-      action={async (formData) => {
-        await runAndAnnounce(deleteReportedContent, formData);
-      }}
+      action={(formData) => runInConfirmDialog(deleteReportedContent, formData)}
     />
   );
 }

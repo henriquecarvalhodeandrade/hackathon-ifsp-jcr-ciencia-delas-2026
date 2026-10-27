@@ -28,17 +28,19 @@ export function AuthShell({ eyebrow, title, description, children, footer, class
   return (
     <Container size="wide" className={cn("py-6 sm:py-12", className)}>
       <div className="mx-auto grid max-w-5xl overflow-hidden rounded-dialog border border-border bg-surface shadow-card lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        {/* Ilha de tema escuro: o violeta da marca (Logo, "Delas") fica claro sobre o fundo violeta-950. */}
         <aside
           aria-label="Sobre a Ciência Delas"
-          className="relative isolate hidden flex-col justify-between gap-10 overflow-hidden bg-violeta-950 p-10 text-white lg:flex"
+          data-theme="dark"
+          className="relative isolate hidden min-h-[36rem] flex-col gap-8 overflow-hidden bg-violeta-950 p-10 text-white lg:flex"
         >
           <ConstellationPattern
             density="medium"
             align="end"
-            className="absolute inset-0 -z-10 size-full text-violeta-300/50 [mask-image:linear-gradient(160deg,transparent_25%,black_85%)]"
+            className="absolute inset-x-0 top-0 -z-10 h-3/5 w-full text-violeta-300/60 [mask-image:linear-gradient(to_bottom,black_30%,transparent_100%)]"
           />
           <Logo size={30} className="text-white" />
-          <div className="grid gap-4">
+          <div className="mt-auto grid gap-4">
             <p className="font-serif text-4xl leading-tight font-semibold text-balance">Ciência também é delas.</p>
             <p className="max-w-sm text-violeta-100">
               Uma rede para conectar, apoiar e dar visibilidade a mulheres que fazem pesquisa no Brasil.

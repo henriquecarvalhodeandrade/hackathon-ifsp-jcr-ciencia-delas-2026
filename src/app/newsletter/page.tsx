@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import { Inbox, MailCheck } from "lucide-react";
-import { Alert, ButtonLink, Card, Container, EmptyState, PageHeader, Pagination, Section } from "@/components/ui";
+import {
+  Alert,
+  ButtonLink,
+  Card,
+  Container,
+  EmptyState,
+  PageHeader,
+  Pagination,
+  Section,
+} from "@/components/ui";
 import { EditionCard } from "@/components/newsletter/edition-card";
 import { LatestEdition } from "@/components/newsletter/latest-edition";
 import { NewsletterPerks } from "@/components/newsletter/newsletter-perks";
@@ -61,7 +70,9 @@ export default async function NewsletterPage({
             <h2 id="assinar-titulo" className="font-display text-2xl font-semibold text-fg">
               Assine grátis
             </h2>
-            <p className="text-fg-muted">Um e-mail por semana, às segundas, com o melhor da comunidade.</p>
+            <p className="text-fg-muted">
+              Um e-mail por semana, às segundas, com o melhor da comunidade.
+            </p>
           </div>
 
           {subscription?.status === "active" ? (
@@ -80,8 +91,8 @@ export default async function NewsletterPage({
             <div className="grid gap-5">
               {!accepts && (
                 <Alert variant="info" title="Inscrições em breve">
-                  O envio por e-mail ainda não está ativo neste ambiente. Enquanto isso, você pode ler todas as edições
-                  aqui no site.
+                  O envio por e-mail ainda não está ativo neste ambiente. Enquanto isso, você pode
+                  ler todas as edições aqui no site.
                 </Alert>
               )}
               {accepts && !email.production && email.transport !== "resend" && (
@@ -102,8 +113,8 @@ export default async function NewsletterPage({
               )}
               {subscription?.status === "pending" && (
                 <Alert variant="info" title="Falta confirmar sua inscrição">
-                  Enviamos um link de confirmação para {user?.email}. Não chegou? Envie o formulário de novo para
-                  receber outro.
+                  Enviamos um link de confirmação para {user?.email}. Não chegou? Envie o formulário
+                  de novo para receber outro.
                 </Alert>
               )}
               <SubscribeForm areas={areas} accountEmail={user?.email ?? null} disabled={!accepts} />
@@ -135,7 +146,11 @@ export default async function NewsletterPage({
                 ? "Volte para a primeira página para ver as edições mais recentes."
                 : "A primeira edição sai na próxima segunda-feira. Assine para recebê-la no seu e-mail."
             }
-            action={page > 1 ? <ButtonLink href="/newsletter">Ver as mais recentes</ButtonLink> : undefined}
+            action={
+              page > 1 ? (
+                <ButtonLink href="/newsletter">Ver as mais recentes</ButtonLink>
+              ) : undefined
+            }
           />
         ) : (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

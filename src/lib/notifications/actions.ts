@@ -40,7 +40,7 @@ export async function markNotificationRead(_prev: ActionState, formData: FormDat
   return { ok: true, message: "Notificação marcada como lida." };
 }
 
-export async function markAllNotificationsRead(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+export async function markAllNotificationsRead(): Promise<ActionState> {
   const user = await getCurrentUser();
   if (!user) return actionError(SESSION_EXPIRED);
 
@@ -59,7 +59,7 @@ export async function markAllNotificationsRead(_prev: ActionState, _formData: Fo
   };
 }
 
-export async function deleteReadNotifications(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+export async function deleteReadNotifications(): Promise<ActionState> {
   const user = await getCurrentUser();
   if (!user) return actionError(SESSION_EXPIRED);
 

@@ -19,7 +19,10 @@ const PILLARS = [
     eyebrow: "Mentoria",
     title: "Mentoria com IA",
     text: "Conte sobre a sua pesquisa e receba sugestões de mentoras com o porquê de cada combinação e ideias para a primeira conversa.",
-    points: ["A IA só entra com o seu consentimento", "Sem IA, as sugestões vêm de regras transparentes"],
+    points: [
+      "Sugestões só com a sua autorização (e 18 anos ou mais)",
+      "Se a IA estiver fora do ar, a afinidade vem de regras transparentes",
+    ],
     links: [{ href: "/mentoria", label: "Encontrar mentoras" }],
   },
   {

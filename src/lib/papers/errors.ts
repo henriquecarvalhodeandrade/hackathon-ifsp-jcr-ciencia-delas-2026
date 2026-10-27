@@ -14,12 +14,16 @@ export type PaperErrorContext = "save" | "vote" | "comment" | "delete" | "load";
 const GENERIC: Record<PaperErrorContext, string> = {
   save: "Não conseguimos salvar o paper agora. Verifique sua conexão e tente de novo — seu texto continua aqui.",
   vote: "Não conseguimos registrar seu destaque agora. Tente de novo em instantes.",
-  comment: "Não conseguimos publicar seu comentário agora. Tente de novo — seu texto continua aqui.",
+  comment:
+    "Não conseguimos publicar seu comentário agora. Tente de novo — seu texto continua aqui.",
   delete: "Não conseguimos excluir agora. Tente de novo em instantes.",
   load: "Não conseguimos carregar os papers agora. Atualize a página em instantes.",
 };
 
-export function friendlyDbError(error: DbErrorLike | null | undefined, context: PaperErrorContext): string {
+export function friendlyDbError(
+  error: DbErrorLike | null | undefined,
+  context: PaperErrorContext,
+): string {
   if (!error) return GENERIC[context];
   const code = error.code ?? "";
   const haystack = `${error.message ?? ""} ${error.details ?? ""}`;
@@ -28,7 +32,8 @@ export function friendlyDbError(error: DbErrorLike | null | undefined, context: 
 
   switch (code) {
     case "23505":
-      if (/doi/i.test(haystack)) return "Este DOI já está na Vitrine. Procure o paper pela busca para destacá-lo.";
+      if (/doi/i.test(haystack))
+        return "Este DOI já está na Vitrine. Procure o paper pela busca para destacá-lo.";
       if (context === "vote") return "Você já destacou este paper.";
       return "Esse registro já existe.";
     case "23503":

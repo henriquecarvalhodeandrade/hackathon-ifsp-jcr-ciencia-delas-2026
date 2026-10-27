@@ -9,16 +9,25 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-type SearchParams = { token?: string | string[]; excluido?: string | string[]; erro?: string | string[] };
+type SearchParams = {
+  token?: string | string[];
+  excluido?: string | string[];
+  erro?: string | string[];
+};
 
-const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
+const first = (value: string | string[] | undefined) =>
+  (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
 
 /**
  * Descadastro. O GET NUNCA descadastra (antivírus e pré-visualizações abrem links de e-mail):
  * a pessoa clica no botão (POST via Server Action). O "one-click" dos provedores usa
  * POST /api/newsletter/unsubscribe (RFC 8058).
  */
-export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+export default async function UnsubscribePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const params = await searchParams;
   const token = first(params.token);
 
@@ -32,7 +41,8 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
         />
         <Card padding="lg" className="grid gap-4">
           <p className="text-fg-muted">
-            Obrigada por ter acompanhado o boletim. As edições continuam abertas no site para quando quiser ler.
+            Obrigada por ter acompanhado o boletim. As edições continuam abertas no site para quando
+            quiser ler.
           </p>
           <div className="flex flex-wrap gap-3">
             <ButtonLink href="/newsletter">Ver as edições</ButtonLink>
@@ -87,15 +97,17 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
           </Alert>
         )}
 
-        {(lookup.state === "active" || lookup.state === "pending" || lookup.state === "unsubscribed") && (
+        {(lookup.state === "active" ||
+          lookup.state === "pending" ||
+          lookup.state === "unsubscribed") && (
           <UnsubscribeForms token={token} alreadyUnsubscribed={lookup.state === "unsubscribed"} />
         )}
 
         {lookup.state === "invalid" && (
           <>
             <p className="text-fg-muted">
-              Use o link &ldquo;Cancelar inscrição&rdquo; que aparece no rodapé de qualquer edição do boletim. Se precisar
-              de ajuda, fale com a equipe pela página Sobre.
+              Use o link &ldquo;Cancelar inscrição&rdquo; que aparece no rodapé de qualquer edição
+              do boletim. Se precisar de ajuda, fale com a equipe pela página Sobre.
             </p>
             <div className="flex flex-wrap gap-3">
               <ButtonLink href="/newsletter">Ir para a newsletter</ButtonLink>

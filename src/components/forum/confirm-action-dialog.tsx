@@ -83,11 +83,14 @@ function ConfirmForm({
   tone: "danger" | "primary";
   onClose: () => void;
 }) {
-  const [state, formAction] = useActionState<SimpleActionState, FormData>(async (prev, formData) => {
-    const result = await action(prev, formData);
-    if (result?.ok) onClose();
-    return result;
-  }, null);
+  const [state, formAction] = useActionState<SimpleActionState, FormData>(
+    async (prev, formData) => {
+      const result = await action(prev, formData);
+      if (result?.ok) onClose();
+      return result;
+    },
+    null,
+  );
 
   return (
     <form action={formAction} className="grid gap-4 pb-1">

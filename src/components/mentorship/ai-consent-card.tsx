@@ -5,7 +5,7 @@ import Link from "next/link";
 import { EyeOff, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { ButtonLink, Card, Checkbox, FormMessage, SubmitButton } from "@/components/ui";
 import { grantAiConsentAction } from "@/app/mentoria/actions";
-import { AI_CONSENT_TEXT, AI_CONSENT_TITLE } from "@/lib/mentorship/consent";
+import { AI_CONSENT_TEXT, AI_CONSENT_TITLE } from "@/lib/profile/consent";
 import type { ActionState } from "@/lib/mentorship/types";
 
 /**
@@ -30,8 +30,9 @@ export function AiConsentCard() {
             Antes das sugestões, a sua autorização
           </h2>
           <p className="text-fg-muted">
-            Para indicar mentoras, analisamos o seu perfil de pesquisa e, quando a IA está disponível, enviamos esses
-            dados — sem nome nem contatos — para um serviço de IA explicar cada combinação. Você decide.
+            Para indicar mentoras, analisamos o seu perfil de pesquisa e, quando a IA está
+            disponível, enviamos esses dados — sem nome nem contatos — para um serviço de IA
+            explicar cada combinação. Você decide.
           </p>
         </div>
       </div>
@@ -40,20 +41,23 @@ export function AiConsentCard() {
         <li className="flex gap-3 rounded-control bg-surface-2 p-4 text-sm text-fg-muted">
           <ShieldCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success" />
           <span>
-            <strong className="text-fg">O que usamos:</strong> etapa da carreira, áreas, palavras-chave, temas e
-            objetivos de mentoria.
+            <strong className="text-fg">O que usamos:</strong> etapa da carreira, áreas,
+            palavras-chave, temas e objetivos de mentoria.
           </span>
         </li>
         <li className="flex gap-3 rounded-control bg-surface-2 p-4 text-sm text-fg-muted">
           <EyeOff aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
           <span>
-            <strong className="text-fg">O que nunca sai daqui:</strong> nome, e-mail, instituição, cidade, links e foto.
+            <strong className="text-fg">O que nunca sai daqui:</strong> nome, e-mail, instituição,
+            cidade, links e foto.
           </span>
         </li>
       </ul>
 
       <form action={formAction} noValidate className="grid gap-5">
-        <FormMessage tone="error">{state && !state.ok && !consentError ? state.error : null}</FormMessage>
+        <FormMessage tone="error">
+          {state && !state.ok && !consentError ? state.error : null}
+        </FormMessage>
         <div className="grid gap-1.5">
           <Checkbox
             name="ai_consent"
@@ -71,14 +75,19 @@ export function AiConsentCard() {
         </div>
         <div className="grid gap-1 text-sm text-fg-muted">
           <p>
-            Sem essa autorização, você ainda pode explorar o diretório de pesquisadoras e pedir mentoria diretamente a
-            quem quiser. Saiba mais em{" "}
-            <Link href="/privacidade" className="font-semibold text-primary underline underline-offset-2">
+            Sem essa autorização, você ainda pode explorar o diretório de pesquisadoras e pedir
+            mentoria diretamente a quem quiser. Saiba mais em{" "}
+            <Link
+              href="/privacidade"
+              className="font-semibold text-primary underline underline-offset-2"
+            >
               Privacidade
             </Link>
             .
           </p>
-          <p>Tem menos de 18 anos? Não marque: todo o restante da plataforma funciona normalmente.</p>
+          <p>
+            Tem menos de 18 anos? Não marque: todo o restante da plataforma funciona normalmente.
+          </p>
         </div>
         <div className="flex flex-wrap gap-3 border-t border-border pt-5">
           <SubmitButton pendingText="Salvando…">Autorizar e continuar</SubmitButton>

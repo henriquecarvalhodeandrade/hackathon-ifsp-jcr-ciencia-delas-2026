@@ -27,7 +27,8 @@ export interface EditionDetail extends EditionListItem {
   content: NewsletterContent;
 }
 
-const LIST_COLUMNS = "id, slug, title, summary, period_start, period_end, published_at, status, content";
+const LIST_COLUMNS =
+  "id, slug, title, summary, period_start, period_end, published_at, status, content";
 
 type ListRow = {
   id: string;
@@ -53,7 +54,11 @@ function toDetail(row: ListRow): EditionDetail {
     published_at: row.published_at,
     status: row.status,
     content,
-    counts: { papers: content.papers.length, threads: content.threads.length, mentors: content.mentors.length },
+    counts: {
+      papers: content.papers.length,
+      threads: content.threads.length,
+      mentors: content.mentors.length,
+    },
   };
 }
 
@@ -99,7 +104,11 @@ export async function listPublishedEditions(
 export const getEditionBySlug = cache(async (slug: string): Promise<EditionDetail | null> => {
   if (!isSupabaseConfigured() || !EDITION_SLUG_PATTERN.test(slug) || slug.length > 80) return null;
   const supabase = await createClient();
-  const { data, error } = await supabase.from("newsletter_editions").select(LIST_COLUMNS).eq("slug", slug).maybeSingle();
+  const { data, error } = await supabase
+    .from("newsletter_editions")
+    .select(LIST_COLUMNS)
+    .eq("slug", slug)
+    .maybeSingle();
   if (error) throw new Error(`Não foi possível carregar a edição: ${error.message}`);
   return data ? toDetail(data) : null;
 });
@@ -145,7 +154,10 @@ export interface BigArea {
 export async function getBigAreas(): Promise<BigArea[]> {
   if (!isSupabaseConfigured()) return [];
   const supabase = await createClient();
-  const { data, error } = await supabase.from("research_areas").select("id, name, big_area").order("id");
+  const { data, error } = await supabase
+    .from("research_areas")
+    .select("id, name, big_area")
+    .order("id");
   if (error) {
     console.error(`[newsletter] falha ao carregar áreas: ${error.message}`);
     return [];

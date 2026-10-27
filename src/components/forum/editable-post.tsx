@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { Pencil, Save } from "lucide-react";
 import { Button, Field, FormMessage, SubmitButton } from "@/components/ui";
 import { updatePost, type PostEditState } from "@/lib/forum/actions";
@@ -22,7 +22,15 @@ export interface EditablePostProps {
 }
 
 /** Corpo de uma resposta com edição no lugar (só para a autora). */
-export function EditablePost({ postId, threadId, body, canEdit, children, reactions, actions }: EditablePostProps) {
+export function EditablePost({
+  postId,
+  threadId,
+  body,
+  canEdit,
+  children,
+  reactions,
+  actions,
+}: EditablePostProps) {
   const [editing, setEditing] = useState(false);
   const editButton = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef(false);
@@ -34,18 +42,13 @@ export function EditablePost({ postId, threadId, body, canEdit, children, reacti
     }
   }, [editing]);
 
+  const finishEditing = useCallback(() => {
+    restoreFocus.current = true;
+    setEditing(false);
+  }, []);
+
   if (editing) {
-    return (
-      <PostEditForm
-        postId={postId}
-        threadId={threadId}
-        body={body}
-        onDone={() => {
-          restoreFocus.current = true;
-          setEditing(false);
-        }}
-      />
-    );
+    return <PostEditForm postId={postId} threadId={threadId} body={body} onDone={finishEditing} />;
   }
 
   return (
@@ -55,7 +58,13 @@ export function EditablePost({ postId, threadId, body, canEdit, children, reacti
         {reactions}
         <div className="flex flex-wrap items-start gap-1">
           {canEdit && (
-            <Button ref={editButton} variant="ghost" size="sm" className="text-fg-muted" onClick={() => setEditing(true)}>
+            <Button
+              ref={editButton}
+              variant="ghost"
+              size="sm"
+              className="text-fg-muted"
+              onClick={() => setEditing(true)}
+            >
               <Pencil aria-hidden="true" />
               Editar
             </Button>
@@ -78,16 +87,15 @@ function PostEditForm({
   body: string;
   onDone: () => void;
 }) {
-  const [state, formAction] = useActionState<PostEditState, FormData>(async (prev, formData) => {
-    const result = await updatePost(prev, formData);
-    if (result?.ok) onDone();
-    return result;
-  }, null);
+  const [state, formAction] = useActionState<PostEditState, FormData>(updatePost, null);
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Fecha só depois do commit que traz o resultado — o mesmo que traz a página
+  // revalidada, então o corpo novo já aparece (sem piscar o texto antigo).
   useEffect(() => {
-    formRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
-  }, [state]);
+    if (state?.ok) onDone();
+    else formRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+  }, [state, onDone]);
 
   const values = state && !state.ok ? state.values : { body };
   const errors = state && !state.ok ? state.fieldErrors : undefined;

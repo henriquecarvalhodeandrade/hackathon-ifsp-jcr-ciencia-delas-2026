@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { friendlyDbError } from "@/lib/forum/errors";
-import { readReportForm, reportSchema, type ReportTarget, type ReportValues } from "@/lib/moderation/schema";
+import {
+  readReportForm,
+  reportSchema,
+  type ReportTarget,
+  type ReportValues,
+} from "@/lib/moderation/schema";
 import { createClient } from "@/lib/supabase/server";
 
 export type ReportState =
@@ -20,7 +25,11 @@ export type ReportState =
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
 /** Confere se o alvo existe e é visível para quem denuncia (o RLS faz o resto). */
-async function targetExists(supabase: SupabaseServer, type: ReportTarget, id: string): Promise<boolean> {
+async function targetExists(
+  supabase: SupabaseServer,
+  type: ReportTarget,
+  id: string,
+): Promise<boolean> {
   const table = {
     thread: "forum_threads",
     post: "forum_posts",
@@ -76,7 +85,8 @@ export async function createReport(_prev: ReportState, formData: FormData): Prom
   if (existing && existing.length > 0) {
     return {
       ok: true,
-      message: "Você já tinha denunciado este conteúdo e a moderação está analisando. Obrigada por avisar.",
+      message:
+        "Você já tinha denunciado este conteúdo e a moderação está analisando. Obrigada por avisar.",
       values,
     };
   }
@@ -90,7 +100,10 @@ export async function createReport(_prev: ReportState, formData: FormData): Prom
   if (error) {
     return {
       ok: false,
-      error: friendlyDbError(error, "Não conseguimos enviar sua denúncia agora. Tente de novo em instantes."),
+      error: friendlyDbError(
+        error,
+        "Não conseguimos enviar sua denúncia agora. Tente de novo em instantes.",
+      ),
       values,
     };
   }

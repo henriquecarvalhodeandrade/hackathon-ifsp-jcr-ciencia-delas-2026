@@ -41,12 +41,20 @@ describe("resolveTab", () => {
     expect(resolveTab(base)).toBe("sugestoes");
   });
   it("mentora com pedidos pendentes cai em recebidas", () => {
-    expect(resolveTab({ ...base, seeksMentorship: false, isMentor: true, showReceived: true, pendingReceived: 2 })).toBe(
-      "recebidas",
-    );
+    expect(
+      resolveTab({
+        ...base,
+        seeksMentorship: false,
+        isMentor: true,
+        showReceived: true,
+        pendingReceived: 2,
+      }),
+    ).toBe("recebidas");
   });
   it("mentora sem pendências também cai em recebidas", () => {
-    expect(resolveTab({ ...base, seeksMentorship: false, isMentor: true, showReceived: true })).toBe("recebidas");
+    expect(
+      resolveTab({ ...base, seeksMentorship: false, isMentor: true, showReceived: true }),
+    ).toBe("recebidas");
   });
   it("respeita a aba pedida, menos 'recebidas' para quem não é mentora", () => {
     expect(resolveTab({ ...base, requested: "ativas" })).toBe("ativas");
@@ -93,7 +101,9 @@ describe("origem da sugestão", () => {
   it("monta o selo", () => {
     expect(suggestionSourceLabel("ai", "gemini-3.5-flash-lite")).toBe("Sugestão por IA (Gemini)");
     expect(suggestionSourceLabel("ai", null)).toBe("Sugestão por IA");
-    expect(suggestionSourceLabel("heuristic", "gemini-3.5-flash-lite")).toBe("Sugestão por afinidade");
+    expect(suggestionSourceLabel("heuristic", "gemini-3.5-flash-lite")).toBe(
+      "Sugestão por afinidade",
+    );
   });
 });
 
@@ -127,7 +137,13 @@ describe("textos", () => {
 
 describe("capacitySummary", () => {
   it("calcula vagas e percentual", () => {
-    expect(capacitySummary(1, 3)).toEqual({ used: 1, capacity: 3, openSlots: 2, full: false, percent: 33 });
+    expect(capacitySummary(1, 3)).toEqual({
+      used: 1,
+      capacity: 3,
+      openSlots: 2,
+      full: false,
+      percent: 33,
+    });
     expect(capacitySummary(2, 2)).toMatchObject({ openSlots: 0, full: true, percent: 100 });
   });
   it("capacidade zero ou nula é cheia", () => {
@@ -143,6 +159,7 @@ describe("parseNotice", () => {
   it("só aceita chaves conhecidas", () => {
     expect(parseNotice("enviado")?.title).toBe("Pedido enviado!");
     expect(parseNotice(["aceito"])?.variant).toBe("success");
+    expect(parseNotice("mentoria-cancelada")?.title).toBe("Mentoria cancelada");
     expect(parseNotice("<script>")).toBeNull();
     expect(parseNotice(undefined)).toBeNull();
   });

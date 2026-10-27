@@ -51,15 +51,23 @@ export function ActionForm({ action, hiddenFields, children, className, messageC
   );
 }
 
-/** Executa uma Server Action fora de <form> (ex.: dentro do ConfirmDialog) e anuncia o resultado. */
-export async function runAndAnnounce(action: ServerActionFn, formData: FormData): Promise<ActionState> {
+/**
+ * Executa uma Server Action dentro do ConfirmDialog: o sucesso é anunciado na região fixa do
+ * painel (o cartão pode sumir); o erro volta para o diálogo, que continua aberto e o mostra.
+ */
+export async function runInConfirmDialog(
+  action: ServerActionFn,
+  formData: FormData,
+): Promise<{ ok: false; error: string } | undefined> {
   try {
     const result = await action(null, formData);
-    if (result) announce(result.ok ? result.message : result.error, result.ok ? "success" : "danger");
-    return result;
+    if (!result) return undefined;
+    if (result.ok) {
+      announce(result.message);
+      return undefined;
+    }
+    return { ok: false, error: result.error };
   } catch {
-    const message = "Não conseguimos falar com o servidor. Verifique sua conexão e tente de novo.";
-    announce(message, "danger");
-    return { ok: false, error: message };
+    return { ok: false, error: "Não conseguimos falar com o servidor. Verifique sua conexão e tente de novo." };
   }
 }

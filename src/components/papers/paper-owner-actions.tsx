@@ -16,7 +16,13 @@ export interface PaperOwnerActionsProps {
 }
 
 /** Ações de quem enviou o paper (e exclusão pela moderação). */
-export function PaperOwnerActions({ paperId, isOwner, canDelete, aiEnabled, hasSummary }: PaperOwnerActionsProps) {
+export function PaperOwnerActions({
+  paperId,
+  isOwner,
+  canDelete,
+  aiEnabled,
+  hasSummary,
+}: PaperOwnerActionsProps) {
   const [state, formAction] = useActionState<RegenerateState, FormData>(regenerateSummary, null);
 
   return (
@@ -48,13 +54,18 @@ export function PaperOwnerActions({ paperId, isOwner, canDelete, aiEnabled, hasS
       {isOwner && aiEnabled && (
         <form action={formAction} className="grid gap-2">
           <input type="hidden" name="paper_id" value={paperId} />
-          <SubmitButton variant="outline" size="sm" pendingText="Gerando resumo…" className="justify-self-start">
+          <SubmitButton
+            variant="outline"
+            size="sm"
+            pendingText="Gerando resumo…"
+            className="justify-self-start"
+          >
             <Sparkles aria-hidden="true" />
             {hasSummary ? "Gerar novo resumo com IA" : "Gerar resumo acessível com IA"}
           </SubmitButton>
           <p className="text-xs text-fg-subtle">
-            O título e o abstract (públicos) são enviados a um serviço de IA de terceiros. O novo texto substitui o
-            atual e aparece marcado como gerado por IA.
+            O título e o abstract (públicos) são enviados a um serviço de IA de terceiros. O novo
+            texto substitui o atual e aparece marcado como gerado por IA.
           </p>
           <FormMessage tone={state?.ok ? "success" : "error"}>
             {state ? (state.ok ? state.message : state.error) : null}

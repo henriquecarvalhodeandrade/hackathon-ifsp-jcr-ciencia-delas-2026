@@ -3,7 +3,7 @@ import { DEFAULT_MAX_PER_RUN } from "./constants";
 /**
  * Configuração da newsletter vinda do ambiente.
  *   NEWSLETTER_MAX_PER_RUN — teto de e-mails por execução (padrão 90; o Resend gratuito permite 100/dia).
- * (Ainda não está em src/lib/env.ts — ver docs/08-newsletter.md.)
+ * Documentada em .env.example e docs/08-newsletter.md.
  */
 export function getMaxPerRun(): number {
   const raw = process.env.NEWSLETTER_MAX_PER_RUN?.trim();

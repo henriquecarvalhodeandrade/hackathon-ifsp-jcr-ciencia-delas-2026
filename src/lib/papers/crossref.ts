@@ -45,7 +45,9 @@ export function decodeEntities(text: string): string {
         entity[1] === "x" || entity[1] === "X"
           ? Number.parseInt(entity.slice(2), 16)
           : Number.parseInt(entity.slice(1), 10);
-      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff
+        ? String.fromCodePoint(code)
+        : match;
     }
     return ENTITIES[entity.toLowerCase()] ?? match;
   });
@@ -74,7 +76,10 @@ export function cleanAbstract(raw: string): string {
     .split(/\n{2,}/)
     .map((p) => stripMarkup(p))
     .filter(Boolean);
-  if (paragraphs.length > 0 && /^(abstract|resumo|summary|background)[.:]?$/i.test(paragraphs[0]!)) {
+  if (
+    paragraphs.length > 0 &&
+    /^(abstract|resumo|summary|background)[.:]?$/i.test(paragraphs[0]!)
+  ) {
     paragraphs.shift();
   }
   const text = paragraphs.join("\n\n");
@@ -89,7 +94,9 @@ function clip(text: string, max: number): string {
 }
 
 const dateParts = z
-  .object({ "date-parts": z.array(z.array(z.union([z.number(), z.string(), z.null()]))).optional() })
+  .object({
+    "date-parts": z.array(z.array(z.union([z.number(), z.string(), z.null()]))).optional(),
+  })
   .partial();
 
 const workSchema = z.object({
@@ -120,7 +127,12 @@ function yearFrom(...candidates: Array<z.infer<typeof dateParts> | undefined>): 
   for (const candidate of candidates) {
     const raw = candidate?.["date-parts"]?.[0]?.[0];
     const year = typeof raw === "string" ? Number.parseInt(raw, 10) : raw;
-    if (typeof year === "number" && Number.isInteger(year) && year >= PAPER_LIMITS.yearMin && year <= 2100) {
+    if (
+      typeof year === "number" &&
+      Number.isInteger(year) &&
+      year >= PAPER_LIMITS.yearMin &&
+      year <= 2100
+    ) {
       return year;
     }
   }
@@ -138,7 +150,9 @@ function authorName(author: { given?: string; family?: string; name?: string }):
  */
 export function parseCrossrefWork(json: unknown, requestedDoi?: string): CrossrefPaperData | null {
   const message =
-    json && typeof json === "object" && "message" in json ? (json as { message: unknown }).message : json;
+    json && typeof json === "object" && "message" in json
+      ? (json as { message: unknown }).message
+      : json;
   const parsed = workSchema.safeParse(message);
   if (!parsed.success) return null;
   const work = parsed.data;
@@ -148,7 +162,10 @@ export function parseCrossrefWork(json: unknown, requestedDoi?: string): Crossre
 
   const mainTitle = work.title?.map(stripMarkup).find(Boolean) ?? null;
   const subtitle = work.subtitle?.map(stripMarkup).find(Boolean);
-  const fullTitle = mainTitle && subtitle && !mainTitle.includes(subtitle) ? `${mainTitle}: ${subtitle}` : mainTitle;
+  const fullTitle =
+    mainTitle && subtitle && !mainTitle.includes(subtitle)
+      ? `${mainTitle}: ${subtitle}`
+      : mainTitle;
   const title = fullTitle
     ? fullTitle.length <= PAPER_LIMITS.titleMax
       ? fullTitle

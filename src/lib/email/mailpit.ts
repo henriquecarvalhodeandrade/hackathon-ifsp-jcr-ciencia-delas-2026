@@ -35,7 +35,11 @@ export async function sendViaMailpit(
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      return { ok: false, status: response.status, error: `Mailpit respondeu ${response.status}: ${text.slice(0, 200)}` };
+      return {
+        ok: false,
+        status: response.status,
+        error: `Mailpit respondeu ${response.status}: ${text.slice(0, 200)}`,
+      };
     }
     const json = (await response.json().catch(() => null)) as { ID?: unknown } | null;
     return { ok: true, provider: "mailpit", id: typeof json?.ID === "string" ? json.ID : null };

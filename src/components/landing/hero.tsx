@@ -16,7 +16,7 @@ const VERBS = [
   },
   {
     title: "Mentorar",
-    text: "Sugestões de mentoras explicadas, com IA quando você autoriza, e pedidos com vagas respeitadas.",
+    text: "Sugestões de mentoras com o porquê de cada combinação — só com a sua autorização — e pedidos que respeitam as vagas de cada uma.",
   },
   {
     title: "Dar visibilidade",

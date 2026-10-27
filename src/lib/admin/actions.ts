@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentProfile, type Profile } from "@/lib/auth";
 import { isAdminConfigured } from "@/lib/env";
-import { generateWeeklyEdition, sendEdition } from "@/lib/newsletter/service";
+import { generateWeeklyEdition, publishEdition, sendEdition } from "@/lib/newsletter/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { actionError, NOT_ALLOWED, SESSION_EXPIRED, type ActionState } from "./action-state";
-import { appendAuditLine, buildAuditLine, mergeResolutionNote } from "./audit";
+import { appendAuditLine, buildAuditLine, mergeResolutionNote, splitResolutionNote } from "./audit";
 import { friendlyDbError } from "./errors";
 import { ROLE_LABELS } from "./params";
 
@@ -108,24 +108,41 @@ export async function resolveReport(_prev: ActionState, formData: FormData): Pro
   return { ok: true, message: STATUS_MESSAGES[status] };
 }
 
-/** Fecha as denúncias abertas de um alvo depois que a moderação agiu sobre ele. */
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+type DeletableTarget = "thread" | "post" | "paper" | "paper_comment";
+
+/**
+ * Fecha as denúncias abertas dos alvos depois que a moderação agiu sobre eles.
+ * A nota automática é ACRESCENTADA ao texto que já existia (e a auditoria é preservada).
+ * Busca as abertas do tipo e filtra os ids aqui (a fila aberta é pequena; evita URLs enormes
+ * quando um tópico apagado tinha centenas de respostas).
+ */
 async function resolveOpenReportsFor(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  targetType: "thread" | "post" | "paper" | "paper_comment",
-  targetId: string,
+  supabase: ServerClient,
+  targetType: DeletableTarget,
+  targetIds: readonly string[],
   note: string,
 ): Promise<number> {
-  const { data: open } = await supabase
+  if (targetIds.length === 0) return 0;
+  const wanted = new Set(targetIds);
+  const { data } = await supabase
     .from("reports")
-    .select("id, resolution_note")
+    .select("id, target_id, resolution_note")
     .eq("target_type", targetType)
-    .eq("target_id", targetId)
-    .eq("status", "open");
+    .eq("status", "open")
+    .limit(1000);
+  const open = (data ?? []).filter((report) => wanted.has(report.target_id));
   let closed = 0;
-  for (const report of open ?? []) {
+  for (const report of open) {
     const { error } = await supabase
       .from("reports")
-      .update({ status: "resolved", resolution_note: mergeResolutionNote(report.resolution_note, note) })
+      .update({
+        status: "resolved",
+        resolution_note: mergeResolutionNote(
+          report.resolution_note,
+          [splitResolutionNote(report.resolution_note).text, note].filter(Boolean).join("\n"),
+        ),
+      })
       .eq("id", report.id);
     if (!error) closed += 1;
   }
@@ -227,23 +244,42 @@ export async function deleteReportedContent(_prev: ActionState, formData: FormDa
 
   // Para revalidar a página certa depois.
   let parentPath: string | null = null;
+  // Conteúdo apagado em cascata junto com o alvo (respostas do tópico, comentários do paper):
+  // as denúncias abertas sobre ele também são encerradas.
+  let cascade: { type: DeletableTarget; ids: string[] } | null = null;
   if (targetType === "post") {
     const { data } = await supabase.from("forum_posts").select("thread_id").eq("id", targetId).maybeSingle();
     if (data) parentPath = `/forum/t/${data.thread_id}`;
   } else if (targetType === "paper_comment") {
     const { data } = await supabase.from("paper_comments").select("paper_id").eq("id", targetId).maybeSingle();
     if (data) parentPath = `/papers/${data.paper_id}`;
+  } else if (targetType === "thread") {
+    const { data } = await supabase.from("forum_posts").select("id").eq("thread_id", targetId);
+    cascade = { type: "post", ids: (data ?? []).map((p) => p.id) };
+  } else {
+    const { data } = await supabase.from("paper_comments").select("id").eq("paper_id", targetId);
+    cascade = { type: "paper_comment", ids: (data ?? []).map((c) => c.id) };
   }
 
   const { error, count } = await supabase.from(table).delete({ count: "exact" }).eq("id", targetId);
   if (error) return actionError(friendlyDbError(error, "Não conseguimos excluir o conteúdo. Tente de novo."));
 
-  const closed = await resolveOpenReportsFor(
+  let closed = await resolveOpenReportsFor(
     supabase,
     targetType,
-    targetId,
+    [targetId],
     note ?? "Conteúdo excluído pela moderação.",
   );
+  if (count && cascade) {
+    closed += await resolveOpenReportsFor(
+      supabase,
+      cascade.type,
+      cascade.ids,
+      targetType === "thread"
+        ? "Resposta removida junto com o tópico excluído pela moderação."
+        : "Comentário removido junto com o paper excluído pela moderação.",
+    );
+  }
 
   revalidateAdmin();
   if (targetType === "thread" || targetType === "post") revalidatePath("/forum", "layout");
@@ -411,7 +447,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "erro desconhecido";
 }
 
-export async function generateEditionAction(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+export async function generateEditionAction(): Promise<ActionState> {
   const { error: denied } = await gate("admin");
   if (denied) return denied;
 
@@ -430,6 +466,39 @@ export async function generateEditionAction(_prev: ActionState, _formData: FormD
   } catch (error) {
     console.error("[admin] falha ao gerar edição", errorMessage(error));
     return actionError("Não conseguimos gerar a edição agora. Confira os logs do servidor e tente de novo.");
+  }
+}
+
+const editionSchema = z.object({ editionId: uuid("Edição") });
+
+/** Publica um rascunho (ex.: de uma semana anterior), que passa a aparecer no arquivo e pode ser enviado. */
+export async function publishEditionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { error: denied } = await gate("admin");
+  if (denied) return denied;
+
+  const parsed = editionSchema.safeParse({ editionId: formData.get("editionId") });
+  if (!parsed.success) return actionError(firstIssue(parsed.error));
+
+  // RLS: admins leem todas as edições. Só rascunhos são publicados (nunca "desenvia" uma edição enviada).
+  const supabase = await createClient();
+  const current = await supabase
+    .from("newsletter_editions")
+    .select("id, status")
+    .eq("id", parsed.data.editionId)
+    .maybeSingle();
+  if (current.error) return actionError(friendlyDbError(current.error));
+  if (!current.data) return actionError("Edição não encontrada. Recarregue a página.");
+  if (current.data.status !== "draft") return { ok: true, message: "Esta edição já estava publicada." };
+
+  try {
+    const edition = await publishEdition(parsed.data.editionId);
+    revalidateAdmin();
+    revalidatePath("/newsletter", "layout");
+    revalidatePath("/");
+    return { ok: true, message: `Edição “${edition.title}” publicada no arquivo. Agora você pode enviá-la.` };
+  } catch (error) {
+    console.error("[admin] falha ao publicar edição", errorMessage(error));
+    return actionError("Não conseguimos publicar a edição agora. Tente de novo em instantes.");
   }
 }
 

@@ -11,7 +11,7 @@ export const AI_CONSENT_TEXT =
 /** O que acontece com e sem a IA, em linguagem simples (exibido acima da caixa de seleção). */
 export const AI_MATCHING_EXPLAINER = [
   "Com sua autorização, uma IA gratuita reordena as mentoras mais compatíveis e explica, em poucas frases, por que cada uma combina com você.",
-  "Vai para a IA só o necessário: fase da carreira, áreas, palavras-chave, temas e objetivos — com códigos no lugar dos nomes.",
+  "Vai para a IA só o necessário: fase da carreira, áreas, palavras-chave, temas, formatos e idiomas, seu título curto e o que você busca (ou oferece, se for mentora) — com códigos no lugar dos nomes e sem e-mails, links ou telefones que estejam no texto.",
   "Nunca vão para a IA: nome, e-mail, instituição, cidade, links, foto, mensagens ou posts do fórum.",
   "Você pode retirar a autorização a qualquer momento no seu perfil — a análise do seu perfil é apagada na hora.",
 ] as const;

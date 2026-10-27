@@ -92,18 +92,26 @@ async function resendRequest(
     }
 
     // 429 nunca foi processado → pode repetir. 5xx só com idempotência.
-    const retryable = response.status === 429 || (response.status >= 500 && Boolean(options.idempotencyKey));
+    const retryable =
+      response.status === 429 || (response.status >= 500 && Boolean(options.idempotencyKey));
     if (!isLastAttempt && retryable) {
       const wait = parseRetryAfter(response.headers.get("retry-after")) ?? 1_000;
       await options.sleep(Math.min(wait, MAX_RETRY_WAIT_MS));
       continue;
     }
 
-    const detail = (await response.json().catch(() => null)) as { message?: string; name?: string } | null;
+    const detail = (await response.json().catch(() => null)) as {
+      message?: string;
+      name?: string;
+    } | null;
     return {
       ok: false,
       status: response.status,
-      error: `Resend respondeu ${response.status}: ${detail?.message ?? response.statusText ?? "erro"}`.slice(0, 500),
+      error:
+        `Resend respondeu ${response.status}: ${detail?.message ?? response.statusText ?? "erro"}`.slice(
+          0,
+          500,
+        ),
     };
   }
   return { ok: false, error: "Resend indisponível." };
@@ -127,7 +135,11 @@ export async function sendEmail(
   const { apiKey, from, fetchImpl, sleep } = resolve(client);
   if (!apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY não configurada." };
 
-  const result = await resendRequest("/emails", toPayload(message, from), apiKey, { ...options, fetchImpl, sleep });
+  const result = await resendRequest("/emails", toPayload(message, from), apiKey, {
+    ...options,
+    fetchImpl,
+    sleep,
+  });
   if (!result.ok) return { ok: false, error: result.error, status: result.status };
   const id = (result.json as { id?: unknown } | null)?.id;
   return { ok: true, provider: "resend", id: typeof id === "string" ? id : null };
@@ -146,11 +158,18 @@ export async function sendBatch(
   if (!apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY não configurada." };
   if (messages.length === 0) return { ok: true, provider: "resend", ids: [] };
   if (messages.length > RESEND_BATCH_LIMIT) {
-    return { ok: false, error: `O Resend aceita no máximo ${RESEND_BATCH_LIMIT} e-mails por lote.` };
+    return {
+      ok: false,
+      error: `O Resend aceita no máximo ${RESEND_BATCH_LIMIT} e-mails por lote.`,
+    };
   }
 
   const payload = messages.map((m) => toPayload(m, from));
-  const result = await resendRequest("/emails/batch", payload, apiKey, { ...options, fetchImpl, sleep });
+  const result = await resendRequest("/emails/batch", payload, apiKey, {
+    ...options,
+    fetchImpl,
+    sleep,
+  });
   if (!result.ok) return { ok: false, error: result.error, status: result.status };
 
   const data = (result.json as { data?: Array<{ id?: unknown }> } | null)?.data ?? [];

@@ -24,8 +24,13 @@ import { isAiEnabled } from "@/lib/ai";
 import { getCurrentProfile, getCurrentUser, isModerator } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { doiUrl } from "@/lib/papers/doi";
-import { isUuid, relationDisplay } from "@/lib/papers/params";
-import { getPaperComments, getPaperDetail, getPaperSubmitter, getVotedPaperIds } from "@/lib/papers/queries";
+import { isUuid, relationDisplay, relationSentence } from "@/lib/papers/params";
+import {
+  getPaperComments,
+  getPaperDetail,
+  getPaperSubmitter,
+  getVotedPaperIds,
+} from "@/lib/papers/queries";
 import { formatDate, pluralize, toIsoString, truncate } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
@@ -33,9 +38,13 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
-  if (!isUuid(id) || !isSupabaseConfigured()) return { title: "Paper" };
+  // Com loading.tsx a resposta já começou a ser enviada (status 200): notFound() mostra a
+  // página 404 com <meta name="robots" content="noindex"> (docs/05 §11). Aqui ele também
+  // evita gerar título/descrição de um paper inexistente ou oculto.
+  if (!isUuid(id)) notFound();
+  if (!isSupabaseConfigured()) return { title: "Paper" };
   const paper = await getPaperDetail(id).catch(() => null);
-  if (!paper) return { title: "Paper não encontrado" };
+  if (!paper) notFound();
   const description = truncate(paper.plain_summary ?? paper.abstract, 160);
   return {
     title: truncate(paper.title, 70),
@@ -45,7 +54,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
-export default async function PaperPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
+export default async function PaperPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const { id } = await params;
   const query = await searchParams;
   if (!isUuid(id)) notFound();
@@ -59,7 +74,11 @@ export default async function PaperPage({ params, searchParams }: { params: Para
     );
   }
 
-  const [paper, user, profile] = await Promise.all([getPaperDetail(id), getCurrentUser(), getCurrentProfile()]);
+  const [paper, user, profile] = await Promise.all([
+    getPaperDetail(id),
+    getCurrentUser(),
+    getCurrentProfile(),
+  ]);
   if (!paper) notFound();
 
   const isOwner = user?.id === paper.submitted_by;
@@ -93,24 +112,24 @@ export default async function PaperPage({ params, searchParams }: { params: Para
       <div className="mb-8 grid gap-3 empty:hidden">
         {query.enviado === "1" && (
           <Alert variant="success" title="Paper publicado na Vitrine!">
-            Obrigada por dar visibilidade a esse trabalho. Compartilhe o link desta página com quem pode se interessar.
+            Obrigada por dar visibilidade a esse trabalho. Compartilhe o link desta página com quem
+            pode se interessar.
           </Alert>
         )}
         {query.atualizado === "1" && <Alert variant="success" title="Alterações salvas." />}
-        {query.erro === "exclusao" && (
-          <Alert variant="danger" title="Não conseguimos excluir o paper.">
-            Só quem enviou (ou a moderação) pode excluir. Tente de novo em instantes.
-          </Alert>
-        )}
         {paper.is_hidden && (
           <Alert variant="warning" icon={<EyeOff />} title="Este paper está oculto pela moderação.">
-            Ele não aparece na Vitrine nem no ranking. Só quem enviou e a moderação conseguem ver esta página.
+            Ele não aparece na Vitrine nem no ranking. Só quem enviou e a moderação conseguem ver
+            esta página.
           </Alert>
         )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-x-10 lg:gap-y-4">
-        <section aria-label="Destacar e ler o paper" className="grid content-start gap-4 lg:col-start-2 lg:row-start-1">
+        <section
+          aria-label="Destacar e ler o paper"
+          className="grid content-start gap-4 lg:col-start-2 lg:row-start-1"
+        >
           <Card padding="md" className="grid gap-4">
             <VoteButton
               paperId={paper.id}
@@ -122,8 +141,14 @@ export default async function PaperPage({ params, searchParams }: { params: Para
               layout="horizontal"
             />
             <p className="text-sm text-fg-muted">
-              Destaques levam o paper ao <Link href="/ranking" className="font-semibold text-primary underline-offset-2 hover:underline">ranking</Link> e
-              ao boletim semanal.
+              Destaques levam o paper ao{" "}
+              <Link
+                href="/ranking"
+                className="font-semibold text-primary underline-offset-2 hover:underline"
+              >
+                ranking
+              </Link>{" "}
+              e ao boletim semanal.
             </p>
           </Card>
 
@@ -164,11 +189,10 @@ export default async function PaperPage({ params, searchParams }: { params: Para
               </p>
             )}
             <p className="text-xs text-fg-subtle">
-              A Vitrine guarda só o link: o texto completo fica com a revista ou o repositório, respeitando os direitos
-              autorais.
+              A Vitrine guarda só o link: o texto completo fica com a revista ou o repositório,
+              respeitando os direitos autorais.
             </p>
           </Card>
-
         </section>
 
         <div className="grid min-w-0 content-start gap-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
@@ -177,8 +201,8 @@ export default async function PaperPage({ params, searchParams }: { params: Para
           ) : (
             isOwner && (
               <Alert variant="info" title="Este paper ainda não tem resumo acessível.">
-                Um resumo em linguagem simples ajuda estudantes e pessoas de outras áreas a entender o trabalho.{" "}
-                <Link href={`${path}/editar`}>Escrever o resumo</Link>
+                Um resumo em linguagem simples ajuda estudantes e pessoas de outras áreas a entender
+                o trabalho. <Link href={`${path}/editar`}>Escrever o resumo</Link>
               </Alert>
             )
           )}
@@ -187,7 +211,9 @@ export default async function PaperPage({ params, searchParams }: { params: Para
             <h2 id="abstract" className="font-display text-xl font-semibold text-fg">
               Resumo do paper (abstract)
             </h2>
-            <p className="font-serif text-lg leading-relaxed break-words whitespace-pre-line text-fg">{paper.abstract}</p>
+            <p className="font-serif text-lg leading-relaxed break-words whitespace-pre-line text-fg">
+              {paper.abstract}
+            </p>
           </section>
 
           {paper.keywords.length > 0 && (
@@ -263,12 +289,20 @@ export default async function PaperPage({ params, searchParams }: { params: Para
           </Section>
         </div>
 
-        <aside aria-label="Sobre quem indicou" className="grid content-start gap-4 lg:col-start-2 lg:row-start-2">
+        <aside
+          aria-label="Sobre quem indicou"
+          className="grid content-start gap-4 lg:col-start-2 lg:row-start-2"
+        >
           <Card padding="md" className="grid gap-3">
             <h2 className="font-display text-base font-semibold text-fg">Quem indicou</h2>
             {submitter ? (
               <div className="flex items-start gap-3">
-                <Avatar name={submitter.full_name} src={submitter.avatar_url} seed={submitter.id} size="md" />
+                <Avatar
+                  name={submitter.full_name}
+                  src={submitter.avatar_url}
+                  seed={submitter.id}
+                  size="md"
+                />
                 <div className="grid min-w-0 gap-0.5 text-sm">
                   <Link
                     href={`/pesquisadoras/${submitter.id}`}
@@ -276,13 +310,19 @@ export default async function PaperPage({ params, searchParams }: { params: Para
                   >
                     {submitter.full_name || "Pesquisadora"}
                   </Link>
-                  {relation && <span className="text-fg-muted">{relation[0]!.toUpperCase() + relation.slice(1)}</span>}
-                  {submitter.institution && <span className="text-fg-subtle">{submitter.institution}</span>}
+                  {relation && (
+                    <span className="text-fg-muted">
+                      {relation[0]!.toUpperCase() + relation.slice(1)}
+                    </span>
+                  )}
+                  {submitter.institution && (
+                    <span className="text-fg-subtle">{submitter.institution}</span>
+                  )}
                 </div>
               </div>
             ) : (
               <p className="text-sm text-fg-muted">
-                {relation ? `Indicado pela ${relation}.` : "Indicado por uma pesquisadora da comunidade."}{" "}
+                {relationSentence(paper.submitter_relation)}{" "}
                 {!user && (
                   <Link href={loginHref} className="font-semibold text-primary hover:underline">
                     Entre para ver o perfil.
@@ -292,13 +332,16 @@ export default async function PaperPage({ params, searchParams }: { params: Para
             )}
             <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
               <CalendarDays aria-hidden="true" className="size-3.5" />
-              Na Vitrine desde <time dateTime={toIsoString(paper.created_at)}>{formatDate(paper.created_at)}</time>
+              Na Vitrine desde{" "}
+              <time dateTime={toIsoString(paper.created_at)}>{formatDate(paper.created_at)}</time>
             </p>
           </Card>
 
           {(isOwner || canModerate) && (
             <Card padding="md" className="grid gap-3">
-              <h2 className="font-display text-base font-semibold text-fg">{isOwner ? "Seu paper" : "Moderação"}</h2>
+              <h2 className="font-display text-base font-semibold text-fg">
+                {isOwner ? "Seu paper" : "Moderação"}
+              </h2>
               <PaperOwnerActions
                 paperId={paper.id}
                 isOwner={isOwner}
@@ -311,7 +354,12 @@ export default async function PaperPage({ params, searchParams }: { params: Para
 
           {!isOwner && (
             <div className="flex justify-end">
-              <ReportButton targetType="paper" targetId={paper.id} signedIn={Boolean(user)} label="Denunciar paper" />
+              <ReportButton
+                targetType="paper"
+                targetId={paper.id}
+                signedIn={Boolean(user)}
+                label="Denunciar paper"
+              />
             </div>
           )}
         </aside>

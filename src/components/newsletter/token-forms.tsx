@@ -10,8 +10,21 @@ import {
   unsubscribeFromNewsletter,
   type TokenActionState,
 } from "@/app/newsletter/actions";
+import { useFocusOnMount } from "./use-focus-on-mount";
 
-function SuccessPanel({ title, message, children }: { title: string; message: string; children?: React.ReactNode }) {
+function SuccessPanel({
+  title,
+  message,
+  children,
+  focusOnMount = true,
+}: {
+  title: string;
+  message: string;
+  children?: React.ReactNode;
+  /** Painel que aparece após um clique: recebe o foco (o botão clicado deixou de existir). */
+  focusOnMount?: boolean;
+}) {
+  const titleRef = useFocusOnMount<HTMLParagraphElement>(focusOnMount);
   return (
     <div className="grid gap-4" role="status" aria-live="polite">
       <div className="flex items-start gap-3">
@@ -22,7 +35,13 @@ function SuccessPanel({ title, message, children }: { title: string; message: st
           <CircleCheck className="size-5" />
         </span>
         <div className="grid gap-1">
-          <p className="font-display text-xl font-semibold text-fg">{title}</p>
+          <p
+            ref={titleRef}
+            tabIndex={-1}
+            className="rounded-control font-display text-xl font-semibold text-fg"
+          >
+            {title}
+          </p>
           <p className="text-fg-muted">{message}</p>
         </div>
       </div>
@@ -33,7 +52,10 @@ function SuccessPanel({ title, message, children }: { title: string; message: st
 
 /** Botão de confirmação do double opt-in (um clique explícito: robôs que abrem links não confirmam). */
 export function ConfirmSubscriptionForm({ token }: { token: string }) {
-  const [state, action] = useActionState<TokenActionState, FormData>(confirmNewsletterSubscription, null);
+  const [state, action] = useActionState<TokenActionState, FormData>(
+    confirmNewsletterSubscription,
+    null,
+  );
 
   if (state?.ok) {
     return (
@@ -49,9 +71,11 @@ export function ConfirmSubscriptionForm({ token }: { token: string }) {
   }
 
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} className="grid">
       <input type="hidden" name="token" value={token} />
-      <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
+      <FormMessage tone="error" className="has-[p]:mb-4">
+        {state && !state.ok ? state.error : null}
+      </FormMessage>
       <div>
         <SubmitButton size="lg" pendingText="Confirmando…">
           <MailCheck aria-hidden="true" />
@@ -63,8 +87,17 @@ export function ConfirmSubscriptionForm({ token }: { token: string }) {
 }
 
 /** Descadastro com um clique + opção de excluir os dados (LGPD). */
-export function UnsubscribeForms({ token, alreadyUnsubscribed }: { token: string; alreadyUnsubscribed: boolean }) {
-  const [state, action] = useActionState<TokenActionState, FormData>(unsubscribeFromNewsletter, null);
+export function UnsubscribeForms({
+  token,
+  alreadyUnsubscribed,
+}: {
+  token: string;
+  alreadyUnsubscribed: boolean;
+}) {
+  const [state, action] = useActionState<TokenActionState, FormData>(
+    unsubscribeFromNewsletter,
+    null,
+  );
   const done = alreadyUnsubscribed || state?.ok;
 
   const deleteBlock = (
@@ -72,14 +105,17 @@ export function UnsubscribeForms({ token, alreadyUnsubscribed }: { token: string
       <div className="grid gap-1">
         <h2 className="font-display text-lg font-semibold text-fg">Excluir meus dados</h2>
         <p className="text-sm text-fg-muted">
-          Apaga o seu e-mail, as áreas de interesse, o registro do consentimento e o histórico de envios. Se quiser
-          voltar, é só se inscrever de novo.
+          Apaga o seu e-mail, as áreas de interesse, o registro do consentimento e o histórico de
+          envios. Se quiser voltar, é só se inscrever de novo.
         </p>
       </div>
       <div>
         <ConfirmDialog
           trigger={
-            <Button variant="outline" className="text-danger hover:bg-danger-soft hover:text-danger-soft-fg">
+            <Button
+              variant="outline"
+              className="text-danger hover:bg-danger-soft hover:text-danger-soft-fg"
+            >
               <Trash2 aria-hidden="true" />
               Excluir meus dados
             </Button>
@@ -100,13 +136,19 @@ export function UnsubscribeForms({ token, alreadyUnsubscribed }: { token: string
       <div className="grid gap-6">
         <SuccessPanel
           title="Inscrição cancelada"
+          focusOnMount={Boolean(state?.ok)}
           message={
-            state?.ok ? state.message : "Esta inscrição já está cancelada — você não recebe mais o Boletim Delas."
+            state?.ok
+              ? state.message
+              : "Esta inscrição já está cancelada — você não recebe mais o Boletim Delas."
           }
         >
           <p className="text-sm text-fg-muted">
             Mudou de ideia?{" "}
-            <Link href="/newsletter#assinar" className="font-semibold text-primary underline underline-offset-2">
+            <Link
+              href="/newsletter#assinar"
+              className="font-semibold text-primary underline underline-offset-2"
+            >
               Inscreva-se de novo
             </Link>{" "}
             quando quiser.
@@ -119,9 +161,11 @@ export function UnsubscribeForms({ token, alreadyUnsubscribed }: { token: string
 
   return (
     <div className="grid gap-6">
-      <form action={action} className="grid gap-4">
+      <form action={action} className="grid">
         <input type="hidden" name="token" value={token} />
-        <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
+        <FormMessage tone="error" className="has-[p]:mb-4">
+          {state && !state.ok ? state.error : null}
+        </FormMessage>
         <div>
           <SubmitButton size="lg" variant="danger" pendingText="Cancelando…">
             <BellOff aria-hidden="true" />

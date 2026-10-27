@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { VoteButton } from "@/components/papers/vote-button";
+import { CardLink } from "@/components/ui";
 import type { RankingPeriod } from "@/lib/constants";
 import { periodVotesLabel, rankingVotes, shortAuthorList } from "@/lib/papers/params";
 import type { PaperListItem } from "@/lib/papers/queries";
@@ -30,24 +30,23 @@ export function RankingList({
         return (
           <li
             key={paper.id}
-            className="relative flex items-start gap-3 p-4 transition-colors hover:bg-surface-2 has-[[data-row-link]:focus-visible]:bg-surface-2 has-[[data-row-link]:focus-visible]:outline-2 has-[[data-row-link]:focus-visible]:-outline-offset-2 has-[[data-row-link]:focus-visible]:outline-focus sm:gap-4 sm:px-5"
+            className="relative flex items-start gap-3 p-4 transition-colors hover:bg-surface-2 sm:gap-4 sm:px-5"
           >
             <span
               aria-hidden="true"
-              className="tabular w-8 shrink-0 pt-0.5 text-right font-display text-xl font-semibold text-fg-subtle"
+              className="w-8 shrink-0 pt-0.5 text-right font-display text-xl font-semibold text-fg-subtle tabular"
             >
               {startAt + index}
             </span>
             <div className="grid min-w-0 flex-1 gap-1">
               <h3 className="font-serif text-lg leading-snug font-semibold break-words text-fg">
-                <Link
-                  data-row-link=""
+                <CardLink
                   href={`/papers/${paper.id}`}
-                  className="after:absolute after:inset-0 after:content-[''] hover:text-primary focus-visible:outline-none"
+                  className="after:rounded-none hover:text-primary"
                 >
                   <span className="sr-only">{startAt + index}º lugar: </span>
                   {paper.title}
-                </Link>
+                </CardLink>
               </h3>
               <p className="text-sm text-fg-muted">
                 <span className="break-words">{shortAuthorList(paper.authors, 2)}</span>
@@ -56,7 +55,10 @@ export function RankingList({
               <p className="text-sm font-semibold text-fg">
                 {periodVotesLabel(period, votes)}
                 {(period === "week" || period === "month" || period === "year") && (
-                  <span className="font-normal text-fg-subtle"> · {pluralize(paper.vote_count, "destaque")} no total</span>
+                  <span className="font-normal text-fg-subtle">
+                    {" "}
+                    · {pluralize(paper.vote_count, "destaque")} no total
+                  </span>
                 )}
               </p>
             </div>
@@ -68,6 +70,7 @@ export function RankingList({
               viewer={viewerFor(paper, viewer)}
               loginHref={viewer.loginHref}
               showCount={false}
+              align="end"
               className="shrink-0"
             />
           </li>
@@ -76,4 +79,3 @@ export function RankingList({
     </ol>
   );
 }
-

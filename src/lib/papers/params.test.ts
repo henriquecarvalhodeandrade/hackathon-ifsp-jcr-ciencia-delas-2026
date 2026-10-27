@@ -15,6 +15,7 @@ import {
   rankBadgeLabel,
   rankingVotes,
   relationDisplay,
+  relationSentence,
   shortAuthorList,
   type AreaRow,
 } from "./params";
@@ -22,9 +23,19 @@ import {
 const AREAS: AreaRow[] = [
   { id: 1, slug: "engenharias", name: "Engenharias", big_area: "Engenharias" },
   { id: 2, slug: "engenharia-civil", name: "Engenharia Civil", big_area: "Engenharias" },
-  { id: 3, slug: "engenharia-aeroespacial", name: "Engenharia Aeroespacial", big_area: "Engenharias" },
+  {
+    id: 3,
+    slug: "engenharia-aeroespacial",
+    name: "Engenharia Aeroespacial",
+    big_area: "Engenharias",
+  },
   { id: 4, slug: "ecologia", name: "Ecologia", big_area: "Ciências Biológicas" },
-  { id: 5, slug: "ciencias-biologicas", name: "Ciências Biológicas", big_area: "Ciências Biológicas" },
+  {
+    id: 5,
+    slug: "ciencias-biologicas",
+    name: "Ciências Biológicas",
+    big_area: "Ciências Biológicas",
+  },
 ];
 
 describe("parse*", () => {
@@ -58,6 +69,12 @@ describe("parse*", () => {
     expect(escapeLikePattern("100%_ok\\")).toBe("100\\%\\_ok\\\\");
   });
 
+  it("parseSearch remove o * (curinga do PostgREST no ilike)", () => {
+    expect(parseSearch("*")).toBe("");
+    expect(parseSearch("abelhas*")).toBe("abelhas");
+    expect(parseSearch("café * leite")).toBe("café leite");
+  });
+
   it("isUuid", () => {
     expect(isUuid("b1000000-0000-4000-8000-000000000001")).toBe(true);
     expect(isUuid("b1000000")).toBe(false);
@@ -77,14 +94,21 @@ describe("áreas", () => {
     const groups = groupAreas(AREAS);
     expect(groups.map((g) => g.bigArea)).toEqual(["Ciências Biológicas", "Engenharias"]);
     expect(groups[1]!.parent?.slug).toBe("engenharias");
-    expect(groups[1]!.children.map((c) => c.slug)).toEqual(["engenharia-aeroespacial", "engenharia-civil"]);
+    expect(groups[1]!.children.map((c) => c.slug)).toEqual([
+      "engenharia-aeroespacial",
+      "engenharia-civil",
+    ]);
   });
 });
 
 describe("buildHref", () => {
   it("ignora vazios e a página 1", () => {
-    expect(buildHref("/papers", { periodo: "week", area: null, q: "", pagina: 1 })).toBe("/papers?periodo=week");
-    expect(buildHref("/papers", { q: "café & chá", pagina: 2 })).toBe("/papers?q=caf%C3%A9+%26+ch%C3%A1&pagina=2");
+    expect(buildHref("/papers", { periodo: "week", area: null, q: "", pagina: 1 })).toBe(
+      "/papers?periodo=week",
+    );
+    expect(buildHref("/papers", { q: "café & chá", pagina: 2 })).toBe(
+      "/papers?q=caf%C3%A9+%26+ch%C3%A1&pagina=2",
+    );
     expect(buildHref("/ranking", {})).toBe("/ranking");
   });
 });
@@ -93,6 +117,12 @@ describe("rótulos", () => {
   it("relação de quem enviou em 3ª pessoa", () => {
     expect(relationDisplay("coauthor")).toBe("coautora do trabalho");
     expect(relationDisplay("outra")).toBeNull();
+  });
+
+  it('frase de quem indicou para visitantes (sem repetir "indicou")', () => {
+    expect(relationSentence("reader")).toBe("Indicado por uma leitora da comunidade.");
+    expect(relationSentence("coauthor")).toBe("Indicado por uma coautora do trabalho.");
+    expect(relationSentence("outra")).toBe("Indicado por uma pesquisadora da comunidade.");
   });
 
   it("selos e contagens do ranking", () => {
@@ -112,6 +142,8 @@ describe("rótulos", () => {
     expect(shortAuthorList(["Ana"])).toBe("Ana");
     expect(shortAuthorList(["Ana", "Bia"])).toBe("Ana e Bia");
     expect(shortAuthorList(["Ana", "Bia", "Carol"])).toBe("Ana, Bia e Carol");
-    expect(shortAuthorList(["Ana", "Bia", "Carol", "Dani", "Eva"])).toBe("Ana, Bia, Carol e mais 2");
+    expect(shortAuthorList(["Ana", "Bia", "Carol", "Dani", "Eva"])).toBe(
+      "Ana, Bia, Carol e mais 2",
+    );
   });
 });

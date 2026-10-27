@@ -39,6 +39,7 @@ import {
   getMemberProfile,
   getMemberThreads,
   getMentorAvailability,
+  getOpenRequestBetween,
   getOwnOpenSlots,
 } from "@/lib/profile/queries";
 import { formatDate, formatNumber, formatRelativeTime, pluralize, toIsoString } from "@/lib/utils";
@@ -87,16 +88,23 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
   if (!profile) notFound();
 
   const isSelf = profile.id === me.id;
-  const [papers, threads, availability, ownSlots] = await Promise.all([
+  const [papers, threads, availability, ownSlots, openRequest] = await Promise.all([
     getMemberPapers(profile.id),
     getMemberThreads(profile.id),
     profile.is_mentor && !isSelf ? getMentorAvailability() : Promise.resolve(null),
     profile.is_mentor && isSelf ? getOwnOpenSlots(profile.id, profile.mentor_capacity) : Promise.resolve(null),
+    isSelf ? Promise.resolve(null) : getOpenRequestBetween(me.id, profile.id),
   ]);
   const mentorInfo = availability?.get(profile.id) ?? null;
   const openSlots = isSelf ? ownSlots : (mentorInfo?.openSlots ?? null);
-  const existingRequest = mentorInfo?.existingRequestStatus ?? null;
   const canRequest = profile.is_mentor && !isSelf && profile.mentor_available && (openSlots ?? 0) > 0;
+  const requestCta = openRequest
+    ? openRequest.status === "accepted"
+      ? { href: "/mentoria?aba=ativas", label: "Ver nossa mentoria" }
+      : openRequest.myRole === "mentor"
+        ? { href: "/mentoria?aba=recebidas", label: "Responder ao pedido dela" }
+        : { href: "/mentoria?aba=enviadas", label: "Acompanhar seu pedido" }
+    : null;
   const place = formatPlace(profile.city, profile.state);
   const firstName = profile.full_name.split(/\s+/)[0] || "Ela";
 
@@ -167,13 +175,13 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
               Editar meu perfil
             </ButtonLink>
           )}
-          {!isSelf && existingRequest && (
-            <ButtonLink href="/mentoria" variant="secondary">
+          {requestCta && (
+            <ButtonLink href={requestCta.href} variant="secondary">
               <HeartHandshake aria-hidden="true" />
-              {existingRequest === "accepted" ? "Ver nossa mentoria" : "Acompanhar seu pedido"}
+              {requestCta.label}
             </ButtonLink>
           )}
-          {!existingRequest && canRequest && (
+          {!requestCta && canRequest && (
             <ButtonLink href={`/mentoria?mentora=${profile.id}`}>
               <HeartHandshake aria-hidden="true" />
               Pedir mentoria

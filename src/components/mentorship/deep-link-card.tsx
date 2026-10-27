@@ -8,7 +8,13 @@ import { PersonSummary } from "./person-summary";
 import { RequestMentorshipDialog } from "./request-dialog";
 
 /** Avisos quando o link direto não pode virar um pedido. */
-function DeepLinkAlert({ state, mentorName }: { state: Exclude<DeepLinkState, { kind: "ok" }>; mentorName: string }) {
+function DeepLinkAlert({
+  state,
+  mentorName,
+}: {
+  state: Exclude<DeepLinkState, { kind: "ok" }>;
+  mentorName: string;
+}) {
   const name = firstName(mentorName) || mentorName;
   switch (state.kind) {
     case "not_found":
@@ -28,8 +34,8 @@ function DeepLinkAlert({ state, mentorName }: { state: Exclude<DeepLinkState, { 
     case "self":
       return (
         <Alert variant="info" title="Este é o seu próprio perfil">
-          Para receber pedidos, mantenha “Quero ser mentora” ativo no seu perfil. Os pedidos chegam em “Solicitações
-          recebidas”.
+          Não dá para pedir mentoria a si mesma. Se quiser receber pedidos, deixe “Quero ser
+          mentora” ativo no seu perfil: eles chegam em “Solicitações recebidas”.
         </Alert>
       );
     case "not_mentor":
@@ -49,7 +55,8 @@ function DeepLinkAlert({ state, mentorName }: { state: Exclude<DeepLinkState, { 
             </ButtonLink>
           }
         >
-          As vagas dela estão ocupadas ou ela pausou os pedidos por um tempo. Tente de novo mais tarde.
+          As vagas dela estão ocupadas ou ela pausou os pedidos por um tempo. Tente de novo mais
+          tarde.
         </Alert>
       );
     case "open_request":
@@ -57,7 +64,9 @@ function DeepLinkAlert({ state, mentorName }: { state: Exclude<DeepLinkState, { 
         <Alert
           variant="info"
           title={
-            state.status === "accepted" ? `Você e ${name} já estão em mentoria` : `Você já enviou um pedido para ${name}`
+            state.status === "accepted"
+              ? `Você e ${name} já estão em mentoria`
+              : `Você já enviou um pedido para ${name}`
           }
           actions={
             <ButtonLink
@@ -81,10 +90,19 @@ function DeepLinkAlert({ state, mentorName }: { state: Exclude<DeepLinkState, { 
  * Cartão aberto pelo link direto ?mentora=<id> (vindo do diretório ou do perfil): resumo da
  * mentora e o diálogo de pedido já aberto — mesmo sem sugestões geradas.
  */
-export function DeepLinkCard({ mentor, state }: { mentor: DeepLinkMentor | null; state: DeepLinkState }) {
+export function DeepLinkCard({
+  mentor,
+  state,
+}: {
+  mentor: DeepLinkMentor | null;
+  state: DeepLinkState;
+}) {
   if (state.kind !== "ok" || !mentor) {
     return (
-      <DeepLinkAlert state={state.kind === "ok" ? { kind: "not_found" } : state} mentorName={mentor?.full_name ?? ""} />
+      <DeepLinkAlert
+        state={state.kind === "ok" ? { kind: "not_found" } : state}
+        mentorName={mentor?.full_name ?? ""}
+      />
     );
   }
 
@@ -93,12 +111,18 @@ export function DeepLinkCard({ mentor, state }: { mentor: DeepLinkMentor | null;
     .filter((label): label is string => Boolean(label));
 
   return (
-    <Card as="section" aria-labelledby="pedido-direto" className="grid gap-4 border-primary/40 p-5 sm:p-6">
+    <Card
+      as="section"
+      aria-labelledby="pedido-direto"
+      className="grid gap-4 border-primary/40 p-5 sm:p-6"
+    >
       <p className="eyebrow text-primary">Pedido de mentoria</p>
       <PersonSummary person={mentor} headingId="pedido-direto" headingLevel="h2" size="lg">
         <Badge variant="primary">Mentora</Badge>
         {state.openSlots !== null && state.openSlots > 0 && (
-          <Badge variant="success">{pluralize(state.openSlots, "vaga aberta", "vagas abertas")}</Badge>
+          <Badge variant="success">
+            {pluralize(state.openSlots, "vaga aberta", "vagas abertas")}
+          </Badge>
         )}
         {formats.map((f) => (
           <Badge key={f} variant="outline">
@@ -109,7 +133,9 @@ export function DeepLinkCard({ mentor, state }: { mentor: DeepLinkMentor | null;
 
       {mentor.mentoring_offer && (
         <div className="rounded-control bg-surface-2 p-3.5 text-[0.9375rem] text-fg-muted">
-          <p className="mb-1 text-xs font-bold tracking-wide text-fg-subtle uppercase">Como ela pode ajudar</p>
+          <p className="mb-1 text-xs font-bold tracking-wide text-fg-subtle uppercase">
+            Como ela pode ajudar
+          </p>
           <p className="whitespace-pre-line">{mentor.mentoring_offer}</p>
         </div>
       )}

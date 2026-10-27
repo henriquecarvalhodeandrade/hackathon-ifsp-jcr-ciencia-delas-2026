@@ -3,11 +3,20 @@ import { BookOpen, Plus, Trophy } from "lucide-react";
 import { PaperCard } from "@/components/papers/paper-card";
 import { PaperFilters } from "@/components/papers/paper-filters";
 import { VitrineUnavailable } from "@/components/papers/vitrine-unavailable";
-import { Alert, ButtonLink, Container, EmptyState, PageHeader, Pagination, TabNav } from "@/components/ui";
+import {
+  Alert,
+  ButtonLink,
+  Container,
+  EmptyState,
+  PageHeader,
+  Pagination,
+  TabNav,
+} from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
   PAPERS_PAGE_SIZE,
+  VITRINE_ORDER_EXPLANATIONS,
   VITRINE_ORDER_LABELS,
   VITRINE_ORDER_ORDER,
   buildHref,
@@ -17,10 +26,8 @@ import {
   parseVitrineOrder,
   rankBadgeLabel,
   rankingVotes,
-  type VitrineOrder,
 } from "@/lib/papers/params";
 import { getResearchAreas, getVotedPaperIds, listVitrine } from "@/lib/papers/queries";
-import { RANKING_PERIOD_EXPLANATIONS } from "@/lib/ranking/hot";
 import { formatNumber, pluralize } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -34,11 +41,6 @@ const PAGE_DESCRIPTION =
   "Trabalhos com autoria de mulheres, indicados pela comunidade. Leia o resumo acessível e destaque os que você recomenda.";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const ORDER_EXPLANATIONS: Record<VitrineOrder, string> = {
-  ...RANKING_PERIOD_EXPLANATIONS,
-  recent: "Os papers que chegaram por último à Vitrine aparecem primeiro.",
-};
 
 export default async function PapersPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -57,12 +59,23 @@ export default async function PapersPage({ searchParams }: { searchParams: Searc
   }
 
   const user = await getCurrentUser();
-  const [areas, result] = await Promise.all([getResearchAreas(), listVitrine({ order, areaSlug, q, page })]);
-  const votedIds = await getVotedPaperIds(user?.id ?? null, result.items.map((p) => p.id));
+  const [areas, result] = await Promise.all([
+    getResearchAreas(),
+    listVitrine({ order, areaSlug, q, page }),
+  ]);
+  const votedIds = await getVotedPaperIds(
+    user?.id ?? null,
+    result.items.map((p) => p.id),
+  );
 
   const selectedArea = areaSlug ? areas.find((a) => a.slug === areaSlug) : undefined;
   const totalPages = Math.max(1, Math.ceil(result.total / PAPERS_PAGE_SIZE));
-  const currentHref = buildHref("/papers", { periodo: order === "hot" ? null : order, area: areaSlug, q, pagina: page });
+  const currentHref = buildHref("/papers", {
+    periodo: order === "hot" ? null : order,
+    area: areaSlug,
+    q,
+    pagina: page,
+  });
   const loginHref = `/entrar?next=${encodeURIComponent(currentHref)}`;
   const submitHref = user ? "/papers/novo" : `/entrar?next=${encodeURIComponent("/papers/novo")}`;
   const showRankBadges = page === 1 && !q && order !== "recent";
@@ -111,7 +124,10 @@ export default async function PapersPage({ searchParams }: { searchParams: Searc
           clearHref={buildHref("/papers", { periodo: order === "hot" ? null : order })}
         />
 
-        <div aria-live="polite" className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-sm text-fg-muted">
+        <div
+          aria-live="polite"
+          className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-sm text-fg-muted"
+        >
           <p>
             <span className="font-semibold text-fg">{pluralize(result.total, "paper")}</span>
             {q && (
@@ -130,7 +146,7 @@ export default async function PapersPage({ searchParams }: { searchParams: Searc
           <p>
             {q && order !== "recent"
               ? "Na busca, os mais destacados aparecem primeiro."
-              : ORDER_EXPLANATIONS[order]}
+              : VITRINE_ORDER_EXPLANATIONS[order]}
           </p>
         </div>
 
@@ -198,7 +214,11 @@ export default async function PapersPage({ searchParams }: { searchParams: Searc
           page={page}
           totalPages={totalPages}
           basePath="/papers"
-          searchParams={{ periodo: order === "hot" ? undefined : order, area: areaSlug ?? undefined, q: q || undefined }}
+          searchParams={{
+            periodo: order === "hot" ? undefined : order,
+            area: areaSlug ?? undefined,
+            q: q || undefined,
+          }}
         />
       </div>
     </Container>

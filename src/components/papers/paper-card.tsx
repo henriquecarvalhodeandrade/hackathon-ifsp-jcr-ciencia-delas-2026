@@ -29,7 +29,11 @@ export function PaperCard({
 }: PaperCardProps) {
   const meta = [paper.venue, paper.year].filter(Boolean).join(" · ");
   return (
-    <Card as="article" variant="interactive" className={cn("flex h-full gap-4 p-4 sm:p-5", className)}>
+    <Card
+      as="article"
+      variant="interactive"
+      className={cn("flex h-full gap-4 p-4 sm:p-5", className)}
+    >
       <VoteButton
         paperId={paper.id}
         paperTitle={paper.title}

@@ -51,7 +51,12 @@ export async function updateSession(request: NextRequest) {
   const isLoggedIn = Boolean(data?.claims?.sub);
   const { pathname, search } = request.nextUrl;
 
-  if (!isLoggedIn && matchesPrefix(pathname, PROTECTED_PREFIXES)) {
+  // Server Actions chegam como POST com o cabeçalho "next-action". Não redirecionamos:
+  // cada action valida a sessão e devolve a própria mensagem ("Sua sessão expirou"),
+  // em vez de o cliente receber um 307 e cair na tela de erro genérica.
+  const isServerAction = request.method === "POST" && request.headers.has("next-action");
+
+  if (!isLoggedIn && !isServerAction && matchesPrefix(pathname, PROTECTED_PREFIXES)) {
     const url = request.nextUrl.clone();
     url.pathname = "/entrar";
     url.search = `?next=${encodeURIComponent(pathname + search)}`;

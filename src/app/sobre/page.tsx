@@ -83,9 +83,11 @@ export default function AboutPage() {
           só aparece para a outra depois do aceite.
         </p>
         <p>
-          A inteligência artificial só entra com consentimento explícito (e para maiores de 18 anos). Sem consentimento
-          — ou sem chave de IA configurada — as sugestões são calculadas por regras transparentes dentro da plataforma.
-          Os detalhes estão na <Link href="/privacidade#ia">política de privacidade</Link>.
+          As sugestões só são geradas com consentimento explícito (e para maiores de 18 anos), porque analisam o perfil
+          de pesquisa. Com uma chave de IA configurada, a IA explica e reordena as combinações; sem ela — ou se a IA
+          falhar — a afinidade é calculada por regras transparentes dentro da plataforma. Sem consentimento, a
+          pesquisadora pode procurar mentoras no diretório e pedir mentoria diretamente. Os detalhes estão na{" "}
+          <Link href="/privacidade#ia">política de privacidade</Link>.
         </p>
         <h3>Vitrine, Ranking e Boletim</h3>
         <p>

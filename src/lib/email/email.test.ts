@@ -5,7 +5,10 @@ import type { EmailMessage } from "./types";
 
 describe("address helpers", () => {
   it("parseAddress", () => {
-    expect(parseAddress("Ciência Delas <onboarding@resend.dev>")).toEqual({ name: "Ciência Delas", email: "onboarding@resend.dev" });
+    expect(parseAddress("Ciência Delas <onboarding@resend.dev>")).toEqual({
+      name: "Ciência Delas",
+      email: "onboarding@resend.dev",
+    });
     expect(parseAddress('"Boletim" <a@b.co>')).toEqual({ name: "Boletim", email: "a@b.co" });
     expect(parseAddress("a@b.co")).toEqual({ name: null, email: "a@b.co" });
   });
@@ -39,7 +42,10 @@ const message: EmailMessage = {
 };
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
-  return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" }, ...init });
+  return new Response(JSON.stringify(body), {
+    headers: { "content-type": "application/json" },
+    ...init,
+  });
 }
 
 describe("Resend client", () => {
@@ -52,7 +58,11 @@ describe("Resend client", () => {
 
   it("envia com Authorization, Idempotency-Key e cabeçalhos do e-mail", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ id: "email_1" }));
-    const result = await sendEmail(message, { idempotencyKey: "k1" }, { apiKey: "re_x", from: "CD <a@b.co>", fetchImpl });
+    const result = await sendEmail(
+      message,
+      { idempotencyKey: "k1" },
+      { apiKey: "re_x", from: "CD <a@b.co>", fetchImpl },
+    );
     expect(result).toEqual({ ok: true, provider: "resend", id: "email_1" });
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.resend.com/emails");
@@ -70,7 +80,9 @@ describe("Resend client", () => {
     const sleep = vi.fn(async () => {});
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse({ message: "rate" }, { status: 429, headers: { "retry-after": "3" } }))
+      .mockResolvedValueOnce(
+        jsonResponse({ message: "rate" }, { status: 429, headers: { "retry-after": "3" } }),
+      )
       .mockResolvedValueOnce(jsonResponse({ id: "email_2" }));
     const result = await sendEmail(message, {}, { apiKey: "re_x", fetchImpl, sleep });
     expect(result).toMatchObject({ ok: true, id: "email_2" });
@@ -79,7 +91,9 @@ describe("Resend client", () => {
   });
 
   it("422 → falha sem repetir", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ message: "Invalid `to` field" }, { status: 422 }));
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ message: "Invalid `to` field" }, { status: 422 }),
+    );
     const result = await sendEmail(message, {}, { apiKey: "re_x", fetchImpl });
     expect(result).toMatchObject({ ok: false, status: 422 });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -92,17 +106,31 @@ describe("Resend client", () => {
     await sendEmail(message, {}, { apiKey: "re_x", fetchImpl: withoutKey, sleep });
     expect(withoutKey).toHaveBeenCalledTimes(1);
     const withKey = failing();
-    await sendEmail(message, { idempotencyKey: "k" }, { apiKey: "re_x", fetchImpl: withKey, sleep });
+    await sendEmail(
+      message,
+      { idempotencyKey: "k" },
+      { apiKey: "re_x", fetchImpl: withKey, sleep },
+    );
     expect(withKey).toHaveBeenCalledTimes(2);
   });
 
   it("lote: até 100 e ids na mesma ordem", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ data: [{ id: "a" }, { id: "b" }] }));
-    const result = await sendBatch([message, { ...message, to: "bia@exemplo.org" }], {}, { apiKey: "re_x", fetchImpl });
+    const result = await sendBatch(
+      [message, { ...message, to: "bia@exemplo.org" }],
+      {},
+      { apiKey: "re_x", fetchImpl },
+    );
     expect(result).toEqual({ ok: true, provider: "resend", ids: ["a", "b"] });
-    expect((fetchImpl.mock.calls[0] as unknown as [string])[0]).toBe("https://api.resend.com/emails/batch");
+    expect((fetchImpl.mock.calls[0] as unknown as [string])[0]).toBe(
+      "https://api.resend.com/emails/batch",
+    );
 
-    const tooMany = await sendBatch(Array.from({ length: 101 }, () => message), {}, { apiKey: "re_x", fetchImpl });
+    const tooMany = await sendBatch(
+      Array.from({ length: 101 }, () => message),
+      {},
+      { apiKey: "re_x", fetchImpl },
+    );
     expect(tooMany.ok).toBe(false);
   });
 });

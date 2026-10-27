@@ -50,7 +50,10 @@ export function toBigAreas(ids: readonly number[], bigAreaMap: Map<number, numbe
   return out;
 }
 
-export function wantsEdition(subscriberBigAreas: Set<number>, editionBigAreas: Set<number>): boolean {
+export function wantsEdition(
+  subscriberBigAreas: Set<number>,
+  editionBigAreas: Set<number>,
+): boolean {
   if (subscriberBigAreas.size === 0) return true;
   for (const id of subscriberBigAreas) if (editionBigAreas.has(id)) return true;
   return false;

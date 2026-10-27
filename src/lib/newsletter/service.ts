@@ -3,13 +3,27 @@ import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { generateEditionIntro } from "@/lib/ai/tasks";
 import type { Enums, Json, Tables } from "@/lib/database.types";
-import { getEmailTransport, getEmailTransportInfo, RESEND_BATCH_LIMIT, sendBatch, type EmailMessage, type EmailTransportInfo } from "@/lib/email";
+import {
+  getEmailTransport,
+  getEmailTransportInfo,
+  RESEND_BATCH_LIMIT,
+  sendBatch,
+  type EmailMessage,
+  type EmailTransportInfo,
+} from "@/lib/email";
 import { getSiteUrl } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pluralize } from "@/lib/utils";
-import { buildBigAreaMap, chunk, claimMarker, planDeliveries, type AudienceSubscriber } from "./audience";
+import {
+  buildBigAreaMap,
+  chunk,
+  claimMarker,
+  planDeliveries,
+  type AudienceSubscriber,
+} from "./audience";
 import { collectEditionContent } from "./build-edition";
 import { getMaxPerRun } from "./config";
+import { DELIVERY_CLAIM_PREFIX, DELIVERY_CLAIM_TTL_MS } from "./constants";
 import { fallbackIntro, isEditionEmpty, parseEditionContent } from "./content";
 import { absoluteUrl, renderEditionEmail } from "./render";
 import { getEditionWeek } from "./week";
@@ -106,7 +120,9 @@ function revalidateEdition(slug: string) {
 // -----------------------------------------------------------------------------
 
 /** Gera (ou reaproveita) a edição da semana de `now`. Idempotente pelo slug "AAAA-sNN". */
-export async function generateWeeklyEdition(options: GenerateEditionOptions = {}): Promise<GenerateEditionResult> {
+export async function generateWeeklyEdition(
+  options: GenerateEditionOptions = {},
+): Promise<GenerateEditionResult> {
   const { now = new Date(), publish = false, force = false } = options;
   const admin = createAdminClient();
   const week = getEditionWeek(now);
@@ -127,7 +143,10 @@ export async function generateWeeklyEdition(options: GenerateEditionOptions = {}
     return { edition: existing, created: false, regenerated: false };
   }
 
-  const content = await collectEditionContent(admin, { start: week.windowStart, end: week.windowEnd });
+  const content = await collectEditionContent(admin, {
+    start: week.windowStart,
+    end: week.windowEnd,
+  });
   const summary = (await generateEditionIntro(content)) ?? fallbackIntro(content);
 
   const fields = {
@@ -139,7 +158,8 @@ export async function generateWeeklyEdition(options: GenerateEditionOptions = {}
   };
 
   if (existing) {
-    const status: EditionStatus = publish && existing.status === "draft" ? "published" : existing.status;
+    const status: EditionStatus =
+      publish && existing.status === "draft" ? "published" : existing.status;
     const { data, error } = await admin
       .from("newsletter_editions")
       .update({ ...fields, status })
@@ -147,7 +167,8 @@ export async function generateWeeklyEdition(options: GenerateEditionOptions = {}
       .neq("status", "sent")
       .select(EDITION_COLUMNS)
       .single();
-    if (error) throw new Error(`Não foi possível atualizar a edição ${week.slug}: ${error.message}`);
+    if (error)
+      throw new Error(`Não foi possível atualizar a edição ${week.slug}: ${error.message}`);
     revalidateEdition(data.slug);
     return { edition: data, created: false, regenerated: true };
   }
@@ -200,7 +221,10 @@ export async function publishEdition(editionId: string): Promise<NewsletterEditi
 
 type PageResult<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
 
-async function fetchAll<T>(page: (from: number, to: number) => PageResult<T>, pageSize = 1000): Promise<T[]> {
+async function fetchAll<T>(
+  page: (from: number, to: number) => PageResult<T>,
+  pageSize = 1000,
+): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; from < 200_000; from += pageSize) {
     const { data, error } = await page(from, from + pageSize - 1);
@@ -212,11 +236,16 @@ async function fetchAll<T>(page: (from: number, to: number) => PageResult<T>, pa
 }
 
 function batchKey(editionId: string, subscriberIds: string[]): string {
-  const digest = createHash("sha256").update([...subscriberIds].sort().join(",")).digest("hex").slice(0, 24);
+  const digest = createHash("sha256")
+    .update([...subscriberIds].sort().join(","))
+    .digest("hex")
+    .slice(0, 24);
   return `newsletter-${editionId}-${digest}`;
 }
 
-function result(partial: Partial<SendEditionResult> & Pick<SendEditionResult, "reason">): SendEditionResult {
+function result(
+  partial: Partial<SendEditionResult> & Pick<SendEditionResult, "reason">,
+): SendEditionResult {
   return { sent: 0, skipped: 0, failed: 0, eligible: 0, remaining: 0, dryRun: false, ...partial };
 }
 
@@ -225,7 +254,10 @@ function result(partial: Partial<SendEditionResult> & Pick<SendEditionResult, "r
  * (registro em newsletter_deliveries), respeita as áreas escolhidas e o teto NEWSLETTER_MAX_PER_RUN;
  * o que sobrar vai na próxima chamada. Quando todas foram atendidas, a edição vira 'sent'.
  */
-export async function sendEdition(editionId: string, options: SendEditionOptions = {}): Promise<SendEditionResult> {
+export async function sendEdition(
+  editionId: string,
+  options: SendEditionOptions = {},
+): Promise<SendEditionResult> {
   const dryRun = Boolean(options.dryRun);
   const admin = createAdminClient();
 
@@ -263,10 +295,13 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
     ),
     admin.from("research_areas").select("id, name, big_area"),
   ]);
-  if (areasResult.error) throw new Error(`Não foi possível carregar as áreas: ${areasResult.error.message}`);
+  if (areasResult.error)
+    throw new Error(`Não foi possível carregar as áreas: ${areasResult.error.message}`);
 
   // Áreas da edição = áreas dos papers em destaque (edições antigas não guardam area_id no content).
-  const editionAreaIds = content.papers.flatMap((p) => (typeof p.area_id === "number" ? [p.area_id] : []));
+  const editionAreaIds = content.papers.flatMap((p) =>
+    typeof p.area_id === "number" ? [p.area_id] : [],
+  );
   const missing = content.papers.filter((p) => p.area_id === undefined).map((p) => p.id);
   if (missing.length) {
     const { data } = await admin.from("papers").select("id, area_id").in("id", missing);
@@ -290,7 +325,9 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
       plan.remaining
         ? `${pluralize(plan.remaining, "ficaria", "ficariam")} para a próxima execução (limite de ${maxPerRun} por execução)`
         : null,
-      transport === "none" ? "atenção: nenhum serviço de e-mail está configurado (RESEND_API_KEY)" : null,
+      transport === "none"
+        ? "atenção: nenhum serviço de e-mail está configurado (RESEND_API_KEY)"
+        : null,
     ].filter(Boolean);
     return {
       sent: plan.toSend.length,
@@ -304,7 +341,10 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
   }
 
   if (plan.toSend.length === 0) {
-    const finalStatus = await finalizeEdition(edition, plan.remaining === 0 && plan.inProgress === 0);
+    const finalStatus = await finalizeEdition(
+      edition,
+      plan.remaining === 0 && plan.inProgress === 0,
+    );
     return result({
       skipped,
       eligible: plan.eligible,
@@ -321,7 +361,8 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
       skipped,
       eligible: plan.eligible,
       remaining: plan.eligible,
-      reason: "Nenhum serviço de e-mail configurado: defina RESEND_API_KEY (veja docs/08-newsletter.md).",
+      reason:
+        "Nenhum serviço de e-mail configurado: defina RESEND_API_KEY (veja docs/08-newsletter.md).",
     });
   }
 
@@ -333,7 +374,12 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
     const { data, error } = await admin
       .from("newsletter_deliveries")
       .upsert(
-        fresh.map((s) => ({ edition_id: edition.id, subscriber_id: s.id, error: marker, sent_at: null })),
+        fresh.map((s) => ({
+          edition_id: edition.id,
+          subscriber_id: s.id,
+          error: marker,
+          sent_at: null,
+        })),
         { onConflict: "edition_id,subscriber_id", ignoreDuplicates: true },
       )
       .select("subscriber_id");
@@ -341,12 +387,17 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
     data?.forEach((d) => claimed.add(d.subscriber_id));
   }
   if (plan.retryIds.size) {
+    // Só retoma entregas que ninguém reivindicou agora (falha anterior ou reivindicação vencida).
+    // A condição é reavaliada pelo Postgres na linha travada: se outra execução reivindicou
+    // primeiro, esta não pega a mesma entrega (sem envio em dobro quando o cron duplica).
+    const staleBefore = claimMarker(new Date(now.getTime() - DELIVERY_CLAIM_TTL_MS));
     const { data, error } = await admin
       .from("newsletter_deliveries")
       .update({ error: marker })
       .eq("edition_id", edition.id)
       .in("subscriber_id", [...plan.retryIds])
       .is("sent_at", null)
+      .or(`error.is.null,error.not.like."${DELIVERY_CLAIM_PREFIX}*",error.lt."${staleBefore}"`)
       .select("subscriber_id");
     if (error) throw new Error(`Não foi possível retomar as entregas: ${error.message}`);
     data?.forEach((d) => claimed.add(d.subscriber_id));
@@ -373,7 +424,11 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
       const token = encodeURIComponent(subscriber.unsubscribe_token);
       const unsubscribeUrl = absoluteUrl(siteUrl, `/newsletter/cancelar?token=${token}`);
       const oneClickUrl = absoluteUrl(siteUrl, `/api/newsletter/unsubscribe?token=${token}`);
-      const email = renderEditionEmail(forRender, { siteUrl, unsubscribeUrl, recipientEmail: subscriber.email });
+      const email = renderEditionEmail(forRender, {
+        siteUrl,
+        unsubscribeUrl,
+        recipientEmail: subscriber.email,
+      });
       return {
         to: subscriber.email,
         subject: email.subject,
@@ -416,7 +471,12 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
       firstError ??= message;
       failed += group.length;
       await admin.from("newsletter_deliveries").upsert(
-        group.map((s) => ({ edition_id: edition.id, subscriber_id: s.id, sent_at: null, error: message })),
+        group.map((s) => ({
+          edition_id: edition.id,
+          subscriber_id: s.id,
+          sent_at: null,
+          error: message,
+        })),
         { onConflict: "edition_id,subscriber_id" },
       );
     }
@@ -424,15 +484,19 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
 
   const lost = plan.toSend.length - recipients.length; // reivindicadas por outra execução no meio do caminho
   const remaining = plan.remaining + failed;
-  const finalStatus = await finalizeEdition(edition, remaining === 0 && lost === 0 && plan.inProgress === 0);
+  const complete = remaining === 0 && lost === 0 && plan.inProgress === 0;
+  const finalStatus = await finalizeEdition(edition, complete);
 
   const reasons = [
     failed ? `${pluralize(failed, "envio falhou", "envios falharam")}: ${firstError}` : null,
     plan.remaining
       ? `Limite de ${maxPerRun} e-mails por execução: ${pluralize(plan.remaining, "inscrita fica", "inscritas ficam")} para a próxima.`
       : null,
-    lost ? `${pluralize(lost, "entrega estava", "entregas estavam")} em andamento em outra execução.` : null,
-    finalStatus === "sent" ? "Envio concluído." : null,
+    lost + plan.inProgress
+      ? `${pluralize(lost + plan.inProgress, "entrega está", "entregas estão")} em andamento em outra execução.`
+      : null,
+    // A edição pode já estar 'sent' de uma execução anterior: só diz "concluído" se ninguém ficou pendente.
+    complete && finalStatus === "sent" ? "Envio concluído." : null,
   ].filter(Boolean);
 
   return {
@@ -447,7 +511,10 @@ export async function sendEdition(editionId: string, options: SendEditionOptions
 }
 
 /** Atualiza recipients_count e marca 'sent' quando ninguém mais está pendente. */
-async function finalizeEdition(edition: NewsletterEdition, complete: boolean): Promise<EditionStatus> {
+async function finalizeEdition(
+  edition: NewsletterEdition,
+  complete: boolean,
+): Promise<EditionStatus> {
   const admin = createAdminClient();
   const { count } = await admin
     .from("newsletter_deliveries")
@@ -473,7 +540,9 @@ async function finalizeEdition(edition: NewsletterEdition, complete: boolean): P
 // -----------------------------------------------------------------------------
 
 /** Gera + publica + envia a edição da semana. Pode rodar várias vezes sem duplicar nada. */
-export async function runWeeklyNewsletterJob(options: { now?: Date } = {}): Promise<WeeklyJobResult> {
+export async function runWeeklyNewsletterJob(
+  options: { now?: Date } = {},
+): Promise<WeeklyJobResult> {
   const { edition, created } = await generateWeeklyEdition({ now: options.now, publish: false });
   let current = edition;
 
@@ -518,8 +587,15 @@ export async function runWeeklyNewsletterJob(options: { now?: Date } = {}): Prom
 export async function getNewsletterOverview(): Promise<NewsletterOverview> {
   const admin = createAdminClient();
   const countBy = (status: Enums<"subscriber_status">) =>
-    admin.from("newsletter_subscribers").select("id", { count: "exact", head: true }).eq("status", status);
-  const [active, pending, unsubscribed] = await Promise.all([countBy("active"), countBy("pending"), countBy("unsubscribed")]);
+    admin
+      .from("newsletter_subscribers")
+      .select("id", { count: "exact", head: true })
+      .eq("status", status);
+  const [active, pending, unsubscribed] = await Promise.all([
+    countBy("active"),
+    countBy("pending"),
+    countBy("unsubscribed"),
+  ]);
   return {
     email: getEmailTransportInfo(),
     maxPerRun: getMaxPerRun(),

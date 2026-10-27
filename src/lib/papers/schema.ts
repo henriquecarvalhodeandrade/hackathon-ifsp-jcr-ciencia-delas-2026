@@ -94,7 +94,8 @@ export function createPaperSchema(now: Date = new Date()) {
         .string()
         .transform((v) => normalizeDoi(v))
         .refine((v) => v === "" || isValidDoi(v), {
-          error: "Esse DOI não parece válido. Ele começa com 10. e tem uma barra, como 10.1590/s0100-123.",
+          error:
+            "Esse DOI não parece válido. Ele começa com 10. e tem uma barra, como 10.1590/s0100-123.",
         })
         .transform((v) => (v === "" ? null : v)),
       url: z
@@ -108,14 +109,15 @@ export function createPaperSchema(now: Date = new Date()) {
       title: z
         .string()
         .trim()
-        .min(PAPER_LIMITS.titleMin, { error: "Escreva o título do paper (pelo menos 5 caracteres)." })
+        .min(PAPER_LIMITS.titleMin, {
+          error: "Escreva o título do paper (pelo menos 5 caracteres).",
+        })
         .max(PAPER_LIMITS.titleMax, { error: "O título pode ter no máximo 300 caracteres." }),
       authors: z
         .array(
-          z
-            .string()
-            .trim()
-            .max(PAPER_LIMITS.authorNameMax, { error: "Cada nome pode ter no máximo 200 caracteres." }),
+          z.string().trim().max(PAPER_LIMITS.authorNameMax, {
+            error: "Cada nome pode ter no máximo 200 caracteres.",
+          }),
         )
         .transform((names) => dedupe(names.filter(Boolean)))
         .pipe(
@@ -131,11 +133,16 @@ export function createPaperSchema(now: Date = new Date()) {
           error: "O resumo precisa ter pelo menos 50 caracteres — cole o abstract do paper.",
         })
         .max(PAPER_LIMITS.abstractMax, { error: "O resumo pode ter no máximo 5.000 caracteres." }),
-      venue: optionalText(PAPER_LIMITS.venueMax, "O nome da revista ou do evento pode ter no máximo 300 caracteres."),
+      venue: optionalText(
+        PAPER_LIMITS.venueMax,
+        "O nome da revista ou do evento pode ter no máximo 300 caracteres.",
+      ),
       year: z
         .string()
         .trim()
-        .refine((v) => v === "" || /^\d{4}$/.test(v), { error: "Use o ano com 4 dígitos, como 2026." })
+        .refine((v) => v === "" || /^\d{4}$/.test(v), {
+          error: "Use o ano com 4 dígitos, como 2026.",
+        })
         .transform((v) => (v === "" ? null : Number(v)))
         .refine((v) => v === null || (v >= PAPER_LIMITS.yearMin && v <= yearMax), {
           error: `O ano precisa estar entre ${PAPER_LIMITS.yearMin} e ${yearMax}.`,
@@ -149,18 +156,28 @@ export function createPaperSchema(now: Date = new Date()) {
         .transform(Number),
       keywords: z
         .array(
-          z
-            .string()
-            .trim()
-            .max(PAPER_LIMITS.keywordMax, { error: "Cada palavra-chave pode ter no máximo 60 caracteres." }),
+          z.string().trim().max(PAPER_LIMITS.keywordMax, {
+            error: "Cada palavra-chave pode ter no máximo 60 caracteres.",
+          }),
         )
-        .transform((items) => dedupe(items.map((k) => k.toLocaleLowerCase("pt-BR")).filter(Boolean)))
-        .pipe(z.array(z.string()).max(PAPER_LIMITS.keywordsMax, { error: "Use no máximo 15 palavras-chave." })),
-      submitter_relation: z.enum(relations, { error: "Conte qual é a sua relação com o trabalho." }),
+        .transform((items) =>
+          dedupe(items.map((k) => k.toLocaleLowerCase("pt-BR")).filter(Boolean)),
+        )
+        .pipe(
+          z
+            .array(z.string())
+            .max(PAPER_LIMITS.keywordsMax, { error: "Use no máximo 15 palavras-chave." }),
+        ),
+      submitter_relation: z.enum(relations, {
+        error: "Conte qual é a sua relação com o trabalho.",
+      }),
       women_authorship_confirmed: z.literal(true, {
         error: "Confirme que o trabalho tem autoria de mulheres — é o propósito da Vitrine.",
       }),
-      plain_summary: optionalText(PAPER_LIMITS.plainSummaryMax, "O resumo acessível pode ter no máximo 1.500 caracteres."),
+      plain_summary: optionalText(
+        PAPER_LIMITS.plainSummaryMax,
+        "O resumo acessível pode ter no máximo 1.500 caracteres.",
+      ),
       plain_summary_source: z.string(),
     })
     .transform(({ plain_summary, plain_summary_source, ...rest }) => ({
@@ -244,7 +261,10 @@ export function paperToFormValues(paper: {
  * Preenche o formulário com os dados do Crossref. Campos que o Crossref trouxe substituem
  * os atuais; os demais (link, área, palavras-chave, relação, resumo acessível) ficam como estão.
  */
-export function mergeCrossrefIntoValues(current: PaperFormValues, data: CrossrefPaperData): PaperFormValues {
+export function mergeCrossrefIntoValues(
+  current: PaperFormValues,
+  data: CrossrefPaperData,
+): PaperFormValues {
   return {
     ...current,
     doi: data.doi,

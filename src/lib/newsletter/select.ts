@@ -101,7 +101,11 @@ export function toNewsletterThread(thread: ThreadCandidate): NewsletterThread {
   };
 }
 
-export function toNewsletterMentor(mentor: { id: string; full_name: string; headline: string | null }): NewsletterMentor {
+export function toNewsletterMentor(mentor: {
+  id: string;
+  full_name: string;
+  headline: string | null;
+}): NewsletterMentor {
   return {
     id: mentor.id,
     full_name: mentor.full_name.trim(),

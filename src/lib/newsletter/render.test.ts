@@ -23,7 +23,15 @@ const edition = {
         area: "Ecologia",
       },
     ],
-    threads: [{ id: "t1", title: "Revisão sistemática", category: "Dúvidas de pesquisa", replies: 1, url: "/forum/t/t1" }],
+    threads: [
+      {
+        id: "t1",
+        title: "Revisão sistemática",
+        category: "Dúvidas de pesquisa",
+        replies: 1,
+        url: "/forum/t/t1",
+      },
+    ],
     mentors: [{ id: "m1", full_name: "Marina", headline: "Docente", url: "/pesquisadoras/m1" }],
     stats: { new_members: 1, new_papers: 2, mentorships: 0 },
   }),
@@ -31,7 +39,9 @@ const edition = {
 
 describe("escapeHtml / absoluteUrl", () => {
   it("escapa HTML", () => {
-    expect(escapeHtml(`<a href="x">'&'</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
+    expect(escapeHtml(`<a href="x">'&'</a>`)).toBe(
+      "&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;",
+    );
   });
   it("monta URL absoluta sem barras duplicadas", () => {
     expect(absoluteUrl(`${SITE}/`, "/papers/1")).toBe(`${SITE}/papers/1`);
@@ -41,7 +51,11 @@ describe("escapeHtml / absoluteUrl", () => {
 
 describe("renderEditionEmail", () => {
   const unsubscribeUrl = `${SITE}/newsletter/cancelar?token=abc`;
-  const email = renderEditionEmail(edition, { siteUrl: SITE, unsubscribeUrl, recipientEmail: "ana@exemplo.org" });
+  const email = renderEditionEmail(edition, {
+    siteUrl: SITE,
+    unsubscribeUrl,
+    recipientEmail: "ana@exemplo.org",
+  });
 
   it("usa o título como assunto e um preheader curto", () => {
     expect(email.subject).toBe(edition.title);

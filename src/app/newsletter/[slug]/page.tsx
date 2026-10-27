@@ -13,8 +13,10 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const edition = await getEditionBySlug(slug).catch(() => null);
-  if (!edition) return { title: "Edição não encontrada" };
-  const description = edition.summary ? truncate(edition.summary, 160) : "Os destaques da semana na Ciência Delas.";
+  if (!edition) return { title: "Edição não encontrada", robots: { index: false, follow: false } };
+  const description = edition.summary
+    ? truncate(edition.summary, 160)
+    : "Os destaques da semana na Ciência Delas.";
   return {
     title: edition.title,
     description,
@@ -25,9 +27,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function SubscribeCta() {
   return (
-    <Card variant="muted" padding="lg" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <Card
+      variant="muted"
+      padding="lg"
+      className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div className="grid gap-1">
-        <p className="font-display text-xl font-semibold text-fg">Receba a próxima edição no seu e-mail</p>
+        <p className="font-display text-xl font-semibold text-fg">
+          Receba a próxima edição no seu e-mail
+        </p>
         <p className="text-fg-muted">Toda segunda-feira, de graça. Cancele quando quiser.</p>
       </div>
       <ButtonLink href="/newsletter#assinar" className="shrink-0">
@@ -43,7 +51,10 @@ export default async function NewsletterEditionPage({ params }: Props) {
   const edition = await getEditionBySlug(slug);
   if (!edition) notFound();
 
-  const [user, adjacent] = await Promise.all([getCurrentUser(), getAdjacentEditions(edition.published_at)]);
+  const [user, adjacent] = await Promise.all([
+    getCurrentUser(),
+    getAdjacentEditions(edition.published_at),
+  ]);
 
   return (
     <Container size="narrow">

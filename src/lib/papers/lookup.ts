@@ -1,5 +1,5 @@
 import "server-only";
-import { getSiteUrl } from "@/lib/env";
+import { env, getSiteUrl } from "@/lib/env";
 import { crossrefWorkUrl, parseCrossrefWork, type CrossrefPaperData } from "./crossref";
 
 /**
@@ -8,7 +8,7 @@ import { crossrefWorkUrl, parseCrossrefWork, type CrossrefPaperData } from "./cr
  */
 
 export const CROSSREF_TIMEOUT_MS = 8000;
-const CONTACT = "mailto:contato@cienciadelas.dev";
+const CONTACT = `mailto:${env.contactEmail}`;
 
 export type CrossrefLookup =
   | { ok: true; data: CrossrefPaperData }

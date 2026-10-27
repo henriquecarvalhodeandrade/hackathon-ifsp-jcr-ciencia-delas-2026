@@ -35,9 +35,22 @@ export interface PaperFormProps {
 
 type Notice = { tone: FormMessageTone; text: string; existingPaperId?: string } | null;
 
-const RELATION_OPTIONS = Object.entries(PAPER_RELATIONS).map(([value, label]) => ({ value, label }));
+const RELATION_OPTIONS = Object.entries(PAPER_RELATIONS).map(([value, label]) => ({
+  value,
+  label,
+}));
 
-function SectionTitle({ id, step, children, description }: { id: string; step: number; children: React.ReactNode; description?: React.ReactNode }) {
+function SectionTitle({
+  id,
+  step,
+  children,
+  description,
+}: {
+  id: string;
+  step: number;
+  children: React.ReactNode;
+  description?: React.ReactNode;
+}) {
   return (
     <div className="grid gap-1">
       <p className="eyebrow text-primary">Passo {step} de 4</p>
@@ -54,7 +67,14 @@ function SectionTitle({ id, step, children, description }: { id: string; step: n
  * por fora (resposta da action, dados do Crossref, resumo da IA) a `version` muda e os campos
  * remontam com o novo defaultValue — sem perder o que já foi digitado nos demais.
  */
-export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, cancelHref }: PaperFormProps) {
+export function PaperForm({
+  mode,
+  paperId,
+  initialValues,
+  areas,
+  aiEnabled,
+  cancelHref,
+}: PaperFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction] = useActionState<PaperFormState, FormData>(savePaper, null);
   const [lastState, setLastState] = useState<PaperFormState>(null);
@@ -94,10 +114,17 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
     startLookup(async () => {
       const result = await lookupDoi(current.doi, paperId ?? null);
       if (result.ok) {
-        setSource((s) => ({ values: mergeCrossrefIntoValues(current, result.data), version: s.version + 1 }));
+        setSource((s) => ({
+          values: mergeCrossrefIntoValues(current, result.data),
+          version: s.version + 1,
+        }));
         setLookupNotice({ tone: "success", text: result.message });
       } else {
-        setLookupNotice({ tone: "error", text: result.error, existingPaperId: result.existingPaperId });
+        setLookupNotice({
+          tone: "error",
+          text: result.error,
+          existingPaperId: result.existingPaperId,
+        });
       }
     });
   }
@@ -106,7 +133,11 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
     const current = currentValues();
     setSummaryNotice(null);
     startSummary(async () => {
-      const result = await generateSummary({ title: current.title, abstract: current.abstract, areaId: current.area_id });
+      const result = await generateSummary({
+        title: current.title,
+        abstract: current.abstract,
+        areaId: current.area_id,
+      });
       if (result.ok) {
         setSource((s) => ({
           values: { ...current, plain_summary: result.summary, plain_summary_source: "ai" },
@@ -131,7 +162,10 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
       <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
 
       {/* 1. Onde encontrar */}
-      <section aria-labelledby="passo-link" className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6">
+      <section
+        aria-labelledby="passo-link"
+        className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6"
+      >
         <SectionTitle
           id="passo-link"
           step={1}
@@ -179,7 +213,10 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
               {lookupNotice.existingPaperId && (
                 <>
                   {" "}
-                  <Link href={`/papers/${lookupNotice.existingPaperId}`} className="underline underline-offset-2">
+                  <Link
+                    href={`/papers/${lookupNotice.existingPaperId}`}
+                    className="underline underline-offset-2"
+                  >
                     Ver o paper na Vitrine
                   </Link>
                 </>
@@ -193,24 +230,39 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
           hint="Página da revista, repositório institucional ou preprint. Obrigatório se não houver DOI."
           error={errors?.url}
         >
-          <Input key={`url-${v}`} name="url" type="url" inputMode="url" defaultValue={values.url} placeholder="https://" />
+          <Input
+            key={`url-${v}`}
+            name="url"
+            type="url"
+            inputMode="url"
+            defaultValue={values.url}
+            placeholder="https://"
+          />
         </Field>
         <p className="flex items-start gap-2 rounded-control bg-surface-2 px-3.5 py-2.5 text-sm text-fg-muted">
           <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info" />
           <span>
-            Compartilhe só o link. A Vitrine não recebe PDFs: o texto completo fica com a revista ou o repositório,
-            respeitando os direitos autorais.
+            Compartilhe só o link. A Vitrine não recebe PDFs: o texto completo fica com a revista ou
+            o repositório, respeitando os direitos autorais.
           </span>
         </p>
       </section>
 
       {/* 2. Sobre o trabalho */}
-      <section aria-labelledby="passo-trabalho" className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6">
+      <section
+        aria-labelledby="passo-trabalho"
+        className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6"
+      >
         <SectionTitle id="passo-trabalho" step={2}>
           Sobre o trabalho
         </SectionTitle>
         <Field label="Título" required error={errors?.title}>
-          <Input key={`title-${v}`} name="title" defaultValue={values.title} maxLength={PAPER_LIMITS.titleMax} />
+          <Input
+            key={`title-${v}`}
+            name="title"
+            defaultValue={values.title}
+            maxLength={PAPER_LIMITS.titleMax}
+          />
         </Field>
         <Field
           label="Autoras e autores"
@@ -245,7 +297,12 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
         </Field>
         <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_10rem]">
           <Field label="Revista, evento ou repositório" optional error={errors?.venue}>
-            <Input key={`venue-${v}`} name="venue" defaultValue={values.venue} maxLength={PAPER_LIMITS.venueMax} />
+            <Input
+              key={`venue-${v}`}
+              name="venue"
+              defaultValue={values.venue}
+              maxLength={PAPER_LIMITS.venueMax}
+            />
           </Field>
           <Field label="Ano" optional error={errors?.year}>
             <Input
@@ -257,7 +314,12 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
             />
           </Field>
         </div>
-        <Field label="Área" required hint="Ajuda quem filtra a Vitrine e quem assina o boletim por área." error={errors?.area_id}>
+        <Field
+          label="Área"
+          required
+          hint="Ajuda quem filtra a Vitrine e quem assina o boletim por área."
+          error={errors?.area_id}
+        >
           <AreaSelect
             key={`area-${v}`}
             areas={areas}
@@ -267,7 +329,12 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
             placeholder="Selecione a área…"
           />
         </Field>
-        <Field label="Palavras-chave" optional hint="Até 15. Ajudam a encontrar o paper." error={errors?.keywords}>
+        <Field
+          label="Palavras-chave"
+          optional
+          hint="Até 15. Ajudam a encontrar o paper."
+          error={errors?.keywords}
+        >
           <KeywordInput
             key={`keywords-${v}`}
             name="keywords"
@@ -279,7 +346,10 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
       </section>
 
       {/* 3. Relação e confirmação */}
-      <section aria-labelledby="passo-relacao" className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6">
+      <section
+        aria-labelledby="passo-relacao"
+        className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6"
+      >
         <SectionTitle id="passo-relacao" step={3}>
           Sua relação com o trabalho
         </SectionTitle>
@@ -298,13 +368,24 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
             key={`women-${v}`}
             name="women_authorship_confirmed"
             defaultChecked={values.women_authorship_confirmed}
-            label="Confirmo que este trabalho tem autoria de mulheres"
+            required
+            label={
+              <>
+                Confirmo que este trabalho tem autoria de mulheres
+                <span aria-hidden="true" className="ml-0.5 text-danger">
+                  *
+                </span>
+              </>
+            }
             description="A Vitrine existe para dar visibilidade a pesquisas com autoria ou coautoria de destaque de mulheres. Indicações fora desse propósito podem ser removidas pela moderação."
             aria-invalid={errors?.women_authorship_confirmed ? true : undefined}
             aria-describedby={errors?.women_authorship_confirmed ? "erro-autoria" : undefined}
           />
           {errors?.women_authorship_confirmed && (
-            <p id="erro-autoria" className="flex items-start gap-1.5 pl-8 text-sm font-medium text-danger">
+            <p
+              id="erro-autoria"
+              className="flex items-start gap-1.5 pl-8 text-sm font-medium text-danger"
+            >
               <CircleAlert aria-hidden="true" className="mt-0.5 size-4" />
               {errors.women_authorship_confirmed[0]}
             </p>
@@ -313,7 +394,10 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
       </section>
 
       {/* 4. Resumo acessível */}
-      <section aria-labelledby="passo-resumo" className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6">
+      <section
+        aria-labelledby="passo-resumo"
+        className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6"
+      >
         <SectionTitle
           id="passo-resumo"
           step={4}
@@ -362,9 +446,10 @@ export function PaperForm({ mode, paperId, initialValues, areas, aiEnabled, canc
               Gerar resumo acessível com IA
             </Button>
             <p className="text-sm text-fg-subtle">
-              Enviamos só o título, a área e o abstract (públicos) a um serviço de IA de terceiros — no plano gratuito do
-              Google Gemini, esses dados podem ser usados para melhorar os produtos dele. O texto aparece marcado como
-              gerado por IA e você pode editar antes de publicar.
+              Enviamos só o título, a área e o abstract (públicos) a um serviço de IA de terceiros —
+              no plano gratuito do Google Gemini, esses dados podem ser usados para melhorar os
+              produtos dele. O texto aparece marcado como gerado por IA e você pode editar antes de
+              publicar.
             </p>
             <FormMessage tone={summaryNotice?.tone ?? "info"}>{summaryNotice?.text}</FormMessage>
           </div>

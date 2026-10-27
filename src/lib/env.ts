@@ -41,6 +41,10 @@ export const env = {
   get cronSecret() {
     return clean(process.env.CRON_SECRET);
   },
+  /** E-mail de contato do projeto (User-Agent do Crossref, páginas institucionais). */
+  get contactEmail() {
+    return clean(process.env.CONTACT_EMAIL) ?? "contato@cienciadelas.dev";
+  },
 };
 
 export function isSupabaseConfigured(): boolean {

@@ -3,7 +3,13 @@ import { env, isEmailConfigured } from "@/lib/env";
 import { getMailpitUrl, isProductionRuntime } from "./config";
 import { sendBatchViaMailpit, sendViaMailpit } from "./mailpit";
 import * as resend from "./resend";
-import type { EmailMessage, EmailTransport, SendBatchResult, SendEmailResult, SendOptions } from "./types";
+import type {
+  EmailMessage,
+  EmailTransport,
+  SendBatchResult,
+  SendEmailResult,
+  SendOptions,
+} from "./types";
 
 /**
  * Fachada de envio usada pela aplicação. Escolhe o transporte:
@@ -12,7 +18,13 @@ import type { EmailMessage, EmailTransport, SendBatchResult, SendEmailResult, Se
  *   3. nenhum — devolve `skipped` e quem chama registra o link no console (dev) ou avisa (produção).
  */
 
-export type { EmailMessage, EmailTransport, SendBatchResult, SendEmailResult, SendOptions } from "./types";
+export type {
+  EmailMessage,
+  EmailTransport,
+  SendBatchResult,
+  SendEmailResult,
+  SendOptions,
+} from "./types";
 export { RESEND_BATCH_LIMIT } from "./resend";
 
 export function getEmailTransport(): EmailTransport {
@@ -44,16 +56,30 @@ export function getEmailTransportInfo(): EmailTransportInfo {
   };
 }
 
-export async function sendEmail(message: EmailMessage, options: SendOptions = {}): Promise<SendEmailResult> {
+export async function sendEmail(
+  message: EmailMessage,
+  options: SendOptions = {},
+): Promise<SendEmailResult> {
   const transport = getEmailTransport();
   if (transport === "resend") return resend.sendEmail(message, options);
   if (transport === "mailpit") return sendViaMailpit(getMailpitUrl()!, message);
-  return { ok: false, skipped: true, reason: "Nenhum serviço de e-mail configurado (RESEND_API_KEY)." };
+  return {
+    ok: false,
+    skipped: true,
+    reason: "Nenhum serviço de e-mail configurado (RESEND_API_KEY).",
+  };
 }
 
-export async function sendBatch(messages: EmailMessage[], options: SendOptions = {}): Promise<SendBatchResult> {
+export async function sendBatch(
+  messages: EmailMessage[],
+  options: SendOptions = {},
+): Promise<SendBatchResult> {
   const transport = getEmailTransport();
   if (transport === "resend") return resend.sendBatch(messages, options);
   if (transport === "mailpit") return sendBatchViaMailpit(getMailpitUrl()!, messages);
-  return { ok: false, skipped: true, reason: "Nenhum serviço de e-mail configurado (RESEND_API_KEY)." };
+  return {
+    ok: false,
+    skipped: true,
+    reason: "Nenhum serviço de e-mail configurado (RESEND_API_KEY).",
+  };
 }

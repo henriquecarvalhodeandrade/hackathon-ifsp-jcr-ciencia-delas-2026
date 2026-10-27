@@ -15,7 +15,10 @@ function TimeAgo({ date, prefix }: { date: string; prefix: string }) {
   return (
     <p className="text-sm text-fg-subtle">
       {prefix}{" "}
-      <time dateTime={toIsoString(date)} title={formatDate(date, { dateStyle: "long", timeStyle: "short" })}>
+      <time
+        dateTime={toIsoString(date)}
+        title={formatDate(date, { dateStyle: "long", timeStyle: "short" })}
+      >
         {formatRelativeTime(date)}
       </time>
     </p>
@@ -62,7 +65,9 @@ export function SentRequestCard({ request }: { request: RequestItem }) {
       </details>
 
       {request.response_message && (
-        <QuotedMessage label={`Resposta de ${mentorName}`}>{request.response_message}</QuotedMessage>
+        <QuotedMessage label={`Resposta de ${mentorName}`}>
+          {request.response_message}
+        </QuotedMessage>
       )}
 
       {request.status === "pending" && (
@@ -173,7 +178,13 @@ export function HistoryRow({ request }: { request: RequestItem }) {
 // Mentorias ativas (as duas participantes)
 // ---------------------------------------------------------------------------
 
-export function ActiveMentorshipCard({ request, contact }: { request: RequestItem; contact: Contact | null }) {
+export function ActiveMentorshipCard({
+  request,
+  contact,
+}: {
+  request: RequestItem;
+  contact: Contact | null;
+}) {
   const otherName = firstName(request.other.full_name) || request.other.full_name;
   const headingId = `ativa-${request.id}`;
   const isMentee = request.role === "mentee";
@@ -183,7 +194,9 @@ export function ActiveMentorshipCard({ request, contact }: { request: RequestIte
     <Card as="li" aria-labelledby={headingId} className="grid gap-4 p-5 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <PersonSummary person={request.other} headingId={headingId} size="lg">
-          <Badge variant={isMentee ? "primary" : "secondary"}>{isMentee ? "Sua mentora" : "Sua mentoranda"}</Badge>
+          <Badge variant={isMentee ? "primary" : "secondary"}>
+            {isMentee ? "Sua mentora" : "Sua mentoranda"}
+          </Badge>
         </PersonSummary>
         <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
           <MentorshipStatusBadge status={request.status} />

@@ -16,7 +16,11 @@ import {
 } from "@/components/ui";
 import { REPORT_REASONS } from "@/lib/constants";
 import { createReport, type ReportState } from "@/lib/moderation/actions";
-import { REPORT_DETAILS_MAX, REPORT_TARGET_LABELS, type ReportTarget } from "@/lib/moderation/schema";
+import {
+  REPORT_DETAILS_MAX,
+  REPORT_TARGET_LABELS,
+  type ReportTarget,
+} from "@/lib/moderation/schema";
 import { cn } from "@/lib/utils";
 
 const REASON_OPTIONS = Object.entries(REPORT_REASONS).map(([value, label]) => ({ value, label }));
@@ -117,7 +121,7 @@ function ReportForm({
           {state.message}
         </Alert>
         <div className="flex justify-end">
-          <Button onClick={onClose}>Fechar</Button>
+          <Button onClick={onClose}>Entendi</Button>
         </div>
       </div>
     );
@@ -148,7 +152,7 @@ function ReportForm({
       >
         <Textarea
           name="details"
-          rows={4}
+          rows={3}
           maxLength={REPORT_DETAILS_MAX}
           showCount
           defaultValue={state?.values.details}
@@ -159,8 +163,9 @@ function ReportForm({
       <p className="flex items-start gap-2 rounded-control bg-surface-2 px-3.5 py-2.5 text-sm text-fg-muted">
         <Phone aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
         <span>
-          Em situação de violência ou perigo, procure ajuda imediata: <strong className="text-fg">Ligue 180</strong>{" "}
-          (Central de Atendimento à Mulher) ou <strong className="text-fg">190</strong> (Polícia Militar).
+          Em situação de violência ou perigo, procure ajuda imediata:{" "}
+          <strong className="text-fg">Ligue 180</strong> (Central de Atendimento à Mulher) ou{" "}
+          <strong className="text-fg">190</strong> (Polícia Militar).
         </span>
       </p>
 

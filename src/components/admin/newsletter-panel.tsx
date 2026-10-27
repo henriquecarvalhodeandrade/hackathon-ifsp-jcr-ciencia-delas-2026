@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowUpRight, CalendarClock, CalendarRange, Newspaper } from "lucide-react";
+import { ArrowUpRight, CalendarClock, CalendarRange, Globe, Newspaper } from "lucide-react";
 import { Alert, Badge, Card, EmptyState, Stat, StatGroup, SubmitButton } from "@/components/ui";
-import { generateEditionAction } from "@/lib/admin/actions";
+import { generateEditionAction, publishEditionAction } from "@/lib/admin/actions";
 import type { EditionsList } from "@/lib/admin/queries";
 import type { NewsletterOverview } from "@/lib/newsletter/service";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
@@ -159,7 +159,17 @@ export function NewsletterPanel({ data, overview }: { data: EditionsList; overvi
                         label={edition.status === "sent" ? "Enviar para quem ainda não recebeu" : "Preparar envio"}
                       />
                     ) : (
-                      <p className="text-sm text-fg-subtle">Rascunho: publique (gerando a edição) antes de enviar.</p>
+                      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                        <ActionForm action={publishEditionAction} hiddenFields={{ editionId: edition.id }}>
+                          <SubmitButton variant="outline" size="sm" pendingText="Publicando…">
+                            <Globe aria-hidden="true" />
+                            Publicar no arquivo
+                          </SubmitButton>
+                        </ActionForm>
+                        <p className="pt-1.5 text-sm text-fg-subtle">
+                          Rascunho: publique antes de enviar. A edição passa a aparecer no arquivo público do Boletim.
+                        </p>
+                      </div>
                     )}
                   </Card>
                 </li>

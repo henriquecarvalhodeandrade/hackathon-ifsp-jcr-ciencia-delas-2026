@@ -77,7 +77,11 @@ const mentorSchema = z.object({
 });
 
 const statsSchema = z
-  .object({ new_members: count.default(0), new_papers: count.default(0), mentorships: count.default(0) })
+  .object({
+    new_members: count.default(0),
+    new_papers: count.default(0),
+    mentorships: count.default(0),
+  })
   .catch({ new_members: 0, new_papers: 0, mentorships: 0 });
 
 /** Aceita só caminhos internos ("/papers/..."), nunca "//host" nem URLs absolutas/javascript:. */
@@ -100,7 +104,8 @@ function parseList<T>(raw: unknown, schema: z.ZodType<T>, max = 20): T[] {
 
 /** Lê o jsonb da edição sem nunca quebrar a página (itens inválidos são descartados). */
 export function parseEditionContent(raw: unknown): NewsletterContent {
-  const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const obj =
+    raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const papers = parseList(obj.papers, paperSchema).map((p) => ({
     ...p,
     url: safeInternalPath(p.url, `/papers/${encodeURIComponent(p.id)}`),
@@ -136,7 +141,9 @@ export function fallbackIntro(content: NewsletterContent): string {
   if (papers.length) parts.push(`destacou ${pluralize(papers.length, "paper")} na Vitrine`);
   if (threads.length) parts.push(`movimentou ${pluralize(threads.length, "conversa")} no fórum`);
   if (stats.new_members) {
-    parts.push(`deu as boas-vindas a ${pluralize(stats.new_members, "nova integrante", "novas integrantes")}`);
+    parts.push(
+      `deu as boas-vindas a ${pluralize(stats.new_members, "nova integrante", "novas integrantes")}`,
+    );
   }
   if (stats.mentorships) {
     parts.push(`começou ${pluralize(stats.mentorships, "nova mentoria", "novas mentorias")}`);
@@ -148,7 +155,8 @@ export function fallbackIntro(content: NewsletterContent): string {
       : "Semana tranquila por aqui, mas a ciência delas não para. Que tal indicar um paper de uma pesquisadora que você admira ou puxar uma conversa no fórum?";
   }
 
-  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}`;
+  const list =
+    parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}`;
   return `Nesta semana, a comunidade ${list}. Confira os destaques abaixo e compartilhe com quem também faz ciência.`;
 }
 

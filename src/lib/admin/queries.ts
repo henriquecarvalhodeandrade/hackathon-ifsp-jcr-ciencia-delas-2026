@@ -70,7 +70,16 @@ export interface ReportsPage {
   counts: Record<ReportStatus, number>;
   total: number;
   totalPages: number;
+  /** Página realmente exibida (uma página além do fim cai na última). */
+  page: number;
   error: boolean;
+}
+
+/** PostgREST responde PGRST103 quando o `range` começa depois do fim (ex.: ?pagina=99). */
+const RANGE_NOT_SATISFIABLE = "PGRST103";
+
+function lastPage(total: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(total / pageSize));
 }
 
 type NamedProfile = { full_name: string } | null;
@@ -190,33 +199,46 @@ async function loadTargets(
 
 export const REPORTS_PAGE_SIZE = 15;
 
-export async function listReports(status: ReportStatus, page: number): Promise<ReportsPage> {
+export async function listReports(status: ReportStatus, requestedPage: number): Promise<ReportsPage> {
   const supabase = await createClient();
-  const from = (page - 1) * REPORTS_PAGE_SIZE;
 
   const countFor = (s: ReportStatus) =>
     supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", s);
 
-  const [list, open, resolved, dismissed] = await Promise.all([
-    supabase
-      .from("reports")
-      .select(
-        "id, target_type, target_id, reason, details, status, resolution_note, created_at, resolved_at, reporter:profiles!reports_reporter_id_fkey(id, full_name), resolver:profiles!reports_resolved_by_fkey(id, full_name)",
-        { count: "exact" },
-      )
-      .eq("status", status)
-      // Fila aberta: as mais antigas primeiro. Histórico: as resolvidas mais recentemente primeiro.
-      .order(status === "open" ? "created_at" : "resolved_at", { ascending: status === "open", nullsFirst: false })
-      .range(from, from + REPORTS_PAGE_SIZE - 1),
+  const pageQuery = (page: number) => {
+    const from = (page - 1) * REPORTS_PAGE_SIZE;
+    return (
+      supabase
+        .from("reports")
+        .select(
+          "id, target_type, target_id, reason, details, status, resolution_note, created_at, resolved_at, reporter:profiles!reports_reporter_id_fkey(id, full_name), resolver:profiles!reports_resolved_by_fkey(id, full_name)",
+          { count: "exact" },
+        )
+        .eq("status", status)
+        // Fila aberta: as mais antigas primeiro. Histórico: as resolvidas mais recentemente primeiro.
+        .order(status === "open" ? "created_at" : "resolved_at", { ascending: status === "open", nullsFirst: false })
+        .range(from, from + REPORTS_PAGE_SIZE - 1)
+    );
+  };
+
+  let page = requestedPage;
+  const [firstList, open, resolved, dismissed] = await Promise.all([
+    pageQuery(page),
     countFor("open"),
     countFor("resolved"),
     countFor("dismissed"),
   ]);
+  let list = firstList;
 
   const counts = { open: open.count ?? 0, resolved: resolved.count ?? 0, dismissed: dismissed.count ?? 0 };
+  // Página além do fim (ex.: a última denúncia da página 2 acabou de ser resolvida): mostra a última.
+  if (list.error?.code === RANGE_NOT_SATISFIABLE) {
+    page = lastPage(counts[status], REPORTS_PAGE_SIZE);
+    list = await pageQuery(page);
+  }
   if (list.error) {
     console.error("[admin] falha ao listar denúncias", list.error.code);
-    return { reports: [], counts, total: 0, totalPages: 0, error: true };
+    return { reports: [], counts, total: 0, totalPages: 0, page, error: true };
   }
 
   const rows = list.data ?? [];
@@ -241,7 +263,7 @@ export async function listReports(status: ReportStatus, page: number): Promise<R
   });
 
   const total = list.count ?? reports.length;
-  return { reports, counts, total, totalPages: Math.max(1, Math.ceil(total / REPORTS_PAGE_SIZE)), error: false };
+  return { reports, counts, total, totalPages: lastPage(total, REPORTS_PAGE_SIZE), page, error: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +279,8 @@ export interface MembersPage {
   members: MemberRow[];
   total: number;
   totalPages: number;
+  /** Página realmente exibida (uma página além do fim cai na última). */
+  page: number;
   roleCounts: Record<UserRole, number>;
   error: boolean;
 }
@@ -266,44 +290,58 @@ export const MEMBERS_PAGE_SIZE = 25;
 export async function listMembers({
   q,
   role,
-  page,
+  page: requestedPage,
 }: {
   q: string;
   role: UserRole | null;
   page: number;
 }): Promise<MembersPage> {
   const supabase = await createClient();
-  const from = (page - 1) * MEMBERS_PAGE_SIZE;
 
-  let query = supabase
-    .from("profiles")
-    .select("id, full_name, avatar_url, role, institution, career_stage, is_mentor, onboarded_at, created_at", {
-      count: "exact",
-    })
-    .order("created_at", { ascending: false })
-    .range(from, from + MEMBERS_PAGE_SIZE - 1);
-  if (role) query = query.eq("role", role);
-  if (q) query = query.or(`full_name.ilike.%${q}%,institution.ilike.%${q}%`);
+  const pageQuery = (page: number, head = false) => {
+    let query = supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url, role, institution, career_stage, is_mentor, onboarded_at, created_at", {
+        count: "exact",
+        head,
+      })
+      .order("created_at", { ascending: false });
+    if (!head) {
+      const from = (page - 1) * MEMBERS_PAGE_SIZE;
+      query = query.range(from, from + MEMBERS_PAGE_SIZE - 1);
+    }
+    if (role) query = query.eq("role", role);
+    if (q) query = query.or(`full_name.ilike.%${q}%,institution.ilike.%${q}%`);
+    return query;
+  };
 
   const countRole = (r: UserRole) =>
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", r);
 
-  const [list, members, moderators, admins] = await Promise.all([
-    query,
+  let page = requestedPage;
+  const [firstList, members, moderators, admins] = await Promise.all([
+    pageQuery(page),
     countRole("member"),
     countRole("moderator"),
     countRole("admin"),
   ]);
+  let list = firstList;
   const roleCounts = { member: members.count ?? 0, moderator: moderators.count ?? 0, admin: admins.count ?? 0 };
+  if (list.error?.code === RANGE_NOT_SATISFIABLE) {
+    const { count } = await pageQuery(1, true);
+    page = lastPage(count ?? 0, MEMBERS_PAGE_SIZE);
+    list = await pageQuery(page);
+  }
   if (list.error) {
     console.error("[admin] falha ao listar membras", list.error.code);
-    return { members: [], total: 0, totalPages: 0, roleCounts, error: true };
+    return { members: [], total: 0, totalPages: 0, page, roleCounts, error: true };
   }
   const total = list.count ?? 0;
   return {
     members: list.data ?? [],
     total,
-    totalPages: Math.max(1, Math.ceil(total / MEMBERS_PAGE_SIZE)),
+    totalPages: lastPage(total, MEMBERS_PAGE_SIZE),
+    page,
     roleCounts,
     error: false,
   };

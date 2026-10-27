@@ -13,7 +13,7 @@ const STEPS = [
   },
   {
     title: "Acertem a frequência e o canal",
-    body: "Encontros quinzenais ou mensais funcionam bem. Combinem também como trocar mensagens entre eles.",
+    body: "Encontros quinzenais ou mensais funcionam bem. Combinem também por onde vocês vão trocar mensagens.",
   },
   {
     title: "Falem sobre limites e confidencialidade",
@@ -28,7 +28,12 @@ const STEPS = [
 /** Orientação para o primeiro encontro (mostrada em "Mentorias ativas"). */
 export function FirstMeetingChecklist() {
   return (
-    <Card as="aside" variant="muted" aria-labelledby="primeiro-encontro" className="grid gap-4 p-5 sm:p-6">
+    <Card
+      as="aside"
+      variant="muted"
+      aria-labelledby="primeiro-encontro"
+      className="grid gap-4 p-5 sm:p-6"
+    >
       <div className="flex items-center gap-2.5">
         <ListChecks aria-hidden="true" className="size-5 text-primary" />
         <h2 id="primeiro-encontro" className="font-display text-lg font-semibold text-fg">
@@ -40,7 +45,7 @@ export function FirstMeetingChecklist() {
           <li key={step.title} className="flex gap-3">
             <span
               aria-hidden="true"
-              className="tabular flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-soft-fg"
+              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-soft-fg tabular"
             >
               {index + 1}
             </span>
@@ -56,7 +61,8 @@ export function FirstMeetingChecklist() {
         <Link href="/conduta" className="font-semibold text-primary underline underline-offset-2">
           código de conduta
         </Link>
-        . Se algo não estiver bem, você pode encerrar a mentoria a qualquer momento ou falar com a moderação.
+        . Se algo não estiver bem, você pode encerrar a mentoria a qualquer momento ou falar com a
+        moderação.
       </p>
     </Card>
   );

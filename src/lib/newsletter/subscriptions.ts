@@ -6,7 +6,11 @@ import { isProductionRuntime } from "@/lib/email/config";
 import { getSiteUrl, isAdminConfigured } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "./config";
-import { buildConsentRecord, CONFIRM_TOKEN_TTL_DAYS, CONFIRMATION_RESEND_COOLDOWN_MS } from "./constants";
+import {
+  buildConsentRecord,
+  CONFIRM_TOKEN_TTL_DAYS,
+  CONFIRMATION_RESEND_COOLDOWN_MS,
+} from "./constants";
 import { absoluteUrl, renderConfirmationEmail } from "./render";
 
 /**
@@ -32,7 +36,8 @@ export interface SubscribeInput {
   profileId: string | null;
 }
 
-export type SubscribeOutcome = "created" | "resent" | "reactivated" | "throttled" | "already_active";
+export type SubscribeOutcome =
+  "created" | "resent" | "reactivated" | "throttled" | "already_active";
 
 export type SubscribeResult =
   | { ok: true; outcome: SubscribeOutcome; emailSent: boolean; transport: EmailTransport }
@@ -85,12 +90,19 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
     .maybeSingle();
   if (findError) {
     console.error(`[newsletter] falha ao consultar inscrita: ${findError.message}`);
-    return { ok: false, error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos." };
+    return {
+      ok: false,
+      error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos.",
+    };
   }
 
   const transport = getEmailTransport();
-  if (existing?.status === "active") return { ok: true, outcome: "already_active", emailSent: false, transport };
-  if (existing?.status === "pending" && Date.now() - Date.parse(existing.updated_at) < CONFIRMATION_RESEND_COOLDOWN_MS) {
+  if (existing?.status === "active")
+    return { ok: true, outcome: "already_active", emailSent: false, transport };
+  if (
+    existing?.status === "pending" &&
+    Date.now() - Date.parse(existing.updated_at) < CONFIRMATION_RESEND_COOLDOWN_MS
+  ) {
     return { ok: true, outcome: "throttled", emailSent: false, transport };
   }
 
@@ -100,14 +112,24 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
   if (!existing) {
     const { data, error } = await admin
       .from("newsletter_subscribers")
-      .insert({ email, area_ids: input.areaIds, profile_id: input.profileId, status: "pending", ...consent })
+      .insert({
+        email,
+        area_ids: input.areaIds,
+        profile_id: input.profileId,
+        status: "pending",
+        ...consent,
+      })
       .select("confirm_token, unsubscribe_token")
       .single();
     if (error) {
       // Corrida: duas inscrições simultâneas do mesmo e-mail — a outra já cuidou do envio.
-      if (error.code === "23505") return { ok: true, outcome: "throttled", emailSent: false, transport };
+      if (error.code === "23505")
+        return { ok: true, outcome: "throttled", emailSent: false, transport };
       console.error(`[newsletter] falha ao inscrever: ${error.message}`);
-      return { ok: false, error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos." };
+      return {
+        ok: false,
+        error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos.",
+      };
     }
     tokens = data;
     outcome = "created";
@@ -134,7 +156,10 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
       .single();
     if (error) {
       console.error(`[newsletter] falha ao atualizar inscrita: ${error.message}`);
-      return { ok: false, error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos." };
+      return {
+        ok: false,
+        error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos.",
+      };
     }
     tokens = data;
     outcome = reactivating ? "reactivated" : "resent";
@@ -171,7 +196,8 @@ export async function lookupConfirmToken(token: string): Promise<ConfirmLookup> 
     .maybeSingle();
   if (error) throw new Error(`Falha ao consultar o link de confirmação: ${error.message}`);
   if (!data) return { state: "invalid" };
-  if (data.status === "active") return { state: "active", maskedEmail: maskEmail(data.email), confirmedAt: data.confirmed_at };
+  if (data.status === "active")
+    return { state: "active", maskedEmail: maskEmail(data.email), confirmedAt: data.confirmed_at };
   if (data.status === "unsubscribed") return { state: "unsubscribed" };
   if (Date.now() - Date.parse(data.consented_at) > TTL_MS) return { state: "expired" };
   return { state: "pending", maskedEmail: maskEmail(data.email) };
@@ -203,8 +229,7 @@ export async function confirmSubscription(token: string): Promise<ConfirmOutcome
 // -----------------------------------------------------------------------------
 
 export type UnsubscribeLookup =
-  | { state: "invalid" }
-  | { state: "active" | "pending" | "unsubscribed"; maskedEmail: string };
+  { state: "invalid" } | { state: "active" | "pending" | "unsubscribed"; maskedEmail: string };
 
 export async function lookupUnsubscribeToken(token: string): Promise<UnsubscribeLookup> {
   if (!isUuid(token)) return { state: "invalid" };

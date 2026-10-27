@@ -3,7 +3,10 @@ import { Container, Skeleton, SkeletonText } from "@/components/ui";
 /** Linhas de tópico simuladas (mesma grade da ThreadList). */
 export function ThreadListSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <ul aria-hidden="true" className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface shadow-card">
+    <ul
+      aria-hidden="true"
+      className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface shadow-card"
+    >
       {Array.from({ length: rows }, (_, i) => (
         <li key={i} className="flex gap-3 px-4 py-4 sm:gap-4 sm:px-5">
           <Skeleton className="size-10 shrink-0 rounded-full" />
@@ -34,7 +37,13 @@ export function PageHeaderSkeleton({ withSearch = false }: { withSearch?: boolea
   );
 }
 
-export function ForumLoadingShell({ label, children }: { label: string; children: React.ReactNode }) {
+export function ForumLoadingShell({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <Container aria-busy="true">
       <p role="status" className="sr-only">
@@ -85,7 +94,10 @@ export function ThreadSkeleton() {
 /** Formulário de tópico simulado. */
 export function ThreadFormSkeleton() {
   return (
-    <div aria-hidden="true" className="grid gap-6 rounded-card border border-border bg-surface p-6 shadow-card sm:p-8">
+    <div
+      aria-hidden="true"
+      className="grid gap-6 rounded-card border border-border bg-surface p-6 shadow-card sm:p-8"
+    >
       {[0, 1].map((i) => (
         <div key={i} className="grid gap-2">
           <Skeleton className="h-4 w-24" />

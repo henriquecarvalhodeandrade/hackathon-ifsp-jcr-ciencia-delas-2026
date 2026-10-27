@@ -6,9 +6,12 @@ describe("friendlyMentorshipError", () => {
     const message =
       "Você já atingiu o limite de 1 mentoria(s) simultânea(s). Conclua uma mentoria ou aumente sua capacidade no perfil para aceitar este pedido.";
     expect(friendlyMentorshipError({ code: "CD001", message }, "respond")).toBe(message);
-    expect(friendlyMentorshipError({ code: "CD004", message: "Você já tem um pedido em aberto." }, "request")).toBe(
-      "Você já tem um pedido em aberto.",
-    );
+    expect(
+      friendlyMentorshipError(
+        { code: "CD004", message: "Você já tem um pedido em aberto." },
+        "request",
+      ),
+    ).toBe("Você já tem um pedido em aberto.");
   });
 
   it("não vaza mensagens técnicas em inglês", () => {
@@ -31,7 +34,9 @@ describe("friendlyMentorshipError", () => {
   });
 
   it("CD sem mensagem cai no texto padrão", () => {
-    expect(friendlyMentorshipError({ code: "CD002", message: "" }, "respond")).toBe(fallbackMessage("respond"));
+    expect(friendlyMentorshipError({ code: "CD002", message: "" }, "respond")).toBe(
+      fallbackMessage("respond"),
+    );
   });
 
   it("aceita erro nulo", () => {

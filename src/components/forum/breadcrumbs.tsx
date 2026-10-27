@@ -21,11 +21,16 @@ export function Breadcrumbs({ items, className }: { items: readonly Crumb[]; cla
                   {item.label}
                 </Link>
               ) : (
-                <span aria-current={last ? "page" : undefined} className="max-w-[16rem] truncate sm:max-w-md">
+                <span
+                  aria-current={last ? "page" : undefined}
+                  className="max-w-[16rem] truncate sm:max-w-md"
+                >
                   {item.label}
                 </span>
               )}
-              {!last && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-fg-subtle" />}
+              {!last && (
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-fg-subtle" />
+              )}
             </li>
           );
         })}

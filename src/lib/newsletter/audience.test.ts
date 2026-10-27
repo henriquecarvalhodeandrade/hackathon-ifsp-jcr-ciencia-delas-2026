@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildBigAreaMap, chunk, claimMarker, isClaimActive, planDeliveries, type AudienceSubscriber } from "./audience";
+import {
+  buildBigAreaMap,
+  chunk,
+  claimMarker,
+  isClaimActive,
+  planDeliveries,
+  type AudienceSubscriber,
+} from "./audience";
 
 const AREAS = [
   { id: 1, name: "Ciências Exatas e da Terra", big_area: "Ciências Exatas e da Terra" },
@@ -55,7 +62,11 @@ describe("planDeliveries", () => {
       deliveries: [
         { subscriber_id: "a", sent_at: "2026-10-26T11:00:00Z", error: null },
         { subscriber_id: "b", sent_at: null, error: claimMarker(new Date(NOW.getTime() - 60_000)) },
-        { subscriber_id: "c", sent_at: null, error: claimMarker(new Date(NOW.getTime() - 60 * 60_000)) },
+        {
+          subscriber_id: "c",
+          sent_at: null,
+          error: claimMarker(new Date(NOW.getTime() - 60 * 60_000)),
+        },
         { subscriber_id: "d", sent_at: null, error: "Resend respondeu 500" },
       ],
       editionAreaIds: [],
@@ -71,7 +82,14 @@ describe("planDeliveries", () => {
 
   it("respeita o teto por execução e informa o que ficou para depois", () => {
     const subscribers = Array.from({ length: 95 }, (_, i) => sub(`s${i}`));
-    const plan = planDeliveries({ subscribers, deliveries: [], editionAreaIds: [], bigAreaMap, maxPerRun: 90, now: NOW });
+    const plan = planDeliveries({
+      subscribers,
+      deliveries: [],
+      editionAreaIds: [],
+      bigAreaMap,
+      maxPerRun: 90,
+      now: NOW,
+    });
     expect(plan.toSend).toHaveLength(90);
     expect(plan.eligible).toBe(95);
     expect(plan.remaining).toBe(5);

@@ -44,19 +44,32 @@ export type ThreadFormState = {
 
 export type PostFormState =
   | { ok: true; message: string; postId: string; nonce: string }
-  | { ok: false; error: string; fieldErrors?: FieldErrors<keyof PostFormValues>; values: PostFormValues; nonce: string }
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: FieldErrors<keyof PostFormValues>;
+      values: PostFormValues;
+      nonce: string;
+    }
   | null;
 
 export type PostEditState =
   | { ok: true; message: string; nonce: string }
-  | { ok: false; error: string; fieldErrors?: FieldErrors<"body">; values: { body: string }; nonce: string }
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: FieldErrors<"body">;
+      values: { body: string };
+      nonce: string;
+    }
   | null;
 
 export type ReactionResult = { ok: true } | { ok: false; error: string };
 
 const nonce = () => crypto.randomUUID();
 
-const SESSION_ERROR = "Sua sessão expirou. Entre novamente para continuar — seu texto continua aqui.";
+const SESSION_ERROR =
+  "Sua sessão expirou. Entre novamente para continuar — seu texto continua aqui.";
 const ONBOARDING_ERROR = "Complete seu perfil antes de participar do fórum.";
 
 type MemberResult = { ok: true; profile: Profile } | { ok: false; error: string };
@@ -97,9 +110,15 @@ async function ownsThread(
 // Tópicos
 // ---------------------------------------------------------------------------
 
-export async function createThread(_prev: ThreadFormState, formData: FormData): Promise<ThreadFormState> {
+export async function createThread(
+  _prev: ThreadFormState,
+  formData: FormData,
+): Promise<ThreadFormState> {
   const values = readThreadForm(formData);
-  const fail = (error: string, fieldErrors?: FieldErrors<keyof ThreadFormValues>): ThreadFormState => ({
+  const fail = (
+    error: string,
+    fieldErrors?: FieldErrors<keyof ThreadFormValues>,
+  ): ThreadFormState => ({
     ok: false,
     error,
     fieldErrors,
@@ -109,7 +128,10 @@ export async function createThread(_prev: ThreadFormState, formData: FormData): 
 
   const parsed = createThreadSchema.safeParse(values);
   if (!parsed.success) {
-    return fail("Alguns campos precisam de atenção. Confira as mensagens abaixo.", z.flattenError(parsed.error).fieldErrors);
+    return fail(
+      "Alguns campos precisam de atenção. Confira as mensagens abaixo.",
+      z.flattenError(parsed.error).fieldErrors,
+    );
   }
 
   const member = await getMember();
@@ -121,7 +143,8 @@ export async function createThread(_prev: ThreadFormState, formData: FormData): 
     .select("id, slug, allow_anonymous")
     .eq("id", parsed.data.categoryId)
     .maybeSingle();
-  if (!category) return fail("Escolha uma categoria válida.", { categoryId: ["Escolha uma categoria válida."] });
+  if (!category)
+    return fail("Escolha uma categoria válida.", { categoryId: ["Escolha uma categoria válida."] });
   if (parsed.data.anonymous && !category.allow_anonymous) {
     const message = "Esta categoria não aceita publicações anônimas.";
     return fail(message, { anonymous: [message] });
@@ -139,17 +162,28 @@ export async function createThread(_prev: ThreadFormState, formData: FormData): 
     .select("id")
     .single();
   if (error || !data) {
-    return fail(friendlyDbError(error, "Não conseguimos publicar seu tópico agora. Tente de novo — seu texto continua aqui."));
+    return fail(
+      friendlyDbError(
+        error,
+        "Não conseguimos publicar seu tópico agora. Tente de novo — seu texto continua aqui.",
+      ),
+    );
   }
 
   revalidateForum();
   redirect(`/forum/t/${data.id}`);
 }
 
-export async function updateThread(_prev: ThreadFormState, formData: FormData): Promise<ThreadFormState> {
+export async function updateThread(
+  _prev: ThreadFormState,
+  formData: FormData,
+): Promise<ThreadFormState> {
   const values = readThreadForm(formData);
   const threadId = readFormString(formData, "threadId");
-  const fail = (error: string, fieldErrors?: FieldErrors<keyof ThreadFormValues>): ThreadFormState => ({
+  const fail = (
+    error: string,
+    fieldErrors?: FieldErrors<keyof ThreadFormValues>,
+  ): ThreadFormState => ({
     ok: false,
     error,
     fieldErrors,
@@ -159,7 +193,10 @@ export async function updateThread(_prev: ThreadFormState, formData: FormData): 
 
   const parsed = updateThreadSchema.safeParse({ ...values, threadId });
   if (!parsed.success) {
-    return fail("Alguns campos precisam de atenção. Confira as mensagens abaixo.", z.flattenError(parsed.error).fieldErrors);
+    return fail(
+      "Alguns campos precisam de atenção. Confira as mensagens abaixo.",
+      z.flattenError(parsed.error).fieldErrors,
+    );
   }
 
   const member = await getMember();
@@ -172,14 +209,23 @@ export async function updateThread(_prev: ThreadFormState, formData: FormData): 
     .eq("id", parsed.data.threadId)
     .select("id")
     .maybeSingle();
-  if (error) return fail(friendlyDbError(error, "Não conseguimos salvar as alterações. Tente de novo — seu texto continua aqui."));
+  if (error)
+    return fail(
+      friendlyDbError(
+        error,
+        "Não conseguimos salvar as alterações. Tente de novo — seu texto continua aqui.",
+      ),
+    );
   if (!data) return fail("Você não pode editar este tópico — ou ele não existe mais.");
 
   revalidateForum();
   redirect(`/forum/t/${data.id}`);
 }
 
-export async function deleteThread(_prev: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+export async function deleteThread(
+  _prev: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const parsed = z.guid().safeParse(readFormString(formData, "threadId"));
   if (!parsed.success) return { ok: false, error: "Não encontramos esse tópico." };
 
@@ -194,8 +240,17 @@ export async function deleteThread(_prev: SimpleActionState, formData: FormData)
     .maybeSingle();
   if (!thread) return { ok: false, error: "Este tópico não existe mais." };
 
-  const { data, error } = await supabase.from("forum_threads").delete().eq("id", thread.id).select("id").maybeSingle();
-  if (error) return { ok: false, error: friendlyDbError(error, "Não conseguimos excluir o tópico. Tente de novo.") };
+  const { data, error } = await supabase
+    .from("forum_threads")
+    .delete()
+    .eq("id", thread.id)
+    .select("id")
+    .maybeSingle();
+  if (error)
+    return {
+      ok: false,
+      error: friendlyDbError(error, "Não conseguimos excluir o tópico. Tente de novo."),
+    };
   if (!data) return { ok: false, error: "Você não pode excluir este tópico." };
 
   revalidateForum();
@@ -221,7 +276,9 @@ export async function createPost(_prev: PostFormState, formData: FormData): Prom
   if (!parsed.success) {
     const fieldErrors = z.flattenError(parsed.error).fieldErrors;
     return fail(
-      fieldErrors.threadId ? "Não encontramos este tópico." : "Confira sua resposta antes de publicar.",
+      fieldErrors.threadId
+        ? "Não encontramos este tópico."
+        : "Confira sua resposta antes de publicar.",
       { body: fieldErrors.body, anonymous: fieldErrors.anonymous },
     );
   }
@@ -232,7 +289,9 @@ export async function createPost(_prev: PostFormState, formData: FormData): Prom
   const supabase = await createClient();
   const { data: thread } = await supabase
     .from("forum_threads")
-    .select("id, is_locked, category:forum_categories!forum_threads_category_id_fkey(allow_anonymous)")
+    .select(
+      "id, is_locked, category:forum_categories!forum_threads_category_id_fkey(allow_anonymous)",
+    )
     .eq("id", parsed.data.threadId)
     .maybeSingle();
   if (!thread) return fail("Este tópico não existe mais.");
@@ -250,11 +309,21 @@ export async function createPost(_prev: PostFormState, formData: FormData): Prom
     .select("id")
     .single();
   if (error || !data) {
-    return fail(friendlyDbError(error, "Não conseguimos publicar sua resposta. Tente de novo — seu texto continua aqui."));
+    return fail(
+      friendlyDbError(
+        error,
+        "Não conseguimos publicar sua resposta. Tente de novo — seu texto continua aqui.",
+      ),
+    );
   }
 
   revalidateForum();
-  return { ok: true, message: "Resposta publicada. Obrigada por contribuir!", postId: data.id, nonce: nonce() };
+  return {
+    ok: true,
+    message: "Resposta publicada. Obrigada por contribuir!",
+    postId: data.id,
+    nonce: nonce(),
+  };
 }
 
 export async function updatePost(_prev: PostEditState, formData: FormData): Promise<PostEditState> {
@@ -274,9 +343,12 @@ export async function updatePost(_prev: PostEditState, formData: FormData): Prom
   });
   if (!parsed.success) {
     const fieldErrors = z.flattenError(parsed.error).fieldErrors;
-    return fail(fieldErrors.body ? "Confira o texto da resposta." : "Não encontramos esta resposta.", {
-      body: fieldErrors.body,
-    });
+    return fail(
+      fieldErrors.body ? "Confira o texto da resposta." : "Não encontramos esta resposta.",
+      {
+        body: fieldErrors.body,
+      },
+    );
   }
 
   const member = await getMember();
@@ -290,14 +362,23 @@ export async function updatePost(_prev: PostEditState, formData: FormData): Prom
     .eq("thread_id", parsed.data.threadId)
     .select("id")
     .maybeSingle();
-  if (error) return fail(friendlyDbError(error, "Não conseguimos salvar a resposta. Tente de novo — seu texto continua aqui."));
+  if (error)
+    return fail(
+      friendlyDbError(
+        error,
+        "Não conseguimos salvar a resposta. Tente de novo — seu texto continua aqui.",
+      ),
+    );
   if (!data) return fail("Você não pode editar esta resposta — ou ela não existe mais.");
 
   revalidateForum();
   return { ok: true, message: "Resposta atualizada.", nonce: nonce() };
 }
 
-export async function deletePost(_prev: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+export async function deletePost(
+  _prev: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const parsed = idPairSchema.safeParse({
     threadId: readFormString(formData, "threadId"),
     postId: readFormString(formData, "postId"),
@@ -315,8 +396,13 @@ export async function deletePost(_prev: SimpleActionState, formData: FormData): 
     .eq("thread_id", parsed.data.threadId)
     .select("id")
     .maybeSingle();
-  if (error) return { ok: false, error: friendlyDbError(error, "Não conseguimos excluir a resposta. Tente de novo.") };
-  if (!data) return { ok: false, error: "Você não pode excluir esta resposta — ou ela já foi removida." };
+  if (error)
+    return {
+      ok: false,
+      error: friendlyDbError(error, "Não conseguimos excluir a resposta. Tente de novo."),
+    };
+  if (!data)
+    return { ok: false, error: "Você não pode excluir esta resposta — ou ela já foi removida." };
 
   revalidateForum();
   return { ok: true, message: "Resposta excluída." };
@@ -351,13 +437,24 @@ export async function toggleReaction(input: {
       .insert(postId ? { post_id: postId, kind } : { thread_id: threadId, kind });
     // 23505 = já reagiu (outra aba, clique duplo): o estado desejado já vale.
     if (error && error.code !== "23505") {
-      return { ok: false, error: friendlyDbError(error, "Não conseguimos registrar a reação. Tente de novo.") };
+      return {
+        ok: false,
+        error: friendlyDbError(error, "Não conseguimos registrar a reação. Tente de novo."),
+      };
     }
   } else {
-    let query = supabase.from("forum_reactions").delete().eq("user_id", member.profile.id).eq("kind", kind);
+    let query = supabase
+      .from("forum_reactions")
+      .delete()
+      .eq("user_id", member.profile.id)
+      .eq("kind", kind);
     query = postId ? query.eq("post_id", postId) : query.eq("thread_id", threadId);
     const { error } = await query;
-    if (error) return { ok: false, error: friendlyDbError(error, "Não conseguimos remover a reação. Tente de novo.") };
+    if (error)
+      return {
+        ok: false,
+        error: friendlyDbError(error, "Não conseguimos remover a reação. Tente de novo."),
+      };
   }
 
   revalidateForum();
@@ -365,11 +462,15 @@ export async function toggleReaction(input: {
 }
 
 /** Marca (postId) ou desmarca (postId vazio) a resposta que resolveu o tópico. */
-export async function setSolution(_prev: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+export async function setSolution(
+  _prev: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const threadId = z.guid().safeParse(readFormString(formData, "threadId"));
   const rawPostId = readFormString(formData, "postId");
   const postId = rawPostId ? z.guid().safeParse(rawPostId) : null;
-  if (!threadId.success || (postId && !postId.success)) return { ok: false, error: "Não encontramos esta resposta." };
+  if (!threadId.success || (postId && !postId.success))
+    return { ok: false, error: "Não encontramos esta resposta." };
 
   const member = await getMember();
   if (!member.ok) return { ok: false, error: member.error };
@@ -392,13 +493,19 @@ export async function setSolution(_prev: SimpleActionState, formData: FormData):
     .eq("id", thread.id)
     .select("id")
     .maybeSingle();
-  if (error) return { ok: false, error: friendlyDbError(error, "Não conseguimos atualizar a solução. Tente de novo.") };
+  if (error)
+    return {
+      ok: false,
+      error: friendlyDbError(error, "Não conseguimos atualizar a solução. Tente de novo."),
+    };
   if (!data) return { ok: false, error: "Você não pode alterar este tópico." };
 
   revalidateForum();
   return {
     ok: true,
-    message: solutionId ? "Resposta marcada como solução. A autora foi avisada." : "Solução desmarcada.",
+    message: solutionId
+      ? "Resposta marcada como solução. A autora foi avisada."
+      : "Solução desmarcada.",
   };
 }
 
@@ -410,19 +517,30 @@ const MODERATION_ACTIONS = {
 } as const;
 
 /** Moderação: fixar/desafixar e trancar/destrancar (RPC moderate_thread). */
-export async function moderateThread(_prev: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+export async function moderateThread(
+  _prev: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const threadId = z.guid().safeParse(readFormString(formData, "threadId"));
   const op = z.enum(["pin", "unpin", "lock", "unlock"]).safeParse(readFormString(formData, "op"));
   if (!threadId.success || !op.success) return { ok: false, error: "Ação de moderação inválida." };
 
   const member = await getMember();
   if (!member.ok) return { ok: false, error: member.error };
-  if (!isModerator(member.profile)) return { ok: false, error: "Apenas a moderação pode fixar ou trancar tópicos." };
+  if (!isModerator(member.profile))
+    return { ok: false, error: "Apenas a moderação pode fixar ou trancar tópicos." };
 
   const supabase = await createClient();
   const action = MODERATION_ACTIONS[op.data];
-  const { error } = await supabase.rpc("moderate_thread", { p_thread_id: threadId.data, ...action.args });
-  if (error) return { ok: false, error: friendlyDbError(error, "Não conseguimos aplicar a moderação. Tente de novo.") };
+  const { error } = await supabase.rpc("moderate_thread", {
+    p_thread_id: threadId.data,
+    ...action.args,
+  });
+  if (error)
+    return {
+      ok: false,
+      error: friendlyDbError(error, "Não conseguimos aplicar a moderação. Tente de novo."),
+    };
 
   revalidateForum();
   return { ok: true, message: action.message };

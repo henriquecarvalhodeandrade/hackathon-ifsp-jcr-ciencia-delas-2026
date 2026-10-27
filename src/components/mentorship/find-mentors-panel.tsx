@@ -28,14 +28,19 @@ function resultMessage(state: Exclude<FindMentorsState, null>): string {
  * Enquanto analisa, a lista anterior continua visível (esmaecida) ou aparecem esqueletos.
  */
 export function FindMentorsPanel({ hasSuggestions, summary, children }: FindMentorsPanelProps) {
-  const [state, formAction, pending] = useActionState<FindMentorsState, FormData>(findMentorsAction, null);
+  const [state, formAction, pending] = useActionState<FindMentorsState, FormData>(
+    findMentorsAction,
+    null,
+  );
 
   return (
     <div className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-card border border-border bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
         <div className="grid gap-1">
           <h2 className="font-display text-xl font-semibold text-fg">
-            {hasSuggestions ? "Mentoras que combinam com você" : "Vamos encontrar mentoras para você?"}
+            {hasSuggestions
+              ? "Mentoras que combinam com você"
+              : "Vamos encontrar mentoras para você?"}
           </h2>
           <p className="text-sm text-fg-muted">
             {summary ??
@@ -43,7 +48,10 @@ export function FindMentorsPanel({ hasSuggestions, summary, children }: FindMent
           </p>
         </div>
         <form action={formAction} className="shrink-0">
-          <SubmitButton pendingText="Analisando perfis…" variant={hasSuggestions ? "outline" : "primary"}>
+          <SubmitButton
+            pendingText="Analisando perfis…"
+            variant={hasSuggestions ? "outline" : "primary"}
+          >
             {hasSuggestions ? <RefreshCw aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
             {hasSuggestions ? "Atualizar sugestões" : "Encontrar mentoras"}
           </SubmitButton>
@@ -53,7 +61,9 @@ export function FindMentorsPanel({ hasSuggestions, summary, children }: FindMent
       <div aria-live="polite" className="sr-only">
         {pending ? "Analisando perfis. Isso pode levar alguns segundos." : ""}
       </div>
-      <FormMessage tone={state?.ok ? "success" : "error"}>{state && !pending ? resultMessage(state) : null}</FormMessage>
+      <FormMessage tone={!state?.ok ? "error" : state.count > 0 ? "success" : "info"}>
+        {state && !pending ? resultMessage(state) : null}
+      </FormMessage>
       {state?.ok && !pending && state.warnings.length > 0 && (
         <Alert variant="info" title="Sobre estas sugestões">
           <ul className="grid gap-1">
@@ -72,7 +82,10 @@ export function FindMentorsPanel({ hasSuggestions, summary, children }: FindMent
       ) : (
         <div
           aria-busy={pending || undefined}
-          className={cn("transition-opacity duration-200", pending && "pointer-events-none opacity-60")}
+          className={cn(
+            "transition-opacity duration-200",
+            pending && "pointer-events-none opacity-60",
+          )}
         >
           {children}
         </div>

@@ -34,14 +34,21 @@ export function MarkReadButton({ id, title }: { id: string; title: string }) {
 
 /** Ações em lote do cabeçalho: marcar todas como lidas e limpar as lidas. */
 export function NotificationBulkActions({ unread, read }: { unread: number; read: number }) {
-  const [markState, markAction] = useActionState<ActionState, FormData>(markAllNotificationsRead, null);
-  const [clearState, setClearState] = useState<ActionState>(null);
-  const last = clearState ?? markState;
+  // Uma única mensagem: a da última ação executada (marcar todas ou limpar lidas).
+  const [last, setLast] = useState<ActionState>(null);
+
+  async function run(action: () => Promise<ActionState>) {
+    try {
+      setLast(await action());
+    } catch {
+      setLast({ ok: false, error: "Não conseguimos falar com o servidor. Tente de novo." });
+    }
+  }
 
   return (
     <div className="grid justify-items-start gap-2 md:justify-items-end">
       <div className="flex flex-wrap gap-2">
-        <form action={markAction}>
+        <form action={() => run(markAllNotificationsRead)}>
           <SubmitButton variant="outline" size="sm" pendingText="Marcando…" disabled={unread === 0}>
             <CheckCheck aria-hidden="true" />
             Marcar todas como lidas
@@ -58,9 +65,7 @@ export function NotificationBulkActions({ unread, read }: { unread: number; read
           description="As notificações que você já leu somem da lista. As não lidas continuam aqui. Essa ação não pode ser desfeita."
           confirmLabel="Sim, apagar lidas"
           pendingLabel="Apagando…"
-          action={async (formData) => {
-            setClearState(await deleteReadNotifications(null, formData));
-          }}
+          action={() => run(deleteReadNotifications)}
         />
       </div>
       <FormMessage tone={last?.ok ? "success" : "error"} className="max-w-sm">

@@ -8,19 +8,42 @@ describe("safeInternalPath", () => {
     expect(safeInternalPath("/papers/abc", "/x")).toBe("/papers/abc");
     expect(safeInternalPath("/forum/t/1?aba=2#r", "/x")).toBe("/forum/t/1?aba=2#r");
   });
-  it.each(["https://evil.example", "//evil.example", "/\\evil", "javascript:alert(1)", "papers/1", "/a b", 42, null])(
-    "recusa %s",
-    (value) => {
-      expect(safeInternalPath(value, "/fallback")).toBe("/fallback");
-    },
-  );
+  it.each([
+    "https://evil.example",
+    "//evil.example",
+    "/\\evil",
+    "javascript:alert(1)",
+    "papers/1",
+    "/a b",
+    42,
+    null,
+  ])("recusa %s", (value) => {
+    expect(safeInternalPath(value, "/fallback")).toBe("/fallback");
+  });
 });
 
 describe("parseEditionContent", () => {
   it("lê o formato do contrato (seed)", () => {
     const content = parseEditionContent({
-      papers: [{ id: PAPER_ID, title: "Queimadas no Vale", authors: ["Ana", "Bia"], votes: 12, plain_summary: "Resumo", url: `/papers/${PAPER_ID}` }],
-      threads: [{ id: "t1", title: "Revisão sistemática", category: "Dúvidas", replies: 4, url: "/forum/t/t1" }],
+      papers: [
+        {
+          id: PAPER_ID,
+          title: "Queimadas no Vale",
+          authors: ["Ana", "Bia"],
+          votes: 12,
+          plain_summary: "Resumo",
+          url: `/papers/${PAPER_ID}`,
+        },
+      ],
+      threads: [
+        {
+          id: "t1",
+          title: "Revisão sistemática",
+          category: "Dúvidas",
+          replies: 4,
+          url: "/forum/t/t1",
+        },
+      ],
       mentors: [{ id: "m1", full_name: "Marina", headline: "Docente", url: "/pesquisadoras/m1" }],
       stats: { new_members: 10, new_papers: 3, mentorships: 2 },
     });
@@ -37,7 +60,13 @@ describe("parseEditionContent", () => {
       stats: { new_members: "7", new_papers: -1 },
     });
     expect(content.papers).toHaveLength(1);
-    expect(content.papers[0]).toMatchObject({ id: "p2", authors: [], votes: 0, plain_summary: null, url: "/papers/p2" });
+    expect(content.papers[0]).toMatchObject({
+      id: "p2",
+      authors: [],
+      votes: 0,
+      plain_summary: null,
+      url: "/papers/p2",
+    });
     expect(content.threads).toEqual([]);
     expect(content.mentors).toEqual([]);
     expect(content.stats).toEqual({ new_members: 7, new_papers: 0, mentorships: 0 });
@@ -54,7 +83,10 @@ describe("fallbackIntro", () => {
   it("usa só números reais, com plural correto", () => {
     const intro = fallbackIntro(
       parseEditionContent({
-        papers: [{ id: "p1", title: "A" }, { id: "p2", title: "B" }],
+        papers: [
+          { id: "p1", title: "A" },
+          { id: "p2", title: "B" },
+        ],
         threads: [{ id: "t1", title: "T" }],
         stats: { new_members: 1, new_papers: 0, mentorships: 3 },
       }),

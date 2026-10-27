@@ -33,7 +33,7 @@ function EditionHeader({ edition }: { edition: EditionDetail }) {
       <ConstellationPattern
         density="medium"
         align="end"
-        className="absolute inset-0 -z-10 size-full text-violeta-300/60 [mask-image:linear-gradient(100deg,transparent_35%,black_85%)]"
+        className="absolute inset-0 -z-10 size-full [mask-image:linear-gradient(to_bottom_left,black,transparent_55%)] text-violeta-300/60 sm:[mask-image:linear-gradient(100deg,transparent_40%,black_85%)]"
       />
       <div className="flex flex-wrap items-center gap-2">
         <p className="eyebrow text-violeta-200">Boletim Delas{period ? ` · ${period}` : ""}</p>
@@ -41,12 +41,15 @@ function EditionHeader({ edition }: { edition: EditionDetail }) {
           <Badge variant="warning">Rascunho — visível só para a administração</Badge>
         )}
       </div>
-      <h1 className="mt-3 max-w-2xl font-serif text-4xl leading-tight font-semibold text-balance sm:text-5xl sm:leading-[1.1]">
+      <h1 className="mt-3 max-w-xl font-serif text-4xl leading-tight font-semibold text-balance sm:text-5xl sm:leading-[1.1]">
         {edition.title}
       </h1>
       {edition.published_at && (
         <p className="mt-4 text-sm text-violeta-200">
-          Publicada em <time dateTime={edition.published_at}>{formatDate(edition.published_at, { dateStyle: "long" })}</time>
+          Publicada em{" "}
+          <time dateTime={edition.published_at}>
+            {formatDate(edition.published_at, { dateStyle: "long" })}
+          </time>
         </p>
       )}
     </header>
@@ -56,13 +59,19 @@ function EditionHeader({ edition }: { edition: EditionDetail }) {
 function PapersSection({ papers }: { papers: NewsletterContent["papers"] }) {
   if (!papers.length) return null;
   return (
-    <Section title="Papers em destaque na Vitrine" description="Os trabalhos que a comunidade mais destacou." spacing="sm">
+    <Section
+      title="Papers em destaque na Vitrine"
+      description="Os trabalhos que a comunidade mais destacou."
+      spacing="sm"
+    >
       <ol className="grid gap-4">
         {papers.map((paper, index) => (
           <li key={paper.id}>
             <Card as="article" variant="interactive" padding="md" className="grid gap-3">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-subtle">
-                <span className="tabular font-display text-base font-semibold text-primary">#{index + 1}</span>
+                <span className="font-display text-base font-semibold text-primary tabular">
+                  #{index + 1}
+                </span>
                 <span className="inline-flex items-center gap-1.5 font-medium text-fg-muted">
                   <Star aria-hidden="true" className="size-4 fill-accent text-accent-strong" />
                   {pluralize(paper.votes, "destaque")}
@@ -78,11 +87,15 @@ function PapersSection({ papers }: { papers: NewsletterContent["papers"] }) {
                   {paper.title}
                 </CardLink>
               </h3>
-              {paper.authors.length > 0 && <p className="text-fg-muted">{formatAuthorsList(paper.authors)}</p>}
+              {paper.authors.length > 0 && (
+                <p className="text-fg-muted">{formatAuthorsList(paper.authors)}</p>
+              )}
               {paper.plain_summary && (
                 <div className="rounded-control bg-surface-2 p-4">
                   <p className="eyebrow text-primary">Resumo acessível</p>
-                  <p className="mt-1.5 font-serif text-lg leading-relaxed text-fg">{truncate(paper.plain_summary, 320)}</p>
+                  <p className="mt-1.5 font-serif text-lg leading-relaxed text-fg">
+                    {truncate(paper.plain_summary, 320)}
+                  </p>
                 </div>
               )}
               <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
@@ -96,13 +109,17 @@ function PapersSection({ papers }: { papers: NewsletterContent["papers"] }) {
   );
 }
 
-function MembersOnlyNote({ what }: { what: string }) {
+/** Aviso para visitantes; o login volta para `next` (caminho interno fixo). */
+function MembersOnlyNote({ what, next }: { what: string; next: string }) {
   return (
     <p className="mt-4 flex items-start gap-2 text-sm text-fg-muted">
       <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <span>
         {what} são abertos só para membras.{" "}
-        <Link href="/entrar" className="font-semibold text-primary underline underline-offset-2">
+        <Link
+          href={`/entrar?next=${encodeURIComponent(next)}`}
+          className="font-semibold text-primary underline underline-offset-2"
+        >
           Entre
         </Link>{" "}
         ou{" "}
@@ -115,21 +132,34 @@ function MembersOnlyNote({ what }: { what: string }) {
   );
 }
 
-function ThreadsSection({ threads, viewerIsMember }: { threads: NewsletterContent["threads"]; viewerIsMember: boolean }) {
+function ThreadsSection({
+  threads,
+  viewerIsMember,
+}: {
+  threads: NewsletterContent["threads"];
+  viewerIsMember: boolean;
+}) {
   if (!threads.length) return null;
   return (
-    <Section title="Conversas no fórum" description="O que movimentou a comunidade nesta semana." spacing="sm">
+    <Section
+      title="Conversas no fórum"
+      description="O que movimentou a comunidade nesta semana."
+      spacing="sm"
+    >
       <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface shadow-card">
         {threads.map((thread) => (
-          <li key={thread.id} className="relative flex items-start gap-3 p-4 transition-colors hover:bg-surface-2 sm:p-5">
+          <li
+            key={thread.id}
+            className="relative flex items-start gap-3 p-4 transition-colors hover:bg-surface-2 sm:p-5"
+          >
             <MessagesSquare aria-hidden="true" className="mt-1 size-5 shrink-0 text-primary" />
             <div className="grid min-w-0 gap-1.5">
-              <Link
+              <CardLink
                 href={thread.url}
-                className="font-semibold text-fg after:absolute after:inset-0 after:content-[''] hover:text-primary"
+                className="font-semibold text-fg after:rounded-none hover:text-primary"
               >
                 {thread.title}
-              </Link>
+              </CardLink>
               <p className="flex flex-wrap items-center gap-2 text-sm text-fg-subtle">
                 {thread.category && <Chip size="sm">{thread.category}</Chip>}
                 <span>{pluralize(thread.replies, "resposta")}</span>
@@ -138,12 +168,18 @@ function ThreadsSection({ threads, viewerIsMember }: { threads: NewsletterConten
           </li>
         ))}
       </ul>
-      {!viewerIsMember && <MembersOnlyNote what="O fórum e os perfis" />}
+      {!viewerIsMember && <MembersOnlyNote what="O fórum e os perfis" next="/forum" />}
     </Section>
   );
 }
 
-function MentorsSection({ mentors, viewerIsMember }: { mentors: NewsletterContent["mentors"]; viewerIsMember: boolean }) {
+function MentorsSection({
+  mentors,
+  viewerIsMember,
+}: {
+  mentors: NewsletterContent["mentors"];
+  viewerIsMember: boolean;
+}) {
   if (!mentors.length) return null;
   return (
     <Section
@@ -154,7 +190,12 @@ function MentorsSection({ mentors, viewerIsMember }: { mentors: NewsletterConten
       <ul className="grid gap-4 sm:grid-cols-2">
         {mentors.map((mentor) => (
           <li key={mentor.id}>
-            <Card as="article" variant="interactive" padding="sm" className="flex h-full items-start gap-3">
+            <Card
+              as="article"
+              variant="interactive"
+              padding="sm"
+              className="flex h-full items-start gap-3"
+            >
               <Avatar name={mentor.full_name} seed={mentor.id} size="md" />
               <div className="grid min-w-0 gap-0.5">
                 <h3 className="font-semibold text-fg">
@@ -168,7 +209,11 @@ function MentorsSection({ mentors, viewerIsMember }: { mentors: NewsletterConten
           </li>
         ))}
       </ul>
-      {!viewerIsMember && <p className="mt-4 text-sm text-fg-muted">Para pedir mentoria, entre na sua conta e acesse a página Mentoria.</p>}
+      {!viewerIsMember && (
+        <p className="mt-4 text-sm text-fg-muted">
+          Para pedir mentoria, entre na sua conta e acesse a página Mentoria.
+        </p>
+      )}
     </Section>
   );
 }
@@ -176,7 +221,10 @@ function MentorsSection({ mentors, viewerIsMember }: { mentors: NewsletterConten
 function AdjacentNav({ older, newer }: { older: EditionLink | null; newer: EditionLink | null }) {
   if (!older && !newer) return null;
   return (
-    <nav aria-label="Outras edições" className="grid gap-3 border-t border-border pt-6 sm:grid-cols-2">
+    <nav
+      aria-label="Outras edições"
+      className="grid gap-3 border-t border-border pt-6 sm:grid-cols-2"
+    >
       {older ? (
         <Link
           href={`/newsletter/${older.slug}`}
@@ -185,7 +233,9 @@ function AdjacentNav({ older, newer }: { older: EditionLink | null; newer: Editi
           <span className="flex items-center gap-1.5 text-sm font-semibold text-fg-subtle">
             <ArrowLeft aria-hidden="true" className="size-4" /> Edição anterior
           </span>
-          <span className="font-serif text-lg leading-snug font-semibold text-fg group-hover:text-primary">{older.title}</span>
+          <span className="font-serif text-lg leading-snug font-semibold text-fg group-hover:text-primary">
+            {older.title}
+          </span>
         </Link>
       ) : (
         <span aria-hidden="true" className="hidden sm:block" />
@@ -198,7 +248,9 @@ function AdjacentNav({ older, newer }: { older: EditionLink | null; newer: Editi
           <span className="flex items-center justify-end gap-1.5 text-sm font-semibold text-fg-subtle">
             Próxima edição <ArrowRight aria-hidden="true" className="size-4" />
           </span>
-          <span className="font-serif text-lg leading-snug font-semibold text-fg group-hover:text-primary">{newer.title}</span>
+          <span className="font-serif text-lg leading-snug font-semibold text-fg group-hover:text-primary">
+            {newer.title}
+          </span>
         </Link>
       )}
     </nav>
@@ -229,9 +281,18 @@ export function EditionView({ edition, viewerIsMember, older, newer, footer }: E
 
       <section aria-label="Números da semana" className="mt-8">
         <StatGroup className="md:grid-cols-3">
-          <Stat label={stats.new_members === 1 ? "Nova integrante" : "Novas integrantes"} value={stats.new_members} />
-          <Stat label={stats.new_papers === 1 ? "Novo paper na Vitrine" : "Novos papers na Vitrine"} value={stats.new_papers} />
-          <Stat label={stats.mentorships === 1 ? "Mentoria iniciada" : "Mentorias iniciadas"} value={stats.mentorships} />
+          <Stat
+            label={stats.new_members === 1 ? "Nova integrante" : "Novas integrantes"}
+            value={stats.new_members}
+          />
+          <Stat
+            label={stats.new_papers === 1 ? "Novo paper na Vitrine" : "Novos papers na Vitrine"}
+            value={stats.new_papers}
+          />
+          <Stat
+            label={stats.mentorships === 1 ? "Mentoria iniciada" : "Mentorias iniciadas"}
+            value={stats.mentorships}
+          />
         </StatGroup>
       </section>
 

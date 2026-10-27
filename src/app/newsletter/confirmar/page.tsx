@@ -32,7 +32,10 @@ const COPY: Record<Lookup["state"], { title: string; description: string }> = {
     title: "Link de confirmação inválido",
     description: "Não encontramos uma inscrição para este link.",
   },
-  error: { title: "Não foi possível abrir este link", description: "Algo deu errado do nosso lado." },
+  error: {
+    title: "Não foi possível abrir este link",
+    description: "Algo deu errado do nosso lado.",
+  },
 };
 
 export default async function ConfirmSubscriptionPage({
@@ -59,8 +62,9 @@ export default async function ConfirmSubscriptionPage({
         {lookup.state === "pending" && (
           <>
             <p className="text-fg">
-              Vamos enviar o boletim para <strong className="font-semibold">{lookup.maskedEmail}</strong>. Confirme
-              abaixo — pedimos este clique para ter certeza de que foi você quem se inscreveu.
+              Vamos enviar o boletim para{" "}
+              <strong className="font-semibold">{lookup.maskedEmail}</strong>. Confirme abaixo —
+              pedimos este clique para ter certeza de que foi você quem se inscreveu.
             </p>
             <ConfirmSubscriptionForm token={token} />
           </>
@@ -70,7 +74,10 @@ export default async function ConfirmSubscriptionPage({
           <>
             <Alert variant="success" title="Tudo certo por aqui">
               O Boletim Delas chega em <strong>{lookup.maskedEmail}</strong> toda segunda-feira
-              {lookup.confirmedAt ? ` (inscrição confirmada em ${formatDate(lookup.confirmedAt)})` : ""}.
+              {lookup.confirmedAt
+                ? ` (inscrição confirmada em ${formatDate(lookup.confirmedAt)})`
+                : ""}
+              .
             </Alert>
             <div className="flex flex-wrap gap-3">
               <ButtonLink href="/newsletter">Ver edições anteriores</ButtonLink>
@@ -81,7 +88,9 @@ export default async function ConfirmSubscriptionPage({
           </>
         )}
 
-        {(lookup.state === "expired" || lookup.state === "unsubscribed" || lookup.state === "invalid") && (
+        {(lookup.state === "expired" ||
+          lookup.state === "unsubscribed" ||
+          lookup.state === "invalid") && (
           <>
             <p className="text-fg-muted">
               {lookup.state === "invalid"
