@@ -168,7 +168,7 @@ export function hashString(value: string): number {
   return hash >>> 0;
 }
 
-/** Verdadeiro para URLs absolutas http(s) que saem do site. */
+/** Verdadeiro para URLs absolutas http(s) ou relativas ao protocolo ("//host/...") — saem do site. */
 export function isExternalUrl(href: string | undefined | null): boolean {
-  return Boolean(href && /^https?:\/\//i.test(href));
+  return Boolean(href && /^(https?:)?\/\//i.test(href.trim()));
 }

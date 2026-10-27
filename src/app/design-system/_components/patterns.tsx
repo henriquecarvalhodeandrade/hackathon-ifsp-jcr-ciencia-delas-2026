@@ -9,8 +9,9 @@ import {
   ConstellationPattern,
   EmptyState,
   ScoreMeter,
+  VoteButton,
 } from "@/components/ui";
-import { formatNumber, formatRelativeTime, pluralize } from "@/lib/utils";
+import { formatRelativeTime, pluralize } from "@/lib/utils";
 import { DsSection, DsSubheading } from "./ds";
 import { FormExample } from "./form-example";
 
@@ -19,19 +20,8 @@ import { FormExample } from "./form-example";
 export function PaperCardExample() {
   return (
     <Card as="article" variant="interactive" className="flex gap-4 p-5">
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          aria-pressed="true"
-          aria-label="Remover destaque (você destacou este paper)"
-          className="relative z-10 border-accent-strong bg-accent-soft text-accent-strong hover:bg-accent-soft"
-        >
-          <Star aria-hidden="true" className="fill-accent" />
-        </Button>
-        <span className="tabular text-sm font-bold text-fg">{formatNumber(128)}</span>
-        <span className="sr-only">destaques</span>
-      </div>
+      {/* Toggle: nome fixo ("Destacar") + aria-pressed. Na feature: <form action={toggleVote}> + type="submit". */}
+      <VoteButton pressed count={128} label="Destacar este paper" />
       <div className="grid min-w-0 gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">Ciências da Saúde</Badge>
@@ -130,9 +120,10 @@ export function ThreadRowExample() {
               )}
             </div>
             <h3 className="font-display text-base leading-snug font-semibold text-fg">
-              <a href="#padroes" className="after:absolute after:inset-0 focus-visible:outline-none">
+              {/* CardLink estica o link pela linha inteira e desenha o anel de foco nela. */}
+              <CardLink href="/design-system#padroes" className="after:rounded-none">
                 {t.title}
-              </a>
+              </CardLink>
             </h3>
             <p className="text-sm text-fg-subtle">
               {t.anon ? "Anônima" : "Camila Reis"} · {formatRelativeTime(twoHoursAgo, now)} ·{" "}
@@ -170,7 +161,7 @@ export function Patterns() {
       title="Padrões"
       description="Composições de referência para as telas do produto — copie a estrutura, não o texto."
     >
-      <DsSubheading description="Voto = “destaque” (estrela). O botão usa aria-pressed; o cartão inteiro leva ao paper via CardLink.">
+      <DsSubheading description="Voto = “destaque” (estrela) com <VoteButton>: nome fixo + aria-pressed. O cartão inteiro leva ao paper via CardLink.">
         Paper na vitrine
       </DsSubheading>
       <div className="grid gap-4 lg:grid-cols-2">

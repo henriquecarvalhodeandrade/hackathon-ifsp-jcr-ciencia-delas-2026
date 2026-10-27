@@ -135,7 +135,10 @@ export function KeywordInput({
           id={id}
           type="text"
           value={draft}
-          disabled={disabled || atLimit}
+          disabled={disabled}
+          // No limite o campo fica só-leitura (não desabilitado): assim o foco não se perde
+          // e Backspace continua removendo a última palavra.
+          readOnly={atLimit}
           maxLength={maxLength * 4}
           required={required && tags.length === 0}
           placeholder={atLimit ? `Limite de ${max} atingido` : placeholder}
@@ -143,8 +146,9 @@ export function KeywordInput({
           aria-invalid={aria["aria-invalid"]}
           enterKeyHint="enter"
           autoComplete="off"
-          className="h-8 min-w-[9rem] flex-1 bg-transparent px-1.5 text-base text-fg outline-none placeholder:text-fg-subtle disabled:cursor-not-allowed"
+          className="h-8 min-w-[9rem] flex-1 bg-transparent px-1.5 text-base text-fg outline-none placeholder:text-fg-subtle read-only:cursor-default disabled:cursor-not-allowed"
           onChange={(event) => {
+            if (atLimit) return;
             const v = event.currentTarget.value;
             if (/[,;]/.test(v)) addMany(v);
             else setDraft(v);
@@ -152,7 +156,8 @@ export function KeywordInput({
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              addMany(draft);
+              if (atLimit) setAnnouncement(`Limite de ${max} palavras-chave atingido.`);
+              else addMany(draft);
             } else if (event.key === "Backspace" && draft === "" && tags.length > 0) {
               event.preventDefault();
               remove(tags[tags.length - 1]!);

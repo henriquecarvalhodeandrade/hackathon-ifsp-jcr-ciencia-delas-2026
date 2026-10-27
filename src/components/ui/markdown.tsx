@@ -91,6 +91,18 @@ function buildComponents(headingOffset: number, allowImages: boolean): Component
         </div>
       );
     },
+    // Blocos de código longos rolam na horizontal: precisam receber foco para rolar pelo teclado.
+    pre(props) {
+      return <pre tabIndex={0} {...withoutNode(props)} />;
+    },
+    // Listas de tarefas (- [x]) do GFM geram checkboxes desabilitados sem rótulo: damos um nome.
+    input(allProps) {
+      const props = withoutNode(allProps);
+      if (props.type === "checkbox") {
+        return <input {...props} aria-label={props.checked ? "Item concluído" : "Item pendente"} />;
+      }
+      return <input {...props} />;
+    },
   };
 }
 

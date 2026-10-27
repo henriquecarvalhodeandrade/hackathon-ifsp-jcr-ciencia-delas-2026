@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -38,12 +38,20 @@ export interface DropdownMenuProps {
   triggerClassName?: string;
 }
 
+/*
+ * Sem `outline-none` aqui: no Tailwind v4 ele zera --tw-outline-style e o anel de foco
+ * (focus-visible:outline-2) some. O anel vem da regra global :focus-visible; só puxamos para dentro.
+ */
 const itemClasses =
-  "flex w-full items-center gap-2.5 rounded-[0.5rem] px-2.5 py-2 text-left text-[0.9375rem] text-fg outline-none transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 [&_svg]:size-4 [&_svg]:text-fg-subtle";
+  "flex w-full items-center gap-2.5 rounded-[0.5rem] px-2.5 py-2 text-left text-[0.9375rem] text-fg transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:-outline-offset-2 [&_svg]:size-4 [&_svg]:text-fg-subtle";
+
+const GAP = 8;
 
 /**
  * Menu suspenso acessível (padrão ARIA menu button): setas, Home/End, Esc e Tab.
  * Itens são dados serializáveis — dá para montar a lista num Server Component.
+ * O menu abre na camada superior (popover), então não é cortado por `overflow-hidden`
+ * de cartões ou tabelas roláveis.
  */
 export function DropdownMenu({
   trigger,
@@ -58,14 +66,55 @@ export function DropdownMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const focusLast = useRef(false);
   const menuId = useId();
 
   const menuItems = () =>
     Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
 
+  // Mostra na camada superior e posiciona junto ao botão (antes da pintura: sem salto).
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    const button = buttonRef.current;
+    if (!open || !menu || !button) return;
+    try {
+      menu.showPopover?.();
+    } catch {
+      // navegador sem Popover API: o menu continua com position: fixed
+    }
+    function place() {
+      if (!menu || !button) return;
+      const r = button.getBoundingClientRect();
+      const width = menu.offsetWidth;
+      const height = menu.offsetHeight;
+      const vw = document.documentElement.clientWidth;
+      const vh = window.innerHeight;
+      let left = align === "end" ? r.right - width : r.left;
+      left = Math.max(GAP, Math.min(left, vw - width - GAP));
+      let top = r.bottom + GAP;
+      if (top + height > vh - GAP && r.top - height - GAP >= GAP) top = r.top - height - GAP;
+      menu.style.left = `${Math.round(left)}px`;
+      menu.style.top = `${Math.round(top)}px`;
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      try {
+        menu.hidePopover?.();
+      } catch {
+        // já fechado
+      }
+    };
+  }, [open, align]);
+
   useEffect(() => {
     if (!open) return;
-    menuItems()[0]?.focus();
+    const list = menuItems();
+    (focusLast.current ? list[list.length - 1] : list[0])?.focus();
+    focusLast.current = false;
     function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     }
@@ -120,8 +169,9 @@ export function DropdownMenu({
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={(event) => {
-          if (event.key === "ArrowDown" && !open) {
+          if ((event.key === "ArrowDown" || event.key === "ArrowUp") && !open) {
             event.preventDefault();
+            focusLast.current = event.key === "ArrowUp";
             setOpen(true);
           }
         }}
@@ -135,13 +185,11 @@ export function DropdownMenu({
           id={menuId}
           role="menu"
           aria-label={triggerLabel}
+          popover="manual"
           onKeyDown={onMenuKeyDown}
-          className={cn(
-            "absolute top-full z-50 mt-2 w-64 origin-top animate-pop-in rounded-card border border-border bg-surface p-1.5 shadow-overlay",
-            align === "end" ? "right-0" : "left-0",
-          )}
+          className="fixed inset-auto z-50 m-0 w-64 max-w-[calc(100vw-1rem)] animate-pop-in overflow-visible rounded-card border border-border bg-surface p-1.5 text-fg shadow-overlay"
         >
-          {header && <div className="border-b border-border px-2.5 pt-1.5 pb-2.5 mb-1.5">{header}</div>}
+          {header && <div className="mb-1.5 border-b border-border px-2.5 pt-1.5 pb-2.5">{header}</div>}
           {items.map((item, index) => {
             if (item.type === "separator") {
               return <div key={`sep-${index}`} role="separator" className="my-1.5 h-px bg-border" />;

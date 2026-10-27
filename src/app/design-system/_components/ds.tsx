@@ -70,7 +70,11 @@ export function Specimen({
       )}
       <div className={cn("p-5 sm:p-6", contentClassName)}>{children}</div>
       {code && (
-        <pre className="mt-auto overflow-x-auto border-t border-border bg-surface-2 px-4 py-3 font-mono text-[0.8125rem] leading-relaxed text-fg-muted">
+        <pre
+          // focável: trechos longos rolam na horizontal e precisam rolar pelo teclado
+          tabIndex={0}
+          className="mt-auto overflow-x-auto border-t border-border bg-surface-2 px-4 py-3 font-mono text-[0.8125rem] leading-relaxed text-fg-muted"
+        >
           <code>{code}</code>
         </pre>
       )}

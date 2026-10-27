@@ -39,7 +39,7 @@ const TOC = [
 ] as const;
 
 /** Número de componentes exportados por @/components/ui (atualize ao criar novos). */
-const COMPONENT_COUNT = 55;
+const COMPONENT_COUNT = 66;
 
 export default function DesignSystemPage() {
   return (

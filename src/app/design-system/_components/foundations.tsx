@@ -286,11 +286,12 @@ export function Iconography() {
           </li>
           <li>
             <strong className="text-fg">Categorias do fórum:</strong> o banco guarda o nome em kebab-case
-            (“graduation-cap”); mapeie para o componente no front. “shield-heart” não existe no lucide 1.x — use
-            ShieldPlus.
+            (“graduation-cap”); renderize com{" "}
+            <code className="font-mono text-sm">&lt;CategoryIcon name=&#123;categoria.icon&#125; /&gt;</code> —
+            ele já troca “shield-heart” (que não existe no lucide 1.x) por ShieldPlus.
           </li>
         </ul>
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-4">
           {ICONS.map(({ icon: Icon, name, use }) => (
             <li key={name} className="flex items-center gap-3 rounded-control border border-border bg-surface px-3 py-2.5">
               <Icon aria-hidden="true" className="size-5 text-primary" />

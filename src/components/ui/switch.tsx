@@ -9,7 +9,8 @@ export interface SwitchProps extends Omit<React.ComponentProps<"input">, "type" 
 
 /**
  * Chave liga/desliga: <input type="checkbox" role="switch"> nativo — funciona em formulários
- * (envia "on" quando ligada) e sem JavaScript.
+ * (envia "on" quando ligada) e sem JavaScript. Ligada, o botãozinho usa primary-fg (branco no claro,
+ * violeta-950 no escuro) para manter ≥ 3:1 contra o trilho nos dois temas.
  */
 export function Switch({ label, description, labelPosition = "end", className, ...props }: SwitchProps) {
   const control = (
@@ -26,7 +27,7 @@ export function Switch({ label, description, labelPosition = "end", className, .
       />
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-1 left-1 size-4 rounded-full bg-white shadow-card transition-transform duration-200 ease-out-soft peer-checked:translate-x-4 forced-colors:bg-[CanvasText]"
+        className="pointer-events-none absolute top-1 left-1 size-4 rounded-full bg-white shadow-card transition-[transform,background-color] duration-200 ease-out-soft peer-checked:translate-x-4 peer-checked:bg-primary-fg forced-colors:bg-[CanvasText]"
       />
     </span>
   );

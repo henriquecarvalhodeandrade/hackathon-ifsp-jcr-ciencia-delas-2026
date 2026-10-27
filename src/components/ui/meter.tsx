@@ -7,10 +7,11 @@ function clamp(value: number) {
 
 export type MeterTone = "primary" | "secondary" | "accent";
 
+/* accent usa accent-strong: o âmbar 400 sobre o trilho claro fica abaixo de 3:1 (WCAG 1.4.11). */
 const barTone: Record<MeterTone, string> = {
   primary: "bg-primary",
   secondary: "bg-secondary",
-  accent: "bg-accent",
+  accent: "bg-accent-strong",
 };
 
 export interface ProgressMeterProps extends React.ComponentProps<"div"> {

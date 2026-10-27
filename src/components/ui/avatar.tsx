@@ -57,7 +57,9 @@ export function Avatar({ name, src, size = "md", alt, seed, className, ...props 
       )}
       {...props}
     >
-      <span aria-hidden="true">{initials(name)}</span>
+      {/* Iniciais como conteúdo gerado (CSS), não texto do DOM: são decorativas, e assim botões
+          com avatar (menu da conta) não violam "rótulo no nome" (WCAG 2.5.3). */}
+      <span aria-hidden="true" data-initials={initials(name)} className="before:content-[attr(data-initials)]" />
       {src && (
         // eslint-disable-next-line @next/next/no-img-element -- avatares vêm de domínios variados (Storage, Google); <img> evita erro de host não configurado
         <img

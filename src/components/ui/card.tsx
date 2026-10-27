@@ -9,7 +9,7 @@ export const cardVariants = cva("relative rounded-card text-fg", {
       default: "border border-border bg-surface shadow-card",
       /** Cartão clicável: eleva no hover. Coloque um link "esticado" com <CardLink>. */
       interactive:
-        "border border-border bg-surface shadow-card transition-[box-shadow,border-color,transform] duration-200 ease-out-soft hover:-translate-y-0.5 hover:border-border-strong hover:shadow-raised motion-reduce:hover:translate-y-0 has-[[data-card-link]:focus-visible]:outline-2 has-[[data-card-link]:focus-visible]:outline-offset-2 has-[[data-card-link]:focus-visible]:outline-focus",
+        "border border-border bg-surface shadow-card transition-[box-shadow,border-color,transform] duration-200 ease-out-soft hover:-translate-y-0.5 hover:border-border-strong hover:shadow-raised motion-reduce:hover:translate-y-0",
       /** Só contorno, sem sombra — para agrupar dentro de outras superfícies. */
       outline: "border border-border bg-transparent",
       /** Preenchido sutil — notas, citações, resumos. */
@@ -65,15 +65,18 @@ export function CardFooter({ className, ...props }: React.ComponentProps<"div">)
 }
 
 /**
- * Link "esticado": cobre o cartão inteiro (variante interactive) sem aninhar links.
- * Outros links/botões dentro do cartão precisam de `relative z-10` para continuar clicáveis.
+ * Link "esticado": cobre o ancestral posicionado mais próximo (o Card, ou um `<li className="relative">`
+ * de lista) sem aninhar links. O anel de foco é desenhado na própria área esticada — para dentro,
+ * então não é cortado por `overflow-hidden` — e funciona fora de cartões também.
+ * Outros links/botões dentro da área precisam de `relative z-10` para continuar clicáveis.
  */
 export function CardLink({ className, ...props }: React.ComponentProps<typeof Link>) {
   return (
     <Link
       data-card-link=""
       className={cn(
-        "after:absolute after:inset-0 after:rounded-card after:content-[''] focus-visible:outline-none",
+        "after:absolute after:inset-0 after:rounded-card after:content-['']",
+        "focus-visible:[outline:none] focus-visible:after:[outline:2px_solid_var(--color-focus)] focus-visible:after:[outline-offset:-2px]",
         className,
       )}
       {...props}

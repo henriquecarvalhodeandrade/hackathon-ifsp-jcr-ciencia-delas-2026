@@ -267,12 +267,14 @@
   }
 }
 
-/* Famílias tipográficas (variáveis injetadas por next/font no <html>) */
+/* Famílias tipográficas (variáveis injetadas por next/font no <html>).
+   O fallback dentro do var() mantém a declaração válida quando a variável não existe
+   (ex.: global-error.tsx, que não carrega next/font) — sem ele, cairia na serifada do navegador. */
 @theme inline {
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-newsreader), ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-atkinson-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: var(--font-bricolage, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-atkinson, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader, ui-serif), ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-atkinson-mono, ui-monospace), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ------------------------------------------------------------------------ */

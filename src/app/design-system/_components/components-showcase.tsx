@@ -3,6 +3,7 @@ import {
   Bell,
   BookOpen,
   Bookmark,
+  EllipsisVertical,
   Inbox,
   LogOut,
   MessagesSquare,
@@ -24,6 +25,7 @@ import {
   Button,
   ButtonLink,
   Card,
+  CategoryIcon,
   CardContent,
   CardDescription,
   CardFooter,
@@ -61,14 +63,23 @@ import {
   Spinner,
   Stat,
   StatGroup,
+  Steps,
   Switch,
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   TabNav,
   Tabs,
   Textarea,
   Tooltip,
   VisuallyHidden,
+  VoteButton,
 } from "@/components/ui";
-import { SiteHeaderView } from "@/components/layout/site-header";
+import { SiteHeaderView } from "@/components/layout/site-header-view";
 import { MEETING_FORMATS, MENTORSHIP_TOPIC_OPTIONS } from "@/lib/constants";
 import { demoConfirmAction } from "./actions";
 import { DsSection, DsSubheading, Specimen } from "./ds";
@@ -161,6 +172,22 @@ export function ComponentsShowcase() {
             </div>
           </Specimen>
         </div>
+        <Specimen
+          label="VoteButton (destaque)"
+          code={`<form action={toggleVote}><VoteButton type="submit" pressed={voted} count={paper.vote_count} /></form>`}
+        >
+          <div className="flex flex-wrap items-center gap-6">
+            <VoteButton pressed={false} count={41} label="Destacar paper" />
+            <VoteButton pressed count={128} label="Destacar paper" />
+            <VoteButton pressed={false} count={7} layout="horizontal" label="Destacar paper" />
+            <VoteButton pressed count={1} layout="horizontal" label="Destacar paper" />
+            <VoteButton pressed={false} count={12} pending label="Destacar paper" />
+            <p className="max-w-xs text-sm text-fg-muted">
+              Nome fixo (&quot;Destacar&quot;) + <code className="font-mono">aria-pressed</code>: o leitor de tela anuncia
+              &quot;pressionado&quot;. Não troque o texto ao alternar.
+            </p>
+          </div>
+        </Specimen>
       </div>
 
       {/* ---------------- Campos ---------------- */}
@@ -440,6 +467,18 @@ export function ComponentsShowcase() {
             ]}
           />
         </Specimen>
+        <Specimen label="Steps (onboarding em etapas)" code={`<Steps label="Etapas do cadastro" current={1} steps={[{ label: "Sobre você" }, …]} />`}>
+          <Steps
+            label="Etapas do cadastro (exemplo)"
+            current={1}
+            steps={[
+              { label: "Sobre você", description: "Nome, fase, instituição" },
+              { label: "Pesquisa", description: "Áreas e palavras-chave" },
+              { label: "Mentoria", description: "O que busca ou oferece" },
+              { label: "Privacidade", description: "IA e consentimentos" },
+            ]}
+          />
+        </Specimen>
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <Specimen label="Pagination (?pagina=N)">
             <Pagination page={3} totalPages={12} basePath="/design-system" searchParams={{ area: "saude" }} />
@@ -605,6 +644,57 @@ export function ComponentsShowcase() {
             <ScoreMeter value={71} showLabel label="Compatibilidade com Carolina Duarte" />
             <ScoreMeter value={38} size="sm" showLabel label="Compatibilidade com Dandara Santos" />
           </div>
+        </Specimen>
+      </div>
+      <div className="mt-4">
+        <Specimen label="Table (painel /admin)" contentClassName="p-4 sm:p-5">
+          <Table label="Denúncias abertas (exemplo)">
+            <TableCaption srOnly>Denúncias abertas, mais recentes primeiro</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Conteúdo</TableHead>
+                <TableHead>Motivo</TableHead>
+                <TableHead sort="descending">Recebida</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">Ações</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                { what: "Resposta em “Bolsas FAPESP 2026”", category: "bolsas-editais", reason: "Spam", when: "há 2 horas", state: "Aberta" },
+                { what: "Tópico em “Rede de apoio”", category: "shield-heart", reason: "Assédio", when: "ontem", state: "Em análise" },
+              ].map((row) => (
+                <TableRow key={row.what}>
+                  <TableCell className="min-w-56">
+                    <span className="inline-flex items-center gap-2 font-medium">
+                      <CategoryIcon name={row.category === "bolsas-editais" ? "badge-dollar-sign" : row.category} className="size-4 text-primary" />
+                      {row.what}
+                    </span>
+                  </TableCell>
+                  <TableCell>{row.reason}</TableCell>
+                  <TableCell className="whitespace-nowrap text-fg-muted">{row.when}</TableCell>
+                  <TableCell>
+                    <Badge variant={row.state === "Aberta" ? "warning" : "info"}>{row.state}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu
+                      triggerLabel={`Ações para: ${row.what}`}
+                      trigger={<EllipsisVertical aria-hidden="true" className="size-5" />}
+                      triggerClassName="size-9 justify-center rounded-control text-fg-muted hover:bg-surface-2 hover:text-fg"
+                      items={[
+                        { href: "/design-system#c-dados", label: "Ver conteúdo" },
+                        { href: "/design-system#c-dados", label: "Revelar autoria" },
+                        { type: "separator" },
+                        { type: "form", action: "/design-system", method: "get", label: "Ocultar conteúdo", tone: "danger" },
+                      ]}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Specimen>
       </div>
 

@@ -5,27 +5,28 @@ import {
   PALETTE,
   SEMANTIC,
   computeContrastTable,
-  contrastRatio,
   semanticValue,
   type PaletteFamily,
 } from "../_data/tokens";
 import { DsSection, DsSubheading } from "./ds";
 import { TokenDriftCheck } from "./token-drift-check";
 
-/** Texto legível sobre um swatch (preto ou branco, o que tiver mais contraste). */
-function inkFor(hex: string) {
-  return contrastRatio(hex, "#ffffff") >= contrastRatio(hex, "#110f16") ? "#ffffff" : "#110f16";
-}
-
+/*
+ * O rótulo fica FORA da cor: nos tons médios (500–700) nem preto nem branco alcançam 4,5:1
+ * em texto de 11px, então o texto usa os tokens fg/fg-subtle sobre a superfície.
+ */
 function Swatch({ family, step, hex }: { family: string; step: string; hex: string }) {
   return (
-    <li
-      className="flex min-h-16 flex-col justify-between rounded-control p-2 text-[0.6875rem] leading-tight font-semibold ring-1 ring-black/5 ring-inset sm:min-h-20"
-      style={{ backgroundColor: hex, color: inkFor(hex) }}
-      title={`--color-${family}-${step}: ${hex}`}
-    >
-      <span>{step}</span>
-      <span className="font-mono font-normal uppercase opacity-90">{hex.slice(1)}</span>
+    <li className="grid gap-1" title={`--color-${family}-${step}: ${hex}`}>
+      <span
+        aria-hidden="true"
+        className="block h-10 rounded-control ring-1 ring-fg/10 ring-inset sm:h-12"
+        style={{ backgroundColor: hex }}
+      />
+      <span className="grid text-[0.6875rem] leading-tight">
+        <span className="font-semibold text-fg">{step}</span>
+        <span className="font-mono text-fg-subtle uppercase">{hex.slice(1)}</span>
+      </span>
     </li>
   );
 }
@@ -77,9 +78,27 @@ function Ratio({ value, min }: { value: number; min: number }) {
   );
 }
 
-function PairPreview({ fg, bg, theme }: { fg: string; bg: string; theme: "light" | "dark" }) {
+/**
+ * Amostra do par. Pares de 4,5:1 são de texto → "Aa". Pares de 3:1 são de elementos gráficos
+ * (bordas, ícones, anel de foco) → mostramos um contorno e um ponto, não texto: texto nessa
+ * cor não seria legível e não é assim que o token é usado.
+ */
+function PairPreview({ fg, bg, theme, min }: { fg: string; bg: string; theme: "light" | "dark"; min: number }) {
   const fgHex = semanticValue(fg, theme);
   const bgHex = semanticValue(bg, theme);
+  if (min < 4.5) {
+    return (
+      <span
+        aria-hidden="true"
+        className="inline-flex h-8 w-12 items-center justify-center rounded-badge ring-1 ring-border ring-inset"
+        style={{ backgroundColor: bgHex }}
+      >
+        <span className="flex size-5 items-center justify-center rounded-[0.3125rem] border-2" style={{ borderColor: fgHex }}>
+          <span className="size-1.5 rounded-full" style={{ backgroundColor: fgHex }} />
+        </span>
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden="true"
@@ -221,7 +240,7 @@ export function Colors() {
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {(["light", "dark"] as const).map((theme) => (
                 <span key={theme} className="inline-flex items-center gap-2">
-                  <PairPreview fg={row.fg} bg={row.bg} theme={theme} />
+                  <PairPreview fg={row.fg} bg={row.bg} theme={theme} min={row.min} />
                   <span className="sr-only">{theme === "light" ? "Claro" : "Escuro"}:</span>
                   <Ratio value={theme === "light" ? row.light : row.dark} min={row.min} />
                 </span>
@@ -257,13 +276,13 @@ export function Colors() {
                 <td className="tabular px-4 py-2 font-mono text-[0.8125rem] text-fg-muted">{String(row.min).replace(".", ",")}:1</td>
                 <td className="px-4 py-2">
                   <span className="inline-flex items-center gap-2.5">
-                    <PairPreview fg={row.fg} bg={row.bg} theme="light" />
+                    <PairPreview fg={row.fg} bg={row.bg} theme="light" min={row.min} />
                     <Ratio value={row.light} min={row.min} />
                   </span>
                 </td>
                 <td className="px-4 py-2">
                   <span className="inline-flex items-center gap-2.5">
-                    <PairPreview fg={row.fg} bg={row.bg} theme="dark" />
+                    <PairPreview fg={row.fg} bg={row.bg} theme="dark" min={row.min} />
                     <Ratio value={row.dark} min={row.min} />
                   </span>
                 </td>

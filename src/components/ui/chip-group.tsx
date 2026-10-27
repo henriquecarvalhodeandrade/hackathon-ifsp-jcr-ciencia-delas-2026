@@ -53,7 +53,7 @@ export function ChipGroup({
   const selected = value ? [...value] : internal;
   const atLimit = max !== undefined && selected.length >= max;
   const message = typeof error === "string" ? error : error?.[0];
-  const statusId = `${id}-status`;
+  const statusId = max !== undefined ? `${id}-status` : undefined;
   const hintId = hint ? `${id}-dica` : undefined;
   const errorId = message ? `${id}-erro` : undefined;
 
@@ -66,7 +66,7 @@ export function ChipGroup({
   return (
     <fieldset
       className={cn("grid gap-2", className)}
-      aria-describedby={[hintId, statusId, errorId].filter(Boolean).join(" ")}
+      aria-describedby={[hintId, statusId, errorId].filter(Boolean).join(" ") || undefined}
     >
       <legend className={cn("mb-1 text-sm font-semibold text-fg", hideLegend && "sr-only")}>
         {legend}

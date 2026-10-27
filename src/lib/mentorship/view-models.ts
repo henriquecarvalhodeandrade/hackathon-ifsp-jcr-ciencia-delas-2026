@@ -1,0 +1,156 @@
+/**
+ * Monta os dados (serializáveis) dos cartões de sugestão a partir das sugestões salvas,
+ * da disponibilidade atual das mentoras e dos pedidos em aberto da mentoranda. Puro e testável.
+ */
+import type { MentorSuggestion } from "@/lib/matching/service";
+import { CAREER_STAGES, MENTORSHIP_TOPICS, type CareerStage, type MentorshipStatus } from "@/lib/constants";
+import { suggestionSourceLabel, sharedItems } from "./presentation";
+
+export interface MatchCardData {
+  mentorId: string;
+  name: string;
+  avatarUrl: string | null;
+  headline: string | null;
+  institution: string | null;
+  state: string | null;
+  careerStage: string | null;
+  score: number;
+  reason: string;
+  source: "ai" | "heuristic";
+  sourceLabel: string;
+  sharedAreas: string[];
+  sharedTopics: string[];
+  /** Outros temas em que ela orienta (rótulos), além dos em comum. */
+  otherTopics: string[];
+  starters: string[];
+  /** Vagas abertas agora; null quando não foi possível conferir. */
+  openSlots: number | null;
+  /** Pedido em andamento da mentoranda com esta mentora. */
+  requestStatus: Extract<MentorshipStatus, "pending" | "accepted"> | null;
+  canRequest: boolean;
+  /** Por que o botão "Pedir mentoria" está desligado (quando estiver). */
+  unavailableReason: string | null;
+}
+
+export interface CandidateAvailability {
+  open_slots: number | null;
+  existing_request_status: string | null;
+}
+
+export interface MatchCardContext {
+  menteeAreaIds: readonly number[];
+  menteeTopics: readonly string[];
+  areaNames: ReadonlyMap<number, string>;
+  /** Modelo de IA gravado nas sugestões (para o selo). */
+  model: string | null;
+  /** Mentoras disponíveis agora (RPC get_mentor_candidates). null = não deu para conferir. */
+  candidates: ReadonlyMap<string, CandidateAvailability> | null;
+  /** mentor_id → status do pedido em aberto (pending/accepted) da mentoranda. */
+  openRequests: ReadonlyMap<string, MentorshipStatus>;
+}
+
+export function topicLabel(slug: string): string {
+  return (MENTORSHIP_TOPICS as Record<string, string>)[slug] ?? slug;
+}
+
+export function careerStageLabel(stage: string | null | undefined): string | null {
+  if (!stage) return null;
+  return CAREER_STAGES[stage as CareerStage]?.label ?? null;
+}
+
+function asOpenStatus(value: string | null | undefined): MatchCardData["requestStatus"] {
+  return value === "pending" || value === "accepted" ? value : null;
+}
+
+export function buildMatchCard(suggestion: MentorSuggestion, ctx: MatchCardContext): MatchCardData {
+  const mentor = suggestion.mentor;
+  const candidate = ctx.candidates?.get(suggestion.mentorId) ?? null;
+  const requestStatus =
+    asOpenStatus(ctx.openRequests.get(suggestion.mentorId)) ?? asOpenStatus(candidate?.existing_request_status);
+
+  const sharedAreaIds = sharedItems(mentor.area_ids, ctx.menteeAreaIds);
+  const sharedAreas = sharedAreaIds
+    .map((areaId) => ctx.areaNames.get(areaId))
+    .filter((name): name is string => Boolean(name));
+  const sharedTopicSlugs = sharedItems(mentor.mentorship_topics, ctx.menteeTopics);
+  const otherTopics = mentor.mentorship_topics
+    .filter((slug) => !sharedTopicSlugs.includes(slug))
+    .map(topicLabel);
+
+  const openSlots = candidate ? (candidate.open_slots ?? null) : null;
+  const knownUnavailable = ctx.candidates !== null && candidate === null;
+
+  let unavailableReason: string | null = null;
+  if (requestStatus === "pending") unavailableReason = "Você já enviou um pedido para ela.";
+  else if (requestStatus === "accepted") unavailableReason = "Vocês já estão em mentoria.";
+  else if (knownUnavailable || (openSlots !== null && openSlots <= 0))
+    unavailableReason = "Ela está sem vagas ou pausou novos pedidos no momento.";
+
+  return {
+    mentorId: suggestion.mentorId,
+    name: mentor.full_name || "Mentora",
+    avatarUrl: mentor.avatar_url,
+    headline: mentor.headline,
+    institution: mentor.institution,
+    state: mentor.state,
+    careerStage: careerStageLabel(mentor.career_stage),
+    score: Math.max(0, Math.min(100, Math.round(suggestion.score))),
+    reason: suggestion.reason,
+    source: suggestion.source,
+    sourceLabel: suggestionSourceLabel(suggestion.source, ctx.model),
+    sharedAreas,
+    sharedTopics: sharedTopicSlugs.map(topicLabel),
+    otherTopics,
+    starters: suggestion.conversationStarters.filter((s) => s.trim().length > 0).slice(0, 3),
+    openSlots,
+    requestStatus,
+    canRequest: unavailableReason === null,
+    unavailableReason,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Link direto ?mentora=<id> (diretório / perfil → pedido)
+// ---------------------------------------------------------------------------
+
+export interface DeepLinkMentorInfo {
+  id: string;
+  is_mentor: boolean;
+  mentor_available: boolean;
+  onboarded: boolean;
+}
+
+export type DeepLinkState =
+  | { kind: "ok"; openSlots: number | null }
+  | { kind: "not_found" }
+  | { kind: "self" }
+  | { kind: "not_mentor" }
+  | { kind: "unavailable" }
+  | { kind: "open_request"; status: "pending" | "accepted" };
+
+export function resolveDeepLink(input: {
+  mentor: DeepLinkMentorInfo | null;
+  viewerId: string;
+  candidates: ReadonlyMap<string, CandidateAvailability> | null;
+  openRequests: ReadonlyMap<string, MentorshipStatus>;
+}): DeepLinkState {
+  const { mentor, viewerId, candidates, openRequests } = input;
+  if (!mentor) return { kind: "not_found" };
+  if (mentor.id === viewerId) return { kind: "self" };
+  if (!mentor.is_mentor || !mentor.onboarded) return { kind: "not_mentor" };
+  const open = asOpenStatus(openRequests.get(mentor.id));
+  if (open) return { kind: "open_request", status: open };
+  if (!mentor.mentor_available) return { kind: "unavailable" };
+  if (candidates) {
+    const candidate = candidates.get(mentor.id);
+    if (!candidate) return { kind: "unavailable" };
+    const existing = asOpenStatus(candidate.existing_request_status);
+    if (existing) return { kind: "open_request", status: existing };
+    return { kind: "ok", openSlots: candidate.open_slots ?? null };
+  }
+  return { kind: "ok", openSlots: null };
+}
+
+export function buildMatchCards(suggestions: readonly MentorSuggestion[], ctx: MatchCardContext): MatchCardData[] {
+  return [...suggestions].sort((a, b) => a.rank - b.rank).map((s) => buildMatchCard(s, ctx));
+}

@@ -29,10 +29,11 @@ export {
   cardVariants,
   type CardProps,
 } from "./card";
+export { CategoryIcon, CATEGORY_ICONS, getCategoryIcon, type CategoryIconProps } from "./category-icon";
 export { Checkbox, type CheckboxProps } from "./checkbox";
 export { Chip, ChipLink, ChipToggle, chipVariants, type ChipProps, type ChipLinkProps, type ChipToggleProps } from "./chip";
 export { ChipGroup, type ChipGroupProps, type ChipGroupOption } from "./chip-group"; // (cliente)
-export { ConfirmDialog, type ConfirmDialogProps } from "./confirm-dialog"; // (cliente)
+export { ConfirmDialog, type ConfirmDialogProps, type ConfirmResult } from "./confirm-dialog"; // (cliente)
 export { ConstellationPattern, type ConstellationPatternProps } from "./constellation-pattern";
 export { Container, Section, type ContainerProps, type SectionProps } from "./container";
 export { Dialog, type DialogProps } from "./dialog"; // (cliente)
@@ -55,10 +56,25 @@ export { Separator, type SeparatorProps } from "./separator";
 export { Skeleton, SkeletonCard, SkeletonText } from "./skeleton";
 export { Spinner, type SpinnerProps } from "./spinner";
 export { Stat, StatGroup, type StatProps } from "./stat";
+export { Steps, type StepItem, type StepsProps } from "./steps";
 export { SubmitButton, type SubmitButtonProps } from "./submit-button"; // (cliente)
 export { Switch, type SwitchProps } from "./switch";
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+  type TableCaptionProps,
+  type TableHeadProps,
+  type TableProps,
+} from "./table";
 export { TabNav, type TabNavItem, type TabNavProps } from "./tab-nav";
 export { Tabs, type TabItem, type TabsProps } from "./tabs"; // (cliente)
 export { Textarea, type TextareaProps } from "./textarea"; // (cliente)
 export { Tooltip, type TooltipProps } from "./tooltip";
 export { VisuallyHidden } from "./visually-hidden";
+export { VoteButton, type VoteButtonProps } from "./vote-button";

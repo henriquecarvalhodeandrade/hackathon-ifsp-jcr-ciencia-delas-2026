@@ -29,6 +29,7 @@ const sizeClasses = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" } as const
 /**
  * Diálogo modal com o <dialog> nativo: foco preso dentro, Esc fecha, o foco volta
  * para quem abriu e o fundo fica inerte. Clique no fundo também fecha.
+ * O foco inicial vai para o primeiro elemento com `data-autofocus` (ou o primeiro focável: "Fechar").
  */
 export function Dialog({
   title,
@@ -60,6 +61,9 @@ export function Dialog({
     if (open && !dialog.open) {
       returnFocus.current = document.activeElement as HTMLElement | null;
       dialog.showModal();
+      // O conteúdo monta antes do showModal(), então o autoFocus do React não pega.
+      // Marque o campo inicial com data-autofocus (ex.: <Textarea data-autofocus />).
+      dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
     } else if (!open && dialog.open) {
       dialog.close();
     }
@@ -78,8 +82,8 @@ export function Dialog({
         : null}
       <dialog
         ref={ref}
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
+        aria-labelledby={open ? titleId : undefined}
+        aria-describedby={open && description ? descriptionId : undefined}
         onCancel={(event) => {
           if (!dismissible) event.preventDefault();
         }}
