@@ -25,7 +25,9 @@ export type { AiErrorCode } from "./errors";
 export type { GenerateJsonOptions, GenerateJsonResult } from "./engine";
 export type { EmbeddingKind, TextProviderName } from "./providers/types";
 
-export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<GenerateJsonResult<T>> {
+export async function generateJson<T>(
+  options: GenerateJsonOptions<T>,
+): Promise<GenerateJsonResult<T>> {
   return generateJsonWithChain(getTextProviderChain(), options, { siteUrl: getSiteUrl() });
 }
 

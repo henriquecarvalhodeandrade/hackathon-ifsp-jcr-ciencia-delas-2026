@@ -14,8 +14,9 @@ a moderação precisa conseguir agir em caso de abuso.
   Papers, ranking e o arquivo da newsletter são públicos, porque o objetivo deles é divulgação.
 - Em categorias marcadas com `allow_anonymous`, a autora pode publicar **anonimamente**. O tópico/resposta é
   gravado com `author_id = NULL` e a autoria real vai para a tabela privada `forum_anonymous_authorship`,
-  preenchida por trigger. Só a própria autora e a moderação conseguem lê-la; revelar a autoria é uma ação de
-  administradora (`reveal_anonymous_author`).
+  preenchida por trigger. Só a própria autora e a moderação (moderadoras e administradoras) conseguem lê-la;
+  revelar a autoria é uma ação explícita de moderação (`reveal_anonymous_author`), reservada a casos graves
+  descritos no código de conduta.
 - Conteúdo anônimo de categorias sensíveis não entra na newsletter pública.
 
 ## Consequências
@@ -23,3 +24,4 @@ a moderação precisa conseguir agir em caso de abuso.
 - Uma consulta comum (`select('*')`) nunca vaza a autora de um post anônimo, porque o dado nem está na linha.
 - Se a conta da autora for excluída, o conteúdo anônimo dela também é removido (LGPD).
 - O código de conduta (`/conduta`) explica claramente que o anonimato é perante a comunidade, não perante a moderação.
+- Próximo passo recomendado: registrar em log de auditoria cada revelação de autoria (ver `docs/10-roadmap.md`).

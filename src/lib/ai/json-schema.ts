@@ -48,13 +48,15 @@ function addNull(schema: JsonSchema): JsonSchema {
   if (typeof type === "string") {
     if (type === "null") return schema;
     const next: JsonSchema = { ...schema, type: [type, "null"] };
-    if (Array.isArray(schema.enum) && !schema.enum.includes(null)) next.enum = [...schema.enum, null];
+    if (Array.isArray(schema.enum) && !schema.enum.includes(null))
+      next.enum = [...schema.enum, null];
     return next;
   }
   if (Array.isArray(type)) {
     if (type.includes("null")) return schema;
     const next: JsonSchema = { ...schema, type: [...type, "null"] };
-    if (Array.isArray(schema.enum) && !schema.enum.includes(null)) next.enum = [...schema.enum, null];
+    if (Array.isArray(schema.enum) && !schema.enum.includes(null))
+      next.enum = [...schema.enum, null];
     return next;
   }
   // `$ref` ou esquema sem tipo explícito: envolve em anyOf.
@@ -149,7 +151,12 @@ function normalizeNode(input: unknown, path: string): JsonSchema {
     throw new StrictSchemaError(`Array em ${path} sem "items": declare o tipo dos elementos.`);
   }
 
-  if (out.type === undefined && out.anyOf === undefined && out.$ref === undefined && out.enum === undefined) {
+  if (
+    out.type === undefined &&
+    out.anyOf === undefined &&
+    out.$ref === undefined &&
+    out.enum === undefined
+  ) {
     throw new StrictSchemaError(
       `Esquema em ${path} não declara tipo (z.any/z.unknown?). O modo estrito exige tipos explícitos.`,
     );

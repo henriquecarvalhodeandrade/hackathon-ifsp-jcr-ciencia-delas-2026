@@ -224,6 +224,7 @@ grant execute on function storage.foldername(text), storage.filename(text)
 -- -----------------------------------------------------------------------------
 -- realtime (publicação vazia, como num projeto novo)
 -- -----------------------------------------------------------------------------
+set client_min_messages = error; -- sem wal_level=logical o Postgres só avisa
 do $$
 begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
@@ -231,6 +232,7 @@ begin
   end if;
 end
 $$;
+reset client_min_messages;
 
 -- Caminho de busca padrão do Supabase.
 do $$

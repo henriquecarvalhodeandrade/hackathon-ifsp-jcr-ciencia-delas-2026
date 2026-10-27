@@ -1,0 +1,822 @@
+# 03 · Banco de dados (Supabase / Postgres)
+
+Este documento descreve o banco da **Ciência Delas**: modelo de dados, regras de
+segurança (RLS), anonimato no fórum, triggers, RPCs, seed de demonstração e como
+rodar tudo — com ou sem Docker.
+
+> **Fonte da verdade:** as migrations em `supabase/migrations/`. Se este texto e o SQL
+> divergirem, vale o SQL (e, por favor, corrija este documento).
+
+Sumário
+
+1. [Visão geral e convenções](#1-visão-geral-e-convenções)
+2. [Diagrama entidade-relacionamento](#2-diagrama-entidade-relacionamento)
+3. [Tabelas](#3-tabelas)
+4. [Matriz de permissões (RLS + GRANTs)](#4-matriz-de-permissões-rls--grants)
+5. [Anonimato no fórum](#5-anonimato-no-fórum)
+6. [Triggers](#6-triggers)
+7. [RPCs com exemplos em supabase-js](#7-rpcs-com-exemplos-em-supabase-js)
+8. [Erros que o app pode mostrar](#8-erros-que-o-app-pode-mostrar)
+9. [Consultas com embed (PostgREST)](#9-consultas-com-embed-postgrest)
+10. [Storage: avatares](#10-storage-avatares)
+11. [Rodando localmente (Docker)](#11-rodando-localmente-docker)
+12. [Supabase Cloud](#12-supabase-cloud)
+13. [Gerando os tipos TypeScript](#13-gerando-os-tipos-typescript)
+14. [Validação local sem Docker](#14-validação-local-sem-docker)
+15. [Contas de demonstração](#15-contas-de-demonstração)
+16. [Newsletter semanal com pg_cron + pg_net (opcional)](#16-newsletter-semanal-com-pg_cron--pg_net-opcional)
+17. [Pegadinhas e boas práticas](#17-pegadinhas-e-boas-práticas)
+
+---
+
+## 1. Visão geral e convenções
+
+| Item         | Escolha                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Banco        | Postgres 17 do Supabase (local e Cloud). Validado também em Postgres 16 + pgvector 0.6.         |
+| Extensões    | `citext`, `vector` (pgvector), `pg_trgm`, `pgcrypto` — **sempre no schema `extensions`**        |
+| Schemas      | `public` (exposto pela API), `private` (funções auxiliares de RLS/triggers, **não** exposto)    |
+| Autenticação | Supabase Auth (e-mail + senha, magic link, Google opcional). `auth.uid()` identifica a usuária. |
+| Segurança    | RLS em **todas** as tabelas + GRANTs explícitos por tabela e por coluna                         |
+
+Convenções seguidas em todas as migrations:
+
+- **Nada é exposto por padrão.** Desde 2026 o Supabase não concede mais acesso automático
+  a tabelas novas para `anon`/`authenticated`. Cada tabela faz `REVOKE ALL` desses papéis
+  e depois `GRANT` apenas do necessário — inclusive **GRANT por coluna**
+  para `insert`/`update` (é isso que impede uma membro de mudar o próprio `role`, o
+  `vote_count` de um paper ou fixar um tópico). O `config.toml` local usa
+  `auto_expose_new_tables = false` para reproduzir esse comportamento.
+- **Funções** usam `set search_path = ''` e nomes totalmente qualificados
+  (`public.profiles`, `extensions.vector`, `a OPERATOR(extensions.<=>) b`).
+  `EXECUTE` é revogado de `PUBLIC` e concedido só a quem precisa.
+- **Políticas RLS** usam `(select auth.uid())` (avaliado uma vez por consulta, não por
+  linha), são escopadas `to authenticated` ou `to anon, authenticated` e toda coluna usada
+  em FK ou política tem índice.
+- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD015`) com mensagens em
+  pt-BR prontas para mostrar na interface (ver [seção 8](#8-erros-que-o-app-pode-mostrar)).
+- **Identificadores em inglês; textos para pessoas em pt-BR.**
+
+Migrations (em ordem):
+
+| Arquivo                                       | Conteúdo                                                                                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `20261027120000_extensions_enums_helpers.sql` | extensões, endurecimento de privilégios padrão, schema `private`, enums, utilitários                                                 |
+| `20261027120100_profiles.sql`                 | `research_areas`, `profiles`, `profile_research_areas`, `profile_embeddings`, `handle_new_user`, `private.is_moderator()/is_admin()` |
+| `20261027120200_mentorship.sql`               | `mentor_suggestions`, `mentorship_requests` (+ máquina de estados e capacidade)                                                      |
+| `20261027120300_forum.sql`                    | categorias, tópicos, respostas, autoria anônima, reações e views de contagem                                                         |
+| `20261027120400_papers.sql`                   | `papers`, `paper_votes`, `paper_comments`                                                                                            |
+| `20261027120500_newsletter.sql`               | inscritas, edições e envios                                                                                                          |
+| `20261027120600_moderation_notifications.sql` | `reports`, `notifications` e triggers que criam notificações                                                                         |
+| `20261027120700_storage.sql`                  | bucket `avatars` + políticas em `storage.objects`                                                                                    |
+| `20261027120800_rpc.sql`                      | RPCs públicas                                                                                                                        |
+
+---
+
+## 2. Diagrama entidade-relacionamento
+
+```mermaid
+erDiagram
+  AUTH_USERS ||--|| PROFILES : "1:1 (trigger on_auth_user_created)"
+  PROFILES ||--o{ PROFILE_RESEARCH_AREAS : "tem"
+  RESEARCH_AREAS ||--o{ PROFILE_RESEARCH_AREAS : "classifica"
+  PROFILES ||--o| PROFILE_EMBEDDINGS : "vetor 768d"
+  PROFILES ||--o{ MENTOR_SUGGESTIONS : "mentee_id / mentor_id"
+  PROFILES ||--o{ MENTORSHIP_REQUESTS : "mentee_id / mentor_id"
+  FORUM_CATEGORIES ||--o{ FORUM_THREADS : "agrupa"
+  PROFILES |o--o{ FORUM_THREADS : "author_id (NULL se anônimo)"
+  FORUM_THREADS ||--o{ FORUM_POSTS : "respostas"
+  FORUM_POSTS |o--o| FORUM_THREADS : "solution_post_id"
+  PROFILES |o--o{ FORUM_POSTS : "author_id (NULL se anônimo)"
+  FORUM_THREADS ||--o| FORUM_ANONYMOUS_AUTHORSHIP : "autoria real"
+  FORUM_POSTS ||--o| FORUM_ANONYMOUS_AUTHORSHIP : "autoria real"
+  PROFILES ||--o{ FORUM_ANONYMOUS_AUTHORSHIP : "user_id"
+  PROFILES ||--o{ FORUM_REACTIONS : "reage"
+  FORUM_THREADS ||--o{ FORUM_REACTIONS : "alvo"
+  FORUM_POSTS ||--o{ FORUM_REACTIONS : "alvo"
+  PROFILES ||--o{ PAPERS : "submitted_by"
+  RESEARCH_AREAS |o--o{ PAPERS : "area_id"
+  PAPERS ||--o{ PAPER_VOTES : "votos"
+  PROFILES ||--o{ PAPER_VOTES : "vota"
+  PAPERS ||--o{ PAPER_COMMENTS : "comentários"
+  PROFILES ||--o{ PAPER_COMMENTS : "comenta"
+  PROFILES |o--o{ NEWSLETTER_SUBSCRIBERS : "profile_id (opcional)"
+  NEWSLETTER_EDITIONS ||--o{ NEWSLETTER_DELIVERIES : "envios"
+  NEWSLETTER_SUBSCRIBERS ||--o{ NEWSLETTER_DELIVERIES : "recebe"
+  PROFILES ||--o{ REPORTS : "reporter_id / resolved_by"
+  PROFILES ||--o{ NOTIFICATIONS : "user_id"
+
+  PROFILES {
+    uuid id PK "= auth.users.id"
+    text full_name
+    career_stage career_stage
+    boolean is_mentor
+    smallint mentor_capacity
+    user_role role "member | moderator | admin"
+    boolean ai_consent
+    timestamptz onboarded_at
+  }
+  MENTORSHIP_REQUESTS {
+    uuid id PK
+    uuid mentee_id FK
+    uuid mentor_id FK
+    mentorship_status status
+    text message
+  }
+  FORUM_THREADS {
+    uuid id PK
+    smallint category_id FK
+    uuid author_id FK "NULL se anônimo"
+    boolean is_anonymous
+    boolean is_pinned
+    boolean is_locked
+    uuid solution_post_id FK
+    int reply_count
+  }
+  FORUM_ANONYMOUS_AUTHORSHIP {
+    bigint id PK
+    uuid thread_id FK "único"
+    uuid post_id FK "único"
+    uuid user_id FK
+  }
+  PAPERS {
+    uuid id PK
+    uuid submitted_by FK
+    text doi "único, 10.xxxx/..."
+    smallint area_id FK
+    int vote_count
+    int comment_count
+    boolean is_hidden
+  }
+  NEWSLETTER_EDITIONS {
+    uuid id PK
+    text slug "ex.: 2026-s44"
+    jsonb content
+    edition_status status
+  }
+```
+
+---
+
+## 3. Tabelas
+
+Enums: `career_stage`, `user_role`, `meeting_format`, `mentorship_status`, `reaction_kind`,
+`report_target`, `report_reason`, `report_status`, `subscriber_status`, `edition_status`,
+`notification_type` (valores no CONTRACT §4 e em `Constants.public.Enums` dos tipos gerados).
+
+### Perfis e áreas
+
+| Tabela                   | Para que serve                                                                                                                                                         | Regras importantes                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `research_areas`         | Catálogo de áreas: as 9 grandes áreas do CNPq + subáreas. Linhas com `name = big_area` são a própria grande área.                                                      | Leitura pública. Escrita só via migration/seed.                                                                                                                                                                                                                                                                                                                 |
+| `profiles`               | Perfil de cada usuária (1:1 com `auth.users`), criado automaticamente no cadastro. Guarda dados públicos para membros, preferências de mentoria e consentimento de IA. | Leitura **só para membros**. A dona edita todas as colunas **exceto** `id`, `role`, `created_at`, `updated_at`. Trigger normaliza (trim, strings vazias → `NULL`, UF maiúscula, palavras-chave em minúsculas, `ai_consent_at`). URLs precisam começar com `http(s)://` (evita `javascript:`). `mentorship_topics` só aceita slugs do catálogo (§7 do contrato). |
+| `profile_research_areas` | Áreas (N:N) de cada perfil.                                                                                                                                            | Membros leem; a dona insere/remove as próprias.                                                                                                                                                                                                                                                                                                                 |
+| `profile_embeddings`     | Vetor `vector(768)` do perfil (Gemini), hash do texto e modelo. Usado no matching.                                                                                     | **Só a dona** lê/escreve. Outras pessoas nunca veem vetores: o matching usa a RPC `get_mentor_candidates` (SECURITY DEFINER). Revogar `ai_consent` apaga o embedding. Índice HNSW (`vector_cosine_ops`).                                                                                                                                                        |
+
+### Mentoria
+
+| Tabela                | Para que serve                                                                                                                  | Regras importantes                                                                                                                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mentor_suggestions`  | Sugestões de mentoras calculadas para a mentoranda (IA ou heurística), com nota 0–100, motivo e sugestões de primeira conversa. | Só a mentoranda (`mentee_id`) vê/grava/apaga (aceita upsert). Mentoras não veem.                                                                                                                                                                                                                                                             |
+| `mentorship_requests` | Pedido de mentoria e seu ciclo de vida.                                                                                         | A mentoranda cria (mensagem 20–1500 caracteres) para quem `is_mentor` e `mentor_available`. Participantes leem. Só `status` e `response_message` podem ser alterados, e o trigger aplica a máquina de estados e a capacidade (ver [seção 6](#6-triggers)). Índice único impede dois pedidos abertos (`pending`/`accepted`) para o mesmo par. |
+
+Máquina de estados:
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending: mentoranda pede
+  pending --> accepted: mentora aceita (se houver vaga)
+  pending --> declined: mentora recusa
+  pending --> cancelled: mentoranda cancela
+  accepted --> completed: mentora ou mentoranda concluem
+  accepted --> cancelled: mentoranda cancela
+  declined --> [*]
+  cancelled --> [*]
+  completed --> [*]
+```
+
+### Fórum
+
+| Tabela                                                        | Para que serve                                                                                       | Regras importantes                                                                                                                                                                               |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `forum_categories`                                            | As 8 categorias (ícone = nome do ícone do lucide em kebab-case). `allow_anonymous` liga o anonimato. | Leitura pública (para a landing).                                                                                                                                                                |
+| `forum_threads`                                               | Tópicos (markdown). `author_id` é `NULL` quando anônimo.                                             | **Só membros** leem. Membros editam apenas `title`, `body`, `tags`, `solution_post_id`. Fixar/trancar só via RPC `moderate_thread`. `reply_count` e `last_activity_at` são mantidos por trigger. |
+| `forum_posts`                                                 | Respostas. Mesmo esquema de anonimato.                                                               | Inserção bloqueada em tópico trancado (exceto moderação). Membros editam só `body`.                                                                                                              |
+| `forum_anonymous_authorship`                                  | Quem escreveu cada tópico/resposta anônima.                                                          | Visível **só para a própria autora e moderação**. Nenhuma escrita pela API (só triggers).                                                                                                        |
+| `forum_reactions`                                             | Reações `support`/`useful`/`celebrate` em tópico **ou** resposta.                                    | Uma por pessoa, alvo e tipo (constraint `forum_reactions_unique`, serve para upsert).                                                                                                            |
+| `forum_thread_reaction_counts` / `forum_post_reaction_counts` | Views (`security_invoker`) com `(alvo, kind, total)`.                                                | Mesmas permissões das reações (membros).                                                                                                                                                         |
+
+### Vitrine de papers
+
+| Tabela           | Para que serve                                                                                                                             | Regras importantes                                                                                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `papers`         | Papers com autoria de mulheres: título, resumo, autoras, DOI/URL, área, resumo em linguagem simples (`plain_summary`, da IA ou da autora). | Leitura **pública** (exceto ocultos: só quem enviou e a moderação veem). Exige `women_authorship_confirmed = true`. DOI é normalizado (sem `https://doi.org/`, minúsculo) e único. `vote_count`, `comment_count`, `is_hidden` e `submitted_by` não são editáveis por membros. |
+| `paper_votes`    | Voto positivo (um por pessoa).                                                                                                             | Leitura pública. Ninguém vota no próprio paper (erro `CD012`) nem em paper oculto. `created_at` não é enviado pelo cliente (impede "antedatar" votos).                                                                                                                        |
+| `paper_comments` | Comentários de membros.                                                                                                                    | Leitura só para membros; a autora edita/apaga; moderação apaga.                                                                                                                                                                                                               |
+
+### Newsletter
+
+| Tabela                   | Para que serve                                                                                                                              | Regras importantes                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `newsletter_subscribers` | Inscritas (double opt-in), áreas de interesse (`area_ids` vazio = todas), tokens de confirmação/descadastro, texto do consentimento (LGPD). | **Sem acesso pela API**: só service role (`createAdminClient()`).                                    |
+| `newsletter_editions`    | Edições semanais (`content` jsonb no formato do CONTRACT §9).                                                                               | Edições `published`/`sent` são públicas; rascunhos só para admins. Publicar preenche `published_at`. |
+| `newsletter_deliveries`  | Registro de envio por inscrita (id do provedor, erro).                                                                                      | Só service role.                                                                                     |
+
+### Moderação e notificações
+
+| Tabela          | Para que serve                                                                                                       | Regras importantes                                                                                                                                            |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reports`       | Denúncias de tópico, resposta, paper, comentário ou perfil.                                                          | A denunciante cria e vê as próprias; moderação vê todas e resolve (`resolved_by`/`resolved_at` são preenchidos pelo trigger com quem resolveu).               |
+| `notifications` | Avisos para a usuária (pedido de mentoria, resposta, nova resposta no tópico, solução marcada, comentário no paper). | Cada uma vê/apaga as próprias e só pode alterar `read_at`. Criadas **apenas** por triggers. Publicadas no Realtime (`supabase_realtime`), que respeita o RLS. |
+
+---
+
+## 4. Matriz de permissões (RLS + GRANTs)
+
+Legenda: **L** ler · **C** criar · **E** editar · **A** apagar · — sem acesso.
+"Dona" = a própria usuária (autora, quem enviou, participante). `service_role` ignora RLS
+e tem acesso total a tudo (use só no servidor).
+
+| Recurso                                           | Visitante (`anon`)       | Membro               | Dona / participante                                      | Moderação                                | Admin               |
+| ------------------------------------------------- | ------------------------ | -------------------- | -------------------------------------------------------- | ---------------------------------------- | ------------------- |
+| `research_areas`, `forum_categories`              | L                        | L                    | —                                                        | L                                        | L                   |
+| `profiles`                                        | —                        | L (todos)            | E (exceto `id`, `role`, `created_at`, `updated_at`)      | igual a membro                           | igual a membro      |
+| `profile_research_areas`                          | —                        | L                    | C / A                                                    | —                                        | —                   |
+| `profile_embeddings`                              | —                        | —                    | L / C / E / A                                            | —                                        | —                   |
+| `mentor_suggestions`                              | —                        | —                    | mentoranda: L / C / E / A                                | —                                        | —                   |
+| `mentorship_requests`                             | —                        | —                    | L; mentoranda C; ambas E (`status`, `response_message`*) | —                                        | —                   |
+| `forum_threads`                                   | —                        | L                    | C; E (`title`, `body`, `tags`, `solution_post_id`); A    | E / A + `moderate_thread`                | igual à moderação   |
+| `forum_posts`                                     | —                        | L                    | C (tópico aberto); E (`body`); A                         | E / A; responde em tópico trancado       | igual à moderação   |
+| `forum_anonymous_authorship`                      | —                        | —                    | L (a própria)                                            | L + `reveal_anonymous_author`            | igual à moderação   |
+| `forum_reactions` + views                         | —                        | L                    | C / A                                                    | —                                        | —                   |
+| `papers`                                          | L (não ocultos)          | L (não ocultos)      | C; E (campos editoriais); A; L ocultos                   | L ocultos; A; `moderate_paper`           | igual à moderação   |
+| `paper_votes`                                     | L                        | L                    | C (não no próprio paper) / A                             | —                                        | —                   |
+| `paper_comments`                                  | —                        | L                    | C; E (`body`); A                                         | A                                        | A                   |
+| `newsletter_subscribers`, `newsletter_deliveries` | —                        | —                    | —                                                        | —                                        | — (só service role) |
+| `newsletter_editions`                             | L (publicadas)           | L (publicadas)       | —                                                        | L (publicadas)                           | L / C / E / A       |
+| `reports`                                         | —                        | C (como denunciante) | L (as próprias)                                          | L / E (`status`, `resolution_note`, ...) | igual à moderação   |
+| `notifications`                                   | —                        | —                    | L / E (`read_at`) / A                                    | —                                        | —                   |
+| `storage` bucket `avatars`                        | leitura pela URL pública | —                    | L / C / E / A em `<uid>/...`                             | —                                        | —                   |
+
+\* `response_message` só pela mentora; transições conforme a máquina de estados.
+
+RPCs (`EXECUTE`):
+
+| RPC                                                                           | `anon`                | `authenticated` | Observação                             |
+| ----------------------------------------------------------------------------- | --------------------- | --------------- | -------------------------------------- |
+| `is_moderator()`, `is_admin()`                                                | sim (retorna `false`) | sim             |                                        |
+| `get_paper_ranking(...)`                                                      | sim                   | sim             | SECURITY INVOKER                       |
+| `get_platform_stats()`                                                        | sim                   | sim             | só contagens agregadas                 |
+| `get_mentor_candidates(...)`                                                  | —                     | sim             |                                        |
+| `get_mentorship_contact(...)`                                                 | —                     | sim             | só participante de mentoria **aceita** |
+| `get_community_leaderboard(...)`                                              | —                     | sim             |                                        |
+| `reveal_anonymous_author(...)`, `moderate_thread(...)`, `moderate_paper(...)` | —                     | sim             | erro `42501` se não for moderação      |
+
+---
+
+## 5. Anonimato no fórum
+
+Categorias com `allow_anonymous = true` (seed: **Maternidade e cuidado**, **Rede de apoio —
+assédio e desafios** e **Saúde mental**) aceitam tópicos e respostas anônimas. O objetivo é
+que **nenhuma outra membro** consiga descobrir a autoria, mas que a autora continue dona do
+conteúdo (editar, apagar, receber notificações) e que a moderação consiga agir em casos
+graves.
+
+Fluxo de um tópico anônimo:
+
+```mermaid
+sequenceDiagram
+  participant App as App (sessão da usuária)
+  participant BT as Trigger BEFORE INSERT (SECURITY DEFINER)
+  participant AA as forum_anonymous_authorship
+  participant RLS as Política de INSERT (WITH CHECK)
+  App->>BT: insert { author_id: uid, is_anonymous: true, ... }
+  BT->>BT: categoria permite anonimato? author_id = auth.uid()?
+  BT->>AA: grava (thread_id = NEW.id, user_id = uid)
+  BT->>BT: NEW.author_id := NULL
+  BT->>RLS: linha com author_id NULL
+  RLS->>AA: autoria registrada de NEW.id é a usuária atual?
+  RLS-->>App: ok (linha salva com author_id NULL)
+```
+
+Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
+
+- **Sem falsificação:** o trigger exige `author_id = auth.uid()` em qualquer inserção (anônima
+  ou não) — erro `CD013`. Ninguém publica em nome de outra pessoa.
+- **Sem conteúdo anônimo "órfão":** o RLS (avaliado _depois_ dos triggers BEFORE) só aceita
+  linha anônima com `author_id IS NULL` se a autoria registrada para aquele id for a usuária
+  atual. Mesmo se alguém desativasse o trigger, o insert seria barrado (há teste para isso).
+  A FK da tabela de autoria é `DEFERRABLE INITIALLY DEFERRED` porque a linha de autoria é
+  gravada antes de o tópico existir de fato; a função que a política consulta é `VOLATILE`
+  para enxergar essa linha dentro do mesmo comando.
+- **Sem desfazer o anonimato:** `is_anonymous` e `author_id` não têm GRANT de UPDATE e um
+  trigger BEFORE UPDATE também recusa a mudança.
+- **Categoria certa:** anonimato fora de categoria permitida → `CD010`. Respostas anônimas
+  seguem a categoria do tópico.
+- **Visibilidade:** outras membros veem `author_id = NULL` e não conseguem ler
+  `forum_anonymous_authorship` (só a autora e a moderação). O app mostra "Anônima".
+- **A autora continua dona:** políticas de UPDATE/DELETE aceitam quem tem a autoria
+  registrada; notificações de resposta chegam para ela normalmente.
+- **Moderação:** moderadoras leem a tabela de autoria e podem usar
+  `reveal_anonymous_author()` em casos graves (assédio, ameaça). Use com parcimônia e registre
+  o motivo fora da plataforma.
+- **Ranking da comunidade:** conteúdo anônimo **não** conta pontos (senão vazaria autoria).
+- **LGPD — exclusão de conta:** apagar a usuária remove em cascata as linhas de autoria, e um
+  trigger AFTER DELETE apaga junto o tópico/resposta anônimo correspondente.
+
+---
+
+## 6. Triggers
+
+| Tabela                                         | Trigger                                    | O que faz                                                                                                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.users`                                   | `on_auth_user_created`                     | Cria o perfil com `full_name` (`full_name` ou `name` do `raw_user_meta_data`) e `avatar_url` (`avatar_url` ou `picture`, só se for URL http/https).                                       |
+| `profiles`                                     | `profiles_before_write`                    | Normaliza campos; atualiza `updated_at`; preenche/limpa `ai_consent_at`.                                                                                                                  |
+| `profiles`                                     | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding.                                                                                                                                                 |
+| `profile_embeddings`, `newsletter_subscribers` | `*_set_updated_at`                         | Atualiza `updated_at`.                                                                                                                                                                    |
+| `mentorship_requests`                          | `mentorship_requests_before_insert`        | Mensagens amigáveis: não é mentora / indisponível (`CD003`), pedido duplicado (`CD004`).                                                                                                  |
+| `mentorship_requests`                          | `mentorship_requests_before_update`        | Máquina de estados (`CD002`), só participantes (`CD003`), só a mentora escreve a resposta, capacidade da mentora ao aceitar (`CD001`, com lock para aceites simultâneos), `responded_at`. |
+| `mentorship_requests`                          | `mentorship_requests_notify_insert/update` | Notifica a mentora (novo pedido) e a outra participante (aceite, recusa, cancelamento, conclusão).                                                                                        |
+| `forum_threads`                                | `forum_threads_before_insert`              | Autoria (`CD013`), anonimato (`CD010`) e registro da autoria anônima.                                                                                                                     |
+| `forum_threads`                                | `forum_threads_before_update`              | Bloqueia troca de autoria/anonimato; valida `solution_post_id` (`CD014`); `edited_at`/`updated_at`.                                                                                       |
+| `forum_threads`                                | `forum_threads_notify_solution`            | Solução marcada → notifica a autora da resposta.                                                                                                                                          |
+| `forum_posts`                                  | `forum_posts_before_insert`                | Autoria, tópico trancado (`CD011`), anonimato.                                                                                                                                            |
+| `forum_posts`                                  | `forum_posts_before_update`                | Bloqueia troca de autoria/anonimato/tópico; `edited_at`.                                                                                                                                  |
+| `forum_posts`                                  | `forum_posts_after_insert/delete`          | Mantém `reply_count` e `last_activity_at`.                                                                                                                                                |
+| `forum_posts`                                  | `forum_posts_notify_reply`                 | Nova resposta → notifica a autora do tópico (inclusive anônima).                                                                                                                          |
+| `forum_anonymous_authorship`                   | `..._after_delete`                         | Apaga o conteúdo anônimo quando a autoria some (LGPD).                                                                                                                                    |
+| `papers`                                       | `papers_before_write`                      | Normaliza DOI/strings/palavras-chave; `updated_at` só muda em edição real (votos não contam).                                                                                             |
+| `paper_votes`                                  | `paper_votes_before_insert`                | Sem voto no próprio paper (`CD012`) nem em paper oculto (`CD015`).                                                                                                                        |
+| `paper_votes`                                  | `paper_votes_after_insert/delete`          | Mantém `vote_count`.                                                                                                                                                                      |
+| `paper_comments`                               | `..._after_insert/delete`, `..._notify`    | Mantém `comment_count`; notifica quem enviou o paper.                                                                                                                                     |
+| `newsletter_editions`                          | `newsletter_editions_before_write`         | Preenche `published_at`/`sent_at` ao mudar o status.                                                                                                                                      |
+| `reports`                                      | `reports_before_write`                     | Força `status = 'open'` na criação; ao resolver preenche `resolved_by`/`resolved_at`.                                                                                                     |
+
+Funções auxiliares no schema `private` (não expostas pela API): `is_moderator()`,
+`is_admin()`, `is_anonymous_thread_author()`, `is_anonymous_post_author()` (respondem só
+"a usuária atual é a autora anônima?", sem revelar ninguém),
+`thread_real_author()`, `post_real_author()`, `notify()`, `display_name()`,
+`normalize_tags()`, `text_array_ok()`, `is_trusted_context()`, `set_updated_at()` e as
+funções de trigger.
+
+---
+
+## 7. RPCs com exemplos em supabase-js
+
+Todos os exemplos usam o cliente tipado (`createClient` de `@/lib/supabase/server` ou
+`client`). Erros chegam em `error.code` (SQLSTATE) e `error.message` (pt-BR).
+
+### `is_moderator()` / `is_admin()`
+
+```ts
+const { data: isMod } = await supabase.rpc("is_moderator"); // boolean (false para visitante)
+```
+
+### `get_mentor_candidates(p_limit = 30)`
+
+Mentoras disponíveis para a usuária logada (`is_mentor`, `mentor_available`, onboarding
+completo, com vaga, diferente dela). `similarity` é a similaridade de cosseno 0–1 entre os
+embeddings (NULL se faltar algum); `open_slots` = capacidade − mentorias aceitas;
+`existing_request_status` = status do pedido aberto dela com essa mentora (ou NULL).
+Ordenação: similaridade desc (NULL no fim), áreas em comum desc, vagas desc, nome.
+
+```ts
+const { data: candidates, error } = await supabase.rpc(
+  "get_mentor_candidates",
+  { p_limit: 30 },
+);
+// candidates[i].similarity: number | null
+// candidates[i].area_ids: number[]  (ids de research_areas)
+```
+
+### `get_mentorship_contact(p_request_id)`
+
+E-mail e nome da **outra** participante, só quando o pedido está `accepted`. Caso contrário
+devolve lista vazia.
+
+```ts
+const { data } = await supabase.rpc("get_mentorship_contact", {
+  p_request_id: requestId,
+});
+const contact = data?.[0]; // { email, full_name } | undefined
+```
+
+### `get_paper_ranking(p_period = 'week', p_area_slug = null, p_limit = 20, p_offset = 0)`
+
+Público (funciona sem login). Períodos: `week` (votos dos últimos 7 dias), `month` (30),
+`year` (365), `all` (`vote_count`) e `hot` (`vote_count / (idade_em_horas + 2)^1.5`).
+Desempate: `vote_count` desc, `created_at` desc. Papers ocultos ficam de fora. Todos os
+papers visíveis aparecem (os sem votos no período vêm no fim) — para "destaques da semana",
+filtre `period_votes > 0`. Se `p_area_slug` for de uma **grande área** (ex.:
+`engenharias`), entram todas as subáreas dela.
+
+```ts
+const { data: ranking } = await supabase.rpc("get_paper_ranking", {
+  p_period: "month",
+  p_area_slug: "ciencias-exatas-e-da-terra",
+  p_limit: 10,
+});
+// ranking[i]: { id, title, authors, period_votes, vote_count, hot_score, area_slug, ... }
+```
+
+### `get_community_leaderboard(p_limit = 20)`
+
+Só membros. `points = 10·papers + 2·votos_recebidos + 5·soluções + 15·mentorias (aceitas ou
+concluídas, como mentora) + 1·(tópicos + respostas)`. Conteúdo anônimo e papers ocultos não
+contam; soluções no próprio tópico também não.
+
+```ts
+const { data: leaderboard } = await supabase.rpc("get_community_leaderboard", {
+  p_limit: 10,
+});
+```
+
+### `get_platform_stats()`
+
+Público. Números para a landing: `members` (perfis com onboarding), `mentors`, `papers`
+(visíveis), `threads`, `mentorships` (aceitas + concluídas).
+
+```ts
+const { data } = await supabase.rpc("get_platform_stats");
+const stats = data?.[0];
+```
+
+### `reveal_anonymous_author(p_thread_id?, p_post_id?)` — moderação
+
+```ts
+const { data: userId, error } = await supabase.rpc("reveal_anonymous_author", {
+  p_thread_id: threadId,
+});
+// error.code === "42501" se quem chamou não for moderadora
+```
+
+### `moderate_thread(p_thread_id, p_pinned?, p_locked?)` — moderação
+
+Parâmetro omitido/NULL = não altera.
+
+```ts
+await supabase.rpc("moderate_thread", { p_thread_id: id, p_locked: true });
+```
+
+### `moderate_paper(p_paper_id, p_hidden)` — moderação (extra ao contrato)
+
+Oculta/reexibe um paper da Vitrine e dos rankings (ex.: ao resolver uma denúncia).
+
+```ts
+await supabase.rpc("moderate_paper", { p_paper_id: paperId, p_hidden: true });
+```
+
+### Escritas comuns (sem RPC)
+
+As colunas de "dona" têm `default auth.uid()` — dá para omiti-las (se enviar, precisa ser o
+próprio id).
+
+```ts
+// Tópico anônimo (categoria com allow_anonymous)
+await supabase
+  .from("forum_threads")
+  .insert({ category_id, title, body, tags, is_anonymous: true })
+  .select("id")
+  .single();
+
+// Pedido de mentoria
+await supabase
+  .from("mentorship_requests")
+  .insert({ mentor_id, message, match_score, match_reason });
+
+// Mentora aceita (erro CD001 se estiver sem vagas)
+await supabase
+  .from("mentorship_requests")
+  .update({ status: "accepted", response_message: "Vamos conversar!" })
+  .eq("id", requestId);
+
+// Votar / retirar voto
+await supabase.from("paper_votes").insert({ paper_id });
+await supabase
+  .from("paper_votes")
+  .delete()
+  .eq("paper_id", paperId)
+  .eq("user_id", userId);
+
+// Reação (idempotente)
+await supabase
+  .from("forum_reactions")
+  .upsert(
+    { thread_id, kind: "support" },
+    { onConflict: "user_id,thread_id,post_id,kind", ignoreDuplicates: true },
+  );
+
+// Embedding (vetor como string no formato do pgvector)
+await supabase.from("profile_embeddings").upsert({
+  profile_id: userId,
+  embedding: JSON.stringify(vector), // number[768] → "[0.01,...]"
+  content_hash,
+  model,
+});
+
+// Marcar notificações como lidas
+await supabase
+  .from("notifications")
+  .update({ read_at: new Date().toISOString() })
+  .is("read_at", null);
+```
+
+---
+
+## 8. Erros que o app pode mostrar
+
+| `error.code` | Quando acontece                                                                           | Mensagem (resumo)                                                |
+| ------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `CD001`      | Mentora aceitando acima de `mentor_capacity`                                              | "Você já atingiu o limite de N mentoria(s) simultânea(s)…"       |
+| `CD002`      | Transição de status inválida; mentoranda tentando aceitar; alterar dados de denúncia      | "Somente a mentora pode aceitar ou recusar o pedido." etc.       |
+| `CD003`      | Pedido para quem não é mentora / indisponível / para si mesma; não participante alterando | "Esta mentora não está recebendo novos pedidos no momento." etc. |
+| `CD004`      | Já existe pedido aberto ou mentoria ativa com a mesma mentora                             | "Você já tem um pedido em aberto…"                               |
+| `CD010`      | Anonimato em categoria que não permite                                                    | "Esta categoria não permite publicações anônimas."               |
+| `CD011`      | Resposta em tópico trancado                                                               | "Este tópico está trancado e não aceita novas respostas."        |
+| `CD012`      | Voto no próprio paper                                                                     | "Você não pode votar no paper que você mesma enviou."            |
+| `CD013`      | Autoria falsificada; tentativa de trocar autoria/anonimato                                | "Autoria inválida: publique sempre com a sua própria conta."     |
+| `CD014`      | Solução que não é resposta do tópico                                                      | "A resposta escolhida como solução não pertence a este tópico."  |
+| `CD015`      | Categoria/tópico/paper inexistente (ou paper oculto ao votar)                             | "Tópico não encontrado." etc.                                    |
+| `42501`      | Sem GRANT/RLS (inclui RPCs de moderação e RPCs que exigem login)                          | mensagem do Postgres (em inglês) ou pt-BR nas RPCs               |
+| `23505`      | Duplicado (voto, reação, DOI)                                                             | trate como "já existe"                                           |
+| `23514`      | CHECK violado (tamanhos, URL sem http(s), tópico de mentoria inválido...)                 | valide antes com zod                                             |
+| `22023`      | Parâmetro inválido (período do ranking, reveal sem alvo)                                  |                                                                  |
+
+Sugestão: mostre `error.message` quando `error.code` começar com `CD`; para os demais,
+use uma mensagem genérica amigável.
+
+---
+
+## 9. Consultas com embed (PostgREST)
+
+Alguns pares de tabelas têm **mais de um caminho** de relacionamento; nesses casos use a
+dica `!nome_da_fk`, senão o PostgREST responde erro de ambiguidade:
+
+| Consulta                       | Use                                                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| respostas de um tópico         | `forum_threads.select("*, posts:forum_posts!forum_posts_thread_id_fkey(*)")`                                         |
+| resposta marcada como solução  | `solution:forum_posts!forum_threads_solution_post_id_fkey(*)`                                                        |
+| quem enviou o paper            | `submitter:profiles!papers_submitted_by_fkey(full_name, avatar_url)` (só com sessão!)                                |
+| mentoranda / mentora do pedido | `mentee:profiles!mentorship_requests_mentee_id_fkey(...)`, `mentor:profiles!mentorship_requests_mentor_id_fkey(...)` |
+| mentora sugerida               | `mentor:profiles!mentor_suggestions_mentor_id_fkey(...)`                                                             |
+| denunciante / quem resolveu    | `reporter:profiles!reports_reporter_id_fkey(...)`, `resolver:profiles!reports_resolved_by_fkey(...)`                 |
+
+Sem ambiguidade: `forum_threads → author:profiles(...)`, `category:forum_categories(...)`;
+`forum_posts → author:profiles(...)`; `papers → area:research_areas(...)`;
+`profiles → research_areas(...)` (N:N via `profile_research_areas`).
+
+> **Atenção (visitantes):** `anon` não tem SELECT em `profiles`. Na Vitrine pública, **não**
+> faça embed de `profiles` sem sessão — o PostgREST retorna erro de permissão para a consulta
+> inteira. Mostre `papers.authors` (texto) e só busque o perfil de quem enviou quando houver
+> login.
+
+---
+
+## 10. Storage: avatares
+
+- Bucket `avatars`, **público**, até 2 MiB, `image/png`, `image/jpeg`, `image/webp`
+  (declarado no `config.toml` para o ambiente local e criado também pela migration
+  `20261027120700_storage.sql` para o Cloud).
+- Caminho: `<user_id>/<arquivo>` (ex.: `0b6c…/avatar-1730000000.webp`). As políticas de
+  `storage.objects` só permitem listar/enviar/substituir/apagar dentro da própria pasta.
+- A leitura é pela URL pública (não passa por RLS), então não existe política de SELECT
+  pública: isso evita que alguém **liste** o bucket inteiro.
+
+```ts
+const path = `${user.id}/avatar-${Date.now()}.webp`;
+await supabase.storage
+  .from("avatars")
+  .upload(path, file, { upsert: true, contentType: file.type });
+const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+await supabase
+  .from("profiles")
+  .update({ avatar_url: data.publicUrl })
+  .eq("id", user.id);
+```
+
+---
+
+## 11. Rodando localmente (Docker)
+
+Pré-requisitos: Docker em execução e as dependências do projeto instaladas (`npm install`).
+
+```bash
+npx supabase start      # sobe Postgres, Auth, Storage, Realtime, Studio e Mailpit
+npx supabase status     # mostra a URL da API e as chaves → copie para .env.local
+npx supabase db reset   # recria o banco do zero: migrations + seed.sql
+npx supabase test db    # roda os testes pgTAP de supabase/tests/database/
+```
+
+- `.env.local`: `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = chave _publishable_ e `SUPABASE_SECRET_KEY` =
+  chave _secret_ exibidas pelo `supabase status`.
+- Studio: <http://127.0.0.1:54323> · Mailpit (e-mails de confirmação/magic link):
+  <http://127.0.0.1:54324>.
+- Confirmação de e-mail está **ligada** (como no Cloud). Os e-mails usam os modelos pt-BR de
+  `supabase/templates/` e apontam para `/auth/confirm?token_hash=...&type=...&next=...`
+  (confirmação → `/onboarding`, magic link → `/forum`, recuperação → `/redefinir-senha`,
+  troca de e-mail → `/perfil`, convite → `/redefinir-senha`).
+- Nova migration: `npx supabase migration new nome_curto` e siga as convenções da
+  [seção 1](#1-visão-geral-e-convenções) (RLS + REVOKE/GRANT + índices). Depois rode
+  `npx supabase db reset`, `npx supabase test db` e gere os tipos de novo.
+
+---
+
+## 12. Supabase Cloud
+
+1. Crie o projeto (plano gratuito) em <https://supabase.com/dashboard>.
+2. Vincule e aplique as migrations:
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <ref-do-projeto>
+   npx supabase db push            # aplica supabase/migrations/*.sql
+   ```
+
+   Para um projeto **de demonstração** (nunca produção), dá para incluir o seed:
+   `npx supabase db push --include-seed` — ou cole `supabase/seed.sql` no SQL Editor.
+
+3. Em **Authentication → URL Configuration**: _Site URL_ = URL pública do app (ex.:
+   `https://ciencia-delas.vercel.app`) e, em _Redirect URLs_, `https://<seu-app>/**`
+   (e `http://localhost:3000/**` se quiser testar local contra o Cloud).
+4. Modelos de e-mail: o Cloud **não** lê `supabase/templates/` sozinho. Copie o HTML de cada
+   arquivo em **Authentication → Email Templates** (mesmos assuntos do `config.toml`) ou use
+   `npx supabase config push` para enviar as configurações de `[auth]` do `config.toml`.
+5. Chaves em **Project Settings → API Keys** → variáveis da Vercel
+   (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`).
+6. Confira **Advisors → Security/Performance** no painel: o esquema foi pensado para não
+   gerar alertas (RLS em tudo, `search_path` fixo, FKs indexadas, `(select auth.uid())`).
+
+---
+
+## 13. Gerando os tipos TypeScript
+
+O arquivo `src/lib/database.types.ts` é **gerado** (não edite à mão). Ele exporta `Database`,
+`Tables`, `TablesInsert`, `TablesUpdate`, `Enums`, `CompositeTypes` e `Constants`.
+
+```bash
+scripts/db/gen-types.sh                                   # Supabase local (Docker)
+SUPABASE_PROJECT_REF=<ref> scripts/db/gen-types.sh --remote   # projeto no Cloud
+```
+
+O script roda `supabase gen types typescript` e depois `scripts/db/patch-types.mjs`, que marca
+como anuláveis (`| null`) as colunas de RPC que podem vir NULL — o gerador não consegue
+inferir isso em funções `returns table`. Exemplos: `get_mentor_candidates.similarity`,
+`existing_request_status`, `get_paper_ranking.doi`/`area_slug`, `reveal_anonymous_author`.
+Se usar `npm run db:types` (gerador puro), rode `node scripts/db/patch-types.mjs` e
+`npx prettier --write src/lib/database.types.ts` em seguida.
+
+Sem Docker, gere a partir do banco validado localmente (próxima seção) com o postgres-meta:
+
+```bash
+KEEP_DB=1 scripts/db/validate-local.sh
+PG_META_SERVER=/caminho/node_modules/@supabase/postgres-meta/dist/server/server.js \
+PG_META_DB_URL=postgresql://postgres@127.0.0.1:54329/ciencia_delas_validate \
+scripts/db/gen-types.sh --pg-meta
+```
+
+Detalhes úteis dos tipos: `vector` aparece como `string` (envie `JSON.stringify(numeros)`);
+`bigint` (ex.: `period_votes`) aparece como `number`; colunas `char(2)` como `string`.
+
+---
+
+## 14. Validação local sem Docker
+
+Para validar migrations, seed e testes em qualquer Postgres 15+ com as extensões `vector`,
+`citext`, `pg_trgm` e `pgcrypto` (ex.: Postgres 16 + pgvector 0.6):
+
+```bash
+scripts/db/validate-local.sh                        # padrão: postgres@127.0.0.1:54329
+PGPORT=5432 PGUSER=postgres scripts/db/validate-local.sh
+KEEP_DB=1 scripts/db/validate-local.sh              # mantém o banco ciencia_delas_validate
+SKIP_SEED=1 scripts/db/validate-local.sh            # só migrations + testes
+```
+
+O script (para no primeiro erro, `psql -v ON_ERROR_STOP=1`):
+
+1. apaga e recria o banco `ciencia_delas_validate`;
+2. aplica `scripts/db/supabase-stub.sql` — um "Supabase mínimo": papéis `anon`,
+   `authenticated`, `service_role` (BYPASSRLS) e `authenticator`; schemas `auth`,
+   `extensions` e `storage`; `auth.users`/`auth.identities` com as colunas reais do GoTrue;
+   `auth.uid()`/`auth.role()`/`auth.jwt()` lendo `request.jwt.claims` como no Supabase;
+   `storage.buckets`, `storage.objects`, `storage.foldername()`; publicação
+   `supabase_realtime`;
+3. aplica `scripts/db/pgtap-shim.sql` (pgTAP mínimo, se a extensão não existir);
+4. aplica todas as migrations em ordem, depois `supabase/seed.sql`;
+5. roda `supabase/tests/database/*.sql` e imprime o relatório TAP.
+
+Os testes simulam usuárias como o PostgREST faz (`set role authenticated` +
+`request.jwt.claims`), rodam numa transação desfeita no fim e cobrem: acesso de visitante;
+colunas protegidas (`role`, `vote_count`, `is_hidden`, `is_pinned`...); voto no próprio paper;
+contadores; ranking por período e área; anonimato (autoria escondida, visível para autora e
+moderação, falsificação, categoria proibida, RLS sem o trigger); tópico trancado; mentoria
+(transições, capacidade, duplicidade, contato só quando aceita); candidatas com similaridade
+de cosseno; privacidade de embeddings e sugestões; newsletter invisível; notificações;
+denúncias; leaderboard; storage; exclusão de conta (LGPD); e uma checagem de higiene (RLS em
+todas as tabelas, nenhuma função executável por `PUBLIC`, `search_path` fixo).
+
+Diferença conhecida: localmente o pgvector pode ser 0.6, no Supabase é mais novo — o que as
+migrations usam (`vector(768)`, `<=>`, HNSW `vector_cosine_ops`) funciona nos dois.
+
+---
+
+## 15. Contas de demonstração
+
+> **Todas fictícias.** Senha de todas: **`ciencia-delas-demo`**. Pessoas, papers (DOIs no
+> prefixo de teste `10.5555/demo.*`) e a edição da newsletter são inventados para a
+> apresentação do hackathon; bios e resumos terminam com "(... fictício de demonstração.)".
+> Não use o seed em produção.
+
+| E-mail                            | Nome               | Papel                    | Perfil                                                                                    |
+| --------------------------------- | ------------------ | ------------------------ | ----------------------------------------------------------------------------------------- |
+| `admin@demo.cienciadelas.dev`     | Helena Duarte      | **admin**                | coordenadora (IFSP — Câmpus Jacareí)                                                      |
+| `moderacao@demo.cienciadelas.dev` | Priscila Teixeira  | **moderadora**           | psicóloga, cuida dos espaços de apoio                                                     |
+| `marina@demo.cienciadelas.dev`    | Marina Albuquerque | mentora (3 vagas)        | docente de computação, IFSP — Câmpus Jacareí                                              |
+| `luiza@demo.cienciadelas.dev`     | Luiza Fernandes    | mentora                  | sensoriamento remoto, INPE                                                                |
+| `beatriz@demo.cienciadelas.dev`   | Beatriz Nogueira   | mentora                  | engenharia de materiais, UNIFESP                                                          |
+| `carolina@demo.cienciadelas.dev`  | Carolina Mendes    | mentora                  | bioquímica (pós-doc), USP                                                                 |
+| `fernanda@demo.cienciadelas.dev`  | Fernanda Okabe     | mentora                  | ecologia, INPA                                                                            |
+| `patricia@demo.cienciadelas.dev`  | Patrícia Santos    | mentora (3 vagas)        | saúde coletiva, Fiocruz                                                                   |
+| `renata@demo.cienciadelas.dev`    | Renata Carvalho    | mentora (1 vaga)         | engenharia aeroespacial, indústria                                                        |
+| `juliana@demo.cienciadelas.dev`   | Juliana Ribeiro    | mentora                  | matemática aplicada, UNICAMP                                                              |
+| `aline@demo.cienciadelas.dev`     | Aline Barbosa      | mentora **indisponível** | física, CBPF                                                                              |
+| `tatiane@demo.cienciadelas.dev`   | Tatiane Moreira    | mentora                  | ensino de ciências, UFSCar                                                                |
+| `camila@demo.cienciadelas.dev`    | Camila Yamamoto    | mentora                  | química (pós-doc), UFMG                                                                   |
+| `isabela@demo.cienciadelas.dev`   | Isabela Prado      | mentora                  | ciência de alimentos, Embrapa                                                             |
+| `larissa@demo.cienciadelas.dev`   | Larissa Gomes      | mentoranda               | graduação (ADS), IFSP — Câmpus Jacareí · mentoria **aceita** com Marina                   |
+| `gabriela@demo.cienciadelas.dev`  | Gabriela Lima      | mentoranda               | mestrado em materiais · mentoria aceita com Beatriz · autora do tópico anônimo em "apoio" |
+| `manuela@demo.cienciadelas.dev`   | Manuela Costa      | mentoranda               | doutorado em ecologia · pedido **pendente** com Fernanda                                  |
+| `yasmin@demo.cienciadelas.dev`    | Yasmin Oliveira    | mentoranda               | graduação em química · pedido pendente com Camila                                         |
+| `debora@demo.cienciadelas.dev`    | Débora Alves       | mentoranda               | doutorado em saúde coletiva · mentoria **concluída** com Patrícia                         |
+
+O seed também traz: 64 áreas de pesquisa, as 8 categorias do fórum, 8 tópicos (um anônimo,
+um com solução marcada, um fixado), 15 respostas, reações, 12 papers com votos espalhados no
+tempo (o líder da semana, do mês e de todos os tempos são diferentes), comentários,
+notificações, uma denúncia aberta e uma edição publicada da newsletter da semana anterior.
+O seed **não** cria embeddings (o matching usa heurística até cada perfil gerar o seu).
+UUIDs são fixos (ex.: mentoras `d1000000-…`, papers `b1000000-…`), e o seed pode ser
+reaplicado sem duplicar dados.
+
+---
+
+## 16. Newsletter semanal com pg_cron + pg_net (opcional)
+
+O caminho padrão é o cron da Vercel (`vercel.json`) chamando `GET /api/cron/newsletter`.
+Se preferir agendar pelo próprio Supabase (ex.: para não depender do cron da Vercel), use
+`pg_cron` + `pg_net` guardando a URL e o segredo no **Vault**. Rode no SQL Editor do projeto
+(não é uma migration, porque os valores mudam por ambiente):
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;
+
+-- Segredos no Vault (nunca em texto puro na definição do job)
+select vault.create_secret('https://SEU-APP.vercel.app', 'app_url', 'URL pública do app');
+select vault.create_secret('COLE-AQUI-O-CRON_SECRET', 'cron_secret', 'Mesmo valor de CRON_SECRET na Vercel');
+
+-- Toda segunda-feira às 12:00 UTC (9h em Brasília)
+select cron.schedule(
+  'newsletter-semanal',
+  '0 12 * * 1',
+  $$
+  select net.http_get(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'app_url')
+           || '/api/cron/newsletter',
+    headers := jsonb_build_object(
+      'Authorization',
+      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
+    ),
+    timeout_milliseconds := 30000
+  );
+  $$
+);
+
+-- Conferir execuções / respostas HTTP
+select * from cron.job_run_details order by start_time desc limit 5;
+select id, status_code, content from net._http_response order by created desc limit 5;
+
+-- Desligar
+select cron.unschedule('newsletter-semanal');
+```
+
+---
+
+## 17. Pegadinhas e boas práticas
+
+- **Perfis: use `update`, não `upsert`.** O upsert do PostgREST coloca todas as colunas
+  enviadas no `DO UPDATE SET`, inclusive `id`, que não tem GRANT de UPDATE (proposital).
+  O perfil já existe desde o cadastro.
+- **Nunca `select('*')` de `profiles` para mostrar outra pessoa** — selecione colunas
+  públicas (`id, full_name, avatar_url, headline, ...`). `ai_consent`, `role` e metas de
+  mentoria são dados internos.
+- **Upsert com GRANT por coluna:** `profile_embeddings` e `mentor_suggestions` aceitam upsert
+  (o GRANT de UPDATE inclui a chave). Para reações, prefira `ignoreDuplicates: true`.
+- **Rascunhos da newsletter** são escritos pelo servidor com `createAdminClient()`; admins
+  também conseguem pelo RLS, se o painel precisar.
+- **Moderação:** fixar/trancar tópicos e ocultar papers só pelas RPCs; apagar conteúdo é um
+  `delete` comum (o RLS libera para moderadoras).
+- **`service_role` ignora o RLS** — use `createAdminClient()` só em newsletter, cron e
+  tarefas administrativas, nunca no fluxo normal de uma usuária.
+- **Datas** são `timestamptz` (UTC no banco). Formate em `America/Sao_Paulo` na interface.
+- **Notificações em tempo real:** `supabase.channel('notificacoes').on('postgres_changes',
+{ event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, ...)`.

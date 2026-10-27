@@ -18,7 +18,10 @@ export interface HttpRequest {
  * Interpreta o cabeçalho `retry-after` (segundos, inclusive fracionados, ou data HTTP) e
  * devolve o atraso em ms. Retorna `undefined` quando ausente ou ilegível.
  */
-export function parseRetryAfter(value: string | null | undefined, now: number = Date.now()): number | undefined {
+export function parseRetryAfter(
+  value: string | null | undefined,
+  now: number = Date.now(),
+): number | undefined {
   if (!value) return undefined;
   const trimmed = value.trim();
   if (/^\d+(\.\d+)?$/.test(trimmed)) {
@@ -51,10 +54,7 @@ function errorSnippet(body: unknown): string | undefined {
 }
 
 function isAbortLike(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === "TimeoutError" || error.name === "AbortError")
-  );
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 }
 
 /**
@@ -108,15 +108,12 @@ export async function postJson(
   if (!response.ok) {
     const code = codeForStatus(response.status);
     const snippet = errorSnippet(body);
-    throw new AiError(
-      `${provider}: HTTP ${response.status}${snippet ? ` — ${snippet}` : ""}`,
-      {
-        code,
-        provider,
-        status: response.status,
-        retryAfterMs: parseRetryAfter(response.headers.get("retry-after")),
-      },
-    );
+    throw new AiError(`${provider}: HTTP ${response.status}${snippet ? ` — ${snippet}` : ""}`, {
+      code,
+      provider,
+      status: response.status,
+      retryAfterMs: parseRetryAfter(response.headers.get("retry-after")),
+    });
   }
 
   if (bodyReadFailed || body === undefined) {

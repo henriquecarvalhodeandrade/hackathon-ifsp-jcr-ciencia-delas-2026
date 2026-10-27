@@ -1,7 +1,13 @@
 import type { z } from "zod";
 import { AiError, AiUnavailableError, type AiAttemptSummary } from "./errors";
 import { fitDimensions, formatEmbeddingInput } from "./embedding-input";
-import { AI_REQUEST_TIMEOUT_MS, MAX_RETRY_AFTER_MS, postJson, type FetchLike, type HttpRequest } from "./http";
+import {
+  AI_REQUEST_TIMEOUT_MS,
+  MAX_RETRY_AFTER_MS,
+  postJson,
+  type FetchLike,
+  type HttpRequest,
+} from "./http";
 import { parseModelJson, toStrictJsonSchema, zodToStrictJsonSchema } from "./json-schema";
 import {
   buildGeminiEmbedRequest,
@@ -14,11 +20,7 @@ import {
   buildOpenAiCompatibleRequest,
   parseOpenAiCompatibleResponse,
 } from "./providers/openai-compatible";
-import type {
-  EmbeddingKind,
-  JsonGenerationRequest,
-  TextProviderConfig,
-} from "./providers/types";
+import type { EmbeddingKind, JsonGenerationRequest, TextProviderConfig } from "./providers/types";
 
 /**
  * Núcleo da camada de IA, sem dependência de ambiente (puro e testável): recebe a cadeia de
@@ -81,7 +83,10 @@ function buildRequest(
   return buildOpenAiCompatibleRequest(config, request, { siteUrl });
 }
 
-function parseResponse(config: TextProviderConfig, body: unknown): { text: string; model?: string } {
+function parseResponse(
+  config: TextProviderConfig,
+  body: unknown,
+): { text: string; model?: string } {
   if (config.provider === "gemini") return parseGeminiGenerateResponse(body);
   return parseOpenAiCompatibleResponse(config.provider, body);
 }
@@ -93,7 +98,10 @@ async function callProviderOnce<T>(
   deps: Required<Pick<EngineDeps, "timeoutMs">> & EngineDeps,
 ): Promise<GenerateJsonResult<T>> {
   const http = buildRequest(config, request, deps.siteUrl);
-  const body = await postJson(config.provider, http, { fetch: deps.fetch, timeoutMs: deps.timeoutMs });
+  const body = await postJson(config.provider, http, {
+    fetch: deps.fetch,
+    timeoutMs: deps.timeoutMs,
+  });
   const { text, model } = parseResponse(config, body);
   const parsed = parseModelJson(text, schema);
   if (!parsed.ok) {
@@ -241,7 +249,9 @@ export async function embedWithConfig(
                 provider: "gemini",
                 cause: error,
               });
-        log(`embeddings ${config.model} falhou (${aiError.code}${aiError.status ? ` ${aiError.status}` : ""}, tentativa ${attempt + 1})`);
+        log(
+          `embeddings ${config.model} falhou (${aiError.code}${aiError.status ? ` ${aiError.status}` : ""}, tentativa ${attempt + 1})`,
+        );
         const canRetry =
           attempt === 0 &&
           aiError.retryable &&

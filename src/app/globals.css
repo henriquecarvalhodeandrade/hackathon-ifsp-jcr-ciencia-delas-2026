@@ -1,26 +1,665 @@
+/*
+ * Ciência Delas — Design system "Constelação"
+ * --------------------------------------------------------------------------
+ * Fonte da verdade dos tokens visuais. Documentação: docs/02-design-system.md
+ * Guia vivo: /design-system
+ *
+ * Como o tema funciona
+ * - Os tokens semânticos usam light-dark(claro, escuro). Quem decide qual lado vale
+ *   é a propriedade `color-scheme` do elemento:
+ *     :root sem data-theme   → "light dark" (segue o sistema operacional, inclusive sem JS)
+ *     [data-theme="light"]   → claro    ·    [data-theme="dark"] → escuro
+ *   O script no <head> (THEME_SCRIPT em src/components/layout/theme.ts) grava o tema resolvido
+ *   em <html data-theme="..."> antes da pintura, então não há flash.
+ * - Qualquer elemento pode virar uma "ilha" de tema com data-theme="dark" ou "light"
+ *   (o guia vivo usa isso para mostrar os dois temas lado a lado).
+ * - Prefira SEMPRE as utilidades semânticas (bg-surface, text-fg-muted, bg-primary...).
+ *   A variante dark: existe, mas é válvula de escape.
+ *
+ * As cores da paleta foram geradas em OKLCH e conferidas com WCAG 2.2 (AA) — a tabela
+ * de contraste fica em src/app/design-system/_data/tokens.ts e é verificada no guia vivo.
+ * Se mudar um valor aqui, mude lá também (o guia acusa divergências).
+ */
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* dark: funciona com data-theme="dark" e, sem escolha explícita, com o tema do sistema. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ------------------------------------------------------------------------ */
+/* 1. Paleta primitiva (escalas 50–950)                                      */
+/* ------------------------------------------------------------------------ */
+@theme static {
+  /* Remove a paleta padrão do Tailwind: use os tokens da marca. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Violeta sufragista — dignidade (movimento pelo voto feminino, 1908) */
+  --color-violeta-50: #f8f3ff;
+  --color-violeta-100: #efe6ff;
+  --color-violeta-200: #e0d0ff;
+  --color-violeta-300: #cbaeff;
+  --color-violeta-400: #ae83f5;
+  --color-violeta-500: #935be4;
+  --color-violeta-600: #7b40cc;
+  --color-violeta-700: #6530ac;
+  --color-violeta-800: #4f278a;
+  --color-violeta-900: #3a1c68;
+  --color-violeta-950: #251046;
+
+  /* Verde — esperança (sufragistas) e verde institucional dos Institutos Federais */
+  --color-verde-50: #edfbef;
+  --color-verde-100: #d9f6dd;
+  --color-verde-200: #b8eebf;
+  --color-verde-300: #8ce098;
+  --color-verde-400: #5bc96c;
+  --color-verde-500: #32a041;
+  --color-verde-600: #258632;
+  --color-verde-700: #1e6b25;
+  --color-verde-800: #1b541c;
+  --color-verde-900: #164014;
+  --color-verde-950: #0c270a;
+
+  /* Âmbar — estrelas, destaques e votos */
+  --color-ambar-50: #fff9f0;
+  --color-ambar-100: #fff0db;
+  --color-ambar-200: #ffe1b8;
+  --color-ambar-300: #ffcc88;
+  --color-ambar-400: #ffb24a;
+  --color-ambar-500: #f39a04;
+  --color-ambar-600: #cf7f00;
+  --color-ambar-700: #a46100;
+  --color-ambar-800: #844a00;
+  --color-ambar-900: #6a3a06;
+  --color-ambar-950: #432204;
+
+  /* Carmim — perigo, erros e ações destrutivas */
+  --color-carmim-50: #fff1f2;
+  --color-carmim-100: #ffe3e5;
+  --color-carmim-200: #ffc9cc;
+  --color-carmim-300: #ffa4aa;
+  --color-carmim-400: #f6707f;
+  --color-carmim-500: #e5405c;
+  --color-carmim-600: #ca2145;
+  --color-carmim-700: #aa1336;
+  --color-carmim-800: #87112a;
+  --color-carmim-900: #681020;
+  --color-carmim-950: #440711;
+
+  /* Azul — informação */
+  --color-azul-50: #eff7ff;
+  --color-azul-100: #deedff;
+  --color-azul-200: #bfdcff;
+  --color-azul-300: #95c5ff;
+  --color-azul-400: #62a6f8;
+  --color-azul-500: #3586e6;
+  --color-azul-600: #206dc9;
+  --color-azul-700: #1858a5;
+  --color-azul-800: #164582;
+  --color-azul-900: #133563;
+  --color-azul-950: #0c2140;
+
+  /* Tinta — neutros levemente violeta (inclui 25 = papel e 975 = céu noturno) */
+  --color-tinta-25: #fcfbfe;
+  --color-tinta-50: #f6f5fa;
+  --color-tinta-100: #eeebf3;
+  --color-tinta-200: #dfdce6;
+  --color-tinta-300: #c9c5d2;
+  --color-tinta-400: #8e8998;
+  --color-tinta-500: #75707e;
+  --color-tinta-600: #625e6b;
+  --color-tinta-700: #4c4855;
+  --color-tinta-800: #37333e;
+  --color-tinta-900: #26232d;
+  --color-tinta-950: #1a1820;
+  --color-tinta-975: #110f16;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 2. Tokens semânticos — registro para o Tailwind                          */
+/* ------------------------------------------------------------------------ */
+/*
+ * Aqui só REGISTRAMOS os nomes, para o Tailwind gerar bg-surface, text-fg-muted,
+ * border-border-strong, bg-primary/10 etc. Os valores reais (claro/escuro) ficam em
+ * "4. Valores dos tokens por tema", no @layer base, declarados em :root E em cada
+ * [data-theme] — assim uma "ilha" data-theme="dark" dentro da página claro funciona.
+ * (O Tailwind compila light-dark() para variáveis resolvidas no elemento onde o token
+ * é declarado; por isso os tokens precisam ser redeclarados em cada ilha.)
+ */
+@theme {
+  --color-bg: currentColor;
+  --color-surface: currentColor;
+  --color-surface-2: currentColor;
+  --color-fg: currentColor;
+  --color-fg-muted: currentColor;
+  --color-fg-subtle: currentColor;
+  --color-border: currentColor;
+  --color-border-strong: currentColor;
+  --color-primary: currentColor;
+  --color-primary-hover: currentColor;
+  --color-primary-fg: currentColor;
+  --color-primary-soft: currentColor;
+  --color-primary-soft-fg: currentColor;
+  --color-secondary: currentColor;
+  --color-secondary-hover: currentColor;
+  --color-secondary-fg: currentColor;
+  --color-secondary-soft: currentColor;
+  --color-secondary-soft-fg: currentColor;
+  --color-accent: currentColor;
+  --color-accent-hover: currentColor;
+  --color-accent-fg: currentColor;
+  --color-accent-soft: currentColor;
+  --color-accent-soft-fg: currentColor;
+  --color-accent-strong: currentColor;
+  --color-success: currentColor;
+  --color-success-fg: currentColor;
+  --color-success-soft: currentColor;
+  --color-success-soft-fg: currentColor;
+  --color-warning: currentColor;
+  --color-warning-fg: currentColor;
+  --color-warning-soft: currentColor;
+  --color-warning-soft-fg: currentColor;
+  --color-danger: currentColor;
+  --color-danger-hover: currentColor;
+  --color-danger-fg: currentColor;
+  --color-danger-soft: currentColor;
+  --color-danger-soft-fg: currentColor;
+  --color-info: currentColor;
+  --color-info-fg: currentColor;
+  --color-info-soft: currentColor;
+  --color-info-soft-fg: currentColor;
+  --color-focus: currentColor;
+  --color-overlay: currentColor;
+
+  /* Raios por papel (não arredonde tudo igual) */
+  --radius-badge: 0.375rem; /* badges, kbd, código inline */
+  --radius-control: 0.625rem; /* botões, campos, itens de menu */
+  --radius-card: 1rem; /* cartões e painéis */
+  --radius-dialog: 1.25rem; /* diálogos e gavetas */
+  --radius-pill: 999px; /* chips, tags, contadores */
+
+  /* Sombras por camada. O Tailwind copia o valor para dentro de cada utilitário (shadow-card),
+     então light-dark() aqui é resolvido no próprio elemento — funciona em ilhas de tema. */
+  --shadow-card:
+    0 1px 2px light-dark(rgb(37 16 70 / 0.06), rgb(0 0 0 / 0.4)),
+    0 1px 1px light-dark(rgb(37 16 70 / 0.03), rgb(0 0 0 / 0.2));
+  --shadow-raised:
+    0 10px 24px -8px light-dark(rgb(37 16 70 / 0.16), rgb(0 0 0 / 0.55)),
+    0 2px 6px -2px light-dark(rgb(37 16 70 / 0.08), rgb(0 0 0 / 0.35));
+  --shadow-overlay:
+    0 24px 56px -12px light-dark(rgb(37 16 70 / 0.28), rgb(0 0 0 / 0.7)),
+    0 6px 16px -6px light-dark(rgb(37 16 70 / 0.14), rgb(0 0 0 / 0.45));
+
+  /* Escala tipográfica (tamanho / entrelinha) */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 2.625rem;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 3.25rem;
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.035em;
+
+  /* Movimento */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-fade-in: fade-in 160ms var(--ease-out-soft);
+  --animate-pop-in: pop-in 180ms var(--ease-out-soft);
+  --animate-slide-in-right: slide-in-right 220ms var(--ease-out-soft);
+  --animate-twinkle: twinkle 4.5s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+
+/* Famílias tipográficas (variáveis injetadas por next/font no <html>) */
+@theme inline {
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-atkinson-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 3. Base                                                                   */
+/* ------------------------------------------------------------------------ */
+@layer base {
+  /* Esquema de cor: sem escolha → segue o sistema; data-theme força claro ou escuro. */
+  :root {
+    color-scheme: light dark;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  /*
+   * 4. Valores dos tokens por tema — light-dark(claro, escuro).
+   * Declarados em :root e em toda ilha [data-theme] para que cada uma resolva o próprio tema.
+   * Espelho em src/app/design-system/_data/tokens.ts (o guia vivo confere os dois).
+   */
+  :root,
+  [data-theme] {
+    /* Superfícies e texto */
+    --color-bg: light-dark(var(--color-tinta-25), var(--color-tinta-975));
+    --color-surface: light-dark(var(--color-white), var(--color-tinta-950));
+    --color-surface-2: light-dark(var(--color-tinta-50), var(--color-tinta-900));
+    --color-fg: light-dark(var(--color-tinta-950), var(--color-tinta-50));
+    --color-fg-muted: light-dark(var(--color-tinta-700), var(--color-tinta-300));
+    --color-fg-subtle: light-dark(var(--color-tinta-600), var(--color-tinta-400));
+    --color-border: light-dark(var(--color-tinta-200), var(--color-tinta-800));
+    --color-border-strong: light-dark(var(--color-tinta-400), var(--color-tinta-500));
+
+    /* Primária — violeta */
+    --color-primary: light-dark(var(--color-violeta-700), var(--color-violeta-300));
+    --color-primary-hover: light-dark(var(--color-violeta-800), var(--color-violeta-200));
+    --color-primary-fg: light-dark(var(--color-white), var(--color-violeta-950));
+    --color-primary-soft: light-dark(var(--color-violeta-100), var(--color-violeta-900));
+    --color-primary-soft-fg: light-dark(var(--color-violeta-800), var(--color-violeta-100));
+
+    /* Secundária — verde */
+    --color-secondary: light-dark(var(--color-verde-700), var(--color-verde-400));
+    --color-secondary-hover: light-dark(var(--color-verde-800), var(--color-verde-300));
+    --color-secondary-fg: light-dark(var(--color-white), var(--color-verde-950));
+    --color-secondary-soft: light-dark(var(--color-verde-100), var(--color-verde-900));
+    --color-secondary-soft-fg: light-dark(var(--color-verde-800), var(--color-verde-100));
+
+    /* Destaque — âmbar (estrelas, votos) */
+    --color-accent: light-dark(var(--color-ambar-400), var(--color-ambar-400));
+    --color-accent-hover: light-dark(var(--color-ambar-300), var(--color-ambar-300));
+    --color-accent-fg: light-dark(var(--color-ambar-950), var(--color-ambar-950));
+    --color-accent-soft: light-dark(var(--color-ambar-100), var(--color-ambar-900));
+    --color-accent-soft-fg: light-dark(var(--color-ambar-900), var(--color-ambar-100));
+    --color-accent-strong: light-dark(var(--color-ambar-700), var(--color-ambar-400));
+
+    /* Estados */
+    --color-success: light-dark(var(--color-verde-700), var(--color-verde-400));
+    --color-success-fg: light-dark(var(--color-white), var(--color-verde-950));
+    --color-success-soft: light-dark(var(--color-verde-50), var(--color-verde-950));
+    --color-success-soft-fg: light-dark(var(--color-verde-800), var(--color-verde-200));
+
+    --color-warning: light-dark(var(--color-ambar-800), var(--color-ambar-400));
+    --color-warning-fg: light-dark(var(--color-white), var(--color-ambar-950));
+    --color-warning-soft: light-dark(var(--color-ambar-50), var(--color-ambar-950));
+    --color-warning-soft-fg: light-dark(var(--color-ambar-900), var(--color-ambar-200));
+
+    --color-danger: light-dark(var(--color-carmim-700), var(--color-carmim-400));
+    --color-danger-hover: light-dark(var(--color-carmim-800), var(--color-carmim-300));
+    --color-danger-fg: light-dark(var(--color-white), var(--color-carmim-950));
+    --color-danger-soft: light-dark(var(--color-carmim-50), var(--color-carmim-950));
+    --color-danger-soft-fg: light-dark(var(--color-carmim-800), var(--color-carmim-200));
+
+    --color-info: light-dark(var(--color-azul-700), var(--color-azul-300));
+    --color-info-fg: light-dark(var(--color-white), var(--color-azul-950));
+    --color-info-soft: light-dark(var(--color-azul-50), var(--color-azul-950));
+    --color-info-soft-fg: light-dark(var(--color-azul-800), var(--color-azul-200));
+
+    --color-focus: light-dark(var(--color-violeta-600), var(--color-violeta-300));
+    --color-overlay: light-dark(rgb(26 24 32 / 0.5), rgb(0 0 0 / 0.66));
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-padding-top: 5.5rem;
+    background-color: var(--color-bg);
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  dd,
+  blockquote {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-soft-fg);
+  }
+
+  /* Foco visível e consistente em todo elemento interativo */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  /* Alvos de pular-conteúdo (tabIndex=-1) não precisam de anel */
+  [tabindex="-1"]:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::placeholder {
+    color: var(--color-fg-subtle);
+    opacity: 1;
+  }
+
+  /* Trava a rolagem do fundo enquanto um diálogo modal estiver aberto */
+  html:has(dialog[open]:modal) {
+    overflow: hidden;
+  }
+
+  dialog::backdrop {
+    /* ::backdrop nem sempre herda variáveis: mantém um valor de reserva */
+    background-color: var(--color-overlay, rgb(26 24 32 / 0.55));
+  }
+
+  /* Ícones nunca "encolhem" dentro de flex */
+  svg.lucide {
+    flex-shrink: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media (forced-colors: active) {
+    :focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* 4. Componentes de conteúdo                                                */
+/* ------------------------------------------------------------------------ */
+@layer components {
+  /* Markdown renderizado (fórum, papers, newsletter). Use via <Markdown />. */
+  .prose-delas {
+    color: var(--color-fg);
+    font-size: var(--text-base);
+    line-height: 1.7;
+    overflow-wrap: break-word;
+    max-width: 72ch;
+
+    & > :first-child {
+      margin-top: 0;
+    }
+    & > :last-child {
+      margin-bottom: 0;
+    }
+
+    & p,
+    & ul,
+    & ol,
+    & blockquote,
+    & pre,
+    & table,
+    & figure,
+    & .prose-table {
+      margin-block: 1em;
+    }
+
+    & h2,
+    & h3,
+    & h4,
+    & h5,
+    & h6 {
+      color: var(--color-fg);
+      margin-top: 1.75em;
+      margin-bottom: 0.5em;
+      line-height: 1.25;
+    }
+    & h2 {
+      font-size: var(--text-2xl);
+    }
+    & h3 {
+      font-size: var(--text-xl);
+    }
+    & h4 {
+      font-size: var(--text-lg);
+    }
+    & h5,
+    & h6 {
+      font-size: var(--text-base);
+    }
+
+    & a {
+      color: var(--color-primary);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.18em;
+      font-weight: 550;
+    }
+    & a:hover {
+      text-decoration-thickness: 2px;
+    }
+
+    & strong {
+      font-weight: 700;
+    }
+
+    & ul,
+    & ol {
+      padding-left: 1.4em;
+    }
+    & ul {
+      list-style: disc;
+    }
+    & ol {
+      list-style: decimal;
+    }
+    & li {
+      margin-block: 0.35em;
+      padding-left: 0.2em;
+    }
+    & li::marker {
+      color: var(--color-fg-subtle);
+    }
+    & ul ul,
+    & ol ol,
+    & ul ol,
+    & ol ul {
+      margin-block: 0.35em;
+    }
+    & li > input[type="checkbox"] {
+      margin-right: 0.5em;
+      accent-color: var(--color-primary);
+    }
+    & ul:has(> li > input[type="checkbox"]) {
+      list-style: none;
+      padding-left: 0.2em;
+    }
+
+    & blockquote {
+      border-left: 3px solid var(--color-border-strong);
+      padding: 0.15em 0 0.15em 1em;
+      color: var(--color-fg-muted);
+      font-family: var(--font-serif);
+      font-size: 1.075em;
+      font-style: italic;
+    }
+
+    & code {
+      font-family: var(--font-mono);
+      font-size: 0.875em;
+      background-color: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-badge);
+      padding: 0.1em 0.35em;
+    }
+    & pre {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+      background-color: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+      padding: 0.9em 1.1em;
+      overflow-x: auto;
+    }
+    & pre code {
+      background: none;
+      border: 0;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    & hr {
+      border: 0;
+      border-top: 1px solid var(--color-border);
+      margin-block: 2em;
+    }
+
+    & img {
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--radius-control);
+    }
+
+    & .prose-table {
+      overflow-x: auto;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+    }
+    & table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+      margin: 0;
+    }
+    & th,
+    & td {
+      text-align: left;
+      padding: 0.55em 0.85em;
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: top;
+    }
+    & thead th {
+      background-color: var(--color-surface-2);
+      font-weight: 700;
+    }
+    & tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    & del {
+      color: var(--color-fg-subtle);
+    }
+  }
+
+  /* Variante editorial (newsletter, resumos): serifada, um pouco maior */
+  .prose-delas-editorial {
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    line-height: 1.7;
+
+    & h2,
+    & h3,
+    & h4 {
+      font-family: var(--font-display);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* 5. Utilidades extras                                                      */
+/* ------------------------------------------------------------------------ */
+
+/* Números alinhados (rankings, contadores) */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Texto "olho" (eyebrow) acima de títulos */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Esconde a barra de rolagem mantendo a rolagem (listas horizontais) */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

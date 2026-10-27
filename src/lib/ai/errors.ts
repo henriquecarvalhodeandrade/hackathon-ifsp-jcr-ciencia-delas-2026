@@ -23,7 +23,9 @@ export type AiErrorCode =
 
 export class AiUnavailableError extends Error {
   override readonly name = "AiUnavailableError";
-  constructor(message = "Nenhum provedor de IA configurado (defina GEMINI_API_KEY, GROQ_API_KEY ou OPENROUTER_API_KEY).") {
+  constructor(
+    message = "Nenhum provedor de IA configurado (defina GEMINI_API_KEY, GROQ_API_KEY ou OPENROUTER_API_KEY).",
+  ) {
     super(message);
   }
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <title>Avatar ilustrativo</title>
+  <rect width="120" height="120" fill="#3a1c68"/>
+  <circle cx="92" cy="26" r="5" fill="#ffb24a"/>
+  <circle cx="22" cy="20" r="1.6" fill="#e0d0ff"/>
+  <circle cx="104" cy="58" r="1.4" fill="#e0d0ff"/>
+  <path d="M14 30 L30 18 L46 24" stroke="#cbaeff" stroke-width="1.2" fill="none" opacity=".7"/>
+  <path d="M30 120c0-22 13-38 30-38s30 16 30 38z" fill="#5bc96c"/>
+  <circle cx="60" cy="56" r="22" fill="#c98b62"/>
+  <path d="M36 58c-2-22 10-34 25-34 16 0 27 12 24 34-3-10-9-16-14-18-6 6-20 10-35 18z" fill="#251046"/>
+</svg>

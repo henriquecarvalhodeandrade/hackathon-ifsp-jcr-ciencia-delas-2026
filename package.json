@@ -15,9 +15,12 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:types": "supabase gen types typescript --local --schema public > src/lib/database.types.ts",
-    "db:types:remote": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_REF\" --schema public > src/lib/database.types.ts",
-    "db:push": "supabase db push"
+    "db:types": "bash scripts/db/gen-types.sh --local",
+    "db:types:remote": "bash scripts/db/gen-types.sh --remote",
+    "db:push": "supabase db push",
+    "db:test": "supabase test db",
+    "db:validate": "bash scripts/db/validate-local.sh",
+    "ai:backfill": "tsx scripts/ai/backfill-embeddings.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
