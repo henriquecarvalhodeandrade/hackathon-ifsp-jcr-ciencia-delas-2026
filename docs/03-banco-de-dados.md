@@ -934,7 +934,10 @@ migrations usam (`vector(768)`, `<=>`, HNSW `vector_cosine_ops`) funciona nos do
 > **Todas fictícias.** Senha de todas: **`ciencia-delas-demo`**. Pessoas, papers (DOIs no
 > prefixo de teste `10.5555/demo.*`) e a edição da newsletter são inventados para a
 > apresentação do hackathon; bios e resumos terminam com "(... fictício de demonstração.)".
-> Não use o seed em produção.
+> Não use o seed em produção. Num projeto da nuvem preparado com
+> `scripts/deploy/setup-supabase-cloud.mjs --with-demo-seed`, a senha de todas é trocada por senhas
+> aleatórias logo depois do seed (as de `admin@` e `moderacao@` ficam só no arquivo do `--write-env`;
+> [docs/14 §3.3](14-painel-e-modo-demo.md)).
 
 | E-mail                            | Nome               | Papel                    | Perfil                                                                                    |
 | --------------------------------- | ------------------ | ------------------------ | ----------------------------------------------------------------------------------------- |

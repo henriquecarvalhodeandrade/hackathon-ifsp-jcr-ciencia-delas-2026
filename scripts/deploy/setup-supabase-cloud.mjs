@@ -23,8 +23,11 @@
  *   --redirect-url=<url>       URL extra para "Redirect URLs" (pode repetir; ex.: previews da Vercel)
  *   --migrations-via-api       aplica as migrations por HTTPS (API de gerenciamento) em vez de
  *                              `supabase db push`; para redes sem acesso TCP ao Postgres
- *   --with-demo-seed           aplica o seed.sql INTEIRO (contas fictícias, senha pública) e depois os
- *                              seeds extras de supabase/seeds/*.sql (idempotentes). Nunca em produção.
+ *   --with-demo-seed           aplica o seed.sql INTEIRO (contas fictícias) e depois os seeds extras de
+ *                              supabase/seeds/*.sql (idempotentes); em seguida troca a senha pública de
+ *                              TODAS as contas @demo.cienciadelas.dev por senhas aleatórias. As novas
+ *                              senhas de admin@ e moderacao@ vão só para o arquivo de --write-env
+ *                              (obrigatório com esta flag). Nunca em produção.
  *   --help                     mostra esta ajuda
  *
  * Variáveis opcionais: VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT, CRON_SECRET, GEMINI_API_KEY,
@@ -62,6 +65,30 @@ export const DEFAULT_ENV_FILE = ".env.cloud";
 export const STORAGE_BUCKET = "avatars";
 /** Placeholder usado só na simulação sem SUPABASE_PROJECT_REF (20 letras minúsculas, como um ref real). */
 export const PLACEHOLDER_REF = "xxxxxxxxxxxxxxxxxxxx";
+
+/** Domínio das contas fictícias do seed (o mesmo DEMO_EMAIL_DOMAIN de src/lib/demo/personas.ts). */
+export const DEMO_EMAIL_DOMAIN = "demo.cienciadelas.dev";
+/**
+ * Contas da equipe no seed de demonstração (papéis admin e moderator). São as únicas cujas senhas
+ * novas a equipe recebe, e só pelo arquivo de --write-env. As personas ficam com senhas aleatórias
+ * que ninguém conhece: o /demo entra nelas por link mágico com a chave secreta (docs/14).
+ */
+export const DEMO_STAFF_ACCOUNTS = [
+  { email: `admin@${DEMO_EMAIL_DOMAIN}`, envPrefix: "DEMO_ADMIN" },
+  { email: `moderacao@${DEMO_EMAIL_DOMAIN}`, envPrefix: "DEMO_MODERACAO" },
+];
+/** Variáveis que ficam SÓ no arquivo local: nunca vão para a Vercel (nem se alguém as passar adiante). */
+export const LOCAL_ONLY_ENV_KEYS = new Set(
+  DEMO_STAFF_ACCOUNTS.flatMap(({ envPrefix }) => [`${envPrefix}_EMAIL`, `${envPrefix}_PASSWORD`]),
+);
+/** Comentário que acompanha essas variáveis no arquivo local. */
+const DEMO_STAFF_ENV_NOTE =
+  "Senhas da equipe nas contas de demonstração (admin@ e moderacao@), trocadas a cada --with-demo-seed: só para a equipe — NÃO cadastre na Vercel.";
+/** 24 bytes aleatórios = 32 caracteres em base64url. */
+export const DEMO_PASSWORD_BYTES = 24;
+/** Formato aceito para uma senha gerada: só o alfabeto base64url (sem aspas, barras, $ ou espaços). */
+const DEMO_PASSWORD_PATTERN = /^[A-Za-z0-9_-]{20,}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** Arquivos que o próprio Next.js carrega em `next dev`/`next build` locais. */
 const NEXT_AUTOLOADED_ENV_FILES = new Set([
@@ -358,8 +385,15 @@ export function buildConfig(args, env, { packageName } = {}) {
     );
   }
   if (args.withDemoSeed) {
+    // Sem o arquivo, as senhas novas de admin@ e moderacao@ não chegariam a ninguém: a equipe ficaria
+    // sem acesso a essas contas. Recusa já, antes de qualquer chamada.
+    if (!args.writeEnv) {
+      errors.push(
+        `--with-demo-seed precisa de --write-env: depois do seed, o script troca a senha pública de todas as contas @${DEMO_EMAIL_DOMAIN} por senhas aleatórias, e as novas senhas de admin@ e moderacao@ só são entregues nesse arquivo (sem ele, a equipe ficaria sem acesso a essas contas). Rode de novo com --with-demo-seed --write-env (padrão ${DEFAULT_ENV_FILE}).`,
+      );
+    }
     warnings.push(
-      "--with-demo-seed: o seed.sql INTEIRO será aplicado, com contas FICTÍCIAS e senha PÚBLICA. Use só num projeto de demonstração, nunca em produção real.",
+      `--with-demo-seed: o seed.sql INTEIRO será aplicado, com contas FICTÍCIAS; logo depois, a senha pública delas é trocada por senhas aleatórias (as de admin@ e moderacao@ ficam só no arquivo de --write-env). Use só num projeto de demonstração, nunca em produção real.`,
     );
   }
 
@@ -409,18 +443,52 @@ export function maskSecret(value) {
   return `${prefix}****(${str.length} caracteres)`;
 }
 
+/**
+ * Pedaço mínimo de um segredo gerado que ainda é mascarado. Menos que isso não ajuda ninguém: 5
+ * caracteres de uma senha de 32 em base64url deixam 162 bits desconhecidos.
+ */
+const FRAGMENT_WINDOW = 6;
+/** Trecho de texto no alfabeto base64url (onde um pedaço de senha gerada poderia aparecer). */
+const BASE64URL_RUN = new RegExp(`[A-Za-z0-9_-]{${FRAGMENT_WINDOW},}`, "g");
+
+/** true se `run` tiver em comum com `secret` um pedaço de FRAGMENT_WINDOW caracteres ou mais. */
+function sharesFragment(run, secret) {
+  for (let i = 0; i + FRAGMENT_WINDOW <= run.length; i++) {
+    if (secret.includes(run.slice(i, i + FRAGMENT_WINDOW))) return true;
+  }
+  return false;
+}
+
 /** Cria uma função que troca qualquer segredo conhecido pela versão mascarada. */
 export function createRedactor() {
   const secrets = new Set();
+  // Segredos gerados por este script (senhas das contas de demonstração): mascara também PEDAÇOS
+  // deles, porque uma mensagem de erro cortada (ex.: o eco do SQL truncado em 400 caracteres) pode
+  // trazer só parte do valor, que a troca exata acima não reconheceria.
+  const fragmentSecrets = new Set();
   const redact = (text) => {
     let out = String(text);
     for (const secret of [...secrets].sort((a, b) => b.length - a.length)) {
       if (out.includes(secret)) out = out.split(secret).join(maskSecret(secret));
     }
+    if (fragmentSecrets.size) {
+      out = out.replace(BASE64URL_RUN, (run) =>
+        [...fragmentSecrets].some((s) => sharesFragment(run, s))
+          ? `****(${run.length} caracteres)`
+          : run,
+      );
+    }
     return out;
   };
   redact.add = (...values) => {
     for (const v of values) if (typeof v === "string" && v.length >= 6) secrets.add(v);
+  };
+  redact.addWithFragments = (...values) => {
+    for (const v of values) {
+      if (typeof v !== "string" || v.length < 6) continue;
+      secrets.add(v);
+      fragmentSecrets.add(v);
+    }
   };
   return redact;
 }
@@ -728,6 +796,139 @@ export const MIGRATION_HISTORY_SQL =
   "select version from supabase_migrations.schema_migrations order by version;";
 
 // -----------------------------------------------------------------------------
+// Senhas das contas de demonstração (--with-demo-seed)
+// -----------------------------------------------------------------------------
+// O seed.sql cria as contas fictícias com uma senha PÚBLICA (está no repositório). Num projeto
+// acessível pela internet, isso deixaria qualquer pessoa entrar como admin@ ou moderacao@. Por isso,
+// depois do seed, toda conta @demo.cienciadelas.dev ganha uma senha aleatória nova.
+//
+// Como: SQL pelo mesmo POST /v1/projects/{ref}/database/query (HTTPS, token de gerenciamento), com
+// extensions.crypt(..., extensions.gen_salt('bf', 10)) — o mesmo bcrypt que o seed.sql usa para criar
+// as contas (o pgcrypto do Supabase fica no schema `extensions`) e que o GoTrue confere no login
+// (hash $2a$, custo 10 = o padrão do próprio GoTrue). Uma única instrução troca todas (tudo ou nada).
+// A API Admin do Auth exigiria a chave secreta (só obtida no passo 6, depois do seed) e uma chamada
+// por conta; aqui a troca acontece logo depois do seed, antes de qualquer outro passo que possa falhar.
+
+const DEMO_EMAIL_LIKE = `'%@${DEMO_EMAIL_DOMAIN}'`;
+
+/** Contas fictícias que existem no banco (id e e-mail; nada de senha). */
+export const DEMO_ACCOUNTS_SQL = `select id::text as id, lower(email) as email from auth.users where lower(email) like ${DEMO_EMAIL_LIKE} order by lower(email);`;
+
+/** Encerra as sessões abertas de admin@ e moderacao@ (quem entrou com a senha antiga sai). */
+export const DEMO_STAFF_SESSIONS_SQL = `delete from auth.sessions where user_id in (select id from auth.users where lower(email) in (${DEMO_STAFF_ACCOUNTS.map(
+  ({ email }) => quoteLiteral(email),
+).join(", ")}));`;
+
+/** Senha aleatória de uma conta de demonstração: node:crypto, base64url, 32 caracteres. */
+export function defaultRandomToken(bytes = DEMO_PASSWORD_BYTES) {
+  return randomBytes(bytes).toString("base64url");
+}
+
+/**
+ * Confere que a senha só tem caracteres base64url e pelo menos 20 deles: assim ela entra num literal
+ * SQL sem nenhum caractere especial (aspas, barra invertida, $). A mensagem nunca inclui o valor.
+ */
+export function assertSafeDemoPassword(password) {
+  if (typeof password !== "string" || !DEMO_PASSWORD_PATTERN.test(password)) {
+    throw new Error(
+      "Senha gerada fora do formato esperado (base64url, 20 caracteres ou mais); nada foi enviado.",
+    );
+  }
+  return password;
+}
+
+/**
+ * Gera uma senha nova para cada conta de demonstração devolvida por DEMO_ACCOUNTS_SQL e separa as da
+ * equipe (admin@ e moderacao@). Recusa ids que não sejam UUID e e-mails fora do domínio fictício.
+ * @param {{id: string, email: string}[]} rows
+ * @param {() => string} nextPassword
+ */
+export function planDemoPasswordRotation(rows, nextPassword) {
+  const accounts = [];
+  const seenIds = new Set();
+  const seenPasswords = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const id = String(row?.id ?? "")
+      .trim()
+      .toLowerCase();
+    const email = String(row?.email ?? "")
+      .trim()
+      .toLowerCase();
+    if (!UUID_PATTERN.test(id)) {
+      throw new Error(`Conta de demonstração com id inválido: "${id.slice(0, 40)}".`);
+    }
+    if (!email.endsWith(`@${DEMO_EMAIL_DOMAIN}`)) {
+      throw new Error(
+        `A lista de contas de demonstração trouxe um e-mail fora de @${DEMO_EMAIL_DOMAIN}.`,
+      );
+    }
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    const password = assertSafeDemoPassword(nextPassword());
+    if (seenPasswords.has(password)) {
+      throw new Error("O gerador de senhas repetiu um valor; nada foi enviado.");
+    }
+    seenPasswords.add(password);
+    accounts.push({ id, email, password });
+  }
+  const staff = DEMO_STAFF_ACCOUNTS.map((s) => ({
+    ...s,
+    account: accounts.find((a) => a.email === s.email) ?? null,
+  }));
+  return { accounts, staff };
+}
+
+/**
+ * UPDATE único das senhas: cada id recebe o bcrypt da sua senha nova, e o WHERE repete o filtro do
+ * domínio fictício (nenhuma conta de fora é tocada, mesmo com um id errado). Ids e senhas são
+ * validados de novo aqui (UUID e base64url) e ainda passam pelo escape de literal.
+ * Devolve os ids trocados (SELECT no fim, para a API devolver as linhas).
+ * @param {{id: string, password: string}[]} accounts
+ */
+export function buildDemoPasswordRotationQuery(accounts) {
+  if (!Array.isArray(accounts) || !accounts.length) {
+    throw new Error("Nenhuma conta de demonstração para trocar a senha.");
+  }
+  const seen = new Set();
+  const values = accounts.map(({ id, password }) => {
+    if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
+      throw new Error("Id de conta de demonstração inválido; nada foi enviado.");
+    }
+    if (seen.has(id)) throw new Error("Conta de demonstração repetida na troca de senhas.");
+    seen.add(id);
+    assertSafeDemoPassword(password);
+    return `    (${quoteLiteral(id)}::uuid, ${quoteLiteral(password)})`;
+  });
+  return [
+    `-- Troca as senhas das contas fictícias (@${DEMO_EMAIL_DOMAIN}) por senhas aleatórias.`,
+    "with novas (id, senha) as (",
+    "  values",
+    values.join(",\n"),
+    "), trocadas as (",
+    "  update auth.users as u",
+    "  set encrypted_password = extensions.crypt(n.senha, extensions.gen_salt('bf', 10)),",
+    "      updated_at = now()",
+    "  from novas as n",
+    `  where u.id = n.id and lower(u.email) like ${DEMO_EMAIL_LIKE}`,
+    "  returning u.id",
+    ")",
+    "select id::text as id from trocadas order by id;",
+    "",
+  ].join("\n");
+}
+
+/** Variáveis da equipe para o arquivo local (só das contas cuja troca a API confirmou). */
+export function demoStaffEnvValues(staff, confirmedIds) {
+  const values = {};
+  for (const { envPrefix, account } of staff) {
+    if (!account || !confirmedIds.has(account.id)) continue;
+    values[`${envPrefix}_EMAIL`] = account.email;
+    values[`${envPrefix}_PASSWORD`] = account.password;
+  }
+  return values;
+}
+
+// -----------------------------------------------------------------------------
 // Auth
 // -----------------------------------------------------------------------------
 
@@ -864,9 +1065,10 @@ export function formatEnvValue(value) {
  * @param {Record<string,string>} values
  * @param {string} [existingText]
  */
-export function buildEnvFile(values, existingText = "", { generatedAt = new Date() } = {}) {
+export function buildEnvFile(values, existingText = "", { generatedAt = new Date(), note } = {}) {
   const pending = new Map(Object.entries(values).filter(([, v]) => v !== undefined && v !== null));
-  const lines = existingText ? existingText.replace(/\r?\n$/, "").split(/\r?\n/) : [];
+  // Arquivo vazio (ou só com linhas em branco) conta como novo: ganha o cabeçalho de segredos.
+  const lines = existingText?.trim() ? existingText.replace(/\r?\n$/, "").split(/\r?\n/) : [];
   const out = lines.map((line) => {
     const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
     if (!m || !pending.has(m[1])) return line;
@@ -887,6 +1089,7 @@ export function buildEnvFile(values, existingText = "", { generatedAt = new Date
         `# Atualizado por scripts/deploy/setup-supabase-cloud.mjs em ${generatedAt.toISOString()}`,
       );
     }
+    if (note) out.push(`# ${String(note).replace(/\r?\n/g, " ")}`);
     for (const [key, value] of pending) out.push(`${key}=${formatEnvValue(value)}`);
   }
   return `${out.join("\n")}\n`;
@@ -908,7 +1111,8 @@ export function resolveCronSecret(env, existingEnv, randomHex) {
 
 /**
  * Lista de variáveis para a Vercel. NEXT_PUBLIC_* e URLs viram "encrypted" (Config, legíveis);
- * chaves e senhas viram "sensitive" (Secret, só escrita).
+ * chaves e senhas viram "sensitive" (Secret, só escrita). As de LOCAL_ONLY_ENV_KEYS (senhas da equipe
+ * nas contas de demonstração) nunca entram, mesmo que apareçam em `appEnv`.
  */
 export function buildVercelEnvVars(appEnv, env, targets = ["production", "preview"]) {
   const items = [
@@ -928,7 +1132,7 @@ export function buildVercelEnvVars(appEnv, env, targets = ["production", "previe
     })),
   ];
   return items
-    .filter((item) => item.value)
+    .filter((item) => item.value && !LOCAL_ONLY_ENV_KEYS.has(item.key))
     .map((item) => ({
       key: item.key,
       value: item.value,
@@ -1272,6 +1476,7 @@ function defaultDeps() {
       return r.status === 0 ? repoNameFromRemoteUrl(r.stdout) : null;
     },
     randomHex: (bytes) => randomBytes(bytes).toString("hex"),
+    randomToken: defaultRandomToken,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     now: () => new Date(),
     stdout: (line) => console.log(line),
@@ -1303,7 +1508,9 @@ Opções:
   --redirect-url=<url>      Redirect URL extra (repetível), ex.: https://*-sua-conta.vercel.app/**
   --migrations-via-api      aplica as migrations por HTTPS em vez de "supabase db push" (rede sem acesso
                             TCP ao Postgres, ex.: sessão na nuvem atrás de proxy)
-  --with-demo-seed          aplica o seed.sql inteiro e os supabase/seeds/*.sql (contas fictícias, senha pública) — nunca em produção
+  --with-demo-seed          aplica o seed.sql inteiro e os supabase/seeds/*.sql (contas fictícias) e troca a senha
+                            pública de todas as contas @${DEMO_EMAIL_DOMAIN} por senhas aleatórias; as de
+                            admin@ e moderacao@ vão só para o arquivo de --write-env (obrigatório) — nunca em produção
   --auto-confirm-email      contas novas entram sem confirmar o e-mail (demo sem SMTP próprio: o SMTP
                             padrão do Supabase só entrega para o time do projeto)
   --help                    esta ajuda
@@ -1385,8 +1592,12 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   for (const w of warnings) out(`AVISO: ${w}`);
   if (config.withDemoSeed) {
     out("");
-    out("!!! ATENÇÃO: --with-demo-seed aplica contas FICTÍCIAS com senha PÚBLICA no projeto. !!!");
-    out("!!! Use somente num projeto de DEMONSTRAÇÃO. Nunca num site aberto ao público.      !!!");
+    out(
+      "!!! ATENÇÃO: --with-demo-seed aplica contas FICTÍCIAS no projeto; a senha pública do seed !!!",
+    );
+    out(
+      "!!! é trocada logo depois por senhas aleatórias. Use só num projeto de DEMONSTRAÇÃO.     !!!",
+    );
   }
   out("");
   out("Plano:");
@@ -1398,7 +1609,7 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   );
   out(
     config.withDemoSeed
-      ? "  3. Aplicar o seed.sql INTEIRO (referência + DEMONSTRAÇÃO fictícia)"
+      ? `  3. Aplicar o seed.sql INTEIRO (referência + DEMONSTRAÇÃO fictícia) e trocar as senhas das contas @${DEMO_EMAIL_DOMAIN}`
       : `  3. Aplicar os dados de referência do seed.sql (${local.seed.counts.areas} áreas de pesquisa, ${local.seed.counts.categories} categorias do fórum)`,
   );
   out(
@@ -1430,6 +1641,13 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
     envWritten: false,
     vercelDone: false,
     demoApplied: false,
+    // Seed de demonstração no banco (já estava ou foi aplicado agora): a lista de contas não pode vir vazia.
+    demoSeedPresent: false,
+    // Troca das senhas das contas de demonstração: "feita", "sem contas", "arquivo não gravado" (trocou,
+    // mas o arquivo falhou) ou null (não rodou/falhou antes de trocar).
+    demoPasswords: null,
+    // DEMO_ADMIN_*/DEMO_MODERACAO_*: só para o arquivo local, nunca para a saída nem para a Vercel.
+    demoStaffEnv: {},
   };
 
   try {
@@ -1600,26 +1818,150 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       }
     }
 
-    // ------------------------------------------------------------ 3. dados
-    step(3, config.withDemoSeed ? "Seed completo (DEMONSTRAÇÃO)" : "Dados de referência");
-    if (config.dryRun) {
-      out(
-        `  (simulação) seria aplicado via POST /v1/projects/{ref}/database/query: ${local.seed.counts.areas} áreas + ${local.seed.counts.categories} categorias (${Buffer.byteLength(local.seed.referenceSql)} bytes, todos os INSERTs com ON CONFLICT).`,
+    // Grava valores no arquivo de --write-env (mesmo gravador e permissão 600 do passo 7),
+    // preservando o que já existe nele.
+    const writeEnvValues = async (values, { note } = {}) => {
+      const existing = (await deps.fileExists(local.envFile.abs))
+        ? await deps.readText(local.envFile.abs)
+        : "";
+      await deps.writeText(
+        local.envFile.abs,
+        buildEnvFile(values, existing, { generatedAt: deps.now(), note }),
       );
-      if (config.withDemoSeed) {
-        out(
-          `  (simulação) e o seed.sql inteiro (${Buffer.byteLength(local.seedSql)} bytes), se o usuário de demonstração ${local.seed.demoMarkerUserId} ainda não existir.`,
+    };
+
+    const demoRotationRisk = `Enquanto isso, as contas @${DEMO_EMAIL_DOMAIN} podem continuar com a senha PÚBLICA do seed: rode o script de novo antes de divulgar o site (ou apague essas contas em Authentication > Users).`;
+    // Erro da API na troca. 404/405/410 aqui não é "projeto não encontrado" (o passo 1 já o achou): é
+    // o endpoint beta /database/query que sumiu, e a troca não cai para o CLI de propósito.
+    const demoRotationApiError = (e, what) =>
+      [404, 405, 410].includes(e?.status)
+        ? `${what}: o endpoint /database/query respondeu ${e.status}. A troca de senhas não usa o CLI (o SQL com as senhas passaria por um arquivo temporário e pela saída dele).`
+        : supaErr(e, what);
+
+    // Troca a senha de TODAS as contas @demo.cienciadelas.dev por senhas aleatórias (node:crypto).
+    // As senhas só saem daqui dentro do SQL (HTTPS, sem o fallback do CLI, que gravaria o SQL num
+    // arquivo temporário) e, as de admin@ e moderacao@, no arquivo de --write-env. Nunca na saída.
+    const rotateDemoPasswords = async () => {
+      let rows;
+      try {
+        rows = await selectRows(DEMO_ACCOUNTS_SQL);
+      } catch (e) {
+        throw new StepError(
+          `${demoRotationApiError(e, "Não consegui listar as contas de demonstração para trocar as senhas")} ${demoRotationRisk}`,
         );
-        if (local.demoSeeds.length) {
-          out(
-            `  (simulação) depois, os seeds extras de demonstração (idempotentes): ${local.demoSeeds.map((f) => f.file).join(", ")}.`,
+      }
+      if (!rows.length) {
+        // Com o seed no banco (a conta-marcadora existe), lista vazia é resposta inesperada da API:
+        // falha fechada, em vez de seguir com as senhas públicas valendo.
+        if (state.demoSeedPresent) {
+          throw new StepError(
+            `A lista de contas @${DEMO_EMAIL_DOMAIN} veio vazia, mas o seed de demonstração está no banco: resposta inesperada da API, nenhuma senha foi trocada. ${demoRotationRisk}`,
+          );
+        }
+        state.demoPasswords = "sem contas";
+        out(`  Nenhuma conta @${DEMO_EMAIL_DOMAIN} neste banco; nenhuma senha a trocar.`);
+        return;
+      }
+      let plan;
+      try {
+        plan = planDemoPasswordRotation(rows, () => deps.randomToken(DEMO_PASSWORD_BYTES));
+      } catch (e) {
+        throw new StepError(`${e.message} ${demoRotationRisk}`);
+      }
+      // Antes de qualquer envio: se um valor (ou um pedaço dele, numa mensagem cortada) reaparecer
+      // num erro, ele sai mascarado.
+      for (const account of plan.accounts) redact.addWithFragments(account.password);
+      let confirmed;
+      try {
+        // Repetir é seguro: a mesma requisição grava as mesmas senhas (só o sal do bcrypt muda).
+        const { data } = await supabase.runQuery(buildDemoPasswordRotationQuery(plan.accounts), {
+          idempotent: true,
+        });
+        confirmed = new Set(
+          (Array.isArray(data) ? data : []).map((r) => String(r?.id ?? "").toLowerCase()),
+        );
+      } catch (e) {
+        // 4xx: nada rodou ou o Postgres desfez a instrução inteira. Sem resposta (rede/5xx, já com as
+        // novas tentativas): pode ter sido gravada, e aí as senhas antigas da equipe deixaram de valer.
+        const certain = e?.status >= 400 && e?.status < 500;
+        throw new StepError(
+          `${demoRotationApiError(e, "Falha ao trocar as senhas das contas de demonstração")} ${
+            certain
+              ? "Nenhuma senha foi trocada."
+              : `Sem confirmação da API: a troca pode ter sido feita ou não; se foi, as senhas de admin@ e moderacao@ que estiverem em ${local.envFile.rel} deixaram de valer até a próxima execução.`
+          } ${demoRotationRisk}`,
+        );
+      }
+      const rotated = plan.accounts.filter((a) => confirmed.has(a.id)).length;
+      if (!rotated) {
+        throw new StepError(
+          `A API não confirmou a troca das senhas das contas de demonstração. ${demoRotationRisk}`,
+        );
+      }
+      const staffRotated = plan.staff.filter((s) => s.account && confirmed.has(s.account.id));
+      const staffEnv = demoStaffEnvValues(plan.staff, confirmed);
+      if (staffRotated.length) {
+        try {
+          await writeEnvValues(staffEnv, { note: DEMO_STAFF_ENV_NOTE });
+        } catch (e) {
+          // Raro: o arquivo já aceitou a gravação de teste feita antes do seed (início do passo 3).
+          state.demoPasswords = "arquivo não gravado";
+          throw new StepError(
+            `As senhas das contas de demonstração foram trocadas (a senha pública não vale mais nelas), mas não consegui gravar ${local.envFile.rel} (${e?.code ?? e?.message}): ninguém tem as senhas novas de admin@ e moderacao@. Corrija o problema (permissão, espaço em disco) e rode o script de novo — ele troca as senhas outra vez e grava o arquivo — ou defina outra senha para essas contas em Authentication > Users.`,
           );
         }
       }
-    } else {
+      // Só depois de gravadas: o passo 7 e o checklist apontam para o arquivo.
+      state.demoStaffEnv = staffEnv;
+      state.demoPasswords = "feita";
+      const contas = `${rotated} conta${rotated === 1 ? "" : "s"}`;
+      const staffNames = staffRotated.map((s) => `${s.email.split("@")[0]}@`);
+      if (staffRotated.length === DEMO_STAFF_ACCOUNTS.length) {
+        out(
+          `  Senhas das contas de demonstração trocadas (${contas}); as da equipe (${staffNames.join(" e ")}) estão em ${local.envFile.rel}.`,
+        );
+      } else if (staffRotated.length) {
+        out(
+          `  Senhas das contas de demonstração trocadas (${contas}); a da equipe (${staffNames.join(" e ")}) está em ${local.envFile.rel}.`,
+        );
+      } else {
+        out(`  Senhas das contas de demonstração trocadas (${contas}).`);
+      }
+      for (const s of plan.staff) {
+        if (!s.account || !confirmed.has(s.account.id)) {
+          out(
+            `  AVISO: a conta ${s.email} não existe neste banco; nenhuma senha dela foi gravada.`,
+          );
+        }
+      }
+      if (rotated < plan.accounts.length) {
+        out(
+          `  AVISO: a API não confirmou ${plan.accounts.length - rotated} das ${plan.accounts.length} contas listadas (apagadas no meio da troca?); rode o script de novo para conferir.`,
+        );
+        pending.push(
+          "Rodar o script de novo para conferir a troca de senhas das contas de demonstração",
+        );
+      }
+      done.push(`Senhas das contas de demonstração trocadas (${contas})`);
+      if (!staffRotated.length) return;
+      // Quem entrou como admin@/moderacao@ com a senha antiga sai agora (a sessão não depende da senha).
+      try {
+        await supabase.runQuery(DEMO_STAFF_SESSIONS_SQL, { idempotent: true });
+        done.push(`Sessões abertas de ${staffNames.join(" e ")} encerradas`);
+      } catch (e) {
+        out(
+          `  AVISO: ${supaErr(e, `não consegui encerrar as sessões abertas de ${staffNames.join(" e ")}`)} Quem entrou antes com a senha antiga continua com a sessão; encerre no SQL Editor: ${DEMO_STAFF_SESSIONS_SQL}`,
+        );
+        pending.push(
+          `Encerrar as sessões abertas de ${staffNames.join(" e ")} (SQL no aviso do passo 3)`,
+        );
+      }
+    };
+
+    const applySeeds = async () => {
       await applySql(local.seed.referenceSql, "os dados de referência", { idempotent: true });
       if (config.withDemoSeed) {
-        out("  !!! Aplicando o seed de DEMONSTRAÇÃO (contas fictícias, senha pública). !!!");
+        out("  !!! Aplicando o seed de DEMONSTRAÇÃO (contas fictícias). !!!");
         let present = false;
         if (local.seed.demoMarkerUserId) {
           try {
@@ -1637,12 +1979,14 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
           }
         }
         if (present) {
+          state.demoSeedPresent = true;
           out(
             "  O seed de demonstração já estava aplicado; nada a fazer (ele não pode ser reaplicado).",
           );
         } else {
           await applySql(local.seedSql, "o seed de demonstração", { idempotent: false });
           state.demoApplied = true;
+          state.demoSeedPresent = true;
           done.push("Seed de DEMONSTRAÇÃO aplicado (contas fictícias)");
         }
         // Seeds extras (supabase/seeds/*.sql, na ordem do config.toml): idempotentes, então rodam
@@ -1674,6 +2018,62 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       done.push(
         `Dados de referência aplicados (${local.seed.counts.areas} áreas, ${local.seed.counts.categories} categorias)`,
       );
+    };
+
+    // ------------------------------------------------------------ 3. dados
+    step(3, config.withDemoSeed ? "Seed completo (DEMONSTRAÇÃO)" : "Dados de referência");
+    if (config.dryRun) {
+      out(
+        `  (simulação) seria aplicado via POST /v1/projects/{ref}/database/query: ${local.seed.counts.areas} áreas + ${local.seed.counts.categories} categorias (${Buffer.byteLength(local.seed.referenceSql)} bytes, todos os INSERTs com ON CONFLICT).`,
+      );
+      if (config.withDemoSeed) {
+        out(
+          `  (simulação) e o seed.sql inteiro (${Buffer.byteLength(local.seedSql)} bytes), se o usuário de demonstração ${local.seed.demoMarkerUserId} ainda não existir.`,
+        );
+        if (local.demoSeeds.length) {
+          out(
+            `  (simulação) depois, os seeds extras de demonstração (idempotentes): ${local.demoSeeds.map((f) => f.file).join(", ")}.`,
+          );
+        }
+        out(
+          `  (simulação) por fim, a senha de cada conta @${DEMO_EMAIL_DOMAIN} seria trocada por uma senha aleatória (nenhuma é gerada na simulação); as de admin@ e moderacao@ iriam só para ${local.envFile.rel}, e as sessões abertas dessas duas contas seriam encerradas.`,
+        );
+      }
+    } else {
+      if (config.withDemoSeed) {
+        // Gravação de teste ANTES do seed: se o arquivo que vai receber as senhas novas de admin@ e
+        // moderacao@ não aceita gravação, para aqui, sem criar as contas nem trocar senha nenhuma
+        // (senão a troca aconteceria e a equipe ficaria sem as senhas). Preserva o conteúdo atual.
+        try {
+          await writeEnvValues({});
+        } catch (e) {
+          throw new StepError(
+            `Não consegui gravar ${local.envFile.rel} (${e?.code ?? e?.message}), o arquivo que recebe as senhas novas de admin@ e moderacao@; parei antes do seed de demonstração (nada foi aplicado nem trocado neste passo). Corrija (permissão, espaço em disco ou outro caminho em --write-env) e rode de novo.`,
+          );
+        }
+      }
+      let seedError = null;
+      try {
+        await applySeeds();
+      } catch (e) {
+        seedError = e;
+      }
+      // A troca roda mesmo se algo acima falhou (ex.: um seed extra): as contas que o seed.sql já
+      // criou não podem ficar com a senha pública até a próxima execução.
+      if (config.withDemoSeed) {
+        try {
+          await rotateDemoPasswords();
+        } catch (e) {
+          if (seedError) {
+            err("");
+            err(
+              `ERRO: ${seedError instanceof StepError ? seedError.message : (seedError?.stack ?? seedError)}`,
+            );
+          }
+          throw e;
+        }
+      }
+      if (seedError) throw seedError;
     }
 
     // ------------------------------------------------------------ 4. auth
@@ -1839,6 +2239,13 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
     out(
       `  (CRON_SECRET: ${cron.source === "gerado" ? "novo, 32 bytes aleatórios" : `reaproveitado do ${cron.source}`})`,
     );
+    const demoStaffKeys = Object.keys(state.demoStaffEnv);
+    if (demoStaffKeys.length) {
+      // Só os nomes: os valores nunca aparecem na saída.
+      out(
+        `  (+ ${demoStaffKeys.join(", ")}: senhas da equipe nas contas de demonstração, só neste arquivo; não vão para a Vercel)`,
+      );
+    }
     if (config.writeEnv) {
       if (local.envFile.autoloadedByNext) {
         out(
@@ -1848,9 +2255,18 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       if (config.dryRun) {
         out(`  (simulação) ${local.envFile.rel} não foi gravado.`);
       } else {
+        const appEnvText = buildEnvFile(state.appEnv, existingEnvText, {
+          generatedAt: deps.now(),
+        });
+        // As senhas da equipe já foram gravadas no passo 3; aqui só são mantidas (ou repostas).
         await deps.writeText(
           local.envFile.abs,
-          buildEnvFile(state.appEnv, existingEnvText, { generatedAt: deps.now() }),
+          demoStaffKeys.length
+            ? buildEnvFile(state.demoStaffEnv, appEnvText, {
+                generatedAt: deps.now(),
+                note: DEMO_STAFF_ENV_NOTE,
+              })
+            : appEnvText,
         );
         state.envWritten = true;
         out(`  Gravado em ${local.envFile.rel} (permissão 600, ignorado pelo git).`);
@@ -1948,6 +2364,11 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
         out(`    ${v.key} [${v.type === "sensitive" ? "Secret" : "Config"}; Production e Preview]`);
       }
       if (state.envWritten) out(`  Os valores estão em ${local.envFile.rel}.`);
+      if (demoStaffKeys.length) {
+        out(
+          `  Não cadastre ${demoStaffKeys.join(", ")}: são as senhas da equipe nas contas de demonstração e ficam só no arquivo.`,
+        );
+      }
       pending.push("Cadastrar as variáveis na Vercel (lista acima) e fazer um novo deploy");
     }
   } catch (e) {
@@ -1994,9 +2415,27 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   );
   out("    [ ] Rodar Advisors > Security e Performance no painel do Supabase.");
   if (config.withDemoSeed || state.demoApplied) {
+    if (!config.dryRun && state.demoPasswords === null) {
+      out(
+        `    [ ] Trocar as senhas das contas de DEMONSTRAÇÃO (rode o script de novo): até lá, a senha pública do seed pode valer para admin@ e moderacao@.`,
+      );
+    }
+    if (state.demoPasswords === "arquivo não gravado") {
+      out(
+        `    [ ] Gravar as senhas novas de admin@ e moderacao@: foram trocadas, mas ${local.envFile.rel} não foi gravado. Corrija e rode o script de novo (ou defina outra senha em Authentication > Users).`,
+      );
+    }
     out(
-      "    [ ] Este projeto tem contas de DEMONSTRAÇÃO com senha pública: não divulgue como produção.",
+      "    [ ] Este projeto tem contas de DEMONSTRAÇÃO (fictícias): não divulgue como produção. DEMO_MODE=true só durante o evento.",
     );
+    const staffWithPassword = DEMO_STAFF_ACCOUNTS.filter(
+      ({ envPrefix }) => `${envPrefix}_PASSWORD` in state.demoStaffEnv,
+    );
+    if (staffWithPassword.length) {
+      out(
+        `    [ ] Para entrar como ${staffWithPassword.map((s) => `${s.email.split("@")[0]}@`).join(" ou ")} (pelo /entrar), use ${staffWithPassword.map((s) => `${s.envPrefix}_PASSWORD`).join(" e ")} de ${local.envFile.rel}. Cada execução com --with-demo-seed troca essas senhas de novo.`,
+      );
+    }
   }
 
   if (failed) return 1;

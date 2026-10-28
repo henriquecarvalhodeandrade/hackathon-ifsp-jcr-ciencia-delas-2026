@@ -77,7 +77,8 @@
      (tokens escopados viraram padrão no painel). Depois é só pedir: "configure o Supabase Cloud com o script de
      deploy". Na sessão na nuvem o comando é
      `NODE_USE_ENV_PROXY=1 node scripts/deploy/setup-supabase-cloud.mjs --site-url=https://<app>.vercel.app --migrations-via-api --write-env`
-     (o sandbox não abre conexão direta com o Postgres, por isso as migrations vão por HTTPS).
+     (o sandbox não abre conexão direta com o Postgres, por isso as migrations vão por HTTPS). Para o banco da
+     apresentação, acrescente `--with-demo-seed` (ele exige `--write-env`; ver §4).
 
    - **Vocês configuram:** seguir [`07-setup-e-deploy.md`](07-setup-e-deploy.md) §4.1 ou rodar o script
      `scripts/deploy/setup-supabase-cloud.mjs` (instruções no topo do arquivo).
@@ -120,16 +121,27 @@ O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto
 - [ ] Preencher contato da controladora/encarregada de dados em `/privacidade` e a equipe em `/sobre` (a
       equipe preenche: nada disso pode ser inventado).
 - [ ] Recriar o banco da apresentação logo antes do evento (`npx supabase db reset` no local, ou recriar o
-      projeto e rodar o `setup-supabase-cloud.mjs --with-demo-seed` na nuvem): aplica as migrations, o
+      projeto e rodar o `setup-supabase-cloud.mjs --with-demo-seed --write-env` na nuvem): aplica as migrations, o
       `seed.sql` e os `supabase/seeds/*.sql` e apaga sobras de testes (ex.: "Jornada E2E …" ou "Relato de teste
       automatizado" em capturas antigas). Alguns dados do seed são relativos à data: rode perto do dia.
+- [ ] **Senha de `admin@` e `moderacao@` na nuvem:** o `--with-demo-seed` troca a senha pública do seed
+      (`ciencia-delas-demo`) de **todas** as contas `@demo.cienciadelas.dev` por senhas aleatórias. As da equipe
+      ficam **só** no arquivo do `--write-env` (padrão `.env.cloud`, fora do git): `DEMO_ADMIN_EMAIL` /
+      `DEMO_ADMIN_PASSWORD` e `DEMO_MODERACAO_EMAIL` / `DEMO_MODERACAO_PASSWORD`. Para mostrar a moderação ou o
+      `/admin` no pitch, entre pelo `/entrar` com esses valores. Não cadastre essas quatro na Vercel e não as
+      projete nem cole no chat. Cada nova execução com `--with-demo-seed` troca as senhas de novo (pegue as
+      novas no arquivo) e encerra as sessões abertas dessas duas contas. As personas (Larissa, Marina, Débora)
+      continuam entrando pelo `/demo` com um clique; `DEMO_PASSWORD` não serve nesse banco (as senhas mudaram).
+      Se eu rodar o script numa sessão na nuvem, o `.env.cloud` fica no contêiner da sessão, que é descartado:
+      abram o arquivo pelo app e guardem as quatro variáveis num gerenciador de senhas antes de encerrar a sessão.
 - [ ] **Nunca** rodar `scripts/e2e/journey.mjs` nem os roteiros (`painel-demo`, `reconhecimento`, `pergunte`,
       `trajetoria`) contra o banco da apresentação: eles escrevem de verdade (e limpam depois, mas a
       apresentação pode pegar o meio do caminho).
-- [ ] `DEMO_MODE=true` só no ambiente da apresentação e só durante o evento; desligar logo depois e reiniciar os
-      dados (as personas são compartilhadas: a banca pode editar o perfil delas). Trocar a senha de `admin@` e
-      `moderacao@` (Supabase → Authentication → Users) numa instância acessível pela internet: a senha do seed é
-      pública ([14 §3.3](14-painel-e-modo-demo.md)).
+- [ ] `DEMO_MODE=true` só no ambiente da apresentação e só durante o evento; desligar logo depois (`false` ou
+      apagar a variável na Vercel + novo deploy) e reiniciar os dados (as personas são compartilhadas: a banca pode
+      editar o perfil delas). Banco preparado de outro jeito (sem o script, ex.: `seed.sql` colado no SQL Editor)
+      ainda tem a senha pública: troque a de `admin@` e `moderacao@` (Supabase → Authentication → Users) ou rode o
+      script com `--with-demo-seed --write-env` ([14 §3.3](14-painel-e-modo-demo.md)).
 - [ ] Definir `NEXT_PUBLIC_SITE_URL` com o endereço público **antes** de imprimir ou projetar QR codes (o do
       `/demo` e o da declaração apontam para esse endereço).
 - [ ] Para o slide: declaração fictícia `ART-7K2M-Q9XD-4HNP` (`/verificar/ART-7K2M-Q9XD-4HNP`, com o selo

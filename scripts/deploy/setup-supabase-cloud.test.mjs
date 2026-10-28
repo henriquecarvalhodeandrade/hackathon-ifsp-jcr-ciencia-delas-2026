@@ -3,6 +3,7 @@
 // (O vitest.config.ts do app só inclui src/**; aqui usamos o node:test embutido no Node 22.)
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import os from "node:os";
@@ -52,6 +53,16 @@ import {
   missingPermissions,
   resolveLocalSupabaseCli,
   repoNameFromRemoteUrl,
+  DEMO_ACCOUNTS_SQL,
+  DEMO_EMAIL_DOMAIN,
+  DEMO_STAFF_ACCOUNTS,
+  DEMO_STAFF_SESSIONS_SQL,
+  LOCAL_ONLY_ENV_KEYS,
+  assertSafeDemoPassword,
+  buildDemoPasswordRotationQuery,
+  defaultRandomToken,
+  demoStaffEnvValues,
+  planDemoPasswordRotation,
 } from "./setup-supabase-cloud.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -123,6 +134,43 @@ function createFetchMock(routes) {
   return { fetch, calls };
 }
 
+// Contas fictícias do seed (ids e e-mails reais do supabase/seed.sql): equipe + duas personas.
+const DEMO_ROWS = [
+  { id: "d0000000-0000-4000-8000-000000000001", email: `admin@${DEMO_EMAIL_DOMAIN}` },
+  { id: "d1000000-0000-4000-8000-000000000001", email: `marina@${DEMO_EMAIL_DOMAIN}` },
+  { id: "d0000000-0000-4000-8000-000000000002", email: `moderacao@${DEMO_EMAIL_DOMAIN}` },
+  { id: "d2000000-0000-4000-8000-000000000001", email: `larissa@${DEMO_EMAIL_DOMAIN}` },
+];
+const isRotationQuery = (q) => /update auth\.users/.test(q) && /encrypted_password/.test(q);
+/** Pares (id, senha) do VALUES da troca de senhas. */
+const rotationPairs = (q) =>
+  [...q.matchAll(/\('([0-9a-f-]{36})'::uuid, '([^']*)'\)/g)].map(([, id, password]) => ({
+    id,
+    password,
+  }));
+
+/**
+ * SQL simulado: contas de demonstração (`demoRows`), troca de senhas (devolve os ids enviados),
+ * sessões da equipe, presença do seed (`present`) e contagem dos dados de referência.
+ */
+function queryRoute({ present = false, demoRows = DEMO_ROWS, override } = {}) {
+  return (ctx) => {
+    const q = ctx.body.query;
+    const custom = override?.(ctx);
+    if (custom) return custom;
+    if (q === DEMO_ACCOUNTS_SQL) return json(201, demoRows);
+    if (isRotationQuery(q))
+      return json(
+        201,
+        rotationPairs(q).map(({ id }) => ({ id })),
+      );
+    if (q === DEMO_STAFF_SESSIONS_SQL) return json(201, []);
+    if (/count\(\*\)/.test(q)) return json(201, [{ areas: 64, categories: 8 }]);
+    if (/select exists/.test(q)) return json(201, [{ present }]);
+    return json(201, []);
+  };
+}
+
 function supabaseRoutes(overrides = {}) {
   const base = `api.supabase.com/v1/projects/${REF}`;
   return {
@@ -133,11 +181,7 @@ function supabaseRoutes(overrides = {}) {
       status: "ACTIVE_HEALTHY",
       database: { version: "17.4.1" },
     }),
-    [`POST ${base}/database/query`]: ({ body }) => {
-      if (/count\(\*\)/.test(body.query)) return json(201, [{ areas: 64, categories: 8 }]);
-      if (/select exists/.test(body.query)) return json(201, [{ present: false }]);
-      return json(201, []);
-    },
+    [`POST ${base}/database/query`]: queryRoute(),
     [`GET ${base}/config/auth`]: json(200, {
       site_url: "http://localhost:3000",
       uri_allow_list: "http://localhost:3000/**,https://antigo.exemplo.dev/**",
@@ -174,6 +218,10 @@ function makeDeps({
   const stderr = [];
   const writes = [];
   const cliCalls = [];
+  const tempFiles = [];
+  // Senhas falsas, distintas e no formato base64url; ficam registradas para os testes procurarem
+  // vazamentos.
+  const passwords = [];
   const { fetch, calls } = createFetchMock(routes);
   const deps = {
     rootDir: ROOT,
@@ -186,19 +234,34 @@ function makeDeps({
     readText: async (file) => (file in files ? files[file] : readFile(file, "utf8")),
     writeText: async (file, content) => {
       writes.push({ file, content });
+      // Como num disco de verdade: a próxima leitura vê o que foi gravado.
+      if (isEnvPath(file)) files[file] = content;
     },
     fileExists: async (file) => (isEnvPath(file) ? file in files : existsSync(file)),
     listDir: (dir) => readdir(dir),
-    withTempFile: async (name, content, fn) => fn(`/tmp/simulado/${name}`),
+    withTempFile: async (name, content, fn) => {
+      tempFiles.push(content);
+      return fn(`/tmp/simulado/${name}`);
+    },
     isGitIgnored: () => gitIgnored,
     randomHex: (bytes) => "c".repeat(bytes * 2),
+    randomToken: (bytes) => {
+      assert.equal(bytes, 24);
+      const value = fake(
+        "FAKE0demo0pw0",
+        String(passwords.length + 1).padStart(3, "0"),
+        "Q_-z9".repeat(4),
+      );
+      passwords.push(value);
+      return value;
+    },
     sleep: async () => {},
     now: () => new Date("2026-10-28T12:00:00Z"),
     stdout: (line) => stdout.push(line),
     stderr: (line) => stderr.push(line),
   };
   const output = () => [...stdout, ...stderr].join("\n");
-  return { deps, stdout, stderr, writes, cliCalls, calls, output };
+  return { deps, stdout, stderr, writes, cliCalls, calls, output, passwords, tempFiles };
 }
 
 const fullEnv = (extra = {}) => ({
@@ -870,7 +933,11 @@ describe("main", () => {
 
   test("--with-demo-seed aplica o seed inteiro só se a demonstração ainda não existir", async () => {
     const t = makeDeps({ env: fullEnv() });
-    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed"], t.deps), 0, t.output());
+    assert.equal(
+      await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps),
+      0,
+      t.output(),
+    );
     const queries = t.calls
       .filter((c) => c.path.endsWith("/database/query"))
       .map((c) => c.body.query);
@@ -898,12 +965,11 @@ describe("main", () => {
     const again = makeDeps({
       env: fullEnv(),
       routes: supabaseRoutes({
-        [`POST api.supabase.com/v1/projects/${REF}/database/query`]: ({ body }) =>
-          /select exists/.test(body.query) ? json(201, [{ present: true }]) : json(201, []),
+        [`POST api.supabase.com/v1/projects/${REF}/database/query`]: queryRoute({ present: true }),
       }),
     });
     assert.equal(
-      await main([`--site-url=${SITE}`, "--with-demo-seed"], again.deps),
+      await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], again.deps),
       0,
       again.output(),
     );
@@ -1502,5 +1568,644 @@ describe("revisão", () => {
     explicit.deps.gitRepoName = () => "meu-repo";
     assert.equal(await main([`--site-url=${SITE}`, "--vercel"], explicit.deps), 1);
     assert.match(explicit.output(), /tentei: artemis\)/);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// --with-demo-seed: a senha pública do seed é trocada por senhas aleatórias
+// -----------------------------------------------------------------------------
+
+const QUERY_ROUTE = `POST api.supabase.com/v1/projects/${REF}/database/query`;
+const ADMIN_ID = DEMO_ROWS.find((r) => r.email.startsWith("admin@")).id;
+const MODERACAO_ID = DEMO_ROWS.find((r) => r.email.startsWith("moderacao@")).id;
+const ROTATION_MESSAGE =
+  "Senhas das contas de demonstração trocadas (4 contas); as da equipe (admin@ e moderacao@) estão em .env.cloud.";
+
+const sqlQueries = (t) =>
+  t.calls.filter((c) => c.path.endsWith("/database/query")).map((c) => c.body.query);
+
+/** Nenhuma senha gerada na saída, nos arquivos temporários do CLI nem fora do SQL da troca. */
+function assertPasswordsContained(t) {
+  assert.ok(t.passwords.length > 0, "o teste precisa de senhas geradas");
+  const text = t.output();
+  for (const pw of t.passwords) {
+    assert.ok(!text.includes(pw), "a saída vazou uma senha de demonstração");
+    for (const content of t.tempFiles)
+      assert.ok(!content.includes(pw), "senha num arquivo temporário");
+    for (const c of t.cliCalls) {
+      assert.ok(!JSON.stringify(c.args).includes(pw), "senha na linha de comando do CLI");
+      assert.ok(!Object.values(c.env ?? {}).includes(pw), "senha no ambiente do CLI");
+    }
+    for (const c of t.calls) {
+      if (!JSON.stringify(c.body ?? "").includes(pw)) continue;
+      assert.equal(`${c.method} ${c.host}${c.path}`, QUERY_ROUTE, "senha fora do SQL da troca");
+      assert.ok(isRotationQuery(c.body.query), "senha fora do SQL da troca");
+    }
+  }
+}
+
+describe("senhas das contas de demonstração: funções puras", () => {
+  test("defaultRandomToken: node:crypto, base64url, 32 caracteres, nunca repete", () => {
+    const values = new Set(Array.from({ length: 50 }, () => defaultRandomToken()));
+    assert.equal(values.size, 50);
+    for (const v of values) {
+      assert.match(v, /^[A-Za-z0-9_-]{32}$/);
+      assert.equal(assertSafeDemoPassword(v), v);
+    }
+  });
+
+  test("assertSafeDemoPassword recusa o que não for base64url com 20+ caracteres, sem ecoar o valor", () => {
+    const bad = [
+      "x".repeat(19),
+      `${"x".repeat(24)}'`,
+      `${"x".repeat(24)}\\`,
+      `$x$${"x".repeat(24)}`,
+      `${"x".repeat(12)} ${"x".repeat(12)}`,
+      `${"x".repeat(24)};--`,
+      `${"x".repeat(24)}\n`,
+      undefined,
+      42,
+    ];
+    for (const value of bad) {
+      assert.throws(
+        () => assertSafeDemoPassword(value),
+        (e) => {
+          assert.match(e.message, /base64url/);
+          if (typeof value === "string") assert.ok(!e.message.includes(value));
+          return true;
+        },
+      );
+    }
+  });
+
+  test("planDemoPasswordRotation: uma senha por conta, equipe separada, nada fora do domínio fictício", () => {
+    let n = 0;
+    const next = () => `FAKE0senha0${String(++n).padStart(2, "0")}${"k".repeat(12)}`;
+    const plan = planDemoPasswordRotation(
+      [...DEMO_ROWS, { id: DEMO_ROWS[0].id.toUpperCase(), email: DEMO_ROWS[0].email }],
+      next,
+    );
+    assert.equal(plan.accounts.length, DEMO_ROWS.length, "id repetido só conta uma vez");
+    assert.equal(new Set(plan.accounts.map((a) => a.password)).size, DEMO_ROWS.length);
+    assert.deepEqual(
+      plan.staff.map((s) => [s.envPrefix, s.account?.id]),
+      [
+        ["DEMO_ADMIN", ADMIN_ID],
+        ["DEMO_MODERACAO", MODERACAO_ID],
+      ],
+    );
+    assert.throws(
+      () =>
+        planDemoPasswordRotation(
+          [{ id: "1'; drop table auth.users; --", email: DEMO_ROWS[0].email }],
+          next,
+        ),
+      /id inválido/,
+    );
+    assert.throws(
+      () => planDemoPasswordRotation([{ id: ADMIN_ID, email: "alguem@exemplo.com" }], next),
+      /fora de @demo\.cienciadelas\.dev/,
+    );
+    assert.throws(
+      () => planDemoPasswordRotation(DEMO_ROWS, () => "FAKE0senha0igual0xxxxxxxxx"),
+      /repetiu/,
+    );
+    assert.throws(() => planDemoPasswordRotation(DEMO_ROWS, () => "curta"), /base64url/);
+    assert.deepEqual(planDemoPasswordRotation(null, next).accounts, []);
+  });
+
+  test("buildDemoPasswordRotationQuery: um UPDATE só no domínio fictício, com bcrypt do pgcrypto", () => {
+    const accounts = DEMO_ROWS.map((r, i) => ({
+      id: r.id,
+      password: `FAKE0senha0${i}${"m".repeat(16)}`,
+    }));
+    const q = buildDemoPasswordRotationQuery(accounts);
+    assert.deepEqual(
+      rotationPairs(q),
+      accounts.map(({ id, password }) => ({ id, password })),
+    );
+    assert.match(q, /update auth\.users as u\n/);
+    assert.match(
+      q,
+      /set encrypted_password = extensions\.crypt\(n\.senha, extensions\.gen_salt\('bf', 10\)\),/,
+    );
+    assert.match(q, /where u\.id = n\.id and lower\(u\.email\) like '%@demo\.cienciadelas\.dev'\n/);
+    assert.match(q, /select id::text as id from trocadas order by id;\n$/);
+    // Uma única instrução (tudo ou nada) e nenhum e-mail ou domínio além do fictício.
+    assert.equal(q.split(";").length - 1, 1);
+    assert.deepEqual([...new Set(q.match(/@[a-z0-9.-]+/g))], [`@${DEMO_EMAIL_DOMAIN}`]);
+    assert.doesNotMatch(q, /delete|insert|drop/i);
+  });
+
+  test("buildDemoPasswordRotationQuery recusa id ou senha que poderiam escapar do literal", () => {
+    const ok = { id: ADMIN_ID, password: `FAKE0senha0${"m".repeat(16)}` };
+    assert.throws(() => buildDemoPasswordRotationQuery([]), /Nenhuma conta/);
+    assert.throws(() => buildDemoPasswordRotationQuery([{ ...ok, id: `${ADMIN_ID}'` }]), /Id/);
+    assert.throws(
+      () => buildDemoPasswordRotationQuery([{ ...ok, id: ADMIN_ID.toUpperCase() }]),
+      /Id/,
+    );
+    assert.throws(
+      () =>
+        buildDemoPasswordRotationQuery([{ ...ok, password: `${ok.password}'); drop table x; --` }]),
+      /base64url/,
+    );
+    assert.throws(() => buildDemoPasswordRotationQuery([ok, ok]), /repetida/);
+  });
+
+  test("listagem e encerramento de sessões ficam no domínio fictício e nas duas contas da equipe", () => {
+    assert.match(
+      DEMO_ACCOUNTS_SQL,
+      /^select id::text as id, lower\(email\) as email from auth\.users where lower\(email\) like '%@demo\.cienciadelas\.dev'/,
+    );
+    assert.doesNotMatch(DEMO_ACCOUNTS_SQL, /password/);
+    assert.equal(
+      DEMO_STAFF_SESSIONS_SQL,
+      "delete from auth.sessions where user_id in (select id from auth.users where lower(email) in ('admin@demo.cienciadelas.dev', 'moderacao@demo.cienciadelas.dev'));",
+    );
+    assert.deepEqual(
+      DEMO_STAFF_ACCOUNTS.map((s) => s.email),
+      ["admin@demo.cienciadelas.dev", "moderacao@demo.cienciadelas.dev"],
+    );
+    // O seed cria essas contas com esse domínio (e o app usa o mesmo em src/lib/demo/personas.ts).
+    const seed = readRepo("supabase/seed.sql");
+    for (const { email } of DEMO_STAFF_ACCOUNTS) assert.ok(seed.includes(`'${email}'`), email);
+    assert.match(
+      readRepo("src/lib/demo/personas.ts"),
+      /DEMO_EMAIL_DOMAIN = "demo\.cienciadelas\.dev"/,
+    );
+  });
+
+  test("demoStaffEnvValues só entrega as contas confirmadas; a Vercel nunca recebe essas variáveis", () => {
+    const staff = [
+      {
+        envPrefix: "DEMO_ADMIN",
+        account: { id: ADMIN_ID, email: DEMO_ROWS[0].email, password: "FAKE0a".padEnd(24, "a") },
+      },
+      {
+        envPrefix: "DEMO_MODERACAO",
+        account: { id: MODERACAO_ID, email: "m", password: "FAKE0m".padEnd(24, "m") },
+      },
+    ];
+    assert.deepEqual(Object.keys(demoStaffEnvValues(staff, new Set([ADMIN_ID]))), [
+      "DEMO_ADMIN_EMAIL",
+      "DEMO_ADMIN_PASSWORD",
+    ]);
+    assert.deepEqual(
+      [...LOCAL_ONLY_ENV_KEYS],
+      [
+        "DEMO_ADMIN_EMAIL",
+        "DEMO_ADMIN_PASSWORD",
+        "DEMO_MODERACAO_EMAIL",
+        "DEMO_MODERACAO_PASSWORD",
+      ],
+    );
+    const vars = buildVercelEnvVars(
+      {
+        NEXT_PUBLIC_SITE_URL: SITE,
+        ...demoStaffEnvValues(staff, new Set([ADMIN_ID, MODERACAO_ID])),
+      },
+      { DEMO_ADMIN_PASSWORD: "FAKE0do0ambiente0xxxxxxxx" },
+    );
+    assert.deepEqual(
+      vars.map((v) => v.key),
+      ["NEXT_PUBLIC_SITE_URL"],
+    );
+  });
+
+  test("buildConfig: --with-demo-seed sem --write-env é recusado (também na simulação)", () => {
+    for (const extra of [[], ["--dry-run"]]) {
+      const { errors } = buildConfig(
+        parseArgs([`--site-url=${SITE}`, "--with-demo-seed", ...extra]),
+        fullEnv(),
+      );
+      assert.equal(errors.length, 1);
+      assert.match(errors[0], /--with-demo-seed precisa de --write-env/);
+      assert.match(errors[0], /admin@ e moderacao@/);
+    }
+    const { errors } = buildConfig(
+      parseArgs([`--site-url=${SITE}`, "--with-demo-seed", "--write-env=.env.demo"]),
+      fullEnv(),
+    );
+    assert.deepEqual(errors, []);
+  });
+});
+
+describe("main --with-demo-seed: troca das senhas", () => {
+  test("sem --write-env: recusa antes de qualquer chamada, sem gerar senha", async () => {
+    const t = makeDeps({ env: fullEnv() });
+    t.deps.randomToken = () => assert.fail("nenhuma senha deveria ser gerada");
+    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed"], t.deps), 2);
+    assert.match(t.output(), /--with-demo-seed precisa de --write-env/);
+    assert.equal(t.calls.length, 0);
+    assert.equal(t.cliCalls.length, 0);
+    assert.equal(t.writes.length, 0);
+  });
+
+  test("troca TODAS as senhas depois do seed, grava só as da equipe no arquivo e nunca na Vercel", async () => {
+    const t = makeDeps({
+      env: fullEnv({ VERCEL_TOKEN, VERCEL_PROJECT: "artemis-web" }),
+      routes: { ...supabaseRoutes(), ...vercelRoutes() },
+    });
+    const code = await main(
+      [`--site-url=${SITE}`, "--with-demo-seed", "--write-env", "--vercel"],
+      t.deps,
+    );
+    assert.equal(code, 0, t.output());
+
+    // Ordem: seed.sql e seeds extras -> lista das contas -> UPDATE -> sessões da equipe.
+    const queries = sqlQueries(t);
+    const seedAt = queries.indexOf(readRepo("supabase/seed.sql"));
+    const lastExtraAt = queries.lastIndexOf(readRepo("supabase/seeds/40_trajetoria.sql"));
+    const listAt = queries.indexOf(DEMO_ACCOUNTS_SQL);
+    const rotationAt = queries.findIndex(isRotationQuery);
+    const sessionsAt = queries.indexOf(DEMO_STAFF_SESSIONS_SQL);
+    assert.ok(seedAt >= 0 && lastExtraAt > seedAt, "seeds aplicados");
+    assert.ok(listAt > lastExtraAt, "lista depois dos seeds");
+    assert.ok(rotationAt > listAt, "UPDATE depois da lista");
+    assert.ok(sessionsAt > rotationAt, "sessões depois do UPDATE");
+    assert.equal(queries.filter(isRotationQuery).length, 1, "um único UPDATE");
+    assert.ok(
+      t.calls.findIndex((c) => c.method === "PATCH") >
+        t.calls.findIndex((c) => c.body?.query && isRotationQuery(c.body.query)),
+    );
+
+    // O UPDATE cobre exatamente as contas listadas, cada uma com uma senha nova.
+    const pairs = rotationPairs(queries[rotationAt]);
+    assert.deepEqual(pairs.map((p) => p.id).sort(), DEMO_ROWS.map((r) => r.id).sort());
+    assert.deepEqual(pairs.map((p) => p.password).sort(), [...t.passwords].sort());
+    assert.equal(new Set(t.passwords).size, DEMO_ROWS.length);
+    const passwordOf = (id) => pairs.find((p) => p.id === id).password;
+
+    // Arquivo: gravação de teste antes do seed (sem senha nenhuma), depois gravado logo depois da
+    // troca (passo 3) e mantido no passo 7.
+    assert.equal(t.writes.length, 3);
+    assert.equal(t.writes[0].file, path.join(ROOT, ".env.cloud"));
+    assert.equal(t.writes[0].content.trim(), "", "a gravação de teste não leva valores");
+    for (const w of t.writes.slice(1)) {
+      assert.equal(w.file, path.join(ROOT, ".env.cloud"));
+      const written = parseEnvText(w.content);
+      assert.equal(written.get("DEMO_ADMIN_EMAIL"), "admin@demo.cienciadelas.dev");
+      assert.equal(written.get("DEMO_ADMIN_PASSWORD"), passwordOf(ADMIN_ID));
+      assert.equal(written.get("DEMO_MODERACAO_EMAIL"), "moderacao@demo.cienciadelas.dev");
+      assert.equal(written.get("DEMO_MODERACAO_PASSWORD"), passwordOf(MODERACAO_ID));
+      assert.match(
+        w.content,
+        /# Senhas da equipe nas contas de demonstração .*NÃO cadastre na Vercel\.\n/,
+      );
+      // Personas: senha que ninguém recebe.
+      for (const r of DEMO_ROWS.filter((r) => !/^(admin|moderacao)@/.test(r.email))) {
+        assert.ok(!w.content.includes(passwordOf(r.id)));
+      }
+    }
+    const finalFile = t.writes.at(-1).content;
+    assert.equal(parseEnvText(finalFile).get("SUPABASE_SECRET_KEY"), SECRET);
+    // O arquivo criado pela gravação de teste (vazio) ainda ganha o cabeçalho de segredos.
+    assert.match(finalFile, /^# Variáveis do Supabase Cloud geradas por /);
+    assert.match(finalFile, /contém SEGREDOS: não versione/);
+
+    // Vercel: nada das contas da equipe.
+    const envCall = t.calls.find((c) => c.path === "/v10/projects/artemis-web/env");
+    assert.ok(envCall);
+    for (const v of envCall.body) assert.ok(!LOCAL_ONLY_ENV_KEYS.has(v.key), v.key);
+    for (const pw of t.passwords) assert.ok(!JSON.stringify(envCall.body).includes(pw));
+
+    // Saída: a frase combinada, sem valores.
+    const out = t.output();
+    assert.ok(t.stdout.includes(`  ${ROTATION_MESSAGE}`), out);
+    assert.match(out, /\[x\] Senhas das contas de demonstração trocadas \(4 contas\)/);
+    assert.match(out, /\[x\] Sessões abertas de admin@ e moderacao@ encerradas/);
+    assert.match(out, /DEMO_ADMIN_PASSWORD e DEMO_MODERACAO_PASSWORD de \.env\.cloud/);
+    assert.doesNotMatch(out, /senha PÚBLICA/);
+    assertPasswordsContained(t);
+    assertNoSecrets(out);
+  });
+
+  test("reexecução com o seed já aplicado: troca as senhas de novo", async () => {
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({ [QUERY_ROUTE]: queryRoute({ present: true }) }),
+    });
+    assert.equal(
+      await main(
+        [`--site-url=${SITE}`, "--with-demo-seed", "--write-env", "--migrations-via-api"],
+        t.deps,
+      ),
+      0,
+      t.output(),
+    );
+    const queries = sqlQueries(t);
+    assert.ok(!queries.includes(readRepo("supabase/seed.sql")));
+    assert.match(t.output(), /já estava aplicado/);
+    assert.equal(queries.filter(isRotationQuery).length, 1);
+    assert.ok(t.stdout.includes(`  ${ROTATION_MESSAGE}`));
+    assert.equal(
+      parseEnvText(t.writes.at(-1).content).get("DEMO_ADMIN_PASSWORD"),
+      rotationPairs(queries.find(isRotationQuery)).find((p) => p.id === ADMIN_ID).password,
+    );
+    assertPasswordsContained(t);
+  });
+
+  test("reexecução com o arquivo de antes: as senhas da equipe são substituídas no lugar", async () => {
+    const envFile = path.join(ROOT, ".env.cloud");
+    const old = "FAKE0senha0antiga0xxxxxxxxxxxxx";
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({ [QUERY_ROUTE]: queryRoute({ present: true }) }),
+      files: {
+        [envFile]: `# arquivo de uma execução anterior\nCONTACT_EMAIL=equipe@exemplo.dev\nDEMO_ADMIN_EMAIL=admin@demo.cienciadelas.dev\nDEMO_ADMIN_PASSWORD=${old}\n`,
+      },
+    });
+    assert.equal(
+      await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps),
+      0,
+      t.output(),
+    );
+    // A gravação de teste devolve o mesmo conteúdo: nada se perde se o passo 3 falhar depois.
+    assert.ok(t.writes[0].content.includes(`DEMO_ADMIN_PASSWORD=${old}`));
+    const final = t.writes.at(-1).content;
+    assert.ok(!final.includes(old), "a senha antiga sai do arquivo");
+    assert.equal(final.match(/^DEMO_ADMIN_PASSWORD=/gm).length, 1);
+    assert.equal(parseEnvText(final).get("CONTACT_EMAIL"), "equipe@exemplo.dev");
+    assert.ok(t.passwords.includes(parseEnvText(final).get("DEMO_ADMIN_PASSWORD")));
+    assertPasswordsContained(t);
+  });
+
+  test("--dry-run descreve a troca sem gerar nem mostrar senhas", async () => {
+    for (const env of [{}, fullEnv()]) {
+      const t = makeDeps({ env });
+      t.deps.randomToken = () => assert.fail("a simulação não gera senhas");
+      const code = await main(
+        [`--site-url=${SITE}`, "--dry-run", "--with-demo-seed", "--write-env"],
+        t.deps,
+      );
+      assert.equal(code, 0, t.output());
+      assert.match(
+        t.output(),
+        /\(simulação\) por fim, a senha de cada conta @demo\.cienciadelas\.dev seria trocada por uma senha aleatória \(nenhuma é gerada na simulação\); as de admin@ e moderacao@ iriam só para \.env\.cloud/,
+      );
+      assert.doesNotMatch(t.output(), /Senhas das contas de demonstração trocadas/);
+      assert.equal(t.writes.length, 0);
+      assert.equal(t.calls.filter((c) => c.method !== "GET").length, 0);
+    }
+  });
+
+  test("falha na troca: código 1, aviso claro, nada gravado e senha mascarada mesmo se a API ecoar o SQL", async () => {
+    // 404: a troca nunca cai para o CLI (que gravaria o SQL num arquivo temporário).
+    // 400: a mensagem do Postgres ecoa o começo do SQL, com a primeira senha.
+    // 503: sem confirmação (depois das novas tentativas, sempre com o MESMO SQL).
+    for (const status of [404, 400, 503]) {
+      const t = makeDeps({
+        env: fullEnv(),
+        routes: supabaseRoutes({
+          [QUERY_ROUTE]: queryRoute({
+            override: ({ body }) =>
+              isRotationQuery(body.query)
+                ? json(status, { message: `erro perto de ${body.query.slice(0, 300)}` })
+                : null,
+          }),
+        }),
+      });
+      assert.equal(
+        await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps),
+        1,
+      );
+      const out = t.output();
+      assert.match(out, /Falha ao trocar as senhas das contas de demonstração/);
+      assert.match(out, /podem continuar com a senha PÚBLICA do seed: rode o script de novo/);
+      assert.match(out, /\[ \] Trocar as senhas das contas de DEMONSTRAÇÃO/);
+      if (status === 400) {
+        assert.match(out, /respondeu 400: erro perto de -- Troca as senhas/);
+        assert.match(
+          out,
+          new RegExp(`::uuid, '\\*\\*\\*\\*\\(${t.passwords[0].length} caracteres\\)'`),
+        );
+      }
+      if (status === 404) {
+        assert.match(
+          out,
+          /o endpoint \/database\/query respondeu 404\. A troca de senhas não usa o CLI/,
+        );
+        assert.doesNotMatch(out, /projeto não encontrado/);
+      }
+      if (status === 503) {
+        assert.match(out, /Sem confirmação da API: a troca pode ter sido feita ou não/);
+        const sent = sqlQueries(t).filter(isRotationQuery);
+        assert.equal(sent.length, 4, "1 envio + 3 novas tentativas");
+        assert.equal(new Set(sent).size, 1, "as novas tentativas repetem as mesmas senhas");
+      } else {
+        assert.match(out, /Nenhuma senha foi trocada\./);
+      }
+      // Só a gravação de teste (antes do seed), sem nenhuma variável da equipe.
+      assert.equal(t.writes.length, 1);
+      assert.doesNotMatch(t.writes[0].content, /DEMO_/);
+      assert.ok(!t.cliCalls.some((c) => c.args.includes("query")));
+      assert.equal(t.tempFiles.length, 0);
+      assert.equal(t.calls.filter((c) => c.method === "PATCH").length, 0, "para antes do Auth");
+      assertPasswordsContained(t);
+    }
+  });
+
+  test("seed extra com erro: as senhas são trocadas mesmo assim e os dois erros aparecem", async () => {
+    const failing = readRepo("supabase/seeds/20_reconhecimento.sql");
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({
+        [QUERY_ROUTE]: queryRoute({
+          override: ({ body }) =>
+            body.query === failing ? json(400, { message: "erro no seed" }) : null,
+        }),
+      }),
+    });
+    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps), 1);
+    const queries = sqlQueries(t);
+    assert.ok(queries.findIndex(isRotationQuery) > queries.indexOf(failing));
+    assert.match(t.output(), /Falha ao aplicar o seed de demonstração 20_reconhecimento\.sql/);
+    assert.ok(t.stdout.includes(`  ${ROTATION_MESSAGE}`));
+    assert.equal(parseEnvText(t.writes.at(-1).content).has("DEMO_ADMIN_PASSWORD"), true);
+    assertPasswordsContained(t);
+  });
+
+  test("sem as contas da equipe no banco: troca as personas e não grava nada da equipe", async () => {
+    const personas = DEMO_ROWS.filter((r) => !/^(admin|moderacao)@/.test(r.email));
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({ [QUERY_ROUTE]: queryRoute({ demoRows: personas }) }),
+    });
+    assert.equal(
+      await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps),
+      0,
+      t.output(),
+    );
+    assert.ok(t.stdout.includes("  Senhas das contas de demonstração trocadas (2 contas)."));
+    assert.match(t.output(), /AVISO: a conta admin@demo\.cienciadelas\.dev não existe neste banco/);
+    assert.ok(!sqlQueries(t).includes(DEMO_STAFF_SESSIONS_SQL));
+    assert.equal(t.writes.length, 2, "gravação de teste + passo 7");
+    assert.equal(parseEnvText(t.writes.at(-1).content).has("DEMO_ADMIN_PASSWORD"), false);
+    assertPasswordsContained(t);
+  });
+
+  test("lista vazia com o seed no banco: falha fechada, nenhuma senha gerada", async () => {
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({ [QUERY_ROUTE]: queryRoute({ present: true, demoRows: [] }) }),
+    });
+    t.deps.randomToken = () => assert.fail("sem contas, nenhuma senha");
+    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps), 1);
+    const out = t.output();
+    assert.match(out, /veio vazia, mas o seed de demonstração está no banco/);
+    assert.match(out, /podem continuar com a senha PÚBLICA do seed/);
+    assert.match(out, /\[ \] Trocar as senhas das contas de DEMONSTRAÇÃO/);
+    assert.ok(!sqlQueries(t).some(isRotationQuery));
+  });
+
+  test("banco sem o seed (dados de referência falharam): nada a trocar, e o erro aparece", async () => {
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({
+        [QUERY_ROUTE]: queryRoute({
+          demoRows: [],
+          override: ({ body }) =>
+            /insert\s+into\s+public\.research_areas/i.test(body.query)
+              ? json(400, { message: "erro nos dados de referência" })
+              : null,
+        }),
+      }),
+    });
+    t.deps.randomToken = () => assert.fail("sem contas, nenhuma senha");
+    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps), 1);
+    const out = t.output();
+    assert.match(out, /Nenhuma conta @demo\.cienciadelas\.dev neste banco/);
+    assert.match(out, /Falha ao aplicar os dados de referência/);
+    assert.ok(!sqlQueries(t).includes(readRepo("supabase/seed.sql")));
+    assert.ok(!sqlQueries(t).some(isRotationQuery));
+  });
+
+  test("sessões da equipe não encerradas: só avisa (as senhas já foram trocadas)", async () => {
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({
+        [QUERY_ROUTE]: queryRoute({
+          override: ({ body }) =>
+            body.query === DEMO_STAFF_SESSIONS_SQL
+              ? json(403, { message: "permission denied" })
+              : null,
+        }),
+      }),
+    });
+    assert.equal(
+      await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps),
+      0,
+      t.output(),
+    );
+    assert.match(
+      t.output(),
+      /AVISO: não consegui encerrar as sessões abertas de admin@ e moderacao@/,
+    );
+    assert.match(t.output(), /\[ \] Encerrar as sessões abertas de admin@ e moderacao@/);
+    assert.ok(t.stdout.includes(`  ${ROTATION_MESSAGE}`));
+    assertPasswordsContained(t);
+  });
+
+  test("arquivo sem permissão de gravação: para antes do seed, sem trocar nem gerar senha", async () => {
+    const t = makeDeps({ env: fullEnv() });
+    t.deps.writeText = async () => {
+      throw Object.assign(new Error("permissão negada"), { code: "EACCES" });
+    };
+    t.deps.randomToken = () => assert.fail("nenhuma senha deveria ser gerada");
+    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps), 1);
+    const out = t.output();
+    assert.match(
+      out,
+      /Não consegui gravar \.env\.cloud \(EACCES\), o arquivo que recebe as senhas novas de admin@ e moderacao@; parei antes do seed de demonstração/,
+    );
+    const queries = sqlQueries(t);
+    assert.ok(!queries.includes(readRepo("supabase/seed.sql")), "seed não aplicado");
+    assert.ok(!queries.includes(DEMO_ACCOUNTS_SQL));
+    assert.ok(!queries.some(isRotationQuery));
+  });
+
+  test("arquivo não gravado depois da troca: erro claro, com como recuperar", async () => {
+    const t = makeDeps({ env: fullEnv() });
+    const write = t.deps.writeText;
+    t.deps.writeText = async (file, content) => {
+      if (content.includes("DEMO_ADMIN_PASSWORD")) {
+        throw Object.assign(new Error("sem espaço"), { code: "ENOSPC" });
+      }
+      return write(file, content);
+    };
+    assert.equal(await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps), 1);
+    const out = t.output();
+    assert.match(
+      out,
+      /foram trocadas \(a senha pública não vale mais nelas\), mas não consegui gravar \.env\.cloud \(ENOSPC\): ninguém tem as senhas novas de admin@ e moderacao@\. Corrija o problema .* e rode o script de novo/,
+    );
+    assert.match(out, /\[ \] Gravar as senhas novas de admin@ e moderacao@/);
+    assert.doesNotMatch(out, /\[ \] Trocar as senhas das contas de DEMONSTRAÇÃO/);
+    // O checklist não manda procurar no arquivo uma senha que não foi gravada.
+    assert.doesNotMatch(out, /Para entrar como admin@/);
+    assertPasswordsContained(t);
+  });
+
+  test("eco do SQL cortado no meio de uma senha: nenhum pedaço dela aparece", async () => {
+    // Senhas distintas e sem prefixo comum (as falsas do makeDeps compartilham um prefixo).
+    const token = (i) => createHash("sha256").update(`senha-${i}`).digest("base64url").slice(0, 32);
+    const prefix = "Failed to run sql query: ERROR:  42601: erro\nLINE 4: ";
+    for (let cut = 140; cut <= 360; cut += 9) {
+      let n = 0;
+      const generated = [];
+      const t = makeDeps({
+        env: fullEnv(),
+        routes: supabaseRoutes({
+          [QUERY_ROUTE]: queryRoute({
+            override: ({ body }) =>
+              isRotationQuery(body.query)
+                ? json(400, { message: `${prefix}${body.query.slice(0, cut)}` })
+                : null,
+          }),
+        }),
+      });
+      t.deps.randomToken = () => {
+        const v = token(++n);
+        generated.push(v);
+        return v;
+      };
+      assert.equal(
+        await main([`--site-url=${SITE}`, "--with-demo-seed", "--write-env"], t.deps),
+        1,
+      );
+      const out = t.output();
+      assert.match(out, /respondeu 400: Failed to run sql query/);
+      for (const pw of generated) {
+        for (let i = 0; i + 6 <= pw.length; i++) {
+          assert.ok(!out.includes(pw.slice(i, i + 6)), `corte ${cut}: pedaço de senha na saída`);
+        }
+      }
+    }
+  });
+});
+
+describe("createRedactor: pedaços de senhas geradas", () => {
+  test("mascara o valor inteiro e pedaços dele, sem mexer no resto do texto", () => {
+    const redact = createRedactor();
+    const pw = "Zx9_kLmN0pQrStUvWxYz-AbCdEfGhIj";
+    redact.addWithFragments(pw);
+    assert.equal(redact(`a '${pw}' b`), `a '****(${pw.length} caracteres)' b`);
+    // Cortado no fim (limite de 400 caracteres), no começo (contexto "...") e no meio.
+    assert.equal(redact(`x '${pw.slice(0, 11)}`), "x '****(11 caracteres)");
+    assert.equal(redact(`...${pw.slice(9)}', y`), `...****(${pw.length - 9} caracteres)', y`);
+    assert.equal(redact(`(${pw.slice(5, 11)})`), "(****(6 caracteres))");
+    // Grudado em outros caracteres do mesmo alfabeto: a janela de 6 ainda pega.
+    assert.equal(redact(`abc${pw.slice(0, 8)}`), "****(11 caracteres)");
+    // Menos de 6 caracteres não é mascarado (não revela nada útil) nem estraga o texto em volta.
+    assert.equal(redact(`(${pw.slice(5, 10)})`), `(${pw.slice(5, 10)})`);
+    // Texto comum continua igual (inclusive UUIDs e e-mails do domínio fictício).
+    const plain =
+      "update auth.users set x where id = 'd0000000-0000-4000-8000-000000000001' and admin@demo.cienciadelas.dev";
+    assert.equal(redact(plain), plain);
+    // add() continua mascarando só o valor inteiro.
+    const only = createRedactor();
+    only.add(pw);
+    assert.equal(only(pw.slice(0, 11)), pw.slice(0, 11));
   });
 });

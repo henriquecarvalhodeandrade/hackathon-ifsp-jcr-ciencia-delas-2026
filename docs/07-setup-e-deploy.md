@@ -58,7 +58,9 @@ Serviços locais úteis:
 
 ### Contas de demonstração
 
-Senha de todas: **`ciencia-delas-demo`** (dados fictícios — não use o seed em produção).
+Senha de todas: **`ciencia-delas-demo`** (dados fictícios — não use o seed em produção). Vale no banco local;
+num projeto da nuvem preparado com `setup-supabase-cloud.mjs --with-demo-seed`, o script troca todas por senhas
+aleatórias (as de `admin@` e `moderacao@` ficam no arquivo do `--write-env`; ver §4.1).
 
 | Para testar                         | Conta                             |
 | ----------------------------------- | --------------------------------- |
@@ -107,24 +109,24 @@ no Mailpit; clique no link e você cai no onboarding.
 
 Todas estão documentadas em [`.env.example`](../.env.example). Resumo:
 
-| Variável                               | Obrigatória?                                            | Onde conseguir                                                                                                                   |
-| -------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`                 | sim em produção                                         | URL pública do site (links de e-mail, redirects de login)                                                                        |
-| `NEXT_PUBLIC_SUPABASE_URL`             | **sim**                                                 | `supabase status` ou Project Settings → API                                                                                      |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **sim**                                                 | `sb_publishable_...` (ou a anon key legada)                                                                                      |
-| `SUPABASE_SECRET_KEY`                  | para newsletter, cron, exclusão de conta e painel admin | `sb_secret_...` (ou service_role legada) — **nunca** com `NEXT_PUBLIC_`                                                          |
-| `GEMINI_API_KEY`                       | opcional (IA)                                           | https://aistudio.google.com/apikey — grátis, sem cartão                                                                          |
-| `GROQ_API_KEY`                         | opcional (IA, fallback)                                 | https://console.groq.com/keys — grátis                                                                                           |
-| `OPENROUTER_API_KEY`                   | opcional (IA, fallback)                                 | https://openrouter.ai/keys                                                                                                       |
-| `AI_PROVIDER`                          | opcional                                                | `gemini`, `groq`, `openrouter` ou `none`; vazio = primeira chave encontrada                                                      |
-| `RESEND_API_KEY`                       | opcional (envio da newsletter)                          | https://resend.com/api-keys                                                                                                      |
-| `NEWSLETTER_FROM`                      | com Resend                                              | remetente de um **domínio verificado** no Resend                                                                                 |
-| `NEWSLETTER_MAX_PER_RUN`               | opcional                                                | teto de e-mails por execução (padrão 90)                                                                                         |
-| `CRON_SECRET`                          | sim em produção                                         | string aleatória longa (`openssl rand -hex 32`)                                                                                  |
-| `CONTACT_EMAIL`                        | opcional                                                | contato usado no User-Agent do Crossref                                                                                          |
-| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | opcional                                                | `true` depois de configurar o Google no Supabase                                                                                 |
-| `DEMO_MODE`                            | só na apresentação                                      | `true` (exatamente) liga o `/demo`; **nunca** com membras de verdade; desligue (`false` ou apague) depois do evento. Só servidor |
-| `DEMO_PASSWORD`                        | opcional (plano B do `/demo`)                           | senha das contas fictícias, usada só se faltar `SUPABASE_SECRET_KEY`. Só servidor, nunca `NEXT_PUBLIC_`                          |
+| Variável                               | Obrigatória?                                            | Onde conseguir                                                                                                                                                                           |
+| -------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                 | sim em produção                                         | URL pública do site (links de e-mail, redirects de login)                                                                                                                                |
+| `NEXT_PUBLIC_SUPABASE_URL`             | **sim**                                                 | `supabase status` ou Project Settings → API                                                                                                                                              |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **sim**                                                 | `sb_publishable_...` (ou a anon key legada)                                                                                                                                              |
+| `SUPABASE_SECRET_KEY`                  | para newsletter, cron, exclusão de conta e painel admin | `sb_secret_...` (ou service_role legada) — **nunca** com `NEXT_PUBLIC_`                                                                                                                  |
+| `GEMINI_API_KEY`                       | opcional (IA)                                           | https://aistudio.google.com/apikey — grátis, sem cartão                                                                                                                                  |
+| `GROQ_API_KEY`                         | opcional (IA, fallback)                                 | https://console.groq.com/keys — grátis                                                                                                                                                   |
+| `OPENROUTER_API_KEY`                   | opcional (IA, fallback)                                 | https://openrouter.ai/keys                                                                                                                                                               |
+| `AI_PROVIDER`                          | opcional                                                | `gemini`, `groq`, `openrouter` ou `none`; vazio = primeira chave encontrada                                                                                                              |
+| `RESEND_API_KEY`                       | opcional (envio da newsletter)                          | https://resend.com/api-keys                                                                                                                                                              |
+| `NEWSLETTER_FROM`                      | com Resend                                              | remetente de um **domínio verificado** no Resend                                                                                                                                         |
+| `NEWSLETTER_MAX_PER_RUN`               | opcional                                                | teto de e-mails por execução (padrão 90)                                                                                                                                                 |
+| `CRON_SECRET`                          | sim em produção                                         | string aleatória longa (`openssl rand -hex 32`)                                                                                                                                          |
+| `CONTACT_EMAIL`                        | opcional                                                | contato usado no User-Agent do Crossref                                                                                                                                                  |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | opcional                                                | `true` depois de configurar o Google no Supabase                                                                                                                                         |
+| `DEMO_MODE`                            | só na apresentação                                      | `true` (exatamente) liga o `/demo`; **nunca** com membras de verdade; desligue (`false` ou apague) depois do evento. Só servidor                                                         |
+| `DEMO_PASSWORD`                        | opcional (plano B do `/demo`)                           | senha das contas fictícias, usada só se faltar `SUPABASE_SECRET_KEY`. Só servidor, nunca `NEXT_PUBLIC_`. Não serve num banco preparado com `--with-demo-seed` (as senhas foram trocadas) |
 
 **O app funciona sem as chaves opcionais:** sem IA, a mentoria usa o score heurístico; sem Resend, as edições da
 newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mailpit).
@@ -146,7 +148,11 @@ newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mail
      `seed.sql` (linhas iniciais, antes de `2. DEMONSTRAÇÃO`).
    - **Ambiente de demonstração:** rode o arquivo inteiro (inclui as contas e dados fictícios) e depois os
      `supabase/seeds/*.sql`, em ordem (painel, reconhecimento, Pergunte, trajetória). O
-     `scripts/deploy/setup-supabase-cloud.mjs --with-demo-seed` faz as duas coisas.
+     `scripts/deploy/setup-supabase-cloud.mjs --with-demo-seed --write-env` faz as duas coisas e, logo depois,
+     troca a senha pública (`ciencia-delas-demo`) de **todas** as contas `@demo.cienciadelas.dev` por senhas
+     aleatórias: as de `admin@` e `moderacao@` ficam só no arquivo do `--write-env` (`DEMO_ADMIN_PASSWORD`,
+     `DEMO_MODERACAO_PASSWORD`), e as personas entram pelo `/demo` sem senha. Rodando o SQL à mão, troque você
+     mesma a senha dessas duas contas (_Authentication → Users_): a senha do seed é pública.
 3. **Authentication → URL Configuration**:
    - _Site URL_: `https://<seu-app>.vercel.app`
    - _Redirect URLs_: `https://<seu-app>.vercel.app/**` e, para previews, `https://*-<sua-conta>.vercel.app/**`
@@ -219,6 +225,8 @@ Administradoras podem promover moderadoras pelo painel `/admin`.
 - [ ] Site URL e Redirect URLs corretas no Supabase.
 - [ ] Templates de e-mail em pt-BR colados no painel.
 - [ ] Seed de demonstração **não** aplicado em produção (ou contas demo removidas), nem os `supabase/seeds/*.sql`.
+- [ ] Num projeto de demonstração acessível pela internet, nenhuma conta `@demo.cienciadelas.dev` com a senha do
+      seed (o `--with-demo-seed` do script troca todas; as de `admin@`/`moderacao@` ficam no `--write-env`).
 - [ ] `DEMO_MODE` desligado em produção (ligue só no ambiente da apresentação, durante o evento).
 - [ ] `npm run check`, `npm run db:test` e `npm run build` passando.
 - [ ] Advisors do Supabase sem alertas críticos.

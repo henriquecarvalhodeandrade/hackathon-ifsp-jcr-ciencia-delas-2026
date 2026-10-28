@@ -179,6 +179,9 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
    agora. Tente de novo em alguns segundos."
 5. Sem a chave, com `DEMO_PASSWORD`: `signInWithPassword` (plano B). A mesma conferência (conta do
    seed + papel `member`) roda logo depois do login; se falhar, a sessão recém-aberta é encerrada.
+   O plano B só serve para um banco em que as personas ainda têm a senha do seed (ex.: o local): num
+   projeto da nuvem preparado com `setup-supabase-cloud.mjs --with-demo-seed`, as senhas foram trocadas
+   (§3.3) e o `/demo` depende da chave secreta, que o script entrega.
 
 ### 3.3 Modelo de segurança
 
@@ -200,11 +203,24 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
   que não depende da senha; o plano B por `DEMO_PASSWORD` pode ser quebrado por alguém da banca. A
   sessão é real: quem quiser pode alterar o perfil da persona — por isso os dados são reiniciados
   depois do evento.
-- **Contas de administração e moderação do seed:** `admin@` e `moderacao@` usam a mesma senha
-  **pública** das demais (`ciencia-delas-demo`, no README). O `/demo` nunca entra nelas, mas numa
-  instância de apresentação acessível pela internet (deploy com `--with-demo-seed`) qualquer pessoa
-  entraria nelas pelo `/entrar`. Antes do evento, troque a senha dessas duas contas (Supabase →
-  Authentication → Users) ou remova-as; isso vale com ou sem `DEMO_MODE`.
+- **Contas de administração e moderação do seed:** o `seed.sql` cria `admin@` (papel `admin`: vê a
+  autoria de relatos anônimos, modera, apaga) e `moderacao@` com a mesma senha **pública** das demais
+  (`ciencia-delas-demo`, no README). O `/demo` nunca entra nelas, mas numa instância acessível pela
+  internet qualquer pessoa entraria pelo `/entrar` — com ou sem `DEMO_MODE`. Por isso o
+  `scripts/deploy/setup-supabase-cloud.mjs --with-demo-seed`, logo depois do seed (e a cada nova
+  execução), troca a senha de **todas** as contas `@demo.cienciadelas.dev` por senhas aleatórias
+  (`node:crypto`, 32 caracteres) num único `UPDATE` com o bcrypt do `pgcrypto`, e encerra as sessões
+  abertas de `admin@` e `moderacao@`:
+  - **personas:** ficam com senhas que ninguém recebe — o `/demo` entra por link mágico (§3.2), sem
+    senha;
+  - **equipe:** as senhas novas de `admin@` e `moderacao@` vão **só** para o arquivo do `--write-env`
+    (`DEMO_ADMIN_PASSWORD`, `DEMO_MODERACAO_PASSWORD`; permissão 600, fora do git), que por isso é
+    obrigatório com `--with-demo-seed`. Nunca aparecem na saída, na simulação nem na Vercel.
+
+  Detalhes e garantias: [`scripts/deploy/README.md` §5](../scripts/deploy/README.md#5-segurança).
+  Banco preparado sem o script (ex.: `seed.sql` colado no SQL Editor) continua com a senha pública:
+  troque a de `admin@` e `moderacao@` (Supabase → Authentication → Users) ou rode o script.
+
 - **Limites do Supabase Auth:** todas as entradas saem do IP do servidor; o limite padrão é de 30
   validações de token por 5 minutos por IP (`[auth.rate_limit]` do `config.toml`). Sobra para uma
   apresentação; num evento com muita gente, aumente no painel do Supabase. Como o `/demo` é público
@@ -221,8 +237,10 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
 - **Nuvem:** rode de novo os seeds no banco da apresentação (`supabase/seed.sql` e depois
   `supabase/seeds/*.sql`, pelo SQL Editor ou `psql`). O `--with-demo-seed` do
   `scripts/deploy/setup-supabase-cloud.mjs` aplica o `seed.sql` (se a demonstração ainda não existir)
-  e sempre os `supabase/seeds/*.sql`, que são idempotentes; para voltar ao estado exato do começo (sem o
-  que a banca escreveu), recrie o banco antes.
+  e sempre os `supabase/seeds/*.sql`, que são idempotentes, e troca de novo as senhas das contas
+  fictícias (pegue as novas de `admin@`/`moderacao@` no arquivo do `--write-env`); para voltar ao estado
+  exato do começo (sem o que a banca escreveu), recrie o banco antes. Recriando o banco e colando o
+  `seed.sql` no SQL Editor, as contas voltam com a senha pública: rode o script em seguida.
 
 ## 4. Dados de demonstração (`supabase/seeds/10_painel.sql`)
 
