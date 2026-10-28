@@ -70,6 +70,7 @@ A interface adota a direção **Editorial & Acadêmica**, unindo autoridade e ri
 8. **Nunca exponha a `service_role` key** no client nem em variáveis `NEXT_PUBLIC_*`.
 9. Interface em **português (pt-BR)**. Inclua skeletons de loading, estados vazios amigáveis e tratamento de erro.
 10. **Suporte obrigatório a tema claro e escuro** via `next-themes` e variáveis CSS com tokens semânticos (`bg-background`, `text-foreground`, `bg-card`, etc).
+11. **Imutabilidade e Continuidade de Migrations:** NUNCA altere ou edite uma migration SQL que já tenha sido executada. Toda e qualquer alteração de schema, trigger ou RLS DEVE ser criada em um novo arquivo sequencial (ex: `001_...`, `002_...`, `003_...`), garantindo continuidade estrita e rastreabilidade.
 
 ---
 

@@ -18,12 +18,12 @@ declare
 begin
 
   -- Inserir Perfis se não existirem
-  insert into public.profiles (id, username, full_name, account_type, bio, course_or_area, is_self_declared_woman, conduct_accepted_at, is_verified_scientist)
+  insert into public.profiles (id, email, username, full_name, account_type, bio, course_or_area, is_self_declared_woman, conduct_accepted_at, is_verified_scientist)
   values
-    (u_dra_marielle, 'marielle_silva', 'Dra. Marielle Silva', 'scientist', 'Pesquisadora em IA Ética, Aprendizado de Máquina e mitigação de vieses algorítmicos. Coordenadora de laboratório.', 'Inteligência Artificial & Ciência da Computação', true, now(), true),
-    (u_dra_jaqueline, 'jaqueline_costa', 'Dra. Jaqueline Costa', 'scientist', 'Pesquisadora em Bioinformática e Genômica Computacional. Mentora de jovens mulheres na ciência.', 'Biotecnologia & Bioinformática', true, now(), true),
-    (u_ana_estudante, 'ana_beatriz', 'Ana Beatriz Santos', 'student', 'Estudante de Ciência da Computação (4º período). Apaixonada por visão computacional e acessibilidade.', 'Ciência da Computação', true, now(), false),
-    (u_julia_ads, 'julia_tech', 'Júlia Mendes', 'student', 'Desenvolvedora Full-Stack e graduanda em ADS. Criadora de projetos de extensão para meninas na programação.', 'Análise e Desenv. de Sistemas', true, now(), false)
+    (u_dra_marielle, 'marielle.silva@exemplo.com', 'marielle_silva', 'Dra. Marielle Silva', 'scientist', 'Pesquisadora em IA Ética, Aprendizado de Máquina e mitigação de vieses algorítmicos. Coordenadora de laboratório.', 'Inteligência Artificial & Ciência da Computação', true, now(), true),
+    (u_dra_jaqueline, 'jaqueline.costa@exemplo.com', 'jaqueline_costa', 'Dra. Jaqueline Costa', 'scientist', 'Pesquisadora em Bioinformática e Genômica Computacional. Mentora de jovens mulheres na ciência.', 'Biotecnologia & Bioinformática', true, now(), true),
+    (u_ana_estudante, 'ana.beatriz@exemplo.com', 'ana_beatriz', 'Ana Beatriz Santos', 'student', 'Estudante de Ciência da Computação (4º período). Apaixonada por visão computacional e acessibilidade.', 'Ciência da Computação', true, now(), false),
+    (u_julia_ads, 'julia.mendes@exemplo.com', 'julia_tech', 'Júlia Mendes', 'student', 'Desenvolvedora Full-Stack e graduanda em ADS. Criadora de projetos de extensão para meninas na programação.', 'Análise e Desenv. de Sistemas', true, now(), false)
   on conflict (id) do nothing;
 
   -- Inserir Projetos de Iniciação Científica

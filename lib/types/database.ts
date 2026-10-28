@@ -6,16 +6,17 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type AccountType = 'student' | 'scientist';
-export type RequestStatus = 'pending' | 'accepted' | 'rejected';
-export type InterestOrigin = 'user_request' | 'creator_invite';
+export type AccountType = "student" | "scientist";
+export type RequestStatus = "pending" | "accepted" | "rejected";
+export type InterestOrigin = "user_request" | "creator_invite";
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: {
         Row: {
           id: string;
+          email: string;
           username: string;
           full_name: string;
           account_type: AccountType;
@@ -29,6 +30,7 @@ export interface Database {
         };
         Insert: {
           id: string;
+          email?: string;
           username: string;
           full_name: string;
           account_type: AccountType;
@@ -42,6 +44,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          email?: string;
           username?: string;
           full_name?: string;
           account_type?: AccountType;
@@ -53,6 +56,7 @@ export interface Database {
           is_verified_scientist?: boolean;
           created_at?: string;
         };
+        Relationships: [];
       };
       posts: {
         Row: {
@@ -73,6 +77,15 @@ export interface Database {
           content?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       post_likes: {
         Row: {
@@ -90,6 +103,22 @@ export interface Database {
           user_id?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       projects: {
         Row: {
@@ -125,6 +154,15 @@ export interface Database {
           is_open?: boolean;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "projects_creator_id_fkey";
+            columns: ["creator_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       project_interests: {
         Row: {
@@ -154,6 +192,22 @@ export interface Database {
           status?: RequestStatus;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "project_interests_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_interests_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       follows: {
         Row: {
@@ -171,6 +225,22 @@ export interface Database {
           following_id?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey";
+            columns: ["follower_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey";
+            columns: ["following_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       connections: {
         Row: {
@@ -194,6 +264,22 @@ export interface Database {
           status?: RequestStatus;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "connections_requester_id_fkey";
+            columns: ["requester_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "connections_addressee_id_fkey";
+            columns: ["addressee_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       conversations: {
         Row: {
@@ -220,6 +306,29 @@ export interface Database {
           status?: RequestStatus;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "conversations_user_a_fkey";
+            columns: ["user_a"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_user_b_fkey";
+            columns: ["user_b"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_requested_by_fkey";
+            columns: ["requested_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       messages: {
         Row: {
@@ -243,6 +352,22 @@ export interface Database {
           content?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       showcases: {
         Row: {
@@ -272,6 +397,15 @@ export interface Database {
           external_url?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "showcases_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: {
@@ -285,5 +419,8 @@ export interface Database {
       request_status: RequestStatus;
       interest_origin: InterestOrigin;
     };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
-}
+};

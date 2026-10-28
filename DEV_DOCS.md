@@ -61,6 +61,15 @@ hackathon-ifsp-jcr-ciencia-delas-2026/
    - O solicitante só pode enviar **1 mensagem inicial** até que o destinatário aceite o pedido.
    - **Regra reforçada no RLS:** a política `msg_insert` bloqueia inserções extras se a conversa estiver pendente e o solicitante já tiver enviado uma mensagem.
 
+### 2.1 Histórico de Migrations (Sequencial & Imutável)
+> **Regra Fundamental:** Migrations já executadas no banco são **imutáveis**. Qualquer nova alteração deve ser criada como uma migration subsequente contínua.
+
+| Arquivo | Descrição | Status de Aplicação |
+|---|---|---|
+| `001_initial_schema.sql` | Schema base completo: enums, 9 tabelas (`profiles`, `posts`, `post_likes`, `projects`, `project_interests`, `follows`, `connections`, `conversations`, `messages`, `showcases`), políticas de RLS completas e trigger inicial `handle_new_user`. | ✅ Executado no Supabase |
+| `002_fix_signup_trigger.sql` | Continuidade: recria a função `handle_new_user()` adicionando `set search_path = public`, tratamento com `exception when others` para tipos enum e loop de desambiguação para garantir que o `@username` seja sempre único sem travar o cadastro. | ⏳ Substituído pela 003 |
+| `003_revision_add_email_and_indexes.sql` | Revisão Completa: adiciona a coluna `email text unique` em `profiles`, sincroniza com `auth.users`, implementa `handle_new_user()` definitivo (com email, username único e `search_path = public`) e cria índices de alta performance (GIN para tags de IC, índices compostos para feed e DM). | ⏳ Pronto para execução no SQL Editor |
+
 ---
 
 ## 3. Registro de Etapas e Progresso
@@ -70,8 +79,8 @@ hackathon-ifsp-jcr-ciencia-delas-2026/
 | **Etapa 1.1** | Identidade Visual & Design System | ✅ Concluído | Definidos tokens claro/escuro, cores e regras no `AGENTS.md` e `DESIGN_SYSTEM.md`. |
 | **Etapa 1.2** | Backend & Migration SQL | ✅ Concluído | Criado schema DDL, RLS policies rigorosas, trigger `handle_new_user`, `seed.sql` e tipos TypeScript estritos em `lib/types/database.ts`. |
 | **Etapa 1.3** | Setup do Projeto Next.js | ✅ Concluído | Next.js 15 App Router, TypeScript strict, Tailwind, `next-themes`, `ThemeProvider`, `ThemeToggle`, `WomanBadge`, layout raiz e landing page. |
-| **Etapa 1.4** | Auth & Perfis + `<WomanBadge />` | 🔄 Em andamento | Telas de login/cadastro, tipo de conta, autodeclaração feminina, aceite de conduta e ações de auth. |
-| **Etapa 1.5** | Feed com Curtidas Otimistas | ⏳ Pendente | Composer, lista e toggleLike via Server Actions. |
+| **Etapa 1.4** | Auth & Perfis + `<WomanBadge />` | ✅ Concluído | Telas de login/cadastro, tipo de conta (Estudante/Cientista), autodeclaração feminina com preview do badge, aceite de conduta, Server Actions (`signUp`, `signIn`, `signOut`), Navbar autenticada, rota `/profile/[username]` e `/settings/profile`. |
+| **Etapa 1.5** | Feed com Curtidas Otimistas | 🔄 Próximo | PostComposer (limite 500 chars), lista de posts, autor com badge e toggleLike otimista via Server Actions. |
 | **Etapa 1.6** | Explorar IC (Match Científico) | ⏳ Pendente | Busca, filtros, solicitação de interesse e painel do criador. |
 | **Etapa 1.7** | Conexões & Seguir | ⏳ Pendente | Seguir e pedidos de conexão na UI. |
 | **Etapa 2.1** | Chat Realtime com Aprovação | ⏳ Pendente | Supabase Realtime + bloqueio de assédio. |
