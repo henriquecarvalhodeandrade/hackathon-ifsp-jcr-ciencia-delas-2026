@@ -2,12 +2,17 @@
 /**
  * E2E da afinidade de trajetória (docs/17-afinidade-de-trajetoria.md), com Playwright contra o
  * app rodando de verdade e o Supabase local (seed + supabase/seeds/40_trajetoria.sql).
- * Funciona SEM chave de IA (é a sugestão por afinidade, só com as regras da plataforma).
+ * Funciona com e sem chave de IA: a afinidade de trajetória é só das regras da plataforma, e as
+ * marcas nunca vão para a IA.
  *
  * O que o script faz, em ordem:
  *   1. larissa@ abre /mentoria e clica em "Encontrar mentoras": pelo menos um cartão mostra a
- *      linha "Em comum na trajetória" e um motivo que começa com "Vocês têm em comum"; depois de
- *      recarregar (sugestões salvas), os chips continuam lá (calculados na hora).
+ *      linha "Em comum na trajetória"; depois de recarregar (sugestões salvas), os chips continuam
+ *      lá (calculados na hora). O motivo depende de como as sugestões saíram: pelas regras (sem
+ *      chave de IA, como no CI), um cartão e uma linha salva têm o motivo que começa com "Vocês têm
+ *      em comum"; com a chave de IA (a Larissa do seed autorizou), o motivo é o texto da IA, e cada
+ *      cartão mostra o selo da sua origem ("Sugestão por IA" com o aviso, ou "Sugestão por
+ *      afinidade").
  *   2. Em /perfil#sobre ela desmarca uma marca (clique) e marca outra (teclado: Tab/Espaço),
  *      salva e recarrega: a mudança ficou (tela e banco). Um valor forjado fora do catálogo volta
  *      com erro no grupo e não grava nada.
@@ -521,10 +526,6 @@ async function journey() {
     const total = await cards.count();
     const count = await withTrajectory.count();
     const texts = await withTrajectory.allInnerTexts();
-    assert(
-      texts.some((text) => SHARED_REASON.test(text)),
-      "nenhum cartão com o motivo “Vocês têm em comum: as duas …”",
-    );
     const first = withTrajectory.first();
     const chips = first
       .getByRole("definition")
@@ -533,17 +534,58 @@ async function journey() {
     ctx.cardName = (await first.getByRole("heading", { level: 3 }).innerText()).trim();
 
     const saved = await q(
-      db.from("mentor_suggestions").select("mentor_id, reason, source").eq("mentee_id", LARISSA.id),
+      db
+        .from("mentor_suggestions")
+        .select("mentor_id, reason, source, model")
+        .eq("mentee_id", LARISSA.id),
       "sugestões salvas",
     );
-    assert(
-      saved.some((row) => row.source === "heuristic" && SHARED_REASON.test(row.reason)),
-      "o motivo com a trajetória não foi salvo em mentor_suggestions",
-    );
+    assert(saved.length > 0, "nenhuma sugestão gravada em mentor_suggestions");
     assert(
       !saved.some((row) => row.mentor_id === MARINA.id),
       "a Marina (mentoria ativa) voltou nas sugestões",
     );
+    // Com a chave de IA (e o consentimento da Larissa no seed), o motivo é o texto da IA; sem a
+    // chave (CI), ou se a IA falhar ou a cota acabar, as sugestões saem pelas regras.
+    const aiMode = saved.some((row) => row.source === "ai");
+    ctx.suggestionMode = aiMode ? "IA" : "regras";
+    if (aiMode) {
+      for (const row of saved.filter((r) => r.source === "ai")) {
+        assert(row.reason?.trim().length > 0, `sugestão por IA sem motivo (${row.mentor_id})`);
+        assert(row.model, `sugestão por IA sem o modelo gravado (${row.mentor_id})`);
+      }
+      // Cada cartão com trajetória em comum diz de onde veio o motivo; o da IA traz o aviso.
+      for (const text of texts) {
+        if (/Sugestão por IA/i.test(text)) {
+          assert(
+            /Texto gerado por IA/.test(text),
+            "cartão “Sugestão por IA” sem o aviso “Texto gerado por IA…”",
+          );
+        } else {
+          assert(
+            /Sugestão por afinidade/i.test(text),
+            "cartão sem o selo da origem (“Sugestão por IA” ou “Sugestão por afinidade”)",
+          );
+        }
+      }
+      // Linhas que saíram pelas regras (a IA não explicou aquela mentora) seguem a regra de sempre.
+      for (const row of saved.filter((r) => r.source === "heuristic")) {
+        assert(row.reason?.trim().length > 0, `sugestão por regras sem motivo (${row.mentor_id})`);
+      }
+    } else {
+      assert(
+        texts.some((text) => SHARED_REASON.test(text)),
+        "nenhum cartão com o motivo “Vocês têm em comum: as duas …”",
+      );
+      assert(
+        texts.every((text) => /Sugestão por afinidade/i.test(text)),
+        "cartão por regras sem o selo “Sugestão por afinidade”",
+      );
+      assert(
+        saved.some((row) => row.source === "heuristic" && SHARED_REASON.test(row.reason)),
+        "o motivo com a trajetória não foi salvo em mentor_suggestions",
+      );
+    }
 
     // Sugestões salvas: os chips são calculados na hora, então continuam depois de recarregar.
     await open(page, "/mentoria");
@@ -554,7 +596,7 @@ async function journey() {
         .filter({ hasText: "Em comum na trajetória" }),
       "chips depois de recarregar",
     );
-    return `${count} de ${total} cartões com trajetória em comum; primeiro: ${ctx.cardName}`;
+    return `${count} de ${total} cartões com trajetória em comum; primeiro: ${ctx.cardName}; motivo por ${ctx.suggestionMode}`;
   });
 
   await step("/perfil#sobre: desmarca (clique) e marca (teclado), salva e recarrega", async () => {
