@@ -24,7 +24,8 @@
 - Testes: unitários (Vitest), banco (pgTAP), jornada completa no navegador (`scripts/e2e/journey.mjs`).
 - **CI no GitHub Actions** (`.github/workflows/ci.yml`): a cada push e pull request roda formatação, lint, tipos,
   testes unitários, testes do script de deploy, build e pgTAP; a jornada E2E ainda não roda no CI —
-  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions).
+  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions). Já rodou de verdade no GitHub (Actions →
+  CI) e passou nos dois jobs.
 - Documentação em `docs/` e decisões em `docs/adr/`.
 
 ## O que falta (precisa de vocês)
@@ -95,8 +96,18 @@ O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto
 - [ ] Opcional: domínio verificado no Resend para o Boletim chegar a todas as inscritas
       (sem isso, o Boletim fica publicado no site).
 - [ ] Revisar os textos de `/conduta` com a equipe.
-- [ ] Conferir a primeira execução do CI em GitHub → **Actions** (o workflow ainda não rodou no GitHub; o selo
-      do README só mostra resultado depois que o workflow chegar ao `main`).
+- [ ] Abrir um pull request de `claude/plataforma-ciencia-delas` para `main` quando quiserem juntar o trabalho
+      (o selo de CI do README passa a mostrar o resultado depois que o workflow chegar ao `main`).
+
+## Como retomar comigo
+
+1. Cadastrem as variáveis da seção 1 (e, se quiserem, `GEMINI_API_KEY` e `VERCEL_TOKEN`) nas configurações do
+   ambiente.
+2. Abram uma **sessão nova** neste repositório, no branch `claude/plataforma-ciencia-delas`.
+3. Peçam: "continue a partir do docs/13: configure o Supabase Cloud, teste a IA e publique na Vercel".
+
+Com as variáveis presentes, eu rodo o script de deploy (primeiro em `--dry-run`), testo o matching com a IA de
+verdade, gero os embeddings dos perfis (`npm run ai:backfill`) e confiro o site publicado.
 
 ## Contas usadas até aqui
 
