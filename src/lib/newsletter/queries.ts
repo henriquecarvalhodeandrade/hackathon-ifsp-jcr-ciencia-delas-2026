@@ -57,7 +57,7 @@ function toDetail(row: ListRow): EditionDetail {
     counts: {
       papers: content.papers.length,
       threads: content.threads.length,
-      mentors: content.mentors.length,
+      mentors: content.mentor_summary.total,
     },
   };
 }

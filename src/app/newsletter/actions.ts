@@ -34,6 +34,14 @@ export type SubscribeState =
 const NEUTRAL_SUCCESS =
   "Pronto! Se este endereço ainda não estiver confirmado, você vai receber em instantes um e-mail com o link de confirmação. Confira também a caixa de spam ou promoções.";
 
+/** Limite por endereço (3 e-mails de confirmação a cada 24 h): neutro, não confirma se o e-mail existe. */
+const ADDRESS_LIMIT_MESSAGE =
+  "Se este endereço ainda não estiver confirmado, procure o e-mail de confirmação que já enviamos — confira também o spam e a aba de promoções. Para proteger as caixas de entrada, mandamos no máximo 3 e-mails de confirmação por dia para o mesmo endereço.";
+
+/** Teto diário de confirmações atingido (proteção contra abuso). */
+const DAILY_LIMIT_MESSAGE =
+  "Recebemos muitos pedidos de inscrição hoje e pausamos os e-mails de confirmação até amanhã. Tente de novo daqui a 24 horas — enquanto isso, todas as edições ficam disponíveis aqui no site.";
+
 const subscribeSchema = z.object({
   email: z
     .string()
@@ -115,6 +123,8 @@ export async function subscribeToNewsletter(
 
   const result = await subscribe({ email, areaIds, profileId });
   if (!result.ok) return { ok: false, error: result.error, values };
+  if (result.outcome === "daily_limit") return { ok: false, error: DAILY_LIMIT_MESSAGE, values };
+  if (result.outcome === "address_limit") return { ok: true, message: ADDRESS_LIMIT_MESSAGE, values };
 
   revalidatePath("/newsletter");
   return { ok: true, message: NEUTRAL_SUCCESS, devNotice: devNotice(), values };

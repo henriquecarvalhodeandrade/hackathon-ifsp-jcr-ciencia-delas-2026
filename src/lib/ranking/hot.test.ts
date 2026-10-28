@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ageInHours, hotScore, periodStart } from "./hot";
+import { RANKING_PERIODS } from "@/lib/constants";
+import { VITRINE_ORDER_EXPLANATIONS } from "@/lib/papers/params";
+import {
+  HOT_FORMULA_TEXT,
+  RANKING_PERIOD_EXPLANATIONS,
+  ageInHours,
+  hotScore,
+  periodStart,
+} from "./hot";
 
 const NOW = new Date("2026-10-27T12:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
@@ -55,5 +63,33 @@ describe("periodStart (= now() - interval '7/30/365 days' na RPC)", () => {
   it("'all' e 'hot' não têm janela", () => {
     expect(periodStart("all", NOW)).toBeNull();
     expect(periodStart("hot", NOW)).toBeNull();
+  });
+});
+
+describe("RANKING_PERIOD_EXPLANATIONS (fonte única dos textos do ranking)", () => {
+  it("tem um texto para cada período", () => {
+    expect(Object.keys(RANKING_PERIOD_EXPLANATIONS).sort()).toEqual(
+      Object.keys(RANKING_PERIODS).sort(),
+    );
+  });
+
+  it("fala sempre em destaques, nunca em votos", () => {
+    for (const text of Object.values(RANKING_PERIOD_EXPLANATIONS)) {
+      expect(text).toMatch(/destaques/);
+      expect(text).not.toMatch(/\bvotos?\b/i);
+    }
+  });
+
+  it("descreve o Em alta exatamente como a fórmula", () => {
+    expect(HOT_FORMULA_TEXT).toBe("destaques ÷ (horas desde a publicação + 2)^1,5");
+    expect(RANKING_PERIOD_EXPLANATIONS.hot).toContain(HOT_FORMULA_TEXT);
+  });
+
+  it("a Vitrine reaproveita os mesmos textos", () => {
+    for (const [period, text] of Object.entries(RANKING_PERIOD_EXPLANATIONS)) {
+      expect(VITRINE_ORDER_EXPLANATIONS[period as keyof typeof RANKING_PERIOD_EXPLANATIONS]).toBe(
+        text,
+      );
+    }
   });
 });

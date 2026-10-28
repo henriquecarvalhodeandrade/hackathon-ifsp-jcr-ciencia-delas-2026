@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
@@ -376,6 +370,55 @@ export type Database = {
           },
         ];
       };
+      moderation_audit_log: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          created_at: string;
+          id: number;
+          reason: string | null;
+          report_id: string | null;
+          target_id: string | null;
+          target_type: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          created_at?: string;
+          id?: never;
+          reason?: string | null;
+          report_id?: string | null;
+          target_id?: string | null;
+          target_type?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          created_at?: string;
+          id?: never;
+          reason?: string | null;
+          report_id?: string | null;
+          target_id?: string | null;
+          target_type?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "moderation_audit_log_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "moderation_audit_log_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "reports";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       newsletter_deliveries: {
         Row: {
           edition_id: string;
@@ -469,6 +512,8 @@ export type Database = {
         Row: {
           area_ids: number[];
           confirm_token: string;
+          confirmation_sent_at: string | null;
+          confirmation_sent_count: number;
           confirmed_at: string | null;
           consent_text: string;
           consented_at: string;
@@ -485,6 +530,8 @@ export type Database = {
         Insert: {
           area_ids?: number[];
           confirm_token?: string;
+          confirmation_sent_at?: string | null;
+          confirmation_sent_count?: number;
           confirmed_at?: string | null;
           consent_text: string;
           consented_at?: string;
@@ -500,6 +547,8 @@ export type Database = {
         Update: {
           area_ids?: number[];
           confirm_token?: string;
+          confirmation_sent_at?: string | null;
+          confirmation_sent_count?: number;
           confirmed_at?: string | null;
           consent_text?: string;
           consented_at?: string;
@@ -1032,8 +1081,7 @@ export type Database = {
           area_ids: number[];
           avatar_url: string | null;
           career_stage: Database["public"]["Enums"]["career_stage"] | null;
-          existing_request_status:
-            Database["public"]["Enums"]["mentorship_status"] | null;
+          existing_request_status: Database["public"]["Enums"]["mentorship_status"] | null;
           full_name: string;
           headline: string | null;
           institution: string | null;
@@ -1048,6 +1096,13 @@ export type Database = {
           state: string | null;
         }[];
       };
+      get_mentor_open_slots: {
+        Args: { p_ids: string[] };
+        Returns: {
+          mentor_id: string;
+          open_slots: number;
+        }[];
+      };
       get_mentorship_contact: {
         Args: { p_request_id: string };
         Returns: {
@@ -1056,12 +1111,7 @@ export type Database = {
         }[];
       };
       get_paper_ranking: {
-        Args: {
-          p_area_slug?: string;
-          p_limit?: number;
-          p_offset?: number;
-          p_period?: string;
-        };
+        Args: { p_area_slug?: string; p_limit?: number; p_offset?: number; p_period?: string };
         Returns: {
           area_id: number | null;
           area_name: string | null;
@@ -1095,15 +1145,25 @@ export type Database = {
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_moderator: { Args: Record<PropertyKey, never>; Returns: boolean };
       moderate_paper: {
-        Args: { p_hidden: boolean; p_paper_id: string };
+        Args: { p_hidden: boolean; p_paper_id: string; p_reason?: string; p_report_id?: string };
         Returns: undefined;
       };
       moderate_thread: {
-        Args: { p_locked?: boolean; p_pinned?: boolean; p_thread_id: string };
+        Args: {
+          p_locked?: boolean;
+          p_pinned?: boolean;
+          p_reason?: string;
+          p_report_id?: string;
+          p_thread_id: string;
+        };
         Returns: undefined;
       };
+      newsletter_reserve_confirmation: {
+        Args: { p_max_per_address?: number; p_max_per_day?: number; p_subscriber_id: string };
+        Returns: string;
+      };
       reveal_anonymous_author: {
-        Args: { p_post_id?: string; p_thread_id?: string };
+        Args: { p_post_id?: string; p_reason?: string; p_report_id?: string; p_thread_id?: string };
         Returns: string | null;
       };
     };
@@ -1119,22 +1179,17 @@ export type Database = {
         | "industry";
       edition_status: "draft" | "published" | "sent";
       meeting_format: "online" | "in_person" | "hybrid";
-      mentorship_status:
-        "pending" | "accepted" | "declined" | "cancelled" | "completed";
+      mentorship_status: "pending" | "accepted" | "declined" | "cancelled" | "completed";
       notification_type:
         | "mentorship_request"
         | "mentorship_response"
         | "thread_reply"
         | "solution_marked"
-        | "paper_comment";
+        | "paper_comment"
+        | "report_resolved";
       reaction_kind: "support" | "useful" | "celebrate";
       report_reason:
-        | "harassment"
-        | "spam"
-        | "misinformation"
-        | "offensive"
-        | "plagiarism"
-        | "other";
+        "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
       report_status: "open" | "resolved" | "dismissed";
       report_target: "thread" | "post" | "paper" | "paper_comment" | "profile";
       subscriber_status: "pending" | "active" | "unsubscribed";
@@ -1148,10 +1203,7 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<
-  keyof Database,
-  "public"
->];
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -1163,19 +1215,15 @@ export type Tables<
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R;
       }
       ? R
@@ -1190,9 +1238,7 @@ export type TablesInsert<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I;
     }
@@ -1214,9 +1260,7 @@ export type TablesUpdate<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U;
     }
@@ -1238,9 +1282,7 @@ export type Enums<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -1248,16 +1290,13 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
@@ -1278,29 +1317,17 @@ export const Constants = {
       ],
       edition_status: ["draft", "published", "sent"],
       meeting_format: ["online", "in_person", "hybrid"],
-      mentorship_status: [
-        "pending",
-        "accepted",
-        "declined",
-        "cancelled",
-        "completed",
-      ],
+      mentorship_status: ["pending", "accepted", "declined", "cancelled", "completed"],
       notification_type: [
         "mentorship_request",
         "mentorship_response",
         "thread_reply",
         "solution_marked",
         "paper_comment",
+        "report_resolved",
       ],
       reaction_kind: ["support", "useful", "celebrate"],
-      report_reason: [
-        "harassment",
-        "spam",
-        "misinformation",
-        "offensive",
-        "plagiarism",
-        "other",
-      ],
+      report_reason: ["harassment", "spam", "misinformation", "offensive", "plagiarism", "other"],
       report_status: ["open", "resolved", "dismissed"],
       report_target: ["thread", "post", "paper", "paper_comment", "profile"],
       subscriber_status: ["pending", "active", "unsubscribed"],

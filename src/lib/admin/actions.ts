@@ -8,7 +8,7 @@ import { generateWeeklyEdition, publishEdition, sendEdition } from "@/lib/newsle
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { actionError, NOT_ALLOWED, SESSION_EXPIRED, type ActionState } from "./action-state";
-import { appendAuditLine, buildAuditLine, mergeResolutionNote, splitResolutionNote } from "./audit";
+import { appendToResolutionNote, cleanAuditReason } from "./audit";
 import { friendlyDbError } from "./errors";
 import { ROLE_LABELS } from "./params";
 
@@ -21,6 +21,11 @@ import { ROLE_LABELS } from "./params";
  * validam de novo no Postgres. O cliente admin (service role) só é usado para
  * trocar papéis (a coluna `role` não tem GRANT de UPDATE para ninguém) e pela
  * newsletter, sempre depois de confirmar que quem pediu é admin.
+ *
+ * Auditoria (`moderation_audit_log`, docs/09): as RPCs de moderação e o trigger de
+ * denúncias registram sozinhos; aqui registramos a exclusão de conteúdo e a troca de
+ * papel. `reports.resolution_note` é uma nota VISÍVEL para quem denunciou — nada
+ * interno vai para ela.
  */
 
 type Gate = { profile: Profile; error?: undefined } | { profile?: undefined; error: { ok: false; error: string } };
@@ -38,6 +43,11 @@ async function gate(level: "moderator" | "admin"): Promise<Gate> {
 }
 
 const uuid = (label: string) => z.uuid({ error: `${label} inválido. Recarregue a página e tente de novo.` });
+/** Denúncia de onde a ação partiu (opcional): liga o registro de auditoria a ela. */
+const optionalReportId = z
+  .union([uuid("Denúncia"), z.literal("")])
+  .optional()
+  .transform((v) => (v ? v : undefined));
 const optionalNote = z
   .string()
   .trim()
@@ -90,13 +100,14 @@ export async function resolveReport(_prev: ActionState, formData: FormData): Pro
   if (current.error) return actionError(friendlyDbError(current.error));
   if (!current.data) return actionError("Denúncia não encontrada. Ela pode ter sido removida.");
 
+  // A nota é VISÍVEL para quem denunciou (vai no aviso de denúncia concluída). Reabrir sem nota
+  // mantém a anterior; nas demais, a nota nova substitui a antiga. O trigger do banco registra a
+  // resolução/arquivamento no registro de auditoria e avisa a denunciante.
   const { data, error } = await supabase
     .from("reports")
     .update({
       status,
-      // Reabrir sem nota mantém a nota anterior; nas demais, a nota nova substitui o texto livre.
-      resolution_note:
-        status === "open" && !note ? current.data.resolution_note : mergeResolutionNote(current.data.resolution_note, note),
+      resolution_note: status === "open" && !note ? current.data.resolution_note : (note ?? null),
     })
     .eq("id", id)
     .select("id")
@@ -113,7 +124,7 @@ type DeletableTarget = "thread" | "post" | "paper" | "paper_comment";
 
 /**
  * Fecha as denúncias abertas dos alvos depois que a moderação agiu sobre eles.
- * A nota automática é ACRESCENTADA ao texto que já existia (e a auditoria é preservada).
+ * A nota automática (visível para quem denunciou) é ACRESCENTADA ao texto que já existia.
  * Busca as abertas do tipo e filtra os ids aqui (a fila aberta é pequena; evita URLs enormes
  * quando um tópico apagado tinha centenas de respostas).
  */
@@ -136,13 +147,7 @@ async function resolveOpenReportsFor(
   for (const report of open) {
     const { error } = await supabase
       .from("reports")
-      .update({
-        status: "resolved",
-        resolution_note: mergeResolutionNote(
-          report.resolution_note,
-          [splitResolutionNote(report.resolution_note).text, note].filter(Boolean).join("\n"),
-        ),
-      })
+      .update({ status: "resolved", resolution_note: appendToResolutionNote(report.resolution_note, note) })
       .eq("id", report.id);
     if (!error) closed += 1;
   }
@@ -156,6 +161,7 @@ async function resolveOpenReportsFor(
 const threadSchema = z.object({
   threadId: uuid("Tópico"),
   op: z.enum(["pin", "unpin", "lock", "unlock"], { error: "Ação inválida." }),
+  reportId: optionalReportId,
 });
 
 const THREAD_MESSAGES = {
@@ -169,14 +175,20 @@ export async function moderateThreadAction(_prev: ActionState, formData: FormDat
   const { error: denied } = await gate("moderator");
   if (denied) return denied;
 
-  const parsed = threadSchema.safeParse({ threadId: formData.get("threadId"), op: formData.get("op") });
+  const parsed = threadSchema.safeParse({
+    threadId: formData.get("threadId"),
+    op: formData.get("op"),
+    reportId: formData.get("reportId") ?? undefined,
+  });
   if (!parsed.success) return actionError(firstIssue(parsed.error));
-  const { threadId, op } = parsed.data;
+  const { threadId, op, reportId } = parsed.data;
 
   const supabase = await createClient();
+  // A RPC registra a ação (fixar/trancar…) no registro de auditoria, ligada à denúncia.
   const { error } = await supabase.rpc("moderate_thread", {
     p_thread_id: threadId,
     ...(op === "pin" || op === "unpin" ? { p_pinned: op === "pin" } : { p_locked: op === "lock" }),
+    ...(reportId ? { p_report_id: reportId } : {}),
   });
   if (error) return actionError(friendlyDbError(error, "Não conseguimos alterar o tópico. Tente de novo."));
 
@@ -188,18 +200,27 @@ export async function moderateThreadAction(_prev: ActionState, formData: FormDat
 const paperSchema = z.object({
   paperId: uuid("Paper"),
   hidden: z.enum(["true", "false"], { error: "Ação inválida." }).transform((v) => v === "true"),
+  reportId: optionalReportId,
 });
 
 export async function setPaperVisibility(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { error: denied } = await gate("moderator");
   if (denied) return denied;
 
-  const parsed = paperSchema.safeParse({ paperId: formData.get("paperId"), hidden: formData.get("hidden") });
+  const parsed = paperSchema.safeParse({
+    paperId: formData.get("paperId"),
+    hidden: formData.get("hidden"),
+    reportId: formData.get("reportId") ?? undefined,
+  });
   if (!parsed.success) return actionError(firstIssue(parsed.error));
-  const { paperId, hidden } = parsed.data;
+  const { paperId, hidden, reportId } = parsed.data;
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("moderate_paper", { p_paper_id: paperId, p_hidden: hidden });
+  const { error } = await supabase.rpc("moderate_paper", {
+    p_paper_id: paperId,
+    p_hidden: hidden,
+    ...(reportId ? { p_report_id: reportId } : {}),
+  });
   if (error) return actionError(friendlyDbError(error, "Não conseguimos alterar a visibilidade do paper."));
 
   revalidateAdmin();
@@ -218,6 +239,7 @@ const deleteSchema = z.object({
   targetType: z.enum(["thread", "post", "paper", "paper_comment"], { error: "Tipo de conteúdo inválido." }),
   targetId: uuid("Conteúdo"),
   note: optionalNote,
+  reportId: optionalReportId,
 });
 
 const DELETE_LABELS = {
@@ -235,9 +257,10 @@ export async function deleteReportedContent(_prev: ActionState, formData: FormDa
     targetType: formData.get("targetType"),
     targetId: formData.get("targetId"),
     note: formData.get("note") ?? undefined,
+    reportId: formData.get("reportId") ?? undefined,
   });
   if (!parsed.success) return actionError(firstIssue(parsed.error));
-  const { targetType, targetId, note } = parsed.data;
+  const { targetType, targetId, note, reportId } = parsed.data;
 
   const supabase = await createClient();
   const table = DELETE_LABELS[targetType].table;
@@ -263,6 +286,18 @@ export async function deleteReportedContent(_prev: ActionState, formData: FormDa
 
   const { error, count } = await supabase.from(table).delete({ count: "exact" }).eq("id", targetId);
   if (error) return actionError(friendlyDbError(error, "Não conseguimos excluir o conteúdo. Tente de novo."));
+
+  if (count) {
+    // Registro de auditoria (o RLS exige moderação e actor_id = quem está agindo, o padrão).
+    const audit = await supabase.from("moderation_audit_log").insert({
+      action: "delete_content",
+      target_type: targetType,
+      target_id: targetId,
+      report_id: reportId ?? null,
+      reason: cleanAuditReason(note),
+    });
+    if (audit.error) console.error("[moderacao] falha ao registrar exclusão na auditoria", audit.error.code);
+  }
 
   let closed = await resolveOpenReportsFor(
     supabase,
@@ -316,7 +351,7 @@ const revealSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(20, { error: "Explique o motivo com pelo menos 20 caracteres — ele fica registrado na denúncia." })
+    .min(20, { error: "Explique o motivo com pelo menos 20 caracteres — ele fica no registro de auditoria." })
     .max(300, { error: "Use no máximo 300 caracteres." }),
   confirm: z.literal("on", { error: "Confirme que este é um caso grave e que o motivo ficará registrado." }),
 });
@@ -344,39 +379,22 @@ export async function revealAnonymousAuthor(
 
   const supabase = await createClient();
 
-  // A revelação precisa estar ligada a uma denúncia sobre ESTE conteúdo (trilha de auditoria).
-  const report = await supabase
-    .from("reports")
-    .select("id, target_type, target_id, resolution_note")
-    .eq("id", reportId)
-    .maybeSingle();
+  // A revelação precisa estar ligada a uma denúncia sobre ESTE conteúdo (o banco confere de novo).
+  const report = await supabase.from("reports").select("id, target_type, target_id").eq("id", reportId).maybeSingle();
   if (report.error) return actionError(friendlyDbError(report.error));
   if (!report.data || report.data.target_type !== targetType || report.data.target_id !== targetId) {
     return actionError("A denúncia não corresponde a este conteúdo. Recarregue a página.");
   }
 
-  const { data: authorId, error: revealError } = await supabase.rpc(
-    "reveal_anonymous_author",
-    targetType === "thread" ? { p_thread_id: targetId } : { p_post_id: targetId },
-  );
+  // A RPC grava o registro de auditoria (quem, quando, motivo, denúncia) na MESMA transação em
+  // que devolve a autoria: sem registro, nada é revelado. O nome revelado nunca é gravado.
+  const { data: authorId, error: revealError } = await supabase.rpc("reveal_anonymous_author", {
+    ...(targetType === "thread" ? { p_thread_id: targetId } : { p_post_id: targetId }),
+    p_reason: reason,
+    p_report_id: reportId,
+  });
   if (revealError) return actionError(friendlyDbError(revealError, "Não conseguimos revelar a autoria."));
   if (!authorId) return actionError("Esta publicação não é anônima ou já foi removida.");
-
-  // Registra a auditoria ANTES de mostrar a identidade: sem registro, nada é exibido.
-  const auditLine = buildAuditLine({
-    actorName: profile.full_name || "Administradora",
-    action: targetType === "thread" ? "revelou a autoria do tópico anônimo" : "revelou a autoria da resposta anônima",
-    reason,
-  });
-  const audit = await supabase
-    .from("reports")
-    .update({ resolution_note: appendAuditLine(report.data.resolution_note, auditLine) })
-    .eq("id", reportId)
-    .select("id")
-    .maybeSingle();
-  if (audit.error || !audit.data) {
-    return actionError("Não conseguimos registrar a auditoria, então a autoria não foi exibida. Tente de novo.");
-  }
 
   // Log do servidor sem nomes nem texto do motivo (só ids), para rastreabilidade.
   console.info("[moderacao] autoria anônima revelada", {
@@ -390,7 +408,7 @@ export async function revealAnonymousAuthor(
   revalidateAdmin();
   return {
     ok: true,
-    message: "Autoria revelada e registrada na denúncia.",
+    message: "Autoria revelada e registrada na auditoria da moderação.",
     data: { profileId: authorId, name: author?.full_name?.trim() || "Perfil sem nome" },
   };
 }
@@ -432,6 +450,16 @@ export async function changeMemberRole(_prev: ActionState, formData: FormData): 
 
   const { error } = await admin.from("profiles").update({ role }).eq("id", profileId);
   if (error) return actionError(friendlyDbError(error, "Não conseguimos alterar o papel. Tente de novo."));
+
+  // Auditoria com a sessão da admin (o RLS confere que é moderação e que actor_id é ela).
+  const supabase = await createClient();
+  const audit = await supabase.from("moderation_audit_log").insert({
+    action: "change_role",
+    target_type: "profile",
+    target_id: profileId,
+    reason: `${ROLE_LABELS[target.data.role]} → ${ROLE_LABELS[role]}`,
+  });
+  if (audit.error) console.error("[admin] falha ao registrar troca de papel na auditoria", audit.error.code);
 
   console.info("[admin] papel alterado", { profile: profileId, from: target.data.role, to: role, by: profile.id });
   revalidateAdmin();

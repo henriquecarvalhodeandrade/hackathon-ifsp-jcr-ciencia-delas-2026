@@ -2,6 +2,7 @@ import "server-only";
 import type { Enums, Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { truncate } from "@/lib/utils";
+import { isAuditAction, isAuditTargetType, type AuditAction, type AuditTargetType } from "./audit";
 import type { ReportStatus, ReportTarget, UserRole } from "./params";
 
 /**
@@ -57,7 +58,10 @@ export interface ReportView {
   reason: Enums<"report_reason">;
   details: string | null;
   status: ReportStatus;
+  /** Nota visível para quem denunciou (vai no aviso de denúncia concluída). */
   resolutionNote: string | null;
+  /** Registro de auditoria ligado a esta denúncia (mais antigo primeiro). */
+  audit: AuditEntry[];
   createdAt: string;
   resolvedAt: string | null;
   reporter: { id: string; name: string } | null;
@@ -242,7 +246,13 @@ export async function listReports(status: ReportStatus, requestedPage: number): 
   }
 
   const rows = list.data ?? [];
-  const targets = await loadTargets(supabase, rows);
+  const [targets, audit] = await Promise.all([
+    loadTargets(supabase, rows),
+    loadAuditForReports(
+      supabase,
+      rows.map((r) => r.id),
+    ),
+  ]);
   const reports: ReportView[] = rows.map((r) => {
     const reporter = Array.isArray(r.reporter) ? r.reporter[0] : r.reporter;
     const resolver = Array.isArray(r.resolver) ? r.resolver[0] : r.resolver;
@@ -254,6 +264,7 @@ export async function listReports(status: ReportStatus, requestedPage: number): 
       details: r.details,
       status: r.status,
       resolutionNote: r.resolution_note,
+      audit: audit.get(r.id) ?? [],
       createdAt: r.created_at,
       resolvedAt: r.resolved_at,
       reporter: reporter ? { id: reporter.id, name: reporter.full_name?.trim() || "Membra" } : null,
@@ -264,6 +275,121 @@ export async function listReports(status: ReportStatus, requestedPage: number): 
 
   const total = list.count ?? reports.length;
   return { reports, counts, total, totalPages: lastPage(total, REPORTS_PAGE_SIZE), page, error: false };
+}
+
+// ---------------------------------------------------------------------------
+// Registro de auditoria (moderation_audit_log — RLS: só moderação lê)
+// ---------------------------------------------------------------------------
+
+export interface AuditEntry {
+  id: number;
+  action: AuditAction;
+  actorName: string | null;
+  actorId: string | null;
+  targetType: AuditTargetType | null;
+  targetId: string | null;
+  reportId: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+const AUDIT_COLUMNS =
+  "id, action, actor_id, target_type, target_id, report_id, reason, created_at, actor:profiles!moderation_audit_log_actor_id_fkey(full_name)";
+
+type AuditRow = {
+  id: number;
+  action: string;
+  actor_id: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  report_id: string | null;
+  reason: string | null;
+  created_at: string;
+  actor: NamedProfile | NamedProfile[];
+};
+
+function toAuditEntry(row: AuditRow): AuditEntry | null {
+  if (!isAuditAction(row.action)) return null;
+  return {
+    id: row.id,
+    action: row.action,
+    actorId: row.actor_id,
+    actorName: row.actor_id ? (nameOf(row.actor) ?? "Moderação") : null,
+    targetType: isAuditTargetType(row.target_type) ? row.target_type : null,
+    targetId: row.target_id,
+    reportId: row.report_id,
+    reason: row.reason,
+    createdAt: row.created_at,
+  };
+}
+
+async function loadAuditForReports(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  reportIds: readonly string[],
+): Promise<Map<string, AuditEntry[]>> {
+  const map = new Map<string, AuditEntry[]>();
+  if (reportIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from("moderation_audit_log")
+    .select(AUDIT_COLUMNS)
+    .in("report_id", [...reportIds])
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(500);
+  if (error) {
+    console.error("[admin] falha ao carregar a auditoria das denúncias", error.code);
+    return map;
+  }
+  for (const row of (data ?? []) as AuditRow[]) {
+    const entry = toAuditEntry(row);
+    if (!entry?.reportId) continue;
+    const list = map.get(entry.reportId) ?? [];
+    list.push(entry);
+    map.set(entry.reportId, list);
+  }
+  return map;
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  total: number;
+  totalPages: number;
+  page: number;
+  error: boolean;
+}
+
+export const AUDIT_PAGE_SIZE = 30;
+
+/** Registro completo, mais recente primeiro (aba "Registro" do painel). */
+export async function listAuditLog(requestedPage: number): Promise<AuditPage> {
+  const supabase = await createClient();
+  const pageQuery = (page: number) => {
+    const from = (page - 1) * AUDIT_PAGE_SIZE;
+    return supabase
+      .from("moderation_audit_log")
+      .select(AUDIT_COLUMNS, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, from + AUDIT_PAGE_SIZE - 1);
+  };
+
+  let page = requestedPage;
+  let list = await pageQuery(page);
+  if (list.error?.code === RANGE_NOT_SATISFIABLE) {
+    const { count } = await supabase.from("moderation_audit_log").select("id", { count: "exact", head: true });
+    page = lastPage(count ?? 0, AUDIT_PAGE_SIZE);
+    list = await pageQuery(page);
+  }
+  if (list.error) {
+    console.error("[admin] falha ao listar o registro de auditoria", list.error.code);
+    return { entries: [], total: 0, totalPages: 0, page, error: true };
+  }
+  const entries = ((list.data ?? []) as AuditRow[]).flatMap((row) => {
+    const entry = toAuditEntry(row);
+    return entry ? [entry] : [];
+  });
+  const total = list.count ?? entries.length;
+  return { entries, total, totalPages: lastPage(total, AUDIT_PAGE_SIZE), page, error: false };
 }
 
 // ---------------------------------------------------------------------------

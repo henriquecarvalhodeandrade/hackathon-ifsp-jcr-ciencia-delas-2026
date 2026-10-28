@@ -48,7 +48,7 @@ export const availabilitySchema = z.object({
 
 export const consentSchema = z.object({
   ai_consent: z.literal("on", {
-    error: "Para usar a mentoria com IA, marque a caixa confirmando que você leu e concorda.",
+    error: "Para ativar as sugestões com IA, marque a caixa confirmando que você leu e concorda.",
   }),
 });
 

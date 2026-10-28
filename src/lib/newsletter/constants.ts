@@ -27,6 +27,12 @@ export const CONFIRM_TOKEN_TTL_DAYS = 7;
 /** Intervalo mínimo entre dois e-mails de confirmação para o mesmo endereço (anti-abuso). */
 export const CONFIRMATION_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 
+/** No máximo 3 e-mails de confirmação por endereço a cada 24 h (newsletter_subscribers.confirmation_sent_*). */
+export const CONFIRMATIONS_PER_ADDRESS_PER_DAY = 3;
+
+/** Teto padrão de e-mails de confirmação por dia, somando todos os endereços (NEWSLETTER_CONFIRMATIONS_PER_DAY). */
+export const DEFAULT_CONFIRMATIONS_PER_DAY = 80;
+
 /** Teto padrão por execução: o plano gratuito do Resend permite 100 e-mails/dia (sobram ~10 para confirmações). */
 export const DEFAULT_MAX_PER_RUN = 90;
 
@@ -37,7 +43,13 @@ export const DELIVERY_CLAIM_TTL_MS = 15 * 60 * 1000;
 export const DELIVERY_CLAIM_PREFIX = "em_andamento:";
 
 /** Itens por seção da edição. */
-export const EDITION_LIMITS = { papers: 5, threads: 4, mentors: 4 } as const;
+export const EDITION_LIMITS = { papers: 5, threads: 4 } as const;
+
+/**
+ * Categorias do fórum que nunca aparecem na newsletter (pública), além das que aceitam anonimato:
+ * apresentações são pessoais.
+ */
+export const NEWSLETTER_EXCLUDED_CATEGORY_SLUGS = ["apresente-se"] as const;
 
 /** Edições por página no arquivo público. */
 export const ARCHIVE_PAGE_SIZE = 12;

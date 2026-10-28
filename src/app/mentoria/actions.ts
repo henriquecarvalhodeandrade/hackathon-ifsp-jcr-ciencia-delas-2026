@@ -75,13 +75,9 @@ export async function findMentorsAction(
       error: "Ative “Quero ser mentorada” no seu perfil para receber sugestões de mentoras.",
     };
   }
-  if (!member.profile.ai_consent) {
-    return {
-      ok: false,
-      error: "Para receber sugestões, autorize primeiro a análise do seu perfil de pesquisa.",
-    };
-  }
 
+  // Sem consentimento de IA as sugestões saem só das regras da plataforma (nada sai do
+  // servidor); o consentimento só liga embeddings e explicações por IA (matching/service.ts).
   let result: Awaited<ReturnType<typeof findMentorsForCurrentUser>>;
   try {
     result = await findMentorsForCurrentUser({ limit: 6 });

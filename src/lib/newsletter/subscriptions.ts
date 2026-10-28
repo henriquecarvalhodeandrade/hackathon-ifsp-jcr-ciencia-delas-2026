@@ -5,11 +5,12 @@ import { maskEmail, normalizeEmail } from "@/lib/email/address";
 import { isProductionRuntime } from "@/lib/email/config";
 import { getSiteUrl, isAdminConfigured } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isUuid } from "./config";
+import { getConfirmationsPerDay, isUuid } from "./config";
 import {
   buildConsentRecord,
   CONFIRM_TOKEN_TTL_DAYS,
   CONFIRMATION_RESEND_COOLDOWN_MS,
+  CONFIRMATIONS_PER_ADDRESS_PER_DAY,
 } from "./constants";
 import { absoluteUrl, renderConfirmationEmail } from "./render";
 
@@ -18,6 +19,11 @@ import { absoluteUrl, renderConfirmationEmail } from "./render";
  * com o cliente admin: a tabela newsletter_subscribers não tem nenhuma política para a API.
  *
  * Privacidade: as respostas para quem se inscreve são NEUTRAS (não revelam se o e-mail já existe).
+ *
+ * Anti-abuso dos e-mails de confirmação (cada um sai do nosso limite no provedor e pode ser usado
+ * para encher a caixa de alguém): intervalo mínimo de 2 min por endereço, no máximo 3 por endereço
+ * a cada 24 h e um teto diário somando todos os endereços — reservados de forma atômica pela RPC
+ * `newsletter_reserve_confirmation` (colunas confirmation_sent_count/confirmation_sent_at).
  */
 
 const TTL_MS = CONFIRM_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -37,7 +43,15 @@ export interface SubscribeInput {
 }
 
 export type SubscribeOutcome =
-  "created" | "resent" | "reactivated" | "throttled" | "already_active";
+  | "created"
+  | "resent"
+  | "reactivated"
+  | "throttled"
+  | "already_active"
+  /** Este endereço já recebeu 3 e-mails de confirmação nas últimas 24 h: nada foi enviado. */
+  | "address_limit"
+  /** O teto diário de e-mails de confirmação foi atingido: nada foi enviado. */
+  | "daily_limit";
 
 export type SubscribeResult =
   | { ok: true; outcome: SubscribeOutcome; emailSent: boolean; transport: EmailTransport }
@@ -85,7 +99,9 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
 
   const { data: existing, error: findError } = await admin
     .from("newsletter_subscribers")
-    .select("id, status, confirm_token, unsubscribe_token, updated_at, profile_id")
+    .select(
+      "id, status, confirm_token, unsubscribe_token, updated_at, profile_id, confirmation_sent_at",
+    )
     .eq("email", email)
     .maybeSingle();
   if (findError) {
@@ -101,12 +117,13 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
     return { ok: true, outcome: "already_active", emailSent: false, transport };
   if (
     existing?.status === "pending" &&
-    Date.now() - Date.parse(existing.updated_at) < CONFIRMATION_RESEND_COOLDOWN_MS
+    Date.now() - Date.parse(existing.confirmation_sent_at ?? existing.updated_at) <
+      CONFIRMATION_RESEND_COOLDOWN_MS
   ) {
     return { ok: true, outcome: "throttled", emailSent: false, transport };
   }
 
-  let tokens: { confirm_token: string; unsubscribe_token: string };
+  let tokens: { id: string; confirm_token: string; unsubscribe_token: string };
   let outcome: SubscribeOutcome;
 
   if (!existing) {
@@ -119,7 +136,7 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
         status: "pending",
         ...consent,
       })
-      .select("confirm_token, unsubscribe_token")
+      .select("id, confirm_token, unsubscribe_token")
       .single();
     if (error) {
       // Corrida: duas inscrições simultâneas do mesmo e-mail — a outra já cuidou do envio.
@@ -152,7 +169,7 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
           : {}),
       })
       .eq("id", existing.id)
-      .select("confirm_token, unsubscribe_token")
+      .select("id, confirm_token, unsubscribe_token")
       .single();
     if (error) {
       console.error(`[newsletter] falha ao atualizar inscrita: ${error.message}`);
@@ -163,6 +180,29 @@ export async function subscribe(input: SubscribeInput): Promise<SubscribeResult>
     }
     tokens = data;
     outcome = reactivating ? "reactivated" : "resent";
+  }
+
+  // Reserva atômica do envio (3 por endereço a cada 24 h + teto diário global).
+  const { data: reservation, error: reserveError } = await admin.rpc(
+    "newsletter_reserve_confirmation",
+    {
+      p_subscriber_id: tokens.id,
+      p_max_per_address: CONFIRMATIONS_PER_ADDRESS_PER_DAY,
+      p_max_per_day: getConfirmationsPerDay(),
+    },
+  );
+  if (reserveError || reservation === "not_found") {
+    console.error(
+      `[newsletter] falha ao reservar o e-mail de confirmação: ${reserveError?.message ?? reservation}`,
+    );
+    return {
+      ok: false,
+      error: "Não conseguimos registrar sua inscrição agora. Tente de novo em alguns minutos.",
+    };
+  }
+  if (reservation === "address_limit" || reservation === "daily_limit") {
+    console.warn(`[newsletter] confirmação não enviada (${reservation}) para ${maskEmail(email)}`);
+    return { ok: true, outcome: reservation, emailSent: false, transport };
   }
 
   const { result } = await sendConfirmation(email, tokens.confirm_token, tokens.unsubscribe_token);

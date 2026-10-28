@@ -3,11 +3,21 @@
 > Como a Ciência Delas sugere mentoras para pesquisadoras iniciantes, o que é enviado para a IA,
 > como funciona a pontuação e o que fazer quando algo dá errado.
 
-**Resumo:** a pesquisadora preenche o perfil de pesquisa. Um algoritmo local
-(heurística) ordena as mentoras disponíveis. Se ela tiver autorizado, uma IA gratuita reordena as
-8 melhores e explica cada sugestão em linguagem acolhedora. Os dados vão sem nome e sem contatos.
+**Resumo:** a pesquisadora preenche o perfil de pesquisa e ativa "Quero ser mentorada". Um
+algoritmo local (heurística) ordena as mentoras disponíveis — **sem consentimento de IA e sem
+enviar nada para fora da plataforma**. Se ela autorizar a IA, duas coisas são ligadas: (a) a
+análise semântica do perfil com embeddings do Gemini e (b) uma IA gratuita que reordena as 8
+melhores e explica cada sugestão em linguagem acolhedora. Os dados vão sem nome e sem contatos.
 **Sem chave de IA, sem consentimento ou com a IA fora do ar, tudo continua funcionando** com as
 regras locais.
+
+> **Decisão do produto (final).** As sugestões heurísticas funcionam **sem** consentimento de IA:
+> é a própria plataforma comparando perfis de quem ligou "Quero ser mentorada", e nada sai do
+> servidor. O consentimento de IA (`profiles.ai_consent`) **só** liga os embeddings (Gemini) e a
+> reordenação/explicação por LLM. Na aba Sugestões de `/mentoria`, quem não autorizou vê o painel
+> "Encontrar mentoras" em modo heurístico e um cartão compacto "Ativar sugestões com IA". Mentoras
+> com quem ela já está em mentoria (pedido aceito) não voltam como sugestão; pedidos pendentes
+> continuam na lista, com o selo "Pedido enviado".
 
 Decisão de arquitetura: [ADR 0003 — IA gratuita com cadeia de fallback e modo heurístico](adr/0003-ia-gratuita-com-fallback.md).
 
@@ -34,14 +44,14 @@ Decisão de arquitetura: [ADR 0003 — IA gratuita com cadeia de fallback e modo
 
 ## 1. Princípios
 
-| Princípio                                          | Como aparece no código                                                                                                                           |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **A IA é opcional.** O app nunca quebra sem chave. | `generateJson` lança `AiUnavailableError`, `embedTexts` devolve `null` e todo chamador cai na heurística.                                        |
-| **Consentimento antes de qualquer envio.**         | Sem `profiles.ai_consent = true`, nenhum dado da usuária sai do servidor. Mentoras sem consentimento entram no prompt só com dados de taxonomia. |
-| **Mínimo necessário.**                             | Só dados de pesquisa (etapa, áreas, palavras-chave, temas, objetivos). Nome, e-mail, instituição, cidade, links e foto **nunca** são enviados.   |
-| **A IA não decide sozinha.**                       | A nota final é 50% heurística + 50% IA. A IA não pode incluir mentoras fora da lista (ids inventados são descartados).                           |
-| **Tudo validado.**                                 | Toda resposta passa por `zod`. Textos são limpos (markdown, emojis, códigos) e cortados no tamanho máximo.                                       |
-| **Sem SDKs.**                                      | Só `fetch` com timeout de 15 s. Provedores trocáveis por variável de ambiente.                                                                   |
+| Princípio                                          | Como aparece no código                                                                                                                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A IA é opcional.** O app nunca quebra sem chave. | `generateJson` lança `AiUnavailableError`, `embedTexts` devolve `null` e todo chamador cai na heurística.                                                                                  |
+| **Consentimento antes de qualquer envio.**         | Sem `profiles.ai_consent = true`, nenhum dado da usuária sai do servidor — e ela recebe as sugestões da heurística. Mentoras sem consentimento entram no prompt só com dados de taxonomia. |
+| **Mínimo necessário.**                             | Só dados de pesquisa (etapa, áreas, palavras-chave, temas, objetivos). Nome, e-mail, instituição, cidade, links e foto **nunca** são enviados.                                             |
+| **A IA não decide sozinha.**                       | A nota final é 50% heurística + 50% IA. A IA não pode incluir mentoras fora da lista (ids inventados são descartados).                                                                     |
+| **Tudo validado.**                                 | Toda resposta passa por `zod`. Textos são limpos (markdown, emojis, códigos) e cortados no tamanho máximo.                                                                                 |
+| **Sem SDKs.**                                      | Só `fetch` com timeout de 15 s. Provedores trocáveis por variável de ambiente.                                                                                                             |
 
 ---
 
@@ -53,12 +63,14 @@ Decisão de arquitetura: [ADR 0003 — IA gratuita com cadeia de fallback e modo
    palavras-chave, temas em que quer ajuda (`mentorship_topics`), o que busca na mentoria
    (`mentoring_goals`), formatos de encontro, idiomas e estado (UF).
 2. **Consentimento de IA (opcional)**: uma caixa de seleção com o texto da
-   [seção 6.4](#64-texto-de-consentimento-recomendado-para-a-interface). Sem marcar, ela recebe
-   sugestões calculadas só com as regras locais.
+   [seção 6.4](#64-texto-de-consentimento-recomendado-para-a-interface) (no onboarding, no perfil
+   ou no cartão "Ativar sugestões com IA" de `/mentoria`). Sem marcar, ela recebe sugestões
+   calculadas só com as regras locais — nada sai do servidor.
 3. Ao salvar o perfil, o servidor chama `refreshMyEmbedding()`. O embedding só é recalculado se o
    texto de pesquisa mudou.
 4. Em **`/mentoria`**, a página mostra as sugestões já salvas (`getMySavedSuggestions()`, sem gastar
-   cota de IA). O botão **"Encontrar mentoras"** chama `findMentorsForCurrentUser()`.
+   cota de IA). O botão **"Encontrar mentoras"** chama `findMentorsForCurrentUser()` — com ou sem
+   consentimento de IA. Mentoras com quem ela já está em mentoria ficam de fora.
 5. Cada card mostra: foto, nome, título, nota de 0 a 100, **motivo** (1 ou 2 frases), até 3
    **perguntas para puxar conversa** e um selo indicando se a explicação veio da IA ou das regras.
 6. Ela envia um **pedido de mentoria** (mensagem de 20 a 1.500 caracteres). A mentora aceita ou
@@ -128,6 +140,7 @@ sequenceDiagram
   end
   S->>DB: rpc get_mentor_candidates(p_limit = 30)
   DB-->>S: até 30 mentoras com vagas + similaridade de cosseno
+  S->>S: remove quem já é mentora dela (existing_request_status = accepted)
   S->>S: rankMentorCandidates (heurística 0..100)
   alt ai_consent e IA configurada
     S->>DB: ai_consent das 8 primeiras mentoras
@@ -336,7 +349,11 @@ p-valores são preservados.
 - **Consentimento (LGPD, art. 7º, I).** Fica em `profiles.ai_consent` e `ai_consent_at`, com um
   trigger que preenche a data.
 - **Revogação a qualquer momento.** Desmarcar o consentimento no perfil dispara um trigger que
-  **apaga o embedding**. O script de backfill também remove embeddings órfãos.
+  **apaga o embedding e as sugestões salvas** (`mentor_suggestions`). Novas sugestões voltam a
+  usar só a heurística. O script de backfill também remove embeddings órfãos.
+- **Sugestões sem consentimento.** A heurística roda inteira no servidor, com a sessão da usuária
+  e o RLS, para quem ligou "Quero ser mentorada" (execução do contrato, a pedido dela). Nenhum
+  dado vai para provedores de IA.
 - **Dados de terceiros.** Mentoras sem consentimento só aparecem para a IA com dados de taxonomia,
   sem nenhum texto escrito por elas. Se a consulta de consentimento falhar, o código assume "sem
   consentimento".
@@ -352,7 +369,8 @@ No **plano gratuito** da Gemini API, o Google **pode usar os prompts e as respos
 os produtos dele**, inclusive com revisão humana. Os termos também exigem **18 anos ou mais**. Por
 isso:
 
-1. Os recursos de IA exigem consentimento explícito, com a declaração de idade.
+1. Os recursos de IA (embeddings e explicações) exigem consentimento explícito, com a declaração
+   de idade. As sugestões por regras não dependem dele.
 2. A plataforma envia só o mínimo, pseudonimizado.
 3. Para produção com dados reais, prefira o plano pago (Tier 1), em que os dados não são usados
    para treinamento, ou um provedor com política de não treinamento.
@@ -362,15 +380,18 @@ do provedor do modelo gratuito: alguns registram os prompts. Veja a [seção 9](
 
 ### 6.4 Texto de consentimento recomendado para a interface
 
-Use exatamente este texto na caixa de seleção do onboarding e do perfil (campo `ai_consent`):
+Use exatamente este texto na caixa de seleção do onboarding, do perfil e do cartão "Ativar
+sugestões com IA" de `/mentoria` (campo `ai_consent`; fonte no código:
+`src/lib/profile/consent.ts`):
 
-> **Quero usar a mentoria com inteligência artificial.**
+> **Quero ativar as sugestões de mentoria com inteligência artificial.**
 > Declaro que tenho 18 anos ou mais e autorizo a Ciência Delas a enviar meus dados de pesquisa
 > (etapa da carreira, áreas, palavras-chave, temas e objetivos de mentoria, sem meu nome, e-mail
 > ou contatos) a serviços de IA de terceiros (Google Gemini e, como reserva, Groq ou OpenRouter),
-> para sugerir e explicar combinações de mentoria. Sei que, no plano gratuito, o Google pode usar
-> esses dados para melhorar os produtos dele e que posso retirar este consentimento a qualquer
-> momento no meu perfil. Nesse caso, a análise do meu perfil é apagada.
+> para analisar o sentido do meu perfil e explicar as sugestões de mentoria. Sei que, no plano
+> gratuito, o Google pode usar esses dados para melhorar os produtos dele e que posso retirar este
+> consentimento a qualquer momento no meu perfil. Nesse caso, a análise do meu perfil e as
+> sugestões já geradas são apagadas.
 
 Texto de apoio, logo abaixo, em fonte menor:
 
@@ -446,7 +467,8 @@ Quem chama **nunca** mostra erro de IA para a usuária:
 Embeddings: em caso de falha, a similaridade fica `null` e o peso de 30% é redistribuído (seção 4).
 
 **Proteção de cota.** Gerar sugestões de novo em menos de **60 s** devolve as sugestões já salvas
-(`SUGGESTION_COOLDOWN_SECONDS`), sem chamar a IA.
+(`SUGGESTION_COOLDOWN_SECONDS`), sem chamar a IA. Exceção: se as salvas vieram só da heurística e
+ela acabou de autorizar a IA (com IA configurada), a nova geração roda na hora.
 
 ---
 
@@ -586,7 +608,7 @@ npx vitest run src/lib/matching   # só o matching
 
 | Sintoma                                                         | Causa provável                                                          | O que fazer                                                                                                                                                                   |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sugestões sempre com selo "regras"                              | Sem chave, `AI_PROVIDER=none`, usuária sem consentimento ou IA falhando | Veja `getAiProviderInfo()`, o `ai_consent` do perfil e os logs `[ai]` e `[matching]` no terminal ou na Vercel.                                                                |
+| Sugestões sempre com selo "afinidade" (regras)                  | Sem chave, `AI_PROVIDER=none`, usuária sem consentimento ou IA falhando | Veja `getAiProviderInfo()`, o `ai_consent` do perfil e os logs `[ai]` e `[matching]` no terminal ou na Vercel.                                                                |
 | `[ai] gemini/... falhou (rate_limited 429 ...)`                 | Cota por minuto ou por dia esgotada (os limites são **por projeto**)    | Espere. A cota diária zera à meia-noite do Pacífico (4h ou 5h em Brasília). Configure `GROQ_API_KEY` como reserva e evite cliques repetidos (já existe um intervalo de 60 s). |
 | `HTTP 400 — API key not valid` / `auth 401/403`                 | Chave errada, revogada ou com espaços                                   | Gere outra chave e confira o `.env.local`. Reinicie o `next dev`.                                                                                                             |
 | `HTTP 404` no Gemini                                            | Nome de modelo inexistente ou aposentado                                | Defina `GEMINI_MODEL` com um modelo listado no AI Studio.                                                                                                                     |

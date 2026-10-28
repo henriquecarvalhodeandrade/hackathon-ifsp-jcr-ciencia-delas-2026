@@ -137,11 +137,17 @@ vi.mock("@/lib/ai", () => ({
   isAiEnabled: mocks.isAiEnabled,
 }));
 
-import { MatchingError, findMentorsForCurrentUser, refreshMyEmbedding } from "./service";
+import {
+  MatchingError,
+  findMentorsForCurrentUser,
+  isNewMentorCandidate,
+  refreshMyEmbedding,
+} from "./service";
 
 const ME = "00000000-0000-4000-8000-0000000000aa";
 const MENTOR_A = "00000000-0000-4000-8000-000000000001";
 const MENTOR_B = "00000000-0000-4000-8000-000000000002";
+const MENTOR_C = "00000000-0000-4000-8000-000000000003";
 
 function baseTables(overrides: { consent?: boolean; onboarded?: boolean } = {}): Tables {
   return {
@@ -255,7 +261,7 @@ describe("findMentorsForCurrentUser", () => {
     expect(mocks.generateJson).not.toHaveBeenCalled();
     expect(res.source).toBe("heuristic");
     expect(res.provider).toBeNull();
-    expect(res.warnings.join(" ")).toMatch(/não autorizou o uso de IA/);
+    expect(res.warnings.join(" ")).toMatch(/nenhum dado seu foi enviado a serviços de IA/);
     expect(fake.rpcCalls).toEqual([{ fn: "get_mentor_candidates", args: { p_limit: 30 } }]);
     expect(res.suggestions.map((s) => s.mentorId)).toEqual([MENTOR_A, MENTOR_B]);
     expect(res.suggestions[0].mentor.area_names).toEqual(["Ecologia", "Genética"]);
@@ -423,5 +429,86 @@ describe("findMentorsForCurrentUser", () => {
     expect(mocks.generateJson).not.toHaveBeenCalled();
     expect(res.suggestions.map((s) => s.reason)).toEqual(["Motivo salvo."]);
     expect(res.warnings[0]).toMatch(/acabou de gerar/);
+  });
+  it("não sugere quem já é mentora dela (mentoria aceita), mas mantém pedidos pendentes", async () => {
+    const accepted: Row = {
+      ...candidates[0],
+      mentor_id: MENTOR_C,
+      full_name: "Carla Demo Rocha",
+      similarity: 0.99,
+      open_slots: 3,
+      existing_request_status: "accepted",
+    };
+    const fake = createFakeSupabase(baseTables(), {
+      userId: ME,
+      rpc: { data: [accepted, ...candidates] },
+    });
+    mocks.client = fake.client;
+    mocks.generateJson.mockRejectedValue(new Error("sem IA neste teste"));
+
+    const res = await findMentorsForCurrentUser({ limit: 5 });
+
+    expect(res.suggestions.map((s) => s.mentorId)).toEqual([MENTOR_A, MENTOR_B]);
+    expect(res.suggestions.map((s) => s.mentor.existing_request_status)).toEqual([null, "pending"]);
+    const prompt = (mocks.generateJson.mock.calls[0]?.[0] as { prompt: string } | undefined)
+      ?.prompt;
+    expect(prompt ?? "").not.toContain("Carla");
+    const insert = fake.ops.find((o) => o.table === "mentor_suggestions" && o.mode === "insert");
+    expect((insert?.payload as Row[]).map((r) => r.mentor_id)).not.toContain(MENTOR_C);
+  });
+
+  it("isNewMentorCandidate só exclui o status 'accepted'", () => {
+    expect(isNewMentorCandidate({ existing_request_status: "accepted" })).toBe(false);
+    expect(isNewMentorCandidate({ existing_request_status: "pending" })).toBe(true);
+    expect(isNewMentorCandidate({ existing_request_status: null })).toBe(true);
+  });
+
+  it("depois de autorizar a IA, gerar de novo ignora a espera de 60 s das sugestões por regras", async () => {
+    const tables = baseTables();
+    tables.mentor_suggestions = [
+      {
+        mentee_id: ME,
+        mentor_id: MENTOR_A,
+        rank: 1,
+        score: 70,
+        reason: "Motivo por regras.",
+        conversation_starters: [],
+        source: "heuristic",
+        model: null,
+        created_at: new Date(Date.now() - 10_000).toISOString(),
+      },
+    ];
+    const fake = createFakeSupabase(tables, { userId: ME, rpc: { data: candidates } });
+    mocks.client = fake.client;
+    mocks.generateJson.mockRejectedValue(new Error("IA fora do ar"));
+
+    const res = await findMentorsForCurrentUser();
+    expect(fake.rpcCalls).toHaveLength(1);
+    expect(res.warnings.join(" ")).not.toMatch(/acabou de gerar/);
+
+    // Sem consentimento a espera continua valendo.
+    const noConsent = baseTables({ consent: false });
+    noConsent.mentor_suggestions = tables.mentor_suggestions.map((r) => ({
+      ...r,
+      created_at: new Date(Date.now() - 5_000).toISOString(),
+    }));
+    noConsent.profiles.push({
+      id: MENTOR_A,
+      full_name: "Helena Demo Souza",
+      avatar_url: null,
+      headline: null,
+      institution: null,
+      state: "SP",
+      career_stage: "professor",
+      keywords: [],
+      mentorship_topics: [],
+      meeting_formats: ["online"],
+      languages: ["pt"],
+    });
+    const second = createFakeSupabase(noConsent, { userId: ME, rpc: { data: candidates } });
+    mocks.client = second.client;
+    const again = await findMentorsForCurrentUser();
+    expect(second.rpcCalls).toHaveLength(0);
+    expect(again.warnings[0]).toMatch(/acabou de gerar/);
   });
 });

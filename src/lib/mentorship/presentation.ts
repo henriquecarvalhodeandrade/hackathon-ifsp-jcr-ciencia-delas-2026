@@ -244,8 +244,8 @@ const NOTICES: Record<NoticeKey, Notice> = {
   },
   consentimento: {
     variant: "success",
-    title: "Tudo pronto",
-    body: "Agora você pode pedir sugestões de mentoras. Você pode retirar a autorização quando quiser no seu perfil.",
+    title: "Sugestões com IA ativadas",
+    body: "Na próxima vez que você buscar mentoras, usamos também a análise semântica e as explicações por IA (quando a IA estiver disponível). Você pode retirar a autorização quando quiser no seu perfil.",
   },
 };
 

@@ -70,7 +70,8 @@ export default async function ThreadPage({ params }: { params: Params }) {
 
   const { thread, posts } = detail;
   const moderator = isModerator(profile);
-  const canEdit = thread.isOwner;
+  // A moderação também edita tópicos de outras pessoas (RLS permite; /editar avisa que é moderação).
+  const canEdit = thread.isOwner || moderator;
   const canDelete = thread.isOwner || moderator;
   const solution = thread.solutionPostId
     ? posts.find((p) => p.id === thread.solutionPostId)

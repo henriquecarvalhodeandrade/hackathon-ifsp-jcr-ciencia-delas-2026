@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { Fragment, useId, useOptimistic, useState, useTransition } from "react";
 import { buttonVariants } from "@/components/ui";
 import { toggleReaction, type ReactionResult } from "@/lib/forum/actions";
 import type { ReactionKindValue } from "@/lib/forum/schema";
@@ -34,6 +34,8 @@ export interface ReactionBarProps {
 /**
  * Apoio / Útil / Parabéns. Botões com aria-pressed e atualização otimista: o número muda
  * no mesmo instante e a Server Action confirma (ou desfaz, mostrando um aviso).
+ * O nome acessível de cada botão é FIXO (o rótulo, ex.: "Apoio"); o estado vem do aria-pressed
+ * e a contagem fica na descrição (aria-describedby), como no botão de destaque da Vitrine.
  */
 export function ReactionBar({
   threadId,
@@ -42,6 +44,7 @@ export function ReactionBar({
   targetLabel,
   className,
 }: ReactionBarProps) {
+  const baseId = `reacoes-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [optimistic, setOptimistic] = useOptimistic(reactions, applyToggle);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -70,33 +73,36 @@ export function ReactionBar({
         {REACTIONS.map(({ kind, label, Icon }) => {
           const pressed = optimistic.mine.includes(kind);
           const count = optimistic.counts[kind];
+          const countId = `${baseId}-${kind}`;
           return (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={pressed}
-              onClick={() => toggle(kind)}
-              title={pressed ? `Remover “${label}”` : label}
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "h-8 gap-1.5 rounded-pill px-3",
-                pressed &&
-                  "border-primary bg-primary-soft text-primary-soft-fg hover:border-primary hover:bg-primary-soft",
-              )}
-            >
-              <Icon aria-hidden="true" className={cn(pressed && "text-primary")} />
-              <span>{label}</span>
-              {count > 0 && (
-                <span className="text-xs font-bold tabular">
-                  <span className="sr-only">: </span>
-                  {formatNumber(count)}
-                  <span className="sr-only">
-                    {" "}
-                    {pluralize(count, "reação", "reações", { withCount: false })}
+            <Fragment key={kind}>
+              <button
+                type="button"
+                aria-pressed={pressed}
+                aria-label={label}
+                aria-describedby={countId}
+                onClick={() => toggle(kind)}
+                title={pressed ? `Remover “${label}”` : label}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "h-8 gap-1.5 rounded-pill px-3",
+                  pressed &&
+                    "border-primary bg-primary-soft text-primary-soft-fg hover:border-primary hover:bg-primary-soft",
+                )}
+              >
+                <Icon aria-hidden="true" className={cn(pressed && "text-primary")} />
+                <span>{label}</span>
+                {count > 0 && (
+                  <span aria-hidden="true" className="text-xs font-bold tabular">
+                    {formatNumber(count)}
                   </span>
-                </span>
-              )}
-            </button>
+                )}
+              </button>
+              {/* Só para a descrição do botão (hidden evita leitura duplicada no modo de leitura). */}
+              <span id={countId} hidden>
+                {pluralize(count, "reação", "reações")}
+              </span>
+            </Fragment>
           );
         })}
       </div>

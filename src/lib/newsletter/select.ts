@@ -1,5 +1,6 @@
 import { truncate } from "@/lib/utils";
-import type { NewsletterMentor, NewsletterPaper, NewsletterThread } from "./content";
+import { NEWSLETTER_EXCLUDED_CATEGORY_SLUGS } from "./constants";
+import type { NewsletterPaper, NewsletterThread } from "./content";
 
 /**
  * Seleção dos destaques da semana (puro, testável). As consultas ficam em build-edition.ts.
@@ -56,14 +57,27 @@ export interface ThreadCandidate {
   created_at: string;
   is_anonymous: boolean;
   category_name: string | null;
+  /** Slug da categoria (ex.: "apresente-se" fica de fora: apresentações são pessoais). */
+  category_slug: string | null;
   /** Categorias que aceitam anonimato (apoio, maternidade, saúde mental) nunca vão para a newsletter pública. */
   category_allows_anonymous: boolean;
 }
 
+/** Tópicos que podem aparecer no arquivo público: sem anonimato e fora de categorias pessoais. */
+export function isThreadPublishable(thread: ThreadCandidate): boolean {
+  return (
+    !thread.is_anonymous &&
+    !thread.category_allows_anonymous &&
+    thread.category_slug !== null &&
+    !(NEWSLETTER_EXCLUDED_CATEGORY_SLUGS as readonly string[]).includes(thread.category_slug)
+  );
+}
+
 /**
  * Conversas mais movimentadas na janela: respostas + reações na janela (+1 se o tópico é novo).
- * Exclui tópicos anônimos e TODA categoria que aceita anonimato — a newsletter é pública e
- * esses espaços são de acolhimento; nem o título deles sai da comunidade.
+ * Exclui tópicos anônimos, TODA categoria que aceita anonimato e as apresentações pessoais
+ * ("apresente-se") — a newsletter é pública e esses espaços são de acolhimento; nem o título
+ * deles sai da comunidade. Nunca leva nome de autora.
  */
 export function rankThreadsByActivity(input: {
   threads: readonly ThreadCandidate[];
@@ -80,7 +94,7 @@ export function rankThreadsByActivity(input: {
     if (Date.parse(thread.created_at) >= input.windowStart.getTime()) bump(thread.id);
   }
   return input.threads
-    .filter((t) => !t.is_anonymous && !t.category_allows_anonymous && (score.get(t.id) ?? 0) > 0)
+    .filter((t) => isThreadPublishable(t) && (score.get(t.id) ?? 0) > 0)
     .sort(
       (a, b) =>
         (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0) ||
@@ -98,18 +112,5 @@ export function toNewsletterThread(thread: ThreadCandidate): NewsletterThread {
     category: thread.category_name ?? "",
     replies: thread.reply_count,
     url: `/forum/t/${thread.id}`,
-  };
-}
-
-export function toNewsletterMentor(mentor: {
-  id: string;
-  full_name: string;
-  headline: string | null;
-}): NewsletterMentor {
-  return {
-    id: mentor.id,
-    full_name: mentor.full_name.trim(),
-    headline: mentor.headline?.trim() || null,
-    url: `/pesquisadoras/${mentor.id}`,
   };
 }

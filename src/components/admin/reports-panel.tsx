@@ -30,9 +30,13 @@ function Guide() {
       <ul className="mt-3 grid list-disc gap-2 pl-5 text-fg-muted marker:text-fg-subtle">
         <li>Abra o conteúdo e leia o contexto completo da conversa.</li>
         <li>Prefira a menor intervenção que resolve: trancar ou ocultar antes de excluir.</li>
-        <li>Escreva na nota o que foi feito e por quê — ela fica no histórico.</li>
         <li>
-          Revelar autoria anônima é exclusivo de administradoras, só em casos graves, e fica registrado.
+          A nota da denúncia é <strong className="font-semibold text-fg">visível para quem denunciou</strong>: escreva
+          com cuidado, sem dados pessoais.
+        </li>
+        <li>Cada ação (ocultar, trancar, excluir, resolver) entra no registro interno da moderação.</li>
+        <li>
+          Revelar autoria anônima é exclusivo de administradoras, só em casos graves, com motivo registrado.
         </li>
         <li>
           Siga o <Link href="/conduta" className="font-semibold text-primary underline underline-offset-4">código de conduta</Link>.

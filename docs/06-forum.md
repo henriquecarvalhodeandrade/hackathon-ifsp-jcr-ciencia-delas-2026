@@ -74,7 +74,8 @@ confirmação; excluir o tópico apaga as respostas e volta para a categoria. Ed
 ("editado"/"editada").
 
 **Moderação** (`moderator`/`admin`). No tópico aparece a faixa **Moderação** com "Fixar no
-topo"/"Desafixar" e "Trancar respostas"/"Destrancar" (RPC `moderate_thread`), e "Excluir" em
+topo"/"Desafixar" e "Trancar respostas"/"Destrancar" (RPC `moderate_thread`), "Editar" em
+qualquer tópico (a página `/editar` avisa "Você está editando como moderação") e "Excluir" em
 qualquer tópico/resposta. Em tópico trancado, membros veem um aviso no lugar do formulário; a
 moderação ainda pode responder (para publicar um aviso). Revelar autoria anônima fica no painel
 `/admin` (fora deste módulo).
@@ -236,8 +237,10 @@ As denúncias são tratadas no painel `/admin` (moderação).
   (`relative z-10`).
 - Cada resposta tem a âncora `#post-<id>` — o mesmo formato dos links das notificações (triggers
   do banco) e do `/admin`, então "Nova resposta no seu tópico" rola direto até a resposta.
-- Reações: `role="group"` com nome ("Reagir ao tópico de …"), botões com `aria-pressed`, contagem
-  também para leitor de tela; erro anunciado em `aria-live`.
+- Reações: `role="group"` com nome ("Reagir ao tópico de …"); cada botão tem nome **fixo** (o
+  rótulo: "Apoio", "Útil", "Parabéns"), estado em `aria-pressed` e a contagem na descrição
+  (`aria-describedby` → "3 reações"), como o botão de destaque da Vitrine; erro anunciado em
+  `aria-live`.
 - Formulários: rótulos visíveis (`Field`), erros ligados por `aria-describedby`, `FormMessage`
   sempre montada, foco no primeiro campo inválido, abas do editor com o padrão ARIA do `Tabs`.
 - Edição de resposta: foco vai para o texto ao abrir e volta para "Editar" ao salvar/cancelar.
@@ -265,8 +268,8 @@ sanitizada, paginação, `markdownToPlainText`, mapeamento de erros e o schema d
 3. `gabriela@…` → `/forum/t/a1000000-0000-4000-8000-000000000006` (anônimo dela): "Anônima" +
    selo "você" + "Editar". Crie um tópico anônimo em "Maternidade e cuidado".
 4. Com `larissa@…`, abra esse tópico: "Anônima" **sem** "você", sem "Editar", com "Denunciar".
-5. `moderacao@…` → mesmo tópico: faixa "Moderação" (fixar/trancar), "Excluir" em tudo e
-   **nenhum** selo "você". Tranque e confira com a Larissa o aviso no lugar do formulário.
+5. `moderacao@…` → mesmo tópico: faixa "Moderação" (fixar/trancar), "Editar" no tópico,
+   "Excluir" em tudo e **nenhum** selo "você". Tranque e confira com a Larissa o aviso no lugar do formulário.
 6. Visitante (janela anônima) → `/forum` redireciona para `/entrar?next=%2Fforum`.
 
 **E2E automatizado** (Playwright, usado no desenvolvimento): o roteiro acima foi automatizado

@@ -150,6 +150,13 @@ function statsLine(content: NewsletterContent): string {
   ].join(" · ");
 }
 
+/** "3 novas mentoras chegaram à rede nesta semana." */
+export function mentorSummaryHeadline(total: number): string {
+  return total === 1
+    ? "1 nova mentora chegou à rede nesta semana."
+    : `${formatNumber(total)} novas mentoras chegaram à rede nesta semana.`;
+}
+
 export function editionPreheader(edition: EditionForRender): string {
   const base = edition.summary?.trim() || "Os destaques da semana na ciência feita por mulheres.";
   return truncate(base.replace(/\s+/g, " "), 140);
@@ -237,15 +244,16 @@ ${paper.plain_summary ? `<p style="margin:8px 0 0;font-family:${SANS};font-size:
 </td></tr>`);
   }
 
-  if (content.mentors.length) {
-    rows.push(sectionTitle("Mentoras na rede"));
-    for (const mentor of content.mentors) {
-      const url = absoluteUrl(ctx.siteUrl, mentor.url);
-      rows.push(`<tr><td class="cd-px" style="padding:10px 40px 4px;">
-<p style="margin:0;font-family:${SANS};font-size:16px;line-height:24px;font-weight:700;"><a href="${escapeHtml(url)}" style="color:${C.text};">${escapeHtml(mentor.full_name)}</a></p>
-${mentor.headline ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:14px;line-height:21px;color:${C.muted};">${escapeHtml(mentor.headline)}</p>` : ""}
+  const mentors = content.mentor_summary;
+  if (mentors.total > 0) {
+    // Só o agregado: nomes e perfis de mentoras são exclusivos para membras.
+    const mentoriaUrl = absoluteUrl(ctx.siteUrl, "/mentoria");
+    rows.push(sectionTitle("Novas mentoras na rede"));
+    rows.push(`<tr><td class="cd-px" style="padding:10px 40px 4px;">
+<p style="margin:0;font-family:${SANS};font-size:16px;line-height:24px;color:${C.text};"><strong>${escapeHtml(mentorSummaryHeadline(mentors.total))}</strong></p>
+${mentors.areas.length ? `<p style="margin:6px 0 0;font-family:${SANS};font-size:14px;line-height:21px;color:${C.muted};">Áreas: ${escapeHtml(mentors.areas.join(" · "))}</p>` : ""}
+<p style="margin:8px 0 0;font-family:${SANS};font-size:14px;line-height:21px;color:${C.muted};">Para conhecer as mentoras e pedir mentoria, <a href="${escapeHtml(mentoriaUrl)}" style="color:${C.primary};font-weight:700;">entre na sua conta e acesse a página Mentoria</a>.</p>
 </td></tr>`);
-    }
   }
 
   rows.push(`<tr><td class="cd-px" style="padding:32px 40px 36px;">
@@ -290,13 +298,13 @@ ${button(webUrl, "Ver a edição no site")}
     }
     lines.push("");
   }
-  if (content.mentors.length) {
-    lines.push("MENTORAS NA REDE", "");
-    for (const mentor of content.mentors) {
-      lines.push(`- ${mentor.full_name}${mentor.headline ? ` — ${mentor.headline}` : ""}`);
-      lines.push(`  ${absoluteUrl(ctx.siteUrl, mentor.url)}`);
-    }
-    lines.push("");
+  if (mentors.total > 0) {
+    lines.push("NOVAS MENTORAS NA REDE", "", mentorSummaryHeadline(mentors.total));
+    if (mentors.areas.length) lines.push(`Áreas: ${mentors.areas.join(" · ")}`);
+    lines.push(
+      `Para conhecer as mentoras e pedir mentoria, entre na sua conta: ${absoluteUrl(ctx.siteUrl, "/mentoria")}`,
+      "",
+    );
   }
   lines.push(
     `Ver no site: ${webUrl}`,

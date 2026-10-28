@@ -8,6 +8,7 @@ describe("parâmetros do painel", () => {
     expect(parseAdminTab("newsletter", { canSeeNewsletter: false })).toBe("denuncias");
     expect(parseAdminTab(undefined, { canSeeNewsletter: true })).toBe("denuncias");
     expect(parseAdminTab(["membros"], { canSeeNewsletter: true })).toBe("membros");
+    expect(parseAdminTab("registro", { canSeeNewsletter: false })).toBe("registro");
   });
 
   it("status das denúncias por slug pt-BR", () => {

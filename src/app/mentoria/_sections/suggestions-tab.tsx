@@ -42,8 +42,8 @@ export async function SuggestionsTab({
   deepLinkId,
 }: SuggestionsTabProps) {
   const openRequests = openRequestsByMentor(sent);
-  const canMatch = profile.seeks_mentorship && profile.ai_consent;
-  const needsCandidates = Boolean(deepLinkId) || canMatch;
+  // Sugestões não dependem do consentimento de IA (sem ele, usam só as regras da plataforma).
+  const needsCandidates = Boolean(deepLinkId) || profile.seeks_mentorship;
 
   const [candidates, deepLinkMentor] = await Promise.all([
     needsCandidates ? loadCandidateAvailability(supabase) : Promise.resolve(null),
@@ -88,15 +88,6 @@ export async function SuggestionsTab({
     );
   }
 
-  if (!profile.ai_consent) {
-    return (
-      <div className="grid gap-6">
-        {deepLink}
-        <AiConsentCard />
-      </div>
-    );
-  }
-
   const [saved, myAreas] = await Promise.all([
     getMySavedSuggestions({ supabase, userId: profile.id }),
     loadAreaIdsByProfile(supabase, [profile.id]),
@@ -113,6 +104,7 @@ export async function SuggestionsTab({
       })
     : [];
 
+  const mode = profile.ai_consent ? "ai" : "heuristic";
   const summary = saved
     ? `Geradas ${formatRelativeTime(saved.generatedAt)} · ${suggestionSourceLabel(saved.source, saved.model)}. Atualize depois de mudar seu perfil.`
     : undefined;
@@ -120,7 +112,14 @@ export async function SuggestionsTab({
   return (
     <div className="grid gap-6">
       {deepLink}
-      <FindMentorsPanel hasSuggestions={cards.length > 0} summary={summary}>
+      <FindMentorsPanel
+        // Remonta ao autorizar a IA: some o aviso "calculadas só com as regras" da busca anterior.
+        key={mode}
+        hasSuggestions={cards.length > 0}
+        mode={mode}
+        summary={summary}
+        aside={profile.ai_consent ? null : <AiConsentCard />}
+      >
         {cards.length > 0 ? (
           <ul aria-label="Sugestões de mentoras" className="grid gap-5 lg:grid-cols-2">
             {cards.map((match) => (

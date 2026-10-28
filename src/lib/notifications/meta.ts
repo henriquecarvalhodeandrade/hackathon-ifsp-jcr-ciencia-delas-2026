@@ -14,6 +14,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   thread_reply: "Resposta no fórum",
   solution_marked: "Solução no fórum",
   paper_comment: "Comentário em paper",
+  report_resolved: "Denúncia",
 };
 
 export type NotificationFilter = "todas" | "nao-lidas";

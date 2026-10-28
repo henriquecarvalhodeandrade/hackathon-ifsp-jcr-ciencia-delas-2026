@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BookOpen, Lock, MessagesSquare, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, HeartHandshake, Lock, MessagesSquare, Star } from "lucide-react";
 import {
-  Avatar,
   Badge,
   Card,
   CardLink,
@@ -16,7 +15,7 @@ import { isEditionEmpty, type NewsletterContent } from "@/lib/newsletter/content
 import type { EditionDetail, EditionLink } from "@/lib/newsletter/queries";
 import { formatEditionPeriod } from "@/lib/newsletter/week";
 import { formatAuthorsList } from "@/lib/newsletter/format";
-import { formatDate, pluralize, truncate } from "@/lib/utils";
+import { formatDate, formatNumber, pluralize, truncate } from "@/lib/utils";
 
 /**
  * Versão web de uma edição, renderizada em React a partir do mesmo `content` do e-mail
@@ -173,47 +172,83 @@ function ThreadsSection({
   );
 }
 
+/**
+ * Novas mentoras só em agregado (quantas e de quais áreas): o arquivo é público e nomes/perfis
+ * são exclusivos para membras. Edições antigas que traziam nomes também aparecem assim.
+ */
 function MentorsSection({
-  mentors,
+  summary,
   viewerIsMember,
 }: {
-  mentors: NewsletterContent["mentors"];
+  summary: NewsletterContent["mentor_summary"];
   viewerIsMember: boolean;
 }) {
-  if (!mentors.length) return null;
+  if (summary.total === 0) return null;
   return (
     <Section
-      title="Mentoras na rede"
-      description="Pesquisadoras disponíveis para orientar quem está começando."
+      title="Novas mentoras na rede"
+      description="Pesquisadoras que se dispuseram a orientar quem está começando."
       spacing="sm"
     >
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {mentors.map((mentor) => (
-          <li key={mentor.id}>
-            <Card
-              as="article"
-              variant="interactive"
-              padding="sm"
-              className="flex h-full items-start gap-3"
-            >
-              <Avatar name={mentor.full_name} seed={mentor.id} size="md" />
-              <div className="grid min-w-0 gap-0.5">
-                <h3 className="font-semibold text-fg">
-                  <CardLink href={mentor.url} className="hover:text-primary">
-                    {mentor.full_name}
-                  </CardLink>
-                </h3>
-                {mentor.headline && <p className="text-sm text-fg-muted">{mentor.headline}</p>}
-              </div>
-            </Card>
-          </li>
-        ))}
-      </ul>
-      {!viewerIsMember && (
-        <p className="mt-4 text-sm text-fg-muted">
-          Para pedir mentoria, entre na sua conta e acesse a página Mentoria.
+      <Card padding="md" className="grid gap-4">
+        <div className="flex items-start gap-4">
+          <span
+            aria-hidden="true"
+            className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary-soft text-secondary-soft-fg [&_svg]:size-6"
+          >
+            <HeartHandshake />
+          </span>
+          <div className="grid gap-1">
+            <p className="font-display text-2xl font-semibold text-fg tabular">
+              {summary.total === 1
+                ? "1 nova mentora"
+                : `${formatNumber(summary.total)} novas mentoras`}
+            </p>
+            <p className="text-fg-muted">
+              {summary.total === 1 ? "chegou à rede nesta semana." : "chegaram à rede nesta semana."}
+            </p>
+          </div>
+        </div>
+        {summary.areas.length > 0 && (
+          <div className="grid gap-2">
+            <p className="eyebrow text-fg-subtle">Áreas</p>
+            <ul className="flex flex-wrap gap-2" aria-label="Áreas das novas mentoras">
+              {summary.areas.map((area) => (
+                <li key={area}>
+                  <Chip size="sm" variant="primary">
+                    {area}
+                  </Chip>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="text-sm text-fg-muted">
+          {viewerIsMember ? (
+            <>
+              Conheça as mentoras e peça mentoria na página{" "}
+              <Link
+                href="/mentoria"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                Mentoria
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              Para conhecer as mentoras e pedir mentoria,{" "}
+              <Link
+                href={`/entrar?next=${encodeURIComponent("/mentoria")}`}
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                entre na sua conta
+              </Link>{" "}
+              e acesse a página Mentoria.
+            </>
+          )}
         </p>
-      )}
+      </Card>
     </Section>
   );
 }
@@ -307,7 +342,7 @@ export function EditionView({ edition, viewerIsMember, older, newer, footer }: E
         <div className="mt-4">
           <PapersSection papers={content.papers} />
           <ThreadsSection threads={content.threads} viewerIsMember={viewerIsMember} />
-          <MentorsSection mentors={content.mentors} viewerIsMember={viewerIsMember} />
+          <MentorsSection summary={content.mentor_summary} viewerIsMember={viewerIsMember} />
         </div>
       )}
 

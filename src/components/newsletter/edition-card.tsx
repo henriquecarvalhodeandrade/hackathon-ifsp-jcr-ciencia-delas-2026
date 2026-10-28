@@ -17,7 +17,9 @@ export function EditionCard({
   const counts = [
     edition.counts.papers ? pluralize(edition.counts.papers, "paper") : null,
     edition.counts.threads ? pluralize(edition.counts.threads, "conversa") : null,
-    edition.counts.mentors ? pluralize(edition.counts.mentors, "mentora") : null,
+    edition.counts.mentors
+      ? pluralize(edition.counts.mentors, "nova mentora", "novas mentoras")
+      : null,
   ].filter(Boolean);
 
   return (

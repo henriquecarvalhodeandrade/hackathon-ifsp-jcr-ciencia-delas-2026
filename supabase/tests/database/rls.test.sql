@@ -545,9 +545,13 @@ begin
   perform cdtest.check(
     (select user_id from public.forum_anonymous_authorship where thread_id = v_thread) = 'f0000000-0000-4000-8000-000000000001',
     'moderadora vê a autoria anônima');
-  perform cdtest.check(public.reveal_anonymous_author(v_thread) = 'f0000000-0000-4000-8000-000000000001',
+  perform cdtest.check(
+    public.reveal_anonymous_author(p_thread_id => v_thread,
+      p_reason => 'Ameaça explícita a outra membra no tópico (teste).') = 'f0000000-0000-4000-8000-000000000001',
     'reveal_anonymous_author devolve a autora');
   perform cdtest.throws('select public.reveal_anonymous_author()', '22023', 'reveal exige exatamente um alvo');
+  perform cdtest.throws(format('select public.reveal_anonymous_author(%L)', v_thread),
+    'CD016', 'reveal exige motivo');
   perform cdtest.logout();
 end
 $$;
@@ -905,8 +909,11 @@ select pass('mentorship_requests: transições, capacidade, duplicidade, contato
 do $$
 begin
   perform cdtest.login('f0000000-0000-4000-8000-000000000001');
+  perform cdtest.check((select count(*) from public.mentor_suggestions) = 1, 'Ana tem uma sugestão antes de revogar');
   update public.profiles set ai_consent = false where id = 'f0000000-0000-4000-8000-000000000001';
   perform cdtest.check((select count(*) from public.profile_embeddings) = 0, 'embedding apagado ao revogar consentimento');
+  perform cdtest.check((select count(*) from public.mentor_suggestions) = 0,
+    'sugestões de mentoras apagadas ao revogar consentimento');
   perform cdtest.check(
     (select ai_consent_at is null from public.profiles where id = 'f0000000-0000-4000-8000-000000000001'),
     'ai_consent_at limpo');
@@ -1190,6 +1197,278 @@ begin
 end
 $$;
 select pass('storage: escrita de avatares restrita à própria pasta');
+
+-- -----------------------------------------------------------------------------
+-- 10b. Rodada de integração (migration 20261028090000_integration.sql)
+-- -----------------------------------------------------------------------------
+
+-- Revogar o consentimento de IA apaga só as sugestões da própria mentoranda.
+do $$
+begin
+  insert into public.mentor_suggestions (mentee_id, mentor_id, rank, score, reason, source) values
+    ('f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003', 1, 90, 'Mesma área', 'ai'),
+    ('f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000004', 2, 70, 'Temas em comum', 'heuristic'),
+    ('f0000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000004', 1, 60, 'Heurística', 'heuristic');
+  perform cdtest.check((select ai_consent from public.profiles where id = 'f0000000-0000-4000-8000-000000000002'),
+    'Bruna tem consentimento de IA');
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000002');
+  perform cdtest.check((select count(*) from public.mentor_suggestions) = 2, 'Bruna vê as próprias sugestões');
+  update public.profiles set ai_consent = false where id = 'f0000000-0000-4000-8000-000000000002';
+  perform cdtest.check((select count(*) from public.mentor_suggestions) = 0,
+    'revogar o consentimento apaga as sugestões (IA e heurísticas)');
+  perform cdtest.logout();
+
+  perform cdtest.check(
+    (select count(*) from public.mentor_suggestions where mentee_id = 'f0000000-0000-4000-8000-000000000001') = 1,
+    'sugestões de outra mentoranda continuam');
+end
+$$;
+select pass('LGPD: revogar o consentimento de IA apaga também as sugestões de mentoras');
+
+-- Registro de auditoria da moderação
+do $$
+declare
+  v_report uuid;
+  v_other_report uuid;
+  v_before bigint;
+  v_last_id bigint;
+begin
+  -- Bruna denuncia o tópico anônimo da Ana e um tópico normal.
+  perform cdtest.login('f0000000-0000-4000-8000-000000000002');
+  insert into public.reports (target_type, target_id, reason, details)
+  values ('thread', cdtest.get('anon_thread'), 'harassment', 'Ameaça a uma colega (teste).')
+  returning id into v_report;
+  insert into public.reports (target_type, target_id, reason)
+  values ('thread', cdtest.get('normal_thread'), 'spam')
+  returning id into v_other_report;
+  perform cdtest.put('audit_report', v_report);
+  perform cdtest.put('audit_other_report', v_other_report);
+
+  -- Membros não leem nem escrevem no registro.
+  perform cdtest.check((select count(*) from public.moderation_audit_log) = 0, 'membro não lê o registro de auditoria');
+  perform cdtest.throws($q$insert into public.moderation_audit_log (action, target_type) values ('change_role', 'profile')$q$,
+    '42501', 'membro não grava no registro de auditoria');
+  perform cdtest.logout();
+
+  perform cdtest.login_anon();
+  perform cdtest.throws('select count(*) from public.moderation_audit_log', '42501', 'anon não lê o registro de auditoria');
+  perform cdtest.logout();
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000005');
+  select count(*) into v_before from public.moderation_audit_log;
+
+  -- Revelar autoria: motivo obrigatório (20–300) e denúncia precisa ser sobre o conteúdo.
+  perform cdtest.throws(format('select public.reveal_anonymous_author(p_thread_id => %L, p_reason => %L)',
+      cdtest.get('anon_thread'), 'curto demais'),
+    'CD016', 'motivo com menos de 20 caracteres é recusado');
+  perform cdtest.throws(format('select public.reveal_anonymous_author(p_thread_id => %L, p_reason => %L)',
+      cdtest.get('anon_thread'), repeat('x', 301)),
+    'CD016', 'motivo com mais de 300 caracteres é recusado');
+  perform cdtest.throws(format('select public.reveal_anonymous_author(p_thread_id => %L, p_reason => %L, p_report_id => %L)',
+      cdtest.get('anon_thread'), 'Motivo detalhado o bastante para o teste.', v_other_report),
+    'CD017', 'denúncia sobre outro conteúdo é recusada');
+  perform cdtest.check((select count(*) from public.moderation_audit_log) = v_before,
+    'tentativas recusadas não gravam nada');
+
+  perform cdtest.check(
+    public.reveal_anonymous_author(p_thread_id => cdtest.get('anon_thread'),
+      p_reason => '  Ameaça explícita contra outra membra.  ', p_report_id => v_report)
+      = 'f0000000-0000-4000-8000-000000000001',
+    'revelação com motivo devolve a autora');
+  perform cdtest.check(
+    (select count(*) from public.moderation_audit_log
+     where action = 'reveal_author' and actor_id = 'f0000000-0000-4000-8000-000000000005'
+       and target_type = 'thread' and target_id = cdtest.get('anon_thread') and report_id = v_report
+       and reason = 'Ameaça explícita contra outra membra.') = 1,
+    'revelação registrada com quem, alvo, denúncia e motivo');
+  perform cdtest.check(
+    (select count(*) from public.moderation_audit_log
+     where reason like '%Ana%' or target_id = 'f0000000-0000-4000-8000-000000000001') = 0,
+    'o registro não guarda quem foi revelada');
+
+  -- Fixar/trancar: só registra o que mudou.
+  perform public.moderate_thread(cdtest.get('normal_thread'), p_pinned => false, p_reason => 'Não é mais destaque.',
+    p_report_id => v_other_report);
+  perform public.moderate_thread(cdtest.get('normal_thread'), p_pinned => false);
+  perform cdtest.check(
+    (select count(*) from public.moderation_audit_log
+     where action = 'unpin_thread' and target_id = cdtest.get('normal_thread')
+       and reason = 'Não é mais destaque.' and report_id = v_other_report) = 1,
+    'desafixar registrado uma vez (repetir não duplica)');
+  select max(id) into v_last_id from public.moderation_audit_log;
+  perform public.moderate_thread(cdtest.get('normal_thread'), p_pinned => true, p_locked => true);
+  perform cdtest.check(
+    (select array_agg(action order by action) from public.moderation_audit_log
+     where id > v_last_id and target_id = cdtest.get('normal_thread')) = array['lock_thread', 'pin_thread'],
+    'fixar e trancar juntos geram dois registros');
+  perform public.moderate_thread(cdtest.get('normal_thread'), p_locked => false);
+
+  -- Ocultar/reexibir paper
+  select max(id) into v_last_id from public.moderation_audit_log;
+  perform public.moderate_paper(cdtest.get('paper_hidden'), false, 'Revisado: pode voltar.');
+  perform public.moderate_paper(cdtest.get('paper_hidden'), true);
+  perform public.moderate_paper(cdtest.get('paper_hidden'), true);
+  perform cdtest.check(
+    (select array_agg(action || ':' || coalesce(reason, '-') order by id) from public.moderation_audit_log
+     where id > v_last_id and target_id = cdtest.get('paper_hidden'))
+      = array['unhide_paper:Revisado: pode voltar.', 'hide_paper:-'],
+    'ocultar/reexibir registrados só quando mudam');
+
+  -- Inclusão manual (ex.: exclusão de conteúdo pelo painel) só em nome próprio; registro imutável.
+  insert into public.moderation_audit_log (action, target_type, target_id, report_id, reason)
+  values ('delete_content', 'post', cdtest.get('bruna_post'), null, 'Spam repetido.');
+  perform cdtest.check(
+    (select actor_id from public.moderation_audit_log where action = 'delete_content')
+      = 'f0000000-0000-4000-8000-000000000005',
+    'actor_id padrão é a própria moderadora');
+  perform cdtest.throws($q$insert into public.moderation_audit_log (actor_id, action) values ('f0000000-0000-4000-8000-000000000006', 'change_role')$q$,
+    '42501', 'não registra ação em nome de outra pessoa');
+  perform cdtest.throws($q$insert into public.moderation_audit_log (action) values ('apagar_tudo')$q$,
+    '23514', 'ação fora da lista é recusada');
+  perform cdtest.throws($q$update public.moderation_audit_log set reason = 'alterado'$q$, '42501', 'registro não é editável');
+  perform cdtest.throws($q$delete from public.moderation_audit_log$q$, '42501', 'registro não é apagável');
+  perform cdtest.throws($q$insert into public.moderation_audit_log (action, created_at) values ('change_role', '2000-01-01')$q$,
+    '42501', 'created_at não é informado pela cliente');
+  perform cdtest.logout();
+
+  -- Admin também lê o registro.
+  perform cdtest.login('f0000000-0000-4000-8000-000000000006');
+  perform cdtest.check((select count(*) from public.moderation_audit_log) > v_before, 'admin lê o registro de auditoria');
+  perform cdtest.logout();
+end
+$$;
+select pass('moderation_audit_log: só moderação lê; revelar exige motivo; RPCs registram; imutável');
+
+-- Denúncia resolvida/arquivada: aviso para quem denunciou + auditoria
+do $$
+declare
+  n bigint;
+begin
+  perform cdtest.login('f0000000-0000-4000-8000-000000000005');
+  update public.reports set status = 'resolved', resolution_note = 'Conteúdo removido e autora orientada.'
+    where id = cdtest.get('audit_report');
+  update public.reports set status = 'dismissed' where id = cdtest.get('audit_other_report');
+  perform cdtest.check(
+    (select count(*) from public.moderation_audit_log where report_id = cdtest.get('audit_report') and action = 'resolve_report'
+       and actor_id = 'f0000000-0000-4000-8000-000000000005') = 1
+    and (select count(*) from public.moderation_audit_log where report_id = cdtest.get('audit_other_report')
+       and action = 'dismiss_report') = 1,
+    'resolver/arquivar fica registrado');
+  -- Reabrir não avisa; editar só a nota de uma denúncia resolvida também não.
+  update public.reports set status = 'open' where id = cdtest.get('audit_other_report');
+  update public.reports set resolution_note = 'Arquivada após revisão.' where id = cdtest.get('audit_report');
+  perform cdtest.logout();
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000002');
+  perform cdtest.check(
+    (select count(*) from public.notifications where type = 'report_resolved') = 2,
+    'denunciante recebe um aviso por denúncia concluída');
+  perform cdtest.check(
+    (select count(*) from public.notifications
+     where type = 'report_resolved' and title = 'Sua denúncia foi resolvida' and link = '/notificacoes'
+       and body like '%um tópico do fórum%' and body like '%Nota da moderação: Conteúdo removido e autora orientada.%') = 1,
+    'aviso de denúncia resolvida traz o alvo e a nota visível para a denunciante');
+  perform cdtest.check(
+    (select count(*) from public.notifications
+     where type = 'report_resolved' and title = 'Sua denúncia foi analisada' and body not like '%Nota da moderação%') = 1,
+    'aviso de denúncia arquivada (sem nota)');
+  perform cdtest.check(
+    (select count(*) from public.notifications where type = 'report_resolved' and body like '%Moderadora Teste%') = 0,
+    'o aviso não diz quem moderou');
+  perform cdtest.logout();
+
+  -- A moderação resolvendo a própria denúncia não gera aviso para ela mesma.
+  perform cdtest.login('f0000000-0000-4000-8000-000000000005');
+  insert into public.reports (target_type, target_id, reason) values ('thread', cdtest.get('normal_thread'), 'other');
+  update public.reports set status = 'resolved'
+    where reporter_id = 'f0000000-0000-4000-8000-000000000005' and status = 'open';
+  perform cdtest.check((select count(*) from public.notifications where type = 'report_resolved') = 0,
+    'sem aviso para quem resolveu a própria denúncia');
+  perform cdtest.logout();
+end
+$$;
+select pass('reports: aviso para a denunciante ao resolver/arquivar, sem expor a moderação');
+
+-- Newsletter: limites de e-mails de confirmação (service role)
+do $$
+declare
+  v_a uuid;
+  v_b uuid;
+  v_daily bigint;
+begin
+  insert into public.newsletter_subscribers (email, consent_text)
+  values ('limite.a@example.test', 'Aceito receber a newsletter semanal (teste).') returning id into v_a;
+  insert into public.newsletter_subscribers (email, consent_text)
+  values ('limite.b@example.test', 'Aceito receber a newsletter semanal (teste).') returning id into v_b;
+  perform cdtest.check((select confirmation_sent_count = 0 and confirmation_sent_at is null
+                        from public.newsletter_subscribers where id = v_a), 'colunas novas começam zeradas');
+
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_a, 3, 1000000) = 'ok', '1º envio');
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_a, 3, 1000000) = 'ok', '2º envio');
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_a, 3, 1000000) = 'ok', '3º envio');
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_a, 3, 1000000) = 'address_limit', '4º envio no mesmo dia é barrado');
+  perform cdtest.check((select confirmation_sent_count from public.newsletter_subscribers where id = v_a) = 3,
+    'contador por endereço = 3');
+
+  -- Janela vencida (último envio há mais de 24 h): recomeça a contagem.
+  update public.newsletter_subscribers set confirmation_sent_at = now() - interval '25 hours' where id = v_a;
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_a, 3, 1000000) = 'ok', 'novo dia libera o endereço');
+  perform cdtest.check((select confirmation_sent_count from public.newsletter_subscribers where id = v_a) = 1,
+    'contagem recomeça');
+
+  -- Teto diário global (soma das janelas ativas; o banco local pode ter outras inscritas).
+  select coalesce(sum(confirmation_sent_count), 0) into v_daily
+  from public.newsletter_subscribers where confirmation_sent_at >= now() - interval '24 hours';
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_b, 3, (v_daily + 1)::integer) = 'ok',
+    'cabe no teto diário');
+  perform cdtest.check(public.newsletter_reserve_confirmation(v_b, 3, (v_daily + 1)::integer) = 'daily_limit',
+    'teto diário atingido');
+  perform cdtest.check((select confirmation_sent_count from public.newsletter_subscribers where id = v_b) = 1,
+    'envio barrado não conta');
+  perform cdtest.check(public.newsletter_reserve_confirmation(gen_random_uuid(), 3, 80) = 'not_found',
+    'inscrita inexistente');
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000006');
+  perform cdtest.throws(format('select public.newsletter_reserve_confirmation(%L)', v_a), '42501',
+    'nem admin reserva envios pela API');
+  perform cdtest.logout();
+  perform cdtest.login_anon();
+  perform cdtest.throws(format('select public.newsletter_reserve_confirmation(%L)', v_a), '42501',
+    'anon não reserva envios');
+  perform cdtest.logout();
+end
+$$;
+select pass('newsletter: até 3 confirmações por endereço a cada 24 h e teto diário global');
+
+-- get_mentor_open_slots: vagas das mentoras indicadas
+do $$
+begin
+  perform cdtest.login('f0000000-0000-4000-8000-000000000001');
+  perform cdtest.check(
+    (select count(*) from public.get_mentor_open_slots(array[
+      'f0000000-0000-4000-8000-000000000003', 'f0000000-0000-4000-8000-000000000004',
+      'f0000000-0000-4000-8000-000000000001']::uuid[])) = 2,
+    'só mentoras entram no resultado');
+  perform cdtest.check(
+    (select open_slots from public.get_mentor_open_slots(array['f0000000-0000-4000-8000-000000000004']::uuid[]))
+      = (select p.mentor_capacity - (select count(*) from public.mentorship_requests r
+            where r.mentor_id = p.id and r.status = 'accepted')
+         from public.profiles p where p.id = 'f0000000-0000-4000-8000-000000000004'),
+    'vagas = capacidade − mentorias aceitas');
+  perform cdtest.check(
+    (select open_slots from public.get_mentor_open_slots(array['f0000000-0000-4000-8000-000000000003']::uuid[])) >= 0,
+    'mentora sem vagas aparece com 0 (nunca negativo)');
+  perform cdtest.check((select count(*) from public.get_mentor_open_slots(null)) = 0, 'lista nula → nada');
+  perform cdtest.logout();
+
+  perform cdtest.login_anon();
+  perform cdtest.throws($q$select * from public.get_mentor_open_slots(array['f0000000-0000-4000-8000-000000000003']::uuid[])$q$,
+    '42501', 'anon não consulta vagas');
+  perform cdtest.logout();
+end
+$$;
+select pass('get_mentor_open_slots: vagas das mentoras para membros');
 
 -- -----------------------------------------------------------------------------
 -- 11. LGPD: excluir a conta apaga também o conteúdo anônimo

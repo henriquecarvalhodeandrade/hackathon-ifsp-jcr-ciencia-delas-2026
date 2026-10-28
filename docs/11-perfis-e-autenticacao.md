@@ -157,7 +157,10 @@ em `after()`.
   campo oculto (`_has_availability`) diferencia "desmarcado" de "não enviado" (o onboarding não
   mostra essa chave).
 - **Privacidade e IA:** selo "IA autorizada em <data>" ou "IA não autorizada". Retirar o
-  consentimento dispara o trigger do banco que **apaga o embedding**; a mensagem confirma isso.
+  consentimento dispara o trigger do banco que **apaga o embedding e as sugestões salvas**; a
+  mensagem confirma isso. Sem autorização, as sugestões de mentoras continuam funcionando com as
+  regras da plataforma (o consentimento só liga embeddings e explicações por IA — ver
+  [04 · Mentoria com IA](04-mentoria-com-ia.md)).
 - **Foto:** o navegador recorta um quadrado central, reduz para até 512 px e regrava em WebP
   (isso também **remove os metadados EXIF**, como a localização). O upload vai direto ao bucket
   `avatars` em `<uid>/avatar-<timestamp>.webp` (RLS: só a própria pasta). A action

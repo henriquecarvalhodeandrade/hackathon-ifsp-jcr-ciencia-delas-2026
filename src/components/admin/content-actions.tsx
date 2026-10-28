@@ -36,7 +36,7 @@ const DELETE_COPY: Record<DeletableKind, { trigger: string; title: string; descr
   },
 };
 
-function DeleteButton({ kind, id }: { kind: DeletableKind; id: string }) {
+function DeleteButton({ kind, id, reportId }: { kind: DeletableKind; id: string; reportId: string }) {
   const copy = DELETE_COPY[kind];
   return (
     <ConfirmDialog
@@ -50,7 +50,7 @@ function DeleteButton({ kind, id }: { kind: DeletableKind; id: string }) {
       description={copy.description}
       confirmLabel="Sim, excluir"
       pendingLabel="Excluindo…"
-      hiddenFields={{ targetType: kind, targetId: id }}
+      hiddenFields={{ targetType: kind, targetId: id, reportId }}
       action={(formData) => runInConfirmDialog(deleteReportedContent, formData)}
     />
   );
@@ -74,7 +74,7 @@ export function ContentActions({
         <>
           <ActionForm
             action={moderateThreadAction}
-            hiddenFields={{ threadId: target.id, op: target.isPinned ? "unpin" : "pin" }}
+            hiddenFields={{ threadId: target.id, op: target.isPinned ? "unpin" : "pin", reportId }}
           >
             <SubmitButton variant="outline" size="sm" pendingText={target.isPinned ? "Desafixando…" : "Fixando…"}>
               {target.isPinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
@@ -83,7 +83,7 @@ export function ContentActions({
           </ActionForm>
           <ActionForm
             action={moderateThreadAction}
-            hiddenFields={{ threadId: target.id, op: target.isLocked ? "unlock" : "lock" }}
+            hiddenFields={{ threadId: target.id, op: target.isLocked ? "unlock" : "lock", reportId }}
           >
             <SubmitButton variant="outline" size="sm" pendingText={target.isLocked ? "Destrancando…" : "Trancando…"}>
               {target.isLocked ? <LockOpen aria-hidden="true" /> : <Lock aria-hidden="true" />}
@@ -94,7 +94,10 @@ export function ContentActions({
       )}
 
       {target.kind === "paper" && (
-        <ActionForm action={setPaperVisibility} hiddenFields={{ paperId: target.id, hidden: String(!target.isHidden) }}>
+        <ActionForm
+          action={setPaperVisibility}
+          hiddenFields={{ paperId: target.id, hidden: String(!target.isHidden), reportId }}
+        >
           <SubmitButton variant="outline" size="sm" pendingText={target.isHidden ? "Reexibindo…" : "Ocultando…"}>
             {target.isHidden ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
             {target.isHidden ? "Reexibir na Vitrine" : "Ocultar da Vitrine"}
@@ -106,7 +109,7 @@ export function ContentActions({
         <RevealAuthorDialog reportId={reportId} targetType={target.kind} targetId={target.id} />
       )}
 
-      <DeleteButton kind={target.kind} id={target.id} />
+      <DeleteButton kind={target.kind} id={target.id} reportId={reportId} />
     </div>
   );
 }

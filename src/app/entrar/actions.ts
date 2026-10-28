@@ -16,7 +16,7 @@ import {
   isEmailNotConfirmedError,
   isUnknownAccountError,
 } from "@/lib/profile/errors";
-import { safeNextPath, withNext } from "@/lib/profile/redirect";
+import { safeNextPath } from "@/lib/profile/redirect";
 import { NOT_CONFIGURED_ERROR, VALIDATION_ERROR } from "@/lib/profile/save";
 import type { AuthActionState } from "@/lib/profile/types";
 import { createClient } from "@/lib/supabase/server";
@@ -54,7 +54,9 @@ export async function signInAction(
       options: {
         // Cadastro só pela tela /cadastro (aceite do código de conduta).
         shouldCreateUser: false,
-        emailRedirectTo: authRedirectUrl(withNext("/auth/confirm", next)),
+        // Sempre com "?next=": o modelo do e-mail (supabase/templates/magic_link.html) monta o
+        // link a partir deste endereço acrescentando "&token_hash=...".
+        emailRedirectTo: authRedirectUrl(`/auth/confirm?next=${encodeURIComponent(next)}`),
       },
     });
     if (error && !isUnknownAccountError(error)) {

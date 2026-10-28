@@ -58,7 +58,7 @@ export function ReportResolveForm({ reportId, status }: { reportId: string; stat
       <input type="hidden" name="id" value={reportId} />
       <div className="grid gap-1.5">
         <Label htmlFor={noteId} optional>
-          {open ? "Nota da moderação" : "Nova nota (ao reabrir)"}
+          {open ? "Nota para quem denunciou" : "Nova nota para quem denunciou (ao reabrir)"}
         </Label>
         <Textarea
           key={error?.note ?? "nota"}
@@ -67,12 +67,15 @@ export function ReportResolveForm({ reportId, status }: { reportId: string; stat
           rows={2}
           maxLength={800}
           defaultValue={error?.note}
-          placeholder={open ? "Ex.: conteúdo removido; conversei com a autora." : "Por que a denúncia voltou para a fila?"}
+          placeholder={
+            open ? "Ex.: o conteúdo foi removido. Obrigada por avisar." : "Ex.: a denúncia voltou para uma nova análise."
+          }
           aria-describedby={`${noteId}-dica`}
         />
         <p id={`${noteId}-dica`} className="text-sm text-fg-subtle">
-          Fica no histórico da denúncia. A denunciante não é avisada, mas consegue consultar a própria denúncia:
-          escreva só o necessário, sem dados pessoais.
+          <strong className="font-semibold text-fg-muted">Visível para quem denunciou:</strong> ela recebe um aviso
+          quando a denúncia é resolvida ou arquivada, com esta nota. Escreva só o necessário, sem dados pessoais nem
+          detalhes internos — as ações da moderação já ficam no registro interno.
         </p>
       </div>
       <FormMessage tone="error">{error?.message}</FormMessage>

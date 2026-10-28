@@ -1,4 +1,5 @@
 import { RANKING_PERIODS, type PaperRelation, type RankingPeriod } from "@/lib/constants";
+import { RANKING_PERIOD_EXPLANATIONS } from "@/lib/ranking/hot";
 import { pluralize } from "@/lib/utils";
 
 /**
@@ -184,15 +185,11 @@ export function rankBadgeLabel(position: number, period: RankingPeriod): string 
 }
 
 /**
- * Como cada ordenação funciona, em linguagem simples (votos se chamam "destaques" na interface).
- * Espelha a RPC `get_paper_ranking` e `src/lib/ranking/hot.ts`.
+ * Como cada ordenação funciona, em linguagem simples. Os períodos do ranking vêm da fonte única
+ * `RANKING_PERIOD_EXPLANATIONS` (`src/lib/ranking/hot.ts`); aqui só entra "Recentes".
  */
 export const VITRINE_ORDER_EXPLANATIONS: Record<VitrineOrder, string> = {
-  hot: "Papers novos que recebem destaques sobem mais rápido: a pontuação é destaques ÷ (horas desde o envio + 2)^1,5 e cai com o tempo.",
-  week: "Papers com mais destaques recebidos nos últimos 7 dias.",
-  month: "Papers com mais destaques recebidos nos últimos 30 dias.",
-  year: "Papers com mais destaques recebidos nos últimos 365 dias.",
-  all: "Papers com mais destaques desde que entraram na Vitrine.",
+  ...RANKING_PERIOD_EXPLANATIONS,
   recent: "Os papers que chegaram por último à Vitrine aparecem primeiro.",
 };
 

@@ -94,15 +94,17 @@ fazem embed de perfis. Para visitantes, "Quem indicou" mostra só a relação co
 A ordem vem da RPC `get_paper_ranking(p_period, p_area_slug, p_limit, p_offset)` (SQL em
 `supabase/migrations/20261027120800_rpc.sql`), espelhada em `src/lib/ranking/hot.ts`:
 
-| Período (`?periodo=`)   | Critério                                                                                                                                                      |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hot` — Em alta         | `hot_score = votos ÷ (horas desde o envio + 2)^1,5` (estilo Hacker News): papers novos com destaques sobem mais rápido e a pontuação cai com a idade do paper |
-| `week` — Semana         | votos recebidos nos últimos **7 dias** (`period_votes`)                                                                                                       |
-| `month` — Mês           | votos recebidos nos últimos **30 dias**                                                                                                                       |
-| `year` — Ano            | votos recebidos nos últimos **365 dias**                                                                                                                      |
-| `all` — Todos os tempos | total de votos (`vote_count`)                                                                                                                                 |
+| Período (`?periodo=`)   | Critério                                                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hot` — Em alta         | `hot_score = destaques ÷ (horas desde a publicação + 2)^1,5` (estilo Hacker News): papers novos com destaques sobem mais rápido e a pontuação cai com a idade do paper |
+| `week` — Semana         | votos recebidos nos últimos **7 dias** (`period_votes`)                                                                                                                |
+| `month` — Mês           | votos recebidos nos últimos **30 dias**                                                                                                                                |
+| `year` — Ano            | votos recebidos nos últimos **365 dias**                                                                                                                               |
+| `all` — Todos os tempos | total de votos (`vote_count`)                                                                                                                                          |
 
 - Desempate: total de votos (desc), depois o paper mais novo.
+- Na interface, votos se chamam **destaques**. Os textos que explicam cada período (em `/ranking` e
+  na Vitrine) vêm de uma fonte única: `RANKING_PERIOD_EXPLANATIONS` em `src/lib/ranking/hot.ts`.
 - Papers ocultos ficam de fora. Filtrar por uma grande área do CNPq (ex.: `engenharias`) inclui as subáreas.
 - As janelas são fixas (7/30/365 dias), não meses de calendário. `created_at` do voto não pode ser
   enviado pelo cliente (GRANT por coluna), então ninguém "antedata" votos.

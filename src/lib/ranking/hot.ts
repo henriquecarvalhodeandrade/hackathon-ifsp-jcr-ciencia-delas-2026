@@ -6,8 +6,9 @@ import type { RankingPeriod } from "@/lib/constants";
  *
  * "Em alta" (estilo Hacker News):
  *     hot_score = vote_count / (idade_em_horas + 2) ^ 1.5
- * O "+2" evita divisão por zero e dá um fôlego inicial a papers recém-enviados; o expoente
- * 1.5 faz votos antigos perderem peso com o tempo.
+ * (na interface: destaques ÷ (horas desde a publicação + 2)^1,5). O "+2" evita divisão por zero
+ * e dá um fôlego inicial a papers recém-publicados; o expoente 1.5 faz a pontuação cair com a
+ * idade do paper.
  */
 
 export const HOT_GRAVITY = 1.5;
@@ -54,11 +55,21 @@ export function periodStart(period: RankingPeriod, now: DateLike = new Date()): 
   }
 }
 
-/** Texto curto (pt-BR) explicando cada critério de ordenação, para a página /ranking. */
+/**
+ * Fórmula do "Em alta" como aparece para as pessoas (votos se chamam "destaques" na interface).
+ * Mesma conta de `hotScore` e da RPC `get_paper_ranking`.
+ */
+export const HOT_FORMULA_TEXT = "destaques ÷ (horas desde a publicação + 2)^1,5";
+
+/**
+ * Como cada período do ranking ordena os papers, em linguagem simples (pt-BR).
+ * FONTE ÚNICA: /ranking, a Vitrine (/papers) e a documentação usam estes textos.
+ * Na interface, votos sempre se chamam "destaques".
+ */
 export const RANKING_PERIOD_EXPLANATIONS: Record<RankingPeriod, string> = {
-  hot: "Votos recentes pesam mais: a pontuação é votos ÷ (horas desde o envio + 2)^1,5.",
-  week: "Papers com mais votos recebidos nos últimos 7 dias.",
-  month: "Papers com mais votos recebidos nos últimos 30 dias.",
-  year: "Papers com mais votos recebidos nos últimos 365 dias.",
-  all: "Papers com mais votos desde que entraram na Vitrine.",
+  hot: `Papers novos que recebem destaques sobem mais rápido: a pontuação é ${HOT_FORMULA_TEXT} e cai com o tempo.`,
+  week: "Papers com mais destaques recebidos nos últimos 7 dias.",
+  month: "Papers com mais destaques recebidos nos últimos 30 dias.",
+  year: "Papers com mais destaques recebidos nos últimos 365 dias.",
+  all: "Papers com mais destaques desde que entraram na Vitrine.",
 };

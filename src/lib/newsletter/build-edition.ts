@@ -2,11 +2,10 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { EDITION_LIMITS } from "./constants";
-import type { NewsletterContent } from "./content";
+import { summarizeMentors, type NewsletterContent } from "./content";
 import {
   rankPapersByWindowVotes,
   rankThreadsByActivity,
-  toNewsletterMentor,
   toNewsletterPaper,
   toNewsletterThread,
   type PaperCandidate,
@@ -15,9 +14,10 @@ import {
 
 /**
  * Coleta os destaques de uma janela [start, end) com o cliente ADMIN (service role) — a edição é
- * montada por uma rotina do servidor, não por uma usuária. Só dados públicos entram no conteúdo:
- * títulos/autoras de papers (já públicos na Vitrine), títulos de conversas de categorias SEM
- * anonimato, nome + headline de mentoras e contagens agregadas.
+ * montada por uma rotina do servidor, não por uma usuária. Edições publicadas ficam no arquivo
+ * PÚBLICO, então só dados públicos entram no conteúdo: títulos/autoras de papers (já públicos na
+ * Vitrine), títulos de conversas de categorias SEM anonimato e fora de "apresente-se" (nunca o
+ * nome de quem escreveu), e contagens agregadas — mentoras só como "N novas mentoras" + áreas.
  */
 
 type AdminClient = SupabaseClient<Database>;
@@ -161,7 +161,7 @@ async function collectThreads(
   const { data, error } = await admin
     .from("forum_threads")
     .select(
-      "id, title, reply_count, created_at, is_anonymous, category:forum_categories(name, allow_anonymous)",
+      "id, title, reply_count, created_at, is_anonymous, category:forum_categories(name, slug, allow_anonymous)",
     )
     .in("id", candidateIds.slice(0, 500));
   if (error) fail("tópicos", error);
@@ -173,6 +173,7 @@ async function collectThreads(
     created_at: t.created_at,
     is_anonymous: t.is_anonymous,
     category_name: t.category?.name ?? null,
+    category_slug: t.category?.slug ?? null,
     // Sem categoria conhecida → tratamos como sensível (fica de fora).
     category_allows_anonymous: t.category?.allow_anonymous ?? true,
   }));
@@ -186,31 +187,23 @@ async function collectThreads(
   }).map(toNewsletterThread);
 }
 
-async function collectMentors(admin: AdminClient, startIso: string, endIso: string) {
-  const base = () =>
-    admin
-      .from("profiles")
-      .select("id, full_name, headline")
-      .eq("is_mentor", true)
-      .eq("mentor_available", true)
-      .not("onboarded_at", "is", null)
-      .neq("full_name", "");
-
-  const { data: fresh, error } = await base()
+/**
+ * Novas mentoras disponíveis que concluíram o cadastro na janela — só a contagem e as áreas
+ * (nomes e perfis são exclusivos para membras e nunca vão para o arquivo público).
+ */
+async function collectMentorSummary(admin: AdminClient, startIso: string, endIso: string) {
+  const { data, error } = await admin
+    .from("profiles")
+    .select("id, research_areas(name)")
+    .eq("is_mentor", true)
+    .eq("mentor_available", true)
     .gte("onboarded_at", startIso)
     .lt("onboarded_at", endIso)
-    .order("onboarded_at", { ascending: false })
-    .limit(EDITION_LIMITS.mentors);
+    .limit(1_000);
   if (error) fail("novas mentoras", error);
-  if (fresh?.length) return fresh.map(toNewsletterMentor);
-
-  // Nenhuma mentora nova: apresenta mentoras disponíveis que chegaram mais recentemente.
-  const { data: available, error: availableError } = await base()
-    .lt("onboarded_at", endIso)
-    .order("onboarded_at", { ascending: false })
-    .limit(3);
-  if (availableError) fail("mentoras disponíveis", availableError);
-  return (available ?? []).map(toNewsletterMentor);
+  return summarizeMentors(
+    (data ?? []).map((row) => ({ areas: (row.research_areas ?? []).map((area) => area.name) })),
+  );
 }
 
 async function collectStats(admin: AdminClient, startIso: string, endIso: string) {
@@ -250,11 +243,11 @@ export async function collectEditionContent(
 ): Promise<NewsletterContent> {
   const startIso = window.start.toISOString();
   const endIso = window.end.toISOString();
-  const [papers, threads, mentors, stats] = await Promise.all([
+  const [papers, threads, mentorSummary, stats] = await Promise.all([
     collectPapers(admin, startIso, endIso),
     collectThreads(admin, window, startIso, endIso),
-    collectMentors(admin, startIso, endIso),
+    collectMentorSummary(admin, startIso, endIso),
     collectStats(admin, startIso, endIso),
   ]);
-  return { papers, threads, mentors, stats };
+  return { papers, threads, mentors: [], mentor_summary: mentorSummary, stats };
 }

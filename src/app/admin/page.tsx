@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Flag, Newspaper, ShieldCheck, Users } from "lucide-react";
+import { Flag, Newspaper, ScrollText, ShieldCheck, Users } from "lucide-react";
+import { AuditLogPanel } from "@/components/admin/audit-log";
 import { AdminFlashRegion } from "@/components/admin/flash";
 import { MembersPanel } from "@/components/admin/members-panel";
 import { NewsletterPanel } from "@/components/admin/newsletter-panel";
@@ -14,7 +15,7 @@ import {
   parseSearch,
   ROLE_LABELS,
 } from "@/lib/admin/params";
-import { listEditionsForAdmin, listMembers, listReports } from "@/lib/admin/queries";
+import { listAuditLog, listEditionsForAdmin, listMembers, listReports } from "@/lib/admin/queries";
 import { getNewsletterOverview, type NewsletterOverview } from "@/lib/newsletter/service";
 
 export const metadata: Metadata = {
@@ -69,11 +70,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   const q = parseSearch(params.q);
   const role = parseRoleFilter(params.papel);
 
-  const [reports, members, editions] = await Promise.all([
+  const [reports, members, editions, audit] = await Promise.all([
     // A contagem de abertas aparece na aba mesmo fora dela.
     listReports(tab === "denuncias" ? reportStatus : "open", tab === "denuncias" ? page : 1),
     tab === "membros" ? listMembers({ q, role, page }) : null,
     tab === "newsletter" ? listEditionsForAdmin() : null,
+    tab === "registro" ? listAuditLog(page) : null,
   ]);
   const newsletterOverview = tab === "newsletter" ? await loadNewsletterOverview() : null;
 
@@ -96,6 +98,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
         ]
       : []),
     { href: "/admin?aba=membros", label: "Membros", icon: <Users aria-hidden="true" />, active: tab === "membros" },
+    {
+      href: "/admin?aba=registro",
+      label: "Registro",
+      icon: <ScrollText aria-hidden="true" />,
+      active: tab === "registro",
+    },
   ];
 
   return (
@@ -103,7 +111,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       <PageHeader
         eyebrow="Moderação"
         title="Painel de moderação"
-        description={`${isAdmin ? "Denúncias, Boletim e papéis da comunidade." : "Denúncias e membras da comunidade."} Cada decisão afeta pessoas reais: aja com cuidado e registre o porquê.`}
+        description={`${isAdmin ? "Denúncias, Boletim e papéis da comunidade." : "Denúncias e membras da comunidade."} Cada decisão afeta pessoas reais e fica no registro da moderação: aja com cuidado.`}
         actions={
           <Badge variant={isAdmin ? "primary" : "info"} size="md">
             <ShieldCheck aria-hidden="true" />
@@ -144,6 +152,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             isAdmin={isAdmin}
             currentProfileId={profile.id}
           />
+        </TabSection>
+      )}
+
+      {tab === "registro" && audit && (
+        <TabSection
+          id="aba-registro"
+          title="Registro da moderação"
+          description="Tudo o que a moderação fez, do mais recente para o mais antigo. Só moderadoras e administradoras veem este registro, e ninguém consegue editá-lo ou apagá-lo."
+        >
+          <AuditLogPanel data={audit} />
         </TabSection>
       )}
 

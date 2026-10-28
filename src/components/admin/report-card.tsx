@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ArrowUpRight, EyeOff, Lock, Pin, ShieldQuestion, UserRound } from "lucide-react";
+import { ArrowUpRight, Eye, EyeOff, Lock, Pin, ShieldQuestion, UserRound } from "lucide-react";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { REPORT_TARGET_LABELS, REPORT_STATUS_LABELS, ROLE_LABELS } from "@/lib/admin/params";
 import type { ReportTargetPreview, ReportView } from "@/lib/admin/queries";
 import { REPORT_REASONS, type ReportReason } from "@/lib/constants";
 import { formatDateTime, formatRelativeTime, toIsoString } from "@/lib/utils";
+import { ReportAuditTrail } from "./audit-log";
 import { ContentActions } from "./content-actions";
 import { ReportResolveForm } from "./report-resolve-form";
 
@@ -197,10 +198,18 @@ export function ReportCard({ report, isAdmin, now }: { report: ReportView; isAdm
 
       {report.resolutionNote && (
         <div className="grid gap-1">
-          <p className="text-xs font-bold tracking-wide text-fg-subtle uppercase">Notas da moderação</p>
+          <p className="flex flex-wrap items-center gap-2 text-xs font-bold tracking-wide text-fg-subtle uppercase">
+            Nota para quem denunciou
+            <Badge variant="info">
+              <Eye aria-hidden="true" />
+              Visível para quem denunciou
+            </Badge>
+          </p>
           <p className="text-sm whitespace-pre-line text-fg-muted">{report.resolutionNote}</p>
         </div>
       )}
+
+      <ReportAuditTrail entries={report.audit} />
 
       <div className="border-t border-border pt-4">
         <ReportResolveForm reportId={report.id} status={report.status} />

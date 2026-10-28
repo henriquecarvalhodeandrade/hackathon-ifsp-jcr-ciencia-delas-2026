@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_rethrow } from "next/navigation";
 import type { Database } from "@/lib/database.types";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +12,8 @@ import { pickFeaturedPapers, type FeaturedPeriod } from "./featured";
  * inteira falharia).
  */
 
-export type PlatformStats = Database["public"]["Functions"]["get_platform_stats"]["Returns"][number];
+export type PlatformStats =
+  Database["public"]["Functions"]["get_platform_stats"]["Returns"][number];
 export type LandingPaper = Database["public"]["Functions"]["get_paper_ranking"]["Returns"][number];
 
 export interface LandingData {
@@ -57,7 +59,12 @@ export async function getLandingData(): Promise<LandingData> {
       latestEdition: edition.data ?? null,
     };
   } catch (error) {
-    console.error("[landing] falha ao carregar dados", error instanceof Error ? error.message : "erro");
+    // Erros internos do Next (ex.: uso de cookies() marcando a rota como dinâmica) não são falhas.
+    unstable_rethrow(error);
+    console.error(
+      "[landing] falha ao carregar dados",
+      error instanceof Error ? error.message : "erro",
+    );
     return EMPTY;
   }
 }

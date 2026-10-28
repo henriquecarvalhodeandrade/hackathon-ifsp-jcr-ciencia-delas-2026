@@ -179,9 +179,10 @@ export function sectionSavedMessage(
     case "mentoria":
       return "Suas preferências de mentoria foram salvas.";
     case "privacidade":
-      if (values.ai_consent) return "Consentimento registrado. Você pode retirá-lo quando quiser.";
+      if (values.ai_consent)
+        return "Sugestões com IA ativadas. Você pode retirar a autorização quando quiser.";
       return consentRevoked
-        ? "Consentimento retirado. A análise de IA do seu perfil foi apagada."
-        : "Preferência salva. Suas sugestões usam só as regras da plataforma.";
+        ? "Autorização retirada. A análise de IA do seu perfil e as sugestões geradas foram apagadas; novas sugestões usam só as regras da plataforma."
+        : "Preferência salva. Suas sugestões de mentoras usam só as regras da plataforma, sem IA.";
   }
 }

@@ -311,6 +311,11 @@ export function normalizeCandidateRow(row: CandidateRow): MentorCandidate {
   };
 }
 
+/** Exclui mentoras com quem ela já está em mentoria (existing_request_status = 'accepted'). */
+export function isNewMentorCandidate(candidate: Pick<MentorCandidate, "existing_request_status">) {
+  return candidate.existing_request_status !== "accepted";
+}
+
 function toSuggestedMentor(c: MentorCandidate, areas: AreaLookup): SuggestedMentor {
   const areaIds = c.area_ids ?? [];
   return {
@@ -374,12 +379,15 @@ async function persistSuggestions(
 
 /**
  * Sugestões de mentoras para a usuária logada.
- *  1. exige perfil com onboarding concluído;
+ *  1. exige perfil com onboarding concluído (o "Quero ser mentorada" é conferido na action);
  *  2. com consentimento de IA: atualiza o embedding (se mudou);
- *  3. RPC get_mentor_candidates(30) → ranking heurístico;
+ *  3. RPC get_mentor_candidates(30), sem as mentoras com quem ela já está em mentoria
+ *     → ranking heurístico;
  *  4. com consentimento + IA configurada: re-rank e explicação por IA do top 8 (pseudonimizado);
  *  5. substitui as linhas em mentor_suggestions e devolve as `limit` melhores.
- * Sem consentimento ou sem IA, tudo funciona só com a heurística (nada sai do servidor).
+ * As sugestões NÃO dependem do consentimento: sem ele (ou sem IA), tudo funciona só com a
+ * heurística e nada sai do servidor. O consentimento só liga os embeddings (Gemini) e a
+ * explicação/reordenação por IA.
  */
 export async function findMentorsForCurrentUser(
   options: { limit?: number } = {},
@@ -405,12 +413,14 @@ export async function findMentorsForCurrentUser(
   const warnings: string[] = [];
 
   // Proteção da cota gratuita: gerações seguidas em menos de 60 s devolvem o que já está salvo.
+  // Exceção: sugestões só por regras logo depois de ela autorizar a IA — aí vale gerar de novo.
   const recent = await getMySavedSuggestions({
     supabase,
     userId,
     maxAgeSeconds: SUGGESTION_COOLDOWN_SECONDS,
   });
-  if (recent && recent.suggestions.length > 0) {
+  const upgradingToAi = recent?.source === "heuristic" && profile.ai_consent && isAiEnabled();
+  if (recent && recent.suggestions.length > 0 && !upgradingToAi) {
     return {
       ...recent,
       suggestions: recent.suggestions.slice(0, limit),
@@ -447,7 +457,7 @@ export async function findMentorsForCurrentUser(
     }
   } else {
     warnings.push(
-      "Você não autorizou o uso de IA, então as sugestões foram calculadas só com regras locais. Você pode mudar isso no seu perfil.",
+      "Estas sugestões foram calculadas só com as regras da plataforma: nenhum dado seu foi enviado a serviços de IA. Se quiser a análise semântica e as explicações por IA, ative as sugestões com IA.",
     );
   }
 
@@ -464,7 +474,11 @@ export async function findMentorsForCurrentUser(
     );
   }
 
-  const candidates = ((rpcData ?? []) as unknown as CandidateRow[]).map(normalizeCandidateRow);
+  // Quem já é mentora dela (mentoria aceita) não volta como sugestão; pedidos pendentes ficam,
+  // e a interface mostra "Pedido enviado".
+  const candidates = ((rpcData ?? []) as unknown as CandidateRow[])
+    .map(normalizeCandidateRow)
+    .filter(isNewMentorCandidate);
   const mentee = toMentee(profile, areaIds);
   const ranked = rankMentorCandidates(mentee, candidates, { areas });
 

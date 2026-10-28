@@ -33,7 +33,8 @@ function RevealForm({ reportId, targetType, targetId, onCancel }: RevealAuthorDi
           <Link href={`/pesquisadoras/${state.data.profileId}`} className="font-semibold">
             {state.data.name}
           </Link>
-          . O registro ficou na denúncia. Trate essa informação com sigilo e use-a só para proteger a comunidade.
+          . A revelação ficou no registro interno da moderação. Trate essa informação com sigilo e use-a só para
+          proteger a comunidade.
         </Alert>
         <div className="flex justify-end">
           <Button variant="outline" onClick={onCancel}>
@@ -51,14 +52,14 @@ function RevealForm({ reportId, targetType, targetId, onCancel }: RevealAuthorDi
       <input type="hidden" name="targetId" value={targetId} />
       <Alert variant="warning" title="Use só em casos graves" icon={<ShieldAlert />}>
         O anonimato protege quem relata assédio, maternidade e saúde mental. Revele apenas diante de ameaça, assédio
-        grave ou risco a alguém. Seu nome, a data e o motivo ficam registrados nesta denúncia — que a denunciante
-        também pode consultar. O nome revelado não é registrado.
+        grave ou risco a alguém. Seu nome, a data e o motivo ficam no registro interno da moderação (quem denunciou
+        não vê). O nome revelado não é registrado.
       </Alert>
       <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
       <Field
         label="Motivo da revelação"
         required
-        hint="Entre 20 e 300 caracteres. Fica registrado na denúncia."
+        hint="Entre 20 e 300 caracteres. Fica no registro interno da moderação."
         error={errors?.reason}
       >
         <Textarea

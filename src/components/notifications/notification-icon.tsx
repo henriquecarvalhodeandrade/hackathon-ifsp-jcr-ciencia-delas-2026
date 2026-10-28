@@ -1,4 +1,11 @@
-import { BookOpenText, CircleCheckBig, HeartHandshake, MailCheck, MessageSquareReply } from "lucide-react";
+import {
+  BookOpenText,
+  CircleCheckBig,
+  HeartHandshake,
+  MailCheck,
+  MessageSquareReply,
+  ShieldCheck,
+} from "lucide-react";
 import type { NotificationType } from "@/lib/notifications/meta";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +15,7 @@ const ICONS: Record<NotificationType, { Icon: typeof HeartHandshake; tone: strin
   thread_reply: { Icon: MessageSquareReply, tone: "bg-secondary-soft text-secondary-soft-fg" },
   solution_marked: { Icon: CircleCheckBig, tone: "bg-success-soft text-success-soft-fg" },
   paper_comment: { Icon: BookOpenText, tone: "bg-accent-soft text-accent-soft-fg" },
+  report_resolved: { Icon: ShieldCheck, tone: "bg-info-soft text-info-soft-fg" },
 };
 
 /** Ícone do tipo de notificação (decorativo — o tipo também aparece em texto). */

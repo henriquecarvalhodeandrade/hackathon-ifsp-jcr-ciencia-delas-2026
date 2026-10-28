@@ -26,7 +26,10 @@ export function MentorshipSteps({ viewer }: { viewer: LandingViewer | null }) {
         <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
           <div className="grid max-w-2xl gap-3">
             <p className="eyebrow text-primary">Como funciona a mentoria</p>
-            <h2 id="mentoria-titulo" className="font-display text-3xl font-semibold text-fg sm:text-4xl">
+            <h2
+              id="mentoria-titulo"
+              className="font-display text-3xl font-semibold text-fg sm:text-4xl"
+            >
               Da primeira dúvida à primeira conversa, em três passos
             </h2>
           </div>
@@ -50,7 +53,10 @@ export function MentorshipSteps({ viewer }: { viewer: LandingViewer | null }) {
             className="absolute top-6 right-[16%] left-[16%] hidden border-t border-dashed border-border-strong md:block"
           />
           {STEPS.map((step, i) => (
-            <li key={step.title} className="relative grid grid-cols-[3rem_1fr] gap-4 md:grid-cols-1 md:justify-items-center md:text-center">
+            <li
+              key={step.title}
+              className="relative grid grid-cols-[3rem_1fr] gap-4 md:grid-cols-1 md:justify-items-center md:text-center"
+            >
               {i < STEPS.length - 1 && (
                 <span
                   aria-hidden="true"
@@ -61,8 +67,8 @@ export function MentorshipSteps({ viewer }: { viewer: LandingViewer | null }) {
                 aria-hidden="true"
                 className={
                   i === STEPS.length - 1
-                    ? "tabular relative z-10 inline-flex size-12 items-center justify-center rounded-full bg-accent font-display text-lg font-bold text-accent-fg ring-8 ring-bg"
-                    : "tabular relative z-10 inline-flex size-12 items-center justify-center rounded-full bg-primary font-display text-lg font-bold text-primary-fg ring-8 ring-bg"
+                    ? "relative z-10 inline-flex size-12 items-center justify-center rounded-full bg-accent font-display text-lg font-bold text-accent-fg tabular ring-8 ring-bg"
+                    : "relative z-10 inline-flex size-12 items-center justify-center rounded-full bg-primary font-display text-lg font-bold text-primary-fg tabular ring-8 ring-bg"
                 }
               >
                 {i + 1}
@@ -81,10 +87,14 @@ export function MentorshipSteps({ viewer }: { viewer: LandingViewer | null }) {
         <p className="mt-10 flex items-start gap-2 rounded-card bg-surface-2 p-4 text-[0.9375rem] text-fg-muted sm:items-center">
           <Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info sm:mt-0" />
           <span>
-            As sugestões dependem da sua autorização (e de você ter 18 anos ou mais): analisamos o seu perfil de pesquisa
-            e, quando a IA gratuita está disponível, ela explica as combinações — sem receber seu nome, e-mail ou
-            contatos. Sem autorização, você ainda encontra mentoras no diretório e pode pedir mentoria diretamente.{" "}
-            <Link href="/privacidade#ia" className="font-semibold text-primary underline underline-offset-2">
+            As sugestões funcionam sem IA: a própria plataforma compara áreas, temas e etapa da
+            carreira, sem enviar seus dados a ninguém. Se você autorizar (e tiver 18 anos ou mais),
+            uma IA gratuita também analisa o sentido do seu perfil e explica as combinações — sem
+            receber seu nome, e-mail ou contatos.{" "}
+            <Link
+              href="/privacidade#ia"
+              className="font-semibold text-primary underline underline-offset-2"
+            >
               Como tratamos seus dados
             </Link>
           </span>

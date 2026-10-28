@@ -1,70 +1,112 @@
-import { formatDateTime } from "@/lib/utils";
-
 /**
- * Trilha de auditoria guardada na própria denúncia (`reports.resolution_note`).
+ * Registro de auditoria da moderação (`public.moderation_audit_log`) — rótulos e regras puras.
  *
- * Ações sensíveis da moderação — como revelar a autoria de uma publicação anônima —
- * acrescentam uma linha "[Auditoria] …" na nota da denúncia. Essas linhas são
- * preservadas quando a moderação reescreve a nota ao resolver/arquivar.
- * (Proposta de tabela dedicada `moderation_audit_log` em docs/09.)
+ * O registro é gravado pelo banco nas RPCs de moderação (revelar autoria, fixar/trancar,
+ * ocultar paper) e ao resolver/arquivar denúncias (trigger), e pelo painel ao excluir
+ * conteúdo e trocar papéis. Só moderadoras e admins leem; ninguém edita nem apaga pela API.
+ * Ele substitui as antigas linhas "[Auditoria] …" em `reports.resolution_note`, que é uma
+ * nota VISÍVEL para quem denunciou.
  */
 
-export const AUDIT_PREFIX = "[Auditoria]";
+export const AUDIT_ACTIONS = [
+  "reveal_author",
+  "hide_paper",
+  "unhide_paper",
+  "lock_thread",
+  "unlock_thread",
+  "pin_thread",
+  "unpin_thread",
+  "delete_content",
+  "resolve_report",
+  "dismiss_report",
+  "change_role",
+] as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_TARGET_TYPES = ["thread", "post", "paper", "paper_comment", "profile", "report"] as const;
+
+export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
+
+/** Frase curta no passado, usada como "<quem> <ação>". */
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  reveal_author: "revelou a autoria",
+  hide_paper: "ocultou o paper",
+  unhide_paper: "reexibiu o paper",
+  lock_thread: "trancou o tópico",
+  unlock_thread: "destrancou o tópico",
+  pin_thread: "fixou o tópico",
+  unpin_thread: "desafixou o tópico",
+  delete_content: "excluiu o conteúdo",
+  resolve_report: "resolveu a denúncia",
+  dismiss_report: "arquivou a denúncia",
+  change_role: "alterou o papel",
+};
+
+export const AUDIT_TARGET_LABELS: Record<AuditTargetType, string> = {
+  thread: "Tópico do fórum",
+  post: "Resposta no fórum",
+  paper: "Paper da Vitrine",
+  paper_comment: "Comentário em paper",
+  profile: "Perfil",
+  report: "Denúncia",
+};
+
+/** Ações que merecem destaque visual (afetam a privacidade ou o papel de alguém). */
+export const SENSITIVE_AUDIT_ACTIONS: ReadonlySet<AuditAction> = new Set(["reveal_author", "change_role"]);
+
+export function isAuditAction(value: unknown): value is AuditAction {
+  return typeof value === "string" && (AUDIT_ACTIONS as readonly string[]).includes(value);
+}
+
+export function isAuditTargetType(value: unknown): value is AuditTargetType {
+  return typeof value === "string" && (AUDIT_TARGET_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * Link para o alvo (quando existe uma página dele). Respostas e comentários não têm página
+ * própria sem o id do tópico/paper, então ficam sem link.
+ */
+export function auditTargetHref(type: AuditTargetType | null, id: string | null): string | null {
+  if (!type || !id) return null;
+  switch (type) {
+    case "thread":
+      return `/forum/t/${id}`;
+    case "paper":
+      return `/papers/${id}`;
+    case "profile":
+      return `/pesquisadoras/${id}`;
+    default:
+      return null;
+  }
+}
+
+/** Limite da coluna `moderation_audit_log.reason`. */
+export const AUDIT_REASON_MAX = 500;
+
+/** Motivo pronto para gravar: espaços normalizados, cortado no limite; vazio → null. */
+export function cleanAuditReason(reason: string | null | undefined, max: number = AUDIT_REASON_MAX): string | null {
+  const text = (reason ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
 /** Limite da coluna `reports.resolution_note` (check no banco). */
 export const RESOLUTION_NOTE_MAX = 1000;
 
-export interface AuditLineInput {
-  actorName: string;
-  action: string;
-  reason: string;
-  at?: Date;
-}
-
-/** Ex.: "[Auditoria] 27/10/2026, 14:05 — Helena Duarte: revelou a autoria do tópico. Motivo: …" */
-export function buildAuditLine({ actorName, action, reason, at = new Date() }: AuditLineInput): string {
-  const clean = (text: string) => text.replace(/\s+/g, " ").trim();
-  const actor = clean(actorName) || "Moderação";
-  return `${AUDIT_PREFIX} ${formatDateTime(at)} — ${actor}: ${clean(action)}. Motivo: ${clean(reason)}`;
-}
-
-export function splitResolutionNote(note: string | null | undefined): { audit: string[]; text: string } {
-  const lines = (note ?? "").split(/\r?\n/);
-  const audit: string[] = [];
-  const text: string[] = [];
-  for (const line of lines) {
-    if (line.trimStart().startsWith(AUDIT_PREFIX)) audit.push(line.trim());
-    else text.push(line);
-  }
-  return { audit, text: text.join("\n").trim() };
-}
-
-function fit(audit: string[], text: string, max: number): string | null {
-  // Mantém as linhas de auditoria mais recentes que couberem.
-  const kept = [...audit];
-  while (kept.join("\n").length > max && kept.length > 0) kept.shift();
-  const auditBlock = kept.join("\n");
-  const room = max - auditBlock.length - (auditBlock && text ? 2 : 0);
-  const body = room > 0 ? (text.length > room ? `${text.slice(0, Math.max(0, room - 1)).trimEnd()}…` : text) : "";
-  const result = [body, auditBlock].filter(Boolean).join("\n\n");
-  return result || null;
-}
-
-/** Nova nota escrita pela moderação + linhas de auditoria já existentes (sempre no fim). */
-export function mergeResolutionNote(
+/**
+ * Acrescenta uma frase à nota visível para quem denunciou (ex.: fechamento automático depois
+ * de excluir o conteúdo), sem repetir a mesma frase e respeitando o limite da coluna.
+ */
+export function appendToResolutionNote(
   existing: string | null | undefined,
-  nextText: string | null | undefined,
+  addition: string,
   max: number = RESOLUTION_NOTE_MAX,
 ): string | null {
-  const { audit } = splitResolutionNote(existing);
-  return fit(audit, (nextText ?? "").trim(), max);
-}
-
-/** Acrescenta uma linha de auditoria, preservando o texto livre da nota. */
-export function appendAuditLine(
-  existing: string | null | undefined,
-  line: string,
-  max: number = RESOLUTION_NOTE_MAX,
-): string {
-  const { audit, text } = splitResolutionNote(existing);
-  return fit([...audit, line.trim()], text, max) ?? line.slice(0, max);
+  const current = (existing ?? "").trim();
+  const extra = addition.trim();
+  if (!extra) return current || null;
+  if (current.split(/\r?\n/).some((line) => line.trim() === extra)) return current;
+  const merged = current ? `${current}\n${extra}` : extra;
+  return merged.length > max ? `${merged.slice(0, max - 1).trimEnd()}…` : merged;
 }

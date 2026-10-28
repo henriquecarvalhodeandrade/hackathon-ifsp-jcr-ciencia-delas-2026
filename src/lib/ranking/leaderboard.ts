@@ -1,7 +1,7 @@
 /**
  * Pontos do ranking da comunidade — IDÊNTICOS à RPC `get_community_leaderboard` (SQL):
  *
- *   points = 10·papers + 2·votos recebidos + 5·soluções + 15·mentorias (aceitas ou concluídas,
+ *   points = 10·papers + 2·destaques (votos) recebidos + 5·soluções + 15·mentorias (aceitas ou concluídas,
  *            como mentora) + 1·(tópicos + respostas no fórum)
  *
  * Conteúdo anônimo nunca conta (não pode vazar autoria); papers ocultos pela moderação também não.
@@ -69,8 +69,8 @@ export const LEADERBOARD_RULES: ReadonlyArray<{
   {
     key: "voteReceived",
     points: LEADERBOARD_POINTS.voteReceived,
-    label: "Voto recebido",
-    description: "Cada voto que os papers que você compartilhou receberam.",
+    label: "Destaque recebido",
+    description: "Cada destaque que os papers que você compartilhou receberam.",
   },
   {
     key: "post",

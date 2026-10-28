@@ -1,3 +1,30 @@
+{{- /*
+  Link de verificação (Go template do Supabase Auth). O app envia emailRedirectTo/redirectTo
+  no formato "<origem do app>/auth/confirm?next=<destino>"; o Auth só repassa em .RedirectTo
+  um endereço permitido (mesmo host do site_url ou additional_redirect_urls) e, sem um
+  redirect válido, usa o próprio site_url. Montar o link a partir de .RedirectTo preserva
+  o ?next e a origem certa (porta local, deploy de preview) mesmo quando o e-mail é aberto
+  em outro navegador. Fallback seguro: <site_url>/auth/confirm com o destino padrão.
+*/ -}}
+{{- $confirm := printf "%s/auth/confirm" .SiteURL -}}
+{{- $confirmQuery := printf "%s?" $confirm -}}
+{{- $link := printf "%s?token_hash=%s&type=email&next=/forum" $confirm .TokenHash -}}
+{{- $sameSite := false -}}
+{{- if ge (len .RedirectTo) (len .SiteURL) -}}
+  {{- $sameSite = eq (slice .RedirectTo 0 (len .SiteURL)) .SiteURL -}}
+{{- end -}}
+{{- $confirmWithQuery := false -}}
+{{- if ge (len .RedirectTo) (len $confirmQuery) -}}
+  {{- $confirmWithQuery = eq (slice .RedirectTo 0 (len $confirmQuery)) $confirmQuery -}}
+{{- end -}}
+{{- if eq .RedirectTo $confirm -}}
+  {{- $link = printf "%s?token_hash=%s&type=email" .RedirectTo .TokenHash -}}
+{{- else if $confirmWithQuery -}}
+  {{- $link = printf "%s&token_hash=%s&type=email" .RedirectTo .TokenHash -}}
+{{- else if not $sameSite -}}
+  {{- /* Outra origem permitida (ex.: deploy de preview): o app sempre manda "?next=". */ -}}
+  {{- $link = printf "%s&token_hash=%s&type=email" .RedirectTo .TokenHash -}}
+{{- end -}}
 <!doctype html>
 <html lang="pt-BR">
   <head>
@@ -18,14 +45,14 @@
                 <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;color:#2a2238;">Seu link de acesso chegou</h1>
                 <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;">Use o botão abaixo para entrar na Ciência Delas sem senha. O link vale por pouco tempo e só pode ser usado uma vez.</p>
                 <p style="margin:24px 0;">
-                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/forum"
+                  <a href="{{ $link }}"
                      style="display:inline-block;background-color:#5b2a86;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 24px;border-radius:999px;">Entrar na Ciência Delas</a>
                 </p>
                 <p style="margin:0 0 8px 0;font-size:14px;line-height:1.5;color:#5c5470;">
                   Se o botão não funcionar, copie e cole este endereço no navegador:
                 </p>
                 <p style="margin:0 0 24px 0;font-size:13px;line-height:1.5;word-break:break-all;">
-                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/forum" style="color:#5b2a86;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/forum</a>
+                  <a href="{{ $link }}" style="color:#5b2a86;">{{ $link }}</a>
                 </p>
                 <p style="margin:0;font-size:13px;line-height:1.5;color:#5c5470;">Se você não pediu este link, ignore este e-mail: sua conta continua segura.</p>
               </td>

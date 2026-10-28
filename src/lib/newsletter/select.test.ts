@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isThreadPublishable,
   rankPapersByWindowVotes,
   rankThreadsByActivity,
   toNewsletterPaper,
@@ -78,6 +79,7 @@ function thread(id: string, over: Partial<ThreadCandidate> = {}): ThreadCandidat
     created_at: "2026-10-01T00:00:00Z",
     is_anonymous: false,
     category_name: "Carreira",
+    category_slug: "carreira",
     category_allows_anonymous: false,
     ...over,
   };
@@ -101,5 +103,22 @@ describe("rankThreadsByActivity", () => {
       limit: 4,
     });
     expect(ranked.map((t) => t.id)).toEqual(["carreira", "novo"]);
+  });
+
+  it("deixa de fora apresentações pessoais e tópicos sem categoria conhecida", () => {
+    const ranked = rankThreadsByActivity({
+      threads: [
+        thread("apresentacao", { category_slug: "apresente-se", category_name: "Apresente-se" }),
+        thread("sem-categoria", { category_slug: null, category_name: null }),
+        thread("eventos", { category_slug: "eventos" }),
+      ],
+      postThreadIds: ["apresentacao", "sem-categoria", "eventos"],
+      reactionThreadIds: [],
+      windowStart,
+      limit: 4,
+    });
+    expect(ranked.map((t) => t.id)).toEqual(["eventos"]);
+    expect(isThreadPublishable(thread("x"))).toBe(true);
+    expect(isThreadPublishable(thread("y", { category_slug: "apresente-se" }))).toBe(false);
   });
 });

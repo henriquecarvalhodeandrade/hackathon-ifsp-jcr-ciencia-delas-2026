@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_rethrow } from "next/navigation";
 import { getLandingData } from "@/components/landing/data";
 import { FeaturedPapers } from "@/components/landing/featured-papers";
 import { firstName } from "@/components/landing/featured";
@@ -29,7 +30,8 @@ async function loadViewer(): Promise<LandingViewer | null> {
       seeksMentorship: profile.seeks_mentorship,
       isMentor: profile.is_mentor,
     };
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error);
     return null;
   }
 }
