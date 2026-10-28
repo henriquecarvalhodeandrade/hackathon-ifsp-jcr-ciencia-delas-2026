@@ -1,11 +1,9 @@
 "use client";
 
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
-
-type TriggerProps = { onClick?: (event: React.MouseEvent<HTMLElement>) => void; "aria-haspopup"?: "dialog" };
 
 export interface DialogProps {
   title: React.ReactNode;
@@ -16,8 +14,17 @@ export interface DialogProps {
   /** Modo controlado. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Modo não controlado: elemento que abre o diálogo (ex.: <Button>Abrir</Button>). */
-  trigger?: React.ReactElement<TriggerProps>;
+  /**
+   * Modo não controlado: elemento que abre o diálogo (ex.: <Button>Abrir</Button>).
+   * Pode vir de um Server Component: ele é renderizado como está, dentro de um "slot"
+   * (`<span class="contents">`) que escuta o clique.
+   */
+  trigger?: React.ReactElement;
+  /**
+   * Envolve o conteúdo e o rodapé num único `<form>` (ex.: `{ action }`): os campos em
+   * `children` e um `<SubmitButton>` no `footer` passam a ser do mesmo formulário.
+   */
+  formProps?: Omit<React.ComponentProps<"form">, "children" | "className">;
   size?: "sm" | "md" | "lg";
   /** Fecha com Esc e clique fora (padrão true). */
   dismissible?: boolean;
@@ -25,6 +32,16 @@ export interface DialogProps {
 }
 
 const sizeClasses = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" } as const;
+
+const INTERACTIVE = "button, a[href], input, select, textarea, summary, [role='button'], [tabindex]";
+
+/** O elemento clicável do gatilho, se o clique veio dele e ele está habilitado. */
+function triggerTarget(slot: HTMLElement, target: EventTarget | null): HTMLElement | null | false {
+  const element = target instanceof Element ? target.closest<HTMLElement>(INTERACTIVE) : null;
+  const control = element && slot.contains(element) ? element : null;
+  if (control && (control.matches(":disabled") || control.getAttribute("aria-disabled") === "true")) return false;
+  return control;
+}
 
 /**
  * Diálogo modal com o <dialog> nativo: foco preso dentro, Esc fecha, o foco volta
@@ -39,6 +56,7 @@ export function Dialog({
   open: openProp,
   onOpenChange,
   trigger,
+  formProps,
   size = "md",
   dismissible = true,
   className,
@@ -46,6 +64,7 @@ export function Dialog({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
   const ref = useRef<HTMLDialogElement>(null);
+  const slotRef = useRef<HTMLSpanElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -59,7 +78,8 @@ export function Dialog({
     const dialog = ref.current;
     if (!dialog) return;
     if (open && !dialog.open) {
-      returnFocus.current = document.activeElement as HTMLElement | null;
+      // O gatilho clicado tem prioridade: no Safari o clique não foca o botão.
+      returnFocus.current ??= document.activeElement as HTMLElement | null;
       dialog.showModal();
       // O conteúdo monta antes do showModal(), então o autoFocus do React não pega.
       // Marque o campo inicial com data-autofocus (ex.: <Textarea data-autofocus />).
@@ -69,17 +89,61 @@ export function Dialog({
     }
   }, [open]);
 
+  // O gatilho é renderizado sem cloneElement (veja `trigger`), então o aria-haspopup
+  // entra pelo DOM, depois da hidratação — servidor e cliente geram o mesmo HTML.
+  useEffect(() => {
+    const control = slotRef.current?.querySelector<HTMLElement>(INTERACTIVE);
+    if (control && !control.hasAttribute("aria-haspopup")) control.setAttribute("aria-haspopup", "dialog");
+  }, [trigger]);
+
+  const content = (
+    <>
+      <header className="flex items-start gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
+        <div className="grid flex-1 gap-1">
+          <h2 id={titleId} className="font-display text-xl leading-snug font-semibold">
+            {title}
+          </h2>
+          {description && (
+            <p id={descriptionId} className="text-[0.9375rem] text-fg-muted">
+              {description}
+            </p>
+          )}
+        </div>
+        {dismissible && (
+          <Button variant="ghost" size="icon-sm" aria-label="Fechar" onClick={() => setOpen(false)} className="-mt-1 -mr-2">
+            <X aria-hidden="true" />
+          </Button>
+        )}
+      </header>
+      <div className="overflow-y-auto px-5 py-4 sm:px-6">{children}</div>
+      {footer && (
+        <footer className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          {footer}
+        </footer>
+      )}
+    </>
+  );
+  const layout = "grid max-h-[85dvh] grid-rows-[auto_1fr_auto]";
+
   return (
     <>
-      {trigger && isValidElement(trigger)
-        ? cloneElement(trigger, {
-            "aria-haspopup": "dialog",
-            onClick: (event: React.MouseEvent<HTMLElement>) => {
-              trigger.props.onClick?.(event);
-              setOpen(true);
-            },
-          })
-        : null}
+      {trigger ? (
+        // Sem cloneElement/isValidElement: um elemento vindo de um Server Component pode chegar
+        // "preguiçoso" (lazy) no SSR e não ser reconhecido — ele sumia ou divergia na hidratação.
+        // O slot não gera caixa (display: contents); o clique sobe do botão até ele.
+        <span
+          ref={slotRef}
+          className="contents"
+          onClick={(event) => {
+            const control = triggerTarget(event.currentTarget, event.target);
+            if (control === false) return;
+            returnFocus.current = control;
+            setOpen(true);
+          }}
+        >
+          {trigger}
+        </span>
+      ) : null}
       <dialog
         ref={ref}
         aria-labelledby={open ? titleId : undefined}
@@ -90,6 +154,7 @@ export function Dialog({
         onClose={() => {
           if (open) setOpen(false);
           returnFocus.current?.focus?.();
+          returnFocus.current = null;
         }}
         onClick={(event) => {
           if (dismissible && event.target === ref.current) setOpen(false);
@@ -101,33 +166,14 @@ export function Dialog({
           className,
         )}
       >
-        {open && (
-          <div className="grid max-h-[85dvh] grid-rows-[auto_1fr_auto]">
-            <header className="flex items-start gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
-              <div className="grid flex-1 gap-1">
-                <h2 id={titleId} className="font-display text-xl leading-snug font-semibold">
-                  {title}
-                </h2>
-                {description && (
-                  <p id={descriptionId} className="text-[0.9375rem] text-fg-muted">
-                    {description}
-                  </p>
-                )}
-              </div>
-              {dismissible && (
-                <Button variant="ghost" size="icon-sm" aria-label="Fechar" onClick={() => setOpen(false)} className="-mt-1 -mr-2">
-                  <X aria-hidden="true" />
-                </Button>
-              )}
-            </header>
-            <div className="overflow-y-auto px-5 py-4 sm:px-6">{children}</div>
-            {footer && (
-              <footer className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-                {footer}
-              </footer>
-            )}
-          </div>
-        )}
+        {open &&
+          (formProps ? (
+            <form {...formProps} className={layout}>
+              {content}
+            </form>
+          ) : (
+            <div className={layout}>{content}</div>
+          ))}
       </dialog>
     </>
   );

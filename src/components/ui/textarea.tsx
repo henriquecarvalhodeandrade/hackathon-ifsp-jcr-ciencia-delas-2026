@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn, formatNumber } from "@/lib/utils";
 import { controlClasses } from "./input";
 
@@ -12,6 +12,9 @@ export interface TextareaProps extends React.ComponentProps<"textarea"> {
 /**
  * Área de texto com contador opcional de caracteres.
  * O contador é anunciado de forma educada (aria-live) só quando faltam poucos caracteres.
+ * Sem `value` (campo não controlado), o contador lê o texto do próprio campo: acompanha a
+ * digitação, o reset do formulário (o React 19 limpa o <form> depois de cada action) e o
+ * texto restaurado pelo navegador ao voltar para a página.
  */
 export function Textarea({
   className,
@@ -22,20 +25,50 @@ export function Textarea({
   onChange,
   rows = 5,
   id,
+  ref,
   ...props
 }: TextareaProps) {
   const [length, setLength] = useState(() => String(value ?? defaultValue ?? "").length);
+  const fieldRef = useRef<HTMLTextAreaElement | null>(null);
   const currentLength = value !== undefined ? String(value).length : length;
   const counterId = id ? `${id}-contador` : undefined;
   const nearLimit = maxLength !== undefined && currentLength >= maxLength * 0.9;
+  const counting = showCount && maxLength !== undefined;
+  const controlled = value !== undefined;
+
+  // Junta a ref interna com a ref de quem usa o componente (função ou objeto).
+  const setRefs = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      fieldRef.current = node;
+      if (typeof ref === "function") return ref(node);
+      if (ref) ref.current = node;
+    },
+    [ref],
+  );
+
+  useEffect(() => {
+    const field = fieldRef.current;
+    if (!counting || controlled || !field) return;
+    const sync = () => setLength(field.value.length);
+    // O evento "reset" dispara ANTES de o navegador restaurar os valores: lê na próxima tarefa.
+    const onReset = () => window.setTimeout(sync, 0);
+    const form = field.form;
+    form?.addEventListener("reset", onReset);
+    // Texto restaurado pelo navegador (voltar/avançar) ou por preenchimento automático.
+    const frame = requestAnimationFrame(sync);
+    return () => {
+      form?.removeEventListener("reset", onReset);
+      cancelAnimationFrame(frame);
+    };
+  }, [counting, controlled]);
 
   const describedBy =
-    [props["aria-describedby"], showCount && maxLength ? counterId : undefined].filter(Boolean).join(" ") ||
-    undefined;
+    [props["aria-describedby"], counting ? counterId : undefined].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className="grid gap-1.5">
       <textarea
+        ref={setRefs}
         id={id}
         rows={rows}
         maxLength={maxLength}
@@ -49,7 +82,7 @@ export function Textarea({
         {...props}
         aria-describedby={describedBy}
       />
-      {showCount && maxLength !== undefined && (
+      {counting && (
         <p
           id={counterId}
           className={cn("tabular justify-self-end text-xs", nearLimit ? "font-semibold text-warning" : "text-fg-subtle")}

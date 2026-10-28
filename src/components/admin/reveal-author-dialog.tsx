@@ -22,7 +22,10 @@ interface RevealAuthorDialogProps {
 
 function RevealForm({ reportId, targetType, targetId, onCancel }: RevealAuthorDialogProps & { onCancel: () => void }) {
   const [state, formAction] = useActionState<ActionState<RevealResult>, FormData>(revealAnonymousAuthor, null);
+  // Controlados: o React 19 limpa campos não controlados depois de cada envio do formulário,
+  // e um erro de validação não pode desmarcar a confirmação nem apagar o motivo.
   const [reason, setReason] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const errors = state && !state.ok ? state.fieldErrors : undefined;
 
   if (state?.ok) {
@@ -75,6 +78,8 @@ function RevealForm({ reportId, targetType, targetId, onCancel }: RevealAuthorDi
         <Checkbox
           id={`revelar-confirmar-${targetId}`}
           name="confirm"
+          checked={confirmed}
+          onChange={(event) => setConfirmed(event.target.checked)}
           label="Entendo que este é um caso grave e que esta ação fica registrada."
           aria-invalid={errors?.confirm ? true : undefined}
           aria-describedby={errors?.confirm ? `revelar-confirmar-${targetId}-erro` : undefined}
