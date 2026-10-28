@@ -341,6 +341,13 @@ delete from mentorship_messages where request_id = '<id do pedido>' and body lik
 delete from private.rate_limit_events where action = 'mentorship_message';  -- zera o limite de 60/h
 ```
 
+A **jornada E2E** (`scripts/e2e/journey.mjs`, também no CI) cobre o caminho principal da conversa a cada
+execução: larissa@ abre "Conversar" na aba Ativas e envia com Enter ("Enviada"); marina@ abre pelo aviso "Nova
+mensagem de Larissa…", a mensagem vira lida no banco e ela responde; a página da larissa@, aberta, mostra a
+resposta sozinha (atualização de 15 s) com o recibo "Lida"; gabriela@ recebe HTTP 404 sem o texto da conversa.
+As telas da conversa (larissa@ e marina@) entram na varredura claro/escuro × 1440/390 px. As mensagens e os
+avisos criados pelo teste são apagados no fim.
+
 O que foi verificado na entrega da conversa (Playwright contra um build de produção e o Supabase
 local, larissa ↔ marina e uma mentoria temporária gabriela ↔ patrícia criada e apagada pelo
 roteiro): botão "Conversar" → conversa vazia com sugestões; sugestão + Enter envia; Shift+Enter

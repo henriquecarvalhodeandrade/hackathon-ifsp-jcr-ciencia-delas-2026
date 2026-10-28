@@ -249,7 +249,7 @@ do README mostra o resultado da última execução no branch padrão (`main`), n
 ### Jornada E2E no CI
 
 O job `e2e` roda a jornada completa de [`scripts/e2e/journey.mjs`](../scripts/e2e/journey.mjs) (visitante,
-cadastro com confirmação por e-mail, onboarding, mentoria, fórum, moderação, Boletim, Vitrine e a varredura de
+cadastro com confirmação por e-mail, onboarding, mentoria e a conversa da mentoria, fórum, moderação, Boletim, Vitrine e a varredura de
 telas claro/escuro × 1440/390 px) num build de produção, contra um Supabase local completo no runner. Tem limite
 de 30 minutos.
 

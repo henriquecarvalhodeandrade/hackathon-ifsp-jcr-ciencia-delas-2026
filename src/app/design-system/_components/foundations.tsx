@@ -89,10 +89,10 @@ export function Typography() {
         {FAMILIES.map((f) => (
           <article
             key={f.token}
-            className="grid content-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card"
+            className="grid min-w-0 content-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-display text-lg font-semibold text-fg">{f.name}</h3>
                 <p className="text-sm text-fg-muted">{f.role}</p>
               </div>
@@ -106,7 +106,7 @@ export function Typography() {
             >
               Aa Çç Ãã
             </p>
-            <p className={cn("text-xl text-fg", f.className)}>{f.sample}</p>
+            <p className={cn("text-xl wrap-anywhere text-fg", f.className)}>{f.sample}</p>
             <p className="text-sm text-fg-subtle">{f.why}</p>
           </article>
         ))}

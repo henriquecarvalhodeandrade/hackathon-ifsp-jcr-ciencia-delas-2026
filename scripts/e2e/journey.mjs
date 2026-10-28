@@ -8,6 +8,10 @@
  *   2. Cadastro novo → link de confirmação (Mailpit) → onboarding em 4 etapas → /mentoria
  *      (sugestões pelas regras da plataforma, sem IA) → pede mentoria à Marina.
  *   3. Marina (marina@) aceita → a mentoranda vê o e-mail de contato e o aviso.
+ *      Conversa da mentoria (seed: larissa@ ↔ marina@, aceita): larissa@ escreve (Enter envia),
+ *      marina@ abre pelo aviso, a mensagem vira "lida" e ela responde; a página da larissa@ mostra
+ *      a resposta sozinha (atualização a cada 15 s) com o recibo "Lida"; gabriela@ (de fora)
+ *      recebe 404 de verdade.
  *   4. Fórum: tópico, resposta, reação, tópico anônimo em "Rede de apoio" e denúncia (gabriela@).
  *   5. Moderação: moderacao@ tranca o tópico (e não vê "Revelar autoria"); admin@ revela a
  *      autoria com motivo (linha no registro); moderacao@ resolve a denúncia e quem denunciou
@@ -117,6 +121,8 @@ const NOT_FOUND_PATH = "/e2e-pagina-inexistente";
 const demo = (user) => `${user}@demo.cienciadelas.dev`;
 const SEED = {
   marinaId: "d1000000-0000-4000-8000-000000000001",
+  /** Mentoria aceita larissa@ (mentoranda) ↔ marina@ (mentora). */
+  larissaRequest: "c1000000-0000-4000-8000-000000000001",
   pinnedThread: "a1000000-0000-4000-8000-000000000008",
   paper: "b1000000-0000-4000-8000-000000000002",
   edition: "2026-s43",
@@ -499,6 +505,38 @@ async function cleanup() {
   }
   summary.reports = reportIds.size;
 
+  // Conversa da mentoria das contas demo: as mensagens do teste levam a marca no texto; os avisos
+  // que elas geraram (título "Nova mensagem de…", sem a marca) são os da mesma conversa criados
+  // a partir da primeira mensagem do teste.
+  const messages = await q(
+    db
+      .from("mentorship_messages")
+      .delete()
+      .ilike("body", `%${TAG_PREFIX}-%`)
+      .select("request_id, created_at"),
+    "apagar mensagens",
+  );
+  summary.messages = messages.length;
+  const firstMessageAt = new Map();
+  for (const row of messages) {
+    const current = firstMessageAt.get(row.request_id);
+    if (!current || row.created_at < current) firstMessageAt.set(row.request_id, row.created_at);
+  }
+  summary.messageNotifications = 0;
+  for (const [requestId, since] of firstMessageAt) {
+    const rows = await q(
+      db
+        .from("notifications")
+        .delete()
+        .eq("type", "mentorship_message")
+        .eq("link", `/mentoria/conversa/${requestId}`)
+        .gte("created_at", since)
+        .select("id"),
+      "avisos da conversa",
+    );
+    summary.messageNotifications += rows.length;
+  }
+
   const notifications = await q(
     db
       .from("notifications")
@@ -787,6 +825,116 @@ async function journey() {
       return "contato visível + aviso";
     },
     { needs: ["requestId"] },
+  );
+
+  // --- Conversa da mentoria (contas demo: larissa@ ↔ marina@) --------------------------------
+
+  const conversationPath = `/mentoria/conversa/${SEED.larissaRequest}`;
+  const bubble = (page, text) => page.locator("li[id^='mensagem-']", { hasText: text }).first();
+  const messageRow = async (body) => {
+    const { data } = await db
+      .from("mentorship_messages")
+      .select("id, sender_id, read_at")
+      .eq("request_id", SEED.larissaRequest)
+      .eq("body", body)
+      .maybeSingle();
+    return data;
+  };
+
+  await step("Conversa: larissa@ escreve para a Marina", async () => {
+    const lar = await newContext({ cookies: await sessionCookies(demo("larissa")) });
+    const lp = await newPage(lar);
+    await open(lp, "/mentoria?aba=ativas");
+    await lp
+      .getByRole("link", { name: /^Conversar com Marina/ })
+      .first()
+      .click();
+    await lp.waitForURL((url) => url.pathname === conversationPath);
+    await visible(
+      lp.getByRole("heading", { level: 1, name: "Conversa com Marina" }),
+      "título da conversa",
+    );
+    ctx.larissaMessage = `Oi, Marina! Terminei o rascunho da introdução do artigo: posso te mandar para uma leitura? (${TAG})`;
+    const field = lp.getByRole("textbox", { name: "Mensagem para Marina" });
+    await field.fill(ctx.larissaMessage);
+    await field.press("Enter");
+    const sent = bubble(lp, ctx.larissaMessage);
+    await visible(sent, "mensagem na conversa");
+    await visible(sent.getByText("Enviada", { exact: true }), "recibo “Enviada”");
+    assert((await field.inputValue()) === "", "o campo não foi limpo depois do envio");
+    const row = await poll(() => messageRow(ctx.larissaMessage), "mensagem gravada");
+    assert(row.read_at === null, "a mensagem já nasceu lida");
+    ctx.larissaPage = lp;
+    ctx.larissaMessageId = row.id;
+    return `Enter envia → ${row.id}`;
+  });
+
+  await step(
+    "Conversa: Marina abre pelo aviso, lê e responde (gabriela@ de fora: 404)",
+    async () => {
+      const marina = await newContext({ cookies: await sessionCookies(demo("marina")) });
+      const mp = await newPage(marina);
+      await open(mp, "/notificacoes");
+      await mp
+        .getByRole("link", { name: /^Nova mensagem de Larissa/ })
+        .first()
+        .click();
+      await mp.waitForURL((url) => url.pathname === conversationPath);
+      await visible(bubble(mp, ctx.larissaMessage), "mensagem da Larissa");
+      // A leitura é marcada pela página quando está visível (não na renderização no servidor).
+      await poll(
+        async () => (await messageRow(ctx.larissaMessage))?.read_at,
+        "mensagem da Larissa marcada como lida",
+      );
+
+      ctx.marinaReply = `Claro, Larissa! Pode mandar que eu leio até sexta. (${TAG})`;
+      await mp.getByRole("textbox", { name: "Mensagem para Larissa" }).fill(ctx.marinaReply);
+      await mp.getByRole("button", { name: "Enviar", exact: true }).click();
+      await visible(bubble(mp, ctx.marinaReply), "resposta da Marina na conversa");
+      const reply = await poll(() => messageRow(ctx.marinaReply), "resposta gravada");
+      assert(reply.sender_id === SEED.marinaId, "a resposta não ficou em nome da Marina");
+      await mp.close();
+
+      // Quem não participa (nem a moderação) recebe 404 de verdade, sem pista de que a conversa existe.
+      const gab = await newContext({ cookies: await sessionCookies(demo("gabriela")) });
+      const outsider = await gab.request.get(conversationPath, { maxRedirects: 0 });
+      assert(
+        outsider.status() === 404,
+        `gabriela@ recebeu HTTP ${outsider.status()} (esperado 404)`,
+      );
+      const leaked = (await outsider.text()).includes(ctx.larissaMessage);
+      assert(!leaked, "a resposta 404 traz o texto da conversa");
+      await gab.close();
+      ctx.marinaReplied = true;
+      return "aviso → conversa, lida, respondida; 404 para gabriela@";
+    },
+    { needs: ["larissaMessageId"] },
+  );
+
+  await step(
+    "Conversa: a resposta chega sozinha para a larissa@, com o recibo “Lida”",
+    async () => {
+      const lp = ctx.larissaPage;
+      activePage = lp;
+      // Sem recarregar: a página aberta se atualiza a cada 15 s enquanto a aba está visível.
+      await visible(
+        bubble(lp, ctx.marinaReply),
+        "resposta da Marina (atualização automática)",
+        40_000,
+      );
+      await visible(
+        lp.locator(`#mensagem-${ctx.larissaMessageId}`).getByText("Lida", { exact: true }),
+        "recibo “Lida” na mensagem da Larissa",
+      );
+      await poll(
+        async () => (await messageRow(ctx.marinaReply))?.read_at,
+        "resposta da Marina marcada como lida",
+      );
+      await lp.close();
+      ctx.larissaPage = null;
+      return "atualização automática + “Lida” + resposta lida";
+    },
+    { needs: ["marinaReplied"] },
   );
 
   // --- Fórum ---------------------------------------------------------------------------------
@@ -1492,6 +1640,7 @@ async function sweep() {
     "/forum/novo",
     "/mentoria",
     "/mentoria?aba=enviadas",
+    `/mentoria/conversa/${SEED.larissaRequest}`,
     "/pesquisadoras",
     `/pesquisadoras/${SEED.marinaId}`,
     "/perfil",
@@ -1510,13 +1659,18 @@ async function sweep() {
     return `${memberPaths.length * 4} capturas`;
   });
   await step("Varredura: mentora marina@ e admin@ (× 4 variantes)", async () => {
-    await sweepRole("mentora", ["/mentoria?aba=recebidas", "/mentoria?aba=ativas"], mentor);
+    const mentorPaths = [
+      "/mentoria?aba=recebidas",
+      "/mentoria?aba=ativas",
+      `/mentoria/conversa/${SEED.larissaRequest}`,
+    ];
+    await sweepRole("mentora", mentorPaths, mentor);
     await sweepRole(
       "admin",
       ["/admin", "/admin?aba=newsletter", "/admin?aba=membros", "/admin?aba=registro"],
       adminCookies,
     );
-    return "12 capturas da mentora + 16 da admin";
+    return `${mentorPaths.length * 4} capturas da mentora + 16 da admin`;
   });
   await step("Links internos de cada papel (< 400)", async () => {
     const counts = [];

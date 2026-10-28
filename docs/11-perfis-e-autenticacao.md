@@ -209,18 +209,19 @@ a situação não pôde ser consultada.
 campos permitidos, então colunas a mais nunca vazam. Seções com nomes em português; dentro delas,
 os nomes das colunas do banco (estáveis, documentados no [docs/03](03-banco-de-dados.md)).
 
-| Seção                                                   | Conteúdo                                                                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `sobre`                                                 | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                               |
-| `conta`                                                 | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                          |
-| `perfil`, `areas_de_pesquisa`, `palavras_chave`         | todas as colunas do perfil dela (inclusive `role` e consentimento de IA), exceto `search_text`; áreas com slug e nome                                        |
-| `mentoria.pedidos_enviados` / `pedidos_recebidos`       | os dois papéis; mensagem, resposta, status, datas, nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`)              |
-| `mentoria.sugestoes_salvas`                             | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                             |
-| `forum.topicos` / `respostas` / `reacoes`               | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela       |
-| `vitrine.papers_enviados` / `destaques` / `comentarios` | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                         |
-| `notificacoes`                                          | todas as notificações dela                                                                                                                                   |
-| `denuncias_feitas`                                      | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                        |
-| `newsletter`                                            | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }` |
+| Seção                                                   | Conteúdo                                                                                                                                                       |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sobre`                                                 | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                                 |
+| `conta`                                                 | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                            |
+| `perfil`, `areas_de_pesquisa`, `palavras_chave`         | todas as colunas do perfil dela (inclusive `role` e consentimento de IA), exceto `search_text`; áreas com slug e nome                                          |
+| `mentoria.pedidos_enviados` / `pedidos_recebidos`       | os dois papéis; mensagem, resposta, status, datas, nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`)                |
+| `mentoria.conversas`                                    | uma por mentoria com conversa: `request_id`, `papel` dela, `outra_participante` (só `{ id, full_name }`) e as `mensagens` (quem enviou, texto, envio, leitura) |
+| `mentoria.sugestoes_salvas`                             | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                               |
+| `forum.topicos` / `respostas` / `reacoes`               | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela         |
+| `vitrine.papers_enviados` / `destaques` / `comentarios` | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                           |
+| `notificacoes`                                          | todas as notificações dela                                                                                                                                     |
+| `denuncias_feitas`                                      | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                          |
+| `newsletter`                                            | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }`   |
 
 Fica de fora: o embedding do perfil (representação numérica da IA, recalculável), anotações da
 moderação, registros técnicos dos provedores e qualquer dado privado de outras pessoas. O arquivo

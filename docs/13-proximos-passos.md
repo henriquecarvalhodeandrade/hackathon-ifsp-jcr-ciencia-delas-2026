@@ -8,24 +8,34 @@
 - App completo (Next.js 16 + Supabase): autenticação, onboarding, perfis, diretório, fórum com anonimato,
   mentoria com IA (com modo por afinidade quando a IA não está disponível), Vitrine Delas, ranking, Boletim
   Delas, notificações, moderação com auditoria, design system.
+- **Conversa da mentoria** em `/mentoria/conversa/<pedido>`: depois do aceite, mentora e mentoranda trocam
+  mensagens pela plataforma (botão "Conversar" com o número de não lidas, aviso agrupado por conversa, recibo
+  "Enviada"/"Lida", atualização a cada 15 s com a aba visível). Concluída ou cancelada, fica só para leitura.
+  É privada até para a moderação (quem está de fora recebe 404) e tem limite de 60 mensagens por hora —
+  [12 §4](12-mentoria-fluxos.md#4-conversa-da-mentoria). Denunciar uma mensagem específica ainda não existe
+  (por enquanto, "Denunciar perfil").
 - **Busca sem acento** e sem diferença de maiúsculas no fórum, na Vitrine e no diretório ("Jacarei" encontra
   "Jacareí"; cada palavra precisa aparecer em algum campo) — [03](03-banco-de-dados.md#busca-sem-acento-search_text).
 - **Importar do ORCID** em `/papers/novo`: lista as publicações públicas do ORCID iD (o do perfil já vem
   preenchido) e preenche o formulário, pelo Crossref quando há DOI. API pública, sem chave —
   [05](05-papers-e-ranking.md#12-importar-do-orcid).
 - **Baixar meus dados** (LGPD, portabilidade) em `/perfil#dados`: um JSON com tudo o que é da membra, inclusive
-  as publicações anônimas — [11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade).
+  as publicações anônimas e as conversas da mentoria — [11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade).
 - **Instalável no celular (PWA):** manifesto e ícones; sem modo offline (README, "Instalar no celular").
 - Segurança: **limites anti-spam no banco** por pessoa (tópicos, respostas, comentários, papers, destaques,
-  denúncias e pedidos de mentoria — valem também pela API); **auditoria** de toda ação da moderação, inclusive
+  denúncias, pedidos e mensagens da mentoria — valem também pela API); **auditoria** de toda ação da moderação, inclusive
   exclusões feitas em qualquer tela; avatares só do Storage do projeto; **cabeçalhos de segurança HTTP**
   (anti-clickjacking, `nosniff`, HSTS…) — [09](09-moderacao-e-seguranca.md#10-checklist-de-segurança).
 - Banco: migrations com RLS e GRANTs explícitos, seed de demonstração, testes pgTAP.
-- Testes: unitários (Vitest), banco (pgTAP), jornada completa no navegador (`scripts/e2e/journey.mjs`).
+- Testes: unitários (Vitest), banco (pgTAP), jornada completa no navegador (`scripts/e2e/journey.mjs`, com
+  Playwright: cadastro, onboarding, mentoria e conversa, fórum, moderação, Boletim, Vitrine e a varredura de
+  telas claro/escuro × 1440/390 px).
 - **CI no GitHub Actions** (`.github/workflows/ci.yml`): a cada push e pull request roda formatação, lint, tipos,
-  testes unitários, testes do script de deploy, build e pgTAP; a jornada E2E ainda não roda no CI —
-  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions). Já rodou de verdade no GitHub (Actions →
-  CI) e passou nos dois jobs.
+  testes unitários, testes do script de deploy, build e pgTAP e, depois, a **jornada E2E** num build de produção
+  contra um Supabase local completo no próprio runner (se falhar, as capturas ficam como artefato) —
+  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions). Os jobs App e Banco já rodaram de verdade
+  no GitHub e passaram; o job da jornada E2E foi acrescentado depois e roda pela primeira vez no próximo push
+  (localmente, contra um build de produção, passa em todas as etapas).
 - Documentação em `docs/` e decisões em `docs/adr/`.
 
 ## O que falta (precisa de vocês)

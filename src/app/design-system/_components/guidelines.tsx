@@ -23,13 +23,13 @@ export function ThemeCompare() {
           <div
             key={theme}
             data-theme={theme}
-            className="grid gap-4 rounded-dialog border border-border bg-bg p-4 text-fg sm:p-6"
+            className="grid min-w-0 gap-4 rounded-dialog border border-border bg-bg p-4 text-fg sm:p-6"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="eyebrow text-fg-muted">
                 {theme === "light" ? "Tema claro" : "Tema escuro"}
               </p>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 <Badge variant="primary">primary</Badge>
                 <Badge variant="secondary">secondary</Badge>
                 <Badge variant="accent">accent</Badge>
