@@ -155,18 +155,19 @@ O resultado de cada ação aparece num aviso fixo no canto da tela (`AdminFlashR
   por quê).
 - Ações sobre o conteúdo (só em denúncias abertas):
 
-| Alvo       | Ações                                                                                | Como                                                                       |
-| ---------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Tópico     | Fixar/Desafixar · Trancar/Destrancar · Excluir · Revelar autoria (admin, se anônimo) | `rpc('moderate_thread')`, `delete` (RLS), `rpc('reveal_anonymous_author')` |
-| Resposta   | Excluir · Revelar autoria (admin, se anônima)                                        | `delete` (RLS), `rpc('reveal_anonymous_author')`                           |
-| Paper      | Ocultar/Reexibir na Vitrine · Excluir                                                | `rpc('moderate_paper')`, `delete` (RLS)                                    |
-| Comentário | Excluir                                                                              | `delete` (RLS)                                                             |
-| Perfil     | Abrir o perfil (papéis são trocados na aba Membros)                                  | —                                                                          |
+| Alvo       | Ações                                                                                | Como                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Tópico     | Fixar/Desafixar · Trancar/Destrancar · Excluir · Revelar autoria (admin, se anônimo) | `rpc('moderate_thread')`, `rpc('moderate_delete_content')`, `rpc('reveal_anonymous_author')` |
+| Resposta   | Excluir · Revelar autoria (admin, se anônima)                                        | `rpc('moderate_delete_content')`, `rpc('reveal_anonymous_author')`                           |
+| Paper      | Ocultar/Reexibir na Vitrine · Excluir                                                | `rpc('moderate_paper')`, `rpc('moderate_delete_content')`                                    |
+| Comentário | Excluir                                                                              | `rpc('moderate_delete_content')`                                                             |
+| Perfil     | Abrir o perfil (papéis são trocados na aba Membros)                                  | —                                                                                            |
 
 - As ações de conteúdo enviam o id da denúncia: o registro de auditoria fica ligado a ela.
-- **Excluir** pede confirmação, registra `delete_content` na auditoria e **encerra automaticamente**
-  as denúncias abertas sobre aquele conteúdo, acrescentando “Conteúdo excluído pela moderação.” à
-  nota (visível para quem denunciou, que recebe o aviso). Também encerra as denúncias
+- **Excluir** pede confirmação e apaga pela RPC `moderate_delete_content` (RLS da moderadora): o
+  trigger do banco registra `delete_content`, ligado à denúncia, na mesma transação. Depois o painel
+  **encerra automaticamente** as denúncias abertas sobre aquele conteúdo, acrescentando “Conteúdo
+  excluído pela moderação.” à nota (visível para quem denunciou, que recebe o aviso). Também encerra as denúncias
   abertas do que foi apagado **em cascata**: respostas de um tópico excluído e comentários de um
   paper excluído (“…removida junto com o tópico excluído pela moderação.”). Se a exclusão falhar,
   o diálogo de confirmação continua aberto e mostra o erro.
@@ -209,17 +210,17 @@ Usa o serviço compartilhado com o cron (`src/lib/newsletter/service.ts`, CONTRA
 
 ### 5.4 Server Actions (`src/lib/admin/actions.ts`)
 
-| Action                  | Quem      | Valida (zod)                                                                 | Efeito                                                                                        |
-| ----------------------- | --------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `resolveReport`         | moderação | `id` uuid, `status` open/resolved/dismissed, `note` ≤ 800                    | `update reports` (nota visível para quem denunciou; o trigger audita e avisa)                 |
-| `moderateThreadAction`  | moderação | `threadId` uuid, `op` pin/unpin/lock/unlock, `reportId?`                     | `rpc('moderate_thread', { …, p_report_id })` (a RPC audita)                                   |
-| `setPaperVisibility`    | moderação | `paperId` uuid, `hidden` true/false, `reportId?`                             | `rpc('moderate_paper', { …, p_report_id })` (a RPC audita)                                    |
-| `deleteReportedContent` | moderação | `targetType` thread/post/paper/paper_comment, `targetId` uuid, `reportId?`   | `delete` + auditoria `delete_content` + encerra denúncias abertas do alvo                     |
-| `revealAnonymousAuthor` | **admin** | `reportId`, `targetType` thread/post, `targetId`, `reason` 20–300, `confirm` | `rpc('reveal_anonymous_author', { …, p_reason, p_report_id })` — auditoria na mesma transação |
-| `changeMemberRole`      | **admin** | `profileId` uuid, `role`                                                     | `update profiles.role` (service role) + auditoria `change_role`                               |
-| `generateEditionAction` | **admin** | —                                                                            | `generateWeeklyEdition({ publish: true })`                                                    |
-| `publishEditionAction`  | **admin** | `editionId` uuid (só rascunhos)                                              | `publishEdition(id)`                                                                          |
-| `sendEditionAction`     | **admin** | `editionId` uuid, `mode` preview/send                                        | `sendEdition(id, { dryRun })`                                                                 |
+| Action                  | Quem      | Valida (zod)                                                                 | Efeito                                                                                                   |
+| ----------------------- | --------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `resolveReport`         | moderação | `id` uuid, `status` open/resolved/dismissed, `note` ≤ 800                    | `update reports` (nota visível para quem denunciou; o trigger audita e avisa)                            |
+| `moderateThreadAction`  | moderação | `threadId` uuid, `op` pin/unpin/lock/unlock, `reportId?`                     | `rpc('moderate_thread', { …, p_report_id })` (a RPC audita)                                              |
+| `setPaperVisibility`    | moderação | `paperId` uuid, `hidden` true/false, `reportId?`                             | `rpc('moderate_paper', { …, p_report_id })` (a RPC audita)                                               |
+| `deleteReportedContent` | moderação | `targetType` thread/post/paper/paper_comment, `targetId` uuid, `reportId?`   | `rpc('moderate_delete_content')` (o trigger audita `delete_content`) + encerra denúncias abertas do alvo |
+| `revealAnonymousAuthor` | **admin** | `reportId`, `targetType` thread/post, `targetId`, `reason` 20–300, `confirm` | `rpc('reveal_anonymous_author', { …, p_reason, p_report_id })` — auditoria na mesma transação            |
+| `changeMemberRole`      | **admin** | `profileId` uuid, `role`                                                     | `update profiles.role` (service role) + auditoria `change_role`                                          |
+| `generateEditionAction` | **admin** | —                                                                            | `generateWeeklyEdition({ publish: true })`                                                               |
+| `publishEditionAction`  | **admin** | `editionId` uuid (só rascunhos)                                              | `publishEdition(id)`                                                                                     |
+| `sendEditionAction`     | **admin** | `editionId` uuid, `mode` preview/send                                        | `sendEdition(id, { dryRun })`                                                                            |
 
 Todas devolvem `{ ok: true, message } | { ok: false, error, fieldErrors? }`. Erros do banco passam
 por `friendlyDbError` (`src/lib/admin/errors.ts`): códigos `CD…` mostram a mensagem pt-BR do
@@ -276,14 +277,29 @@ Tabela `public.moderation_audit_log` (migration `20261028090000_integration.sql`
 `created_at`. **Só moderadoras e admins leem**; incluir só em nome próprio (`actor_id = auth.uid()`);
 **ninguém edita nem apaga** pela API (sem políticas nem GRANT de UPDATE/DELETE — só a service role).
 
-| Ação (`action`)                                              | Quem grava                                                           | Motivo (`reason`)     |
-| ------------------------------------------------------------ | -------------------------------------------------------------------- | --------------------- |
-| `reveal_author`                                              | RPC `reveal_anonymous_author`, na mesma transação                    | obrigatório (20–300)  |
-| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)                               | opcional (`p_reason`) |
-| `hide_paper`, `unhide_paper`                                 | RPC `moderate_paper` (só quando muda)                                | opcional (`p_reason`) |
-| `resolve_report`, `dismiss_report`                           | trigger `reports_after_status_change` (aberta → resolvida/arquivada) | —                     |
-| `delete_content`                                             | painel (`deleteReportedContent`, sessão da moderadora)               | nota da exclusão      |
-| `change_role`                                                | painel (`changeMemberRole`, sessão da admin)                         | “Membra → Moderadora” |
+| Ação (`action`)                                              | Quem grava                                                                                                                                                                                                    | Motivo (`reason`)     |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `reveal_author`                                              | RPC `reveal_anonymous_author`, na mesma transação                                                                                                                                                             | obrigatório (20–300)  |
+| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)                                                                                                                                                                        | opcional (`p_reason`) |
+| `hide_paper`, `unhide_paper`                                 | RPC `moderate_paper` (só quando muda)                                                                                                                                                                         | opcional (`p_reason`) |
+| `resolve_report`, `dismiss_report`                           | trigger `reports_after_status_change` (aberta → resolvida/arquivada)                                                                                                                                          | —                     |
+| `delete_content`                                             | trigger `*_audit_moderator_delete` (BEFORE DELETE): moderadora/admin apagando conteúdo de **outra** pessoa em qualquer tela ou pela API. Pelo painel, a RPC `moderate_delete_content` liga a linha à denúncia | opcional (`p_reason`) |
+| `change_role`                                                | painel (`changeMemberRole`, sessão da admin)                                                                                                                                                                  | “Membra → Moderadora” |
+
+**Exclusões (`delete_content`)** — uma linha por exclusão, gravada pelo banco na mesma transação:
+
+- vale para tópicos, respostas, papers e comentários, em qualquer tela (fórum, Vitrine, painel) e
+  pela API: antes, só o painel registrava (e depois da exclusão, fora da transação);
+- **não** registra a autora apagando o próprio conteúdo **fora do painel** — inclusive anônimo: a
+  comparação usa a autoria registrada (`forum_anonymous_authorship`) e o registro nunca guarda quem
+  escreveu, só quem moderou e o id do conteúdo;
+- **pelo painel** (RPC `moderate_delete_content`) registra **sempre**, mesmo quando a moderadora é a
+  autora: se a linha faltasse, o registro mostraria só o encerramento da denúncia por ela e outras
+  moderadoras deduziriam a autoria de um tópico anônimo (migrations `20261028170400`/`170500`);
+- **não** registra o que some em cascata (respostas de um tópico, comentários de um paper): o pai
+  apagado já tem a sua linha; nem contexto confiável (service role, exclusão de conta);
+- o trigger é **BEFORE DELETE** de propósito: a cascata da FK apaga a linha de autoria anônima antes
+  de qualquer trigger AFTER, e sem ela não daria para saber se quem apaga é a própria autora.
 
 Onde aparece: em cada cartão de denúncia (“Registro da moderação · interno”) e na aba **Registro**
 (`/admin?aba=registro`, 30 por página, mais recente primeiro, ações sensíveis com selo). Rótulos e
@@ -317,8 +333,9 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 - [x] Redirecionamento de notificações só para caminhos internos (sem open redirect).
 - [x] `?next=` seguro também contra segmentos de ponto (`/.//site.com`, `/..//site.com`,
       `/%2e//site.com`), que a normalização transformava em `//site.com` (`safeNextPath`).
-- [x] Avatares só do Storage do projeto (ou do Google): `avatar_url` de terceiros gravado pela API
-      não é carregado (evita rastrear IP/horário de quem vê, inclusive de autoras anônimas).
+- [x] Avatares só do Storage do projeto: `profiles.avatar_url` só aceita NULL ou o avatar público da
+      **própria** pasta (CHECK no banco; a foto do Google no cadastro é descartada) e o app ainda
+      confere a origem ao exibir — evita rastrear IP/horário de quem vê, inclusive de autoras anônimas.
 - [x] Erros do banco nunca são mostrados crus; códigos `CD…` têm mensagens pt-BR próprias.
 - [x] `/admin` e `/notificacoes` com `noindex` e bloqueados no `robots.txt`.
 - [x] Revelação de autoria: só admin no painel, motivo obrigatório no banco, ligada a uma denúncia e
@@ -328,11 +345,46 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 - [x] Logs sem dados pessoais (só ids e códigos de erro).
 - [x] Limites de e-mails de confirmação da newsletter (3 por endereço/dia + teto diário global).
 - [x] Denúncias limitadas no banco: sem repetir denúncia aberta do mesmo alvo (`CD018`), sem alvo
-      inexistente (`CD015`) e no máximo 20 por hora por pessoa (`CD019`).
-- [x] Pedidos de mentoria limitados no banco: 3 por mentora a cada 7 dias e 10 a cada 24 h (`CD020`).
+      inexistente (`CD015`) e no máximo 10 em 24 h por pessoa (`CD019`).
+- [x] Pedidos de mentoria limitados no banco: 3 por mentora a cada 7 dias e 5 a cada 24 h (`CD020`).
+- [x] Limites anti-spam no banco para tópicos, respostas, comentários, papers e destaques
+      (`CD021`–`CD025`, seção abaixo) — valem também para quem usa a API direto.
+- [x] Toda exclusão de conteúdo alheio pela moderação fica no registro de auditoria (trigger).
 - [x] Cota do matching com IA no banco (`claim_ai_matching_slot`: 60 s entre gerações, 20 por dia),
       que a usuária não zera apagando as próprias sugestões.
 - [ ] Rate limit por IP para as telas públicas (cadastro, newsletter) — sugestão: Vercel Firewall.
+
+### Limites anti-spam (banco)
+
+Triggers `BEFORE INSERT` (migration `20261028170100_anti_spam_limits.sql`) contam os envios **por
+pessoa** (`auth.uid()`) numa janela móvel e recusam o excedente com uma mensagem pt-BR que a tela
+mostra como veio (o `friendlyDbError`/`friendlyMentorshipError`/`dbErrorMessage` de cada área repassa
+qualquer código `CD…`). Como estão no banco, não dá para escapar chamando o PostgREST direto.
+
+| O quê                              | Limite                                | Código  | Mensagem (início)                                       |
+| ---------------------------------- | ------------------------------------- | ------- | ------------------------------------------------------- |
+| Tópicos do fórum (anônimos também) | 5 por hora                            | `CD021` | “Você publicou muitos tópicos na última hora. Respire…” |
+| Respostas no fórum                 | 30 por hora                           | `CD022` | “Você enviou muitas respostas na última hora…”          |
+| Comentários em papers              | 20 por hora                           | `CD023` | “Você comentou muitas vezes na última hora…”            |
+| Papers divulgados                  | 5 em 24 h                             | `CD024` | “Você já divulgou 5 papers nas últimas 24 horas…”       |
+| Destaques (votos)                  | 60 por hora                           | `CD025` | “Você destacou muitos papers na última hora…”           |
+| Denúncias                          | 10 em 24 h                            | `CD019` | “Você já enviou 10 denúncias nas últimas 24 horas…”     |
+| Pedidos de mentoria                | 5 em 24 h (e 3 por mentora em 7 dias) | `CD020` | “Você já enviou 5 pedidos de mentoria…”                 |
+
+- **Quem não tem limite:** moderadoras e admins, e contextos confiáveis sem usuária (service role,
+  seed, migrations). O limite de 3 pedidos para a mesma mentora em 7 dias vale para todas.
+- **Publicar e apagar não devolve a cota:** tópicos, respostas, comentários, papers e destaques são
+  contados num registro à parte, `private.rate_limit_events` (pessoa, ação, hora — nada sobre o
+  conteúdo, então não revela autoria anônima), fora da API. Sem ele, publicar-e-apagar em laço
+  escaparia do limite e cada resposta/comentário avisaria outra pessoa (spam de notificações). Cada
+  envio limpa os eventos vencidos da mesma pessoa. Denúncias e pedidos de mentoria não podem ser
+  apagados pela usuária, então contam as próprias linhas.
+- **Tentativa recusada não conta:** o erro desfaz a transação inteira, inclusive o evento.
+- **Concorrência:** um `pg_advisory_xact_lock` por pessoa e ação serializa envios paralelos.
+- **Testes e demonstração:** o seed roda como contexto confiável (sem limite) e o roteiro E2E
+  (`scripts/e2e/journey.mjs`) fica bem abaixo dos limites (uma conta nova por execução; 1 denúncia e
+  1 destaque de contas de demonstração, e as denúncias criadas são apagadas no fim). Para zerar a
+  cota de alguém no banco local: `delete from private.rate_limit_events where user_id = '<uuid>';`.
 
 ## 11. LGPD na prática
 
@@ -414,10 +466,8 @@ os dados em cascata).
   resolveu). A nota (`resolution_note`) agora é de propósito visível para ela; os registros internos
   ficam em `moderation_audit_log`. Se for preciso esconder também quem resolveu, a saída é expor as
   denúncias da denunciante por uma view/RPC com colunas limitadas.
-- **Exclusões feitas fora do painel** (ex.: moderadora apagando uma resposta direto no fórum) não
-  entram no registro de auditoria — só as do painel (`deleteReportedContent`). Fixar/trancar e ocultar
-  são auditados em qualquer tela, porque a auditoria está nas RPCs.
-- A entrada `change_role` e a de `delete_content` são gravadas logo depois da ação (não na mesma
-  transação); se a gravação falhar, o erro vai para o log do servidor.
+- A entrada `change_role` é gravada logo depois da ação (não na mesma transação); se a gravação
+  falhar, o erro vai para o log do servidor. (Exclusões de conteúdo, fixar/trancar, ocultar e revelar
+  autoria são auditados pelo banco, na mesma transação, em qualquer tela.)
 - Notificações em tempo real (Realtime) não estão ligadas: a contagem do sino atualiza a cada
   navegação.

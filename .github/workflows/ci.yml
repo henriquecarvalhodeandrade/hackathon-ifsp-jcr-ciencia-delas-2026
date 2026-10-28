@@ -1,0 +1,70 @@
+# Integração contínua da Artemis. Documentação: docs/07-setup-e-deploy.md §7.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Um novo push no mesmo branch (ou PR) cancela a execução anterior que ainda estiver rodando.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: App (formatação, lint, tipos, testes e build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Prettier
+        run: npx prettier --check .
+
+      - name: ESLint
+        run: npx eslint --max-warnings 0
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Testes unitários (Vitest)
+        run: npx vitest run
+
+      - name: Testes do script de deploy
+        run: node --test scripts/deploy/*.test.mjs
+
+      # Sem as variáveis do app (Supabase, IA, e-mail) de propósito: ele precisa compilar sem configuração.
+      - name: Build de produção
+        run: npx next build
+
+  database:
+    name: Banco (pgTAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      # Só o Postgres: aplica as migrations e o seed (supabase/seed.sql).
+      - name: Subir o banco local
+        run: supabase db start
+
+      - name: Testes do banco (pgTAP)
+        run: supabase test db

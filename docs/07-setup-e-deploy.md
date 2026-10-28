@@ -223,3 +223,25 @@ Administradoras podem promover moderadoras pelo painel `/admin`.
 | Mentoria sem "Sugestão por IA"                    | Sem chave de IA, sem consentimento, ou cota gratuita esgotada (429)      | Modo heurístico continua funcionando; veja os logs do servidor                              |
 | "Another next dev server is already running"      | Next 16 permite um `next dev` por pasta                                  | Feche o outro servidor ou rode `next build && next start -p 3001`                           |
 | Tipos desatualizados após mudar o banco           | `database.types.ts` antigo                                               | `npm run db:types`                                                                          |
+
+## 7. Integração contínua (GitHub Actions)
+
+O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) roda a cada push e pull request (em
+qualquer branch) e também sob demanda (_Actions → CI → Run workflow_; o botão só aparece depois que o workflow
+chega ao branch padrão, `main`). Um push novo no mesmo branch (ou PR) cancela a execução anterior. O selo no topo
+do README mostra o resultado da última execução no branch padrão (`main`), não a do seu branch.
+
+| Job               | O que roda (na ordem)                                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22) |
+| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations e seed) → `supabase test db`                                                   |
+
+- O build roda **sem nenhuma variável do app** de propósito: garante que a Artemis compila sem Supabase, IA ou
+  e-mail configurados (as páginas mostram o aviso de configuração). Nenhum segredo é necessário no GitHub.
+- Para reproduzir antes do push: `npx prettier --check .` (`npm run format` corrige),
+  `npx eslint --max-warnings 0` (no CI, um aviso do ESLint já reprova; o `npm run lint` local só falha com erro),
+  `npm run typecheck`, `npm test`, `node --test scripts/deploy/*.test.mjs`, `npm run build` e `npm run db:test`
+  (com o Supabase local rodando).
+- Ao atualizar o CLI do Supabase em `package.json`, atualize também `version` no job do banco.
+- Os testes E2E no navegador (`scripts/e2e/journey.mjs`) ainda não rodam no CI: precisam da stack completa do
+  Supabase e do Chromium (ver [`10-roadmap.md`](10-roadmap.md)).

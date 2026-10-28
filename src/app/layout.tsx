@@ -59,6 +59,9 @@ export const metadata: Metadata = {
   },
   description: SITE.description,
   applicationName: SITE.name,
+  // App instalável: o manifesto vem de app/manifest.ts; no iOS, "Adicionar à Tela de Início"
+  // abre em tela cheia com este nome e o apple-icon.
+  appleWebApp: { capable: true, title: SITE.name, statusBarStyle: "default" },
   keywords: [
     "mulheres na ciência",
     "pesquisadoras",

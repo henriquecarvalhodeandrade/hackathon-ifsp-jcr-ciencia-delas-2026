@@ -196,6 +196,7 @@ export type Database = {
           is_pinned: boolean;
           last_activity_at: string;
           reply_count: number;
+          search_text: string | null;
           solution_post_id: string | null;
           tags: string[];
           title: string;
@@ -214,6 +215,7 @@ export type Database = {
           is_pinned?: boolean;
           last_activity_at?: string;
           reply_count?: number;
+          search_text?: never;
           solution_post_id?: string | null;
           tags?: string[];
           title: string;
@@ -231,6 +233,7 @@ export type Database = {
           is_pinned?: boolean;
           last_activity_at?: string;
           reply_count?: number;
+          search_text?: never;
           solution_post_id?: string | null;
           tags?: string[];
           title?: string;
@@ -703,6 +706,7 @@ export type Database = {
           keywords: string[];
           plain_summary: string | null;
           plain_summary_source: string | null;
+          search_text: string | null;
           submitted_by: string;
           submitter_relation: string;
           title: string;
@@ -726,6 +730,7 @@ export type Database = {
           keywords?: string[];
           plain_summary?: string | null;
           plain_summary_source?: string | null;
+          search_text?: never;
           submitted_by?: string;
           submitter_relation: string;
           title: string;
@@ -748,6 +753,7 @@ export type Database = {
           keywords?: string[];
           plain_summary?: string | null;
           plain_summary_source?: string | null;
+          search_text?: never;
           submitted_by?: string;
           submitter_relation?: string;
           title?: string;
@@ -867,6 +873,7 @@ export type Database = {
           orcid: string | null;
           pronouns: string | null;
           role: Database["public"]["Enums"]["user_role"];
+          search_text: string | null;
           seeks_mentorship: boolean;
           state: string | null;
           updated_at: string;
@@ -900,6 +907,7 @@ export type Database = {
           orcid?: string | null;
           pronouns?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
+          search_text?: never;
           seeks_mentorship?: boolean;
           state?: string | null;
           updated_at?: string;
@@ -932,6 +940,7 @@ export type Database = {
           orcid?: string | null;
           pronouns?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
+          search_text?: never;
           seeks_mentorship?: boolean;
           state?: string | null;
           updated_at?: string;
@@ -1145,6 +1154,15 @@ export type Database = {
       };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_moderator: { Args: Record<PropertyKey, never>; Returns: boolean };
+      moderate_delete_content: {
+        Args: {
+          p_reason?: string;
+          p_report_id?: string;
+          p_target_id: string;
+          p_target_type: Database["public"]["Enums"]["report_target"];
+        };
+        Returns: boolean;
+      };
       moderate_paper: {
         Args: { p_hidden: boolean; p_paper_id: string; p_reason?: string; p_report_id?: string };
         Returns: undefined;

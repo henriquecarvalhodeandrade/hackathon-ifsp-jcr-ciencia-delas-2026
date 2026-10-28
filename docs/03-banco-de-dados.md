@@ -31,13 +31,13 @@ Sumário
 
 ## 1. Visão geral e convenções
 
-| Item         | Escolha                                                                                         |
-| ------------ | ----------------------------------------------------------------------------------------------- |
-| Banco        | Postgres 17 do Supabase (local e Cloud). Validado também em Postgres 16 + pgvector 0.6.         |
-| Extensões    | `citext`, `vector` (pgvector), `pg_trgm`, `pgcrypto` — **sempre no schema `extensions`**        |
-| Schemas      | `public` (exposto pela API), `private` (funções auxiliares de RLS/triggers, **não** exposto)    |
-| Autenticação | Supabase Auth (e-mail + senha, magic link, Google opcional). `auth.uid()` identifica a usuária. |
-| Segurança    | RLS em **todas** as tabelas + GRANTs explícitos por tabela e por coluna                         |
+| Item         | Escolha                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| Banco        | Postgres 17 do Supabase (local e Cloud). Validado também em Postgres 16 + pgvector 0.6.              |
+| Extensões    | `citext`, `vector` (pgvector), `pg_trgm`, `pgcrypto`, `unaccent` — **sempre no schema `extensions`** |
+| Schemas      | `public` (exposto pela API), `private` (funções auxiliares de RLS/triggers, **não** exposto)         |
+| Autenticação | Supabase Auth (e-mail + senha, magic link, Google opcional). `auth.uid()` identifica a usuária.      |
+| Segurança    | RLS em **todas** as tabelas + GRANTs explícitos por tabela e por coluna                              |
 
 Convenções seguidas em todas as migrations:
 
@@ -53,25 +53,33 @@ Convenções seguidas em todas as migrations:
 - **Políticas RLS** usam `(select auth.uid())` (avaliado uma vez por consulta, não por
   linha), são escopadas `to authenticated` ou `to anon, authenticated` e toda coluna usada
   em FK ou política tem índice.
-- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD020`) com mensagens em
+- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD025`) com mensagens em
   pt-BR prontas para mostrar na interface (ver [seção 8](#8-erros-que-o-app-pode-mostrar)).
 - **Identificadores em inglês; textos para pessoas em pt-BR.**
 
 Migrations (em ordem):
 
-| Arquivo                                        | Conteúdo                                                                                                                                                                                           |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `20261027120000_extensions_enums_helpers.sql`  | extensões, endurecimento de privilégios padrão, schema `private`, enums, utilitários                                                                                                               |
-| `20261027120100_profiles.sql`                  | `research_areas`, `profiles`, `profile_research_areas`, `profile_embeddings`, `handle_new_user`, `private.is_moderator()/is_admin()`                                                               |
-| `20261027120200_mentorship.sql`                | `mentor_suggestions`, `mentorship_requests` (+ máquina de estados e capacidade)                                                                                                                    |
-| `20261027120300_forum.sql`                     | categorias, tópicos, respostas, autoria anônima, reações e views de contagem                                                                                                                       |
-| `20261027120400_papers.sql`                    | `papers`, `paper_votes`, `paper_comments`                                                                                                                                                          |
-| `20261027120500_newsletter.sql`                | inscritas, edições e envios                                                                                                                                                                        |
-| `20261027120600_moderation_notifications.sql`  | `reports`, `notifications` e triggers que criam notificações                                                                                                                                       |
-| `20261027120700_storage.sql`                   | bucket `avatars` + políticas em `storage.objects`                                                                                                                                                  |
-| `20261027120800_rpc.sql`                       | RPCs públicas                                                                                                                                                                                      |
-| `20261028090000_integration.sql`               | rodada de integração: `moderation_audit_log` + auditoria nas RPCs de moderação, aviso `report_resolved`, revogar IA apaga sugestões, limites de confirmação da newsletter, `get_mentor_open_slots` |
-| `20261028091000_newsletter_mentor_summary.sql` | converte edições antigas da newsletter: nomes de mentoras → agregado `mentor_summary` (o arquivo é público)                                                                                        |
+| Arquivo                                                | Conteúdo                                                                                                                                                                                           |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20261027120000_extensions_enums_helpers.sql`          | extensões, endurecimento de privilégios padrão, schema `private`, enums, utilitários                                                                                                               |
+| `20261027120100_profiles.sql`                          | `research_areas`, `profiles`, `profile_research_areas`, `profile_embeddings`, `handle_new_user`, `private.is_moderator()/is_admin()`                                                               |
+| `20261027120200_mentorship.sql`                        | `mentor_suggestions`, `mentorship_requests` (+ máquina de estados e capacidade)                                                                                                                    |
+| `20261027120300_forum.sql`                             | categorias, tópicos, respostas, autoria anônima, reações e views de contagem                                                                                                                       |
+| `20261027120400_papers.sql`                            | `papers`, `paper_votes`, `paper_comments`                                                                                                                                                          |
+| `20261027120500_newsletter.sql`                        | inscritas, edições e envios                                                                                                                                                                        |
+| `20261027120600_moderation_notifications.sql`          | `reports`, `notifications` e triggers que criam notificações                                                                                                                                       |
+| `20261027120700_storage.sql`                           | bucket `avatars` + políticas em `storage.objects`                                                                                                                                                  |
+| `20261027120800_rpc.sql`                               | RPCs públicas                                                                                                                                                                                      |
+| `20261028090000_integration.sql`                       | rodada de integração: `moderation_audit_log` + auditoria nas RPCs de moderação, aviso `report_resolved`, revogar IA apaga sugestões, limites de confirmação da newsletter, `get_mentor_open_slots` |
+| `20261028091000_newsletter_mentor_summary.sql`         | converte edições antigas da newsletter: nomes de mentoras → agregado `mentor_summary` (o arquivo é público)                                                                                        |
+| `20261028130000_artemis_brand_texts.sql`               | nova marca (Artemis) nos textos de notificação gerados pelo banco                                                                                                                                  |
+| `20261028150000_security_audit.sql`                    | auditoria de segurança: autoria anônima só pela RPC, limites de denúncias e de pedidos de mentoria, cota do matching com IA (`claim_ai_matching_slot`)                                             |
+| `20261028170000_accent_insensitive_search.sql`         | busca sem acento: `unaccent`, `private.unaccent_immutable`/`private.search_text`, colunas geradas `search_text` + índices de trigramas em `profiles`, `forum_threads` e `papers`                   |
+| `20261028170100_anti_spam_limits.sql`                  | limites anti-spam por pessoa (`CD021`–`CD025`, `CD019` e `CD020` revistos), registro privado `private.rate_limit_events`                                                                           |
+| `20261028170200_moderation_audit_avatar_hardening.sql` | `delete_content` gravado por trigger (BEFORE DELETE) + RPC `moderate_delete_content`; `profiles.avatar_url` só NULL ou o avatar da própria pasta no Storage                                        |
+| `20261028170300_search_text_trigger_fix.sql`           | `forum_threads_before_update`/`papers_before_write` ignoram `search_text` ao decidir se `updated_at` muda (coluna gerada chega NULL no trigger BEFORE)                                             |
+| `20261028170400_panel_delete_audit_anonymity.sql`      | exclusão pelo painel (`moderate_delete_content`) sempre gera `delete_content`, mesmo da própria autora: a linha que faltava revelava autoria anônima                                               |
+| `20261028170500_panel_delete_audit_null_fix.sql`       | corrige a anterior: fora do painel, a autora apagando o próprio conteúdo volta a não gerar linha (comparação com NULL)                                                                             |
 
 ---
 
@@ -170,12 +178,12 @@ Enums: `career_stage`, `user_role`, `meeting_format`, `mentorship_status`, `reac
 
 ### Perfis e áreas
 
-| Tabela                   | Para que serve                                                                                                                                                         | Regras importantes                                                                                                                                                                                                                                                                                                                                              |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `research_areas`         | Catálogo de áreas: as 9 grandes áreas do CNPq + subáreas. Linhas com `name = big_area` são a própria grande área.                                                      | Leitura pública. Escrita só via migration/seed.                                                                                                                                                                                                                                                                                                                 |
-| `profiles`               | Perfil de cada usuária (1:1 com `auth.users`), criado automaticamente no cadastro. Guarda dados públicos para membros, preferências de mentoria e consentimento de IA. | Leitura **só para membros**. A dona edita todas as colunas **exceto** `id`, `role`, `created_at`, `updated_at`. Trigger normaliza (trim, strings vazias → `NULL`, UF maiúscula, palavras-chave em minúsculas, `ai_consent_at`). URLs precisam começar com `http(s)://` (evita `javascript:`). `mentorship_topics` só aceita slugs do catálogo (§7 do contrato). |
-| `profile_research_areas` | Áreas (N:N) de cada perfil.                                                                                                                                            | Membros leem; a dona insere/remove as próprias.                                                                                                                                                                                                                                                                                                                 |
-| `profile_embeddings`     | Vetor `vector(768)` do perfil (Gemini), hash do texto e modelo. Usado no matching.                                                                                     | **Só a dona** lê/escreve. Outras pessoas nunca veem vetores: o matching usa a RPC `get_mentor_candidates` (SECURITY DEFINER). Revogar `ai_consent` apaga o embedding (e as sugestões de mentoras). Índice HNSW (`vector_cosine_ops`).                                                                                                                           |
+| Tabela                   | Para que serve                                                                                                                                                         | Regras importantes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `research_areas`         | Catálogo de áreas: as 9 grandes áreas do CNPq + subáreas. Linhas com `name = big_area` são a própria grande área.                                                      | Leitura pública. Escrita só via migration/seed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `profiles`               | Perfil de cada usuária (1:1 com `auth.users`), criado automaticamente no cadastro. Guarda dados públicos para membros, preferências de mentoria e consentimento de IA. | Leitura **só para membros**. A dona edita todas as colunas **exceto** `id`, `role`, `created_at`, `updated_at`. Trigger normaliza (trim, strings vazias → `NULL`, UF maiúscula, palavras-chave em minúsculas, `ai_consent_at`). URLs precisam começar com `http(s)://` (evita `javascript:`); `avatar_url` só aceita NULL ou o avatar público da **própria** pasta no Storage ([seção 10](#10-storage-avatares)). `mentorship_topics` só aceita slugs do catálogo (§7 do contrato). `search_text` é gerada (busca, abaixo). |
+| `profile_research_areas` | Áreas (N:N) de cada perfil.                                                                                                                                            | Membros leem; a dona insere/remove as próprias.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `profile_embeddings`     | Vetor `vector(768)` do perfil (Gemini), hash do texto e modelo. Usado no matching.                                                                                     | **Só a dona** lê/escreve. Outras pessoas nunca veem vetores: o matching usa a RPC `get_mentor_candidates` (SECURITY DEFINER). Revogar `ai_consent` apaga o embedding (e as sugestões de mentoras). Índice HNSW (`vector_cosine_ops`).                                                                                                                                                                                                                                                                                       |
 
 ### Mentoria
 
@@ -218,6 +226,40 @@ stateDiagram-v2
 | `paper_votes`    | Voto positivo (um por pessoa).                                                                                                             | Leitura pública. Ninguém vota no próprio paper (erro `CD012`) nem em paper oculto. `created_at` não é enviado pelo cliente (impede "antedatar" votos).                                                                                                                        |
 | `paper_comments` | Comentários de membros.                                                                                                                    | Leitura só para membros; a autora edita/apaga; moderação apaga.                                                                                                                                                                                                               |
 
+### Busca sem acento (`search_text`)
+
+`profiles`, `forum_threads` e `papers` têm a coluna gerada **`search_text`** (`STORED`, só leitura),
+com índice GIN de trigramas (`extensions.gin_trgm_ops`). Ela junta os campos pesquisáveis já
+normalizados — `lower(unaccent(...))`, espaços colapsados —, então "Jacarei" encontra "Jacareí" e
+"REVISAO" encontra "revisão":
+
+| Tabela          | Campos em `search_text`                                        | Quem lê (igual à tabela)                |
+| --------------- | -------------------------------------------------------------- | --------------------------------------- |
+| `profiles`      | `full_name`, `institution`, `headline`, `city`, `keywords`     | membros                                 |
+| `forum_threads` | `title`, `body`, `tags` — **nunca** a autoria (anônima ou não) | membros                                 |
+| `papers`        | `title`, `abstract`, `authors`, `keywords`, `venue`            | visitantes e membros (RLS: só visíveis) |
+
+- `private.unaccent_immutable(text)` é um wrapper `IMMUTABLE` de `extensions.unaccent` com o
+  dicionário fixado (`'extensions.unaccent'::regdictionary`, resolvido quando a função é criada):
+  funciona com `search_path = ''` e pode entrar em coluna gerada/índice. `private.search_text(text[])`
+  monta o texto (partes NULL são ignoradas). `concat_ws`/`array_to_string` são `STABLE` e não podem
+  aparecer direto numa coluna gerada — por isso a função. Se as regras do `unaccent` mudarem, um
+  `UPDATE` qualquer nas linhas recalcula a coluna.
+- O app normaliza o termo do mesmo jeito em `src/lib/search/normalize.ts` (NFC; NFD e sem
+  diacríticos só nas letras latinas e gregas, como o `unaccent` — "й", Hangul e kana ficam como
+  estão; ligaduras como "ﬁ" viram letras; minúsculas, espaços colapsados, `%`/`_`/`\` escapados,
+  `*` removido) e aplica **um `.ilike` por palavra** (todas obrigatórias, em qualquer campo e
+  ordem):
+
+```ts
+import { applySearchText } from "@/lib/search/normalize";
+
+let query = supabase.from("papers").select("id, title").eq("is_hidden", false);
+query = applySearchText(query, "revisao sistematica"); // search_text ilike %revisao% e %sistematica%
+```
+
+Usado no diretório (`/pesquisadoras?q=`), na busca do fórum (`/forum?q=`) e na Vitrine (`/papers?q=`).
+
 ### Newsletter
 
 | Tabela                   | Para que serve                                                                                                                                                                                                                    | Regras importantes                                                                                                                                                                      |
@@ -231,7 +273,7 @@ stateDiagram-v2
 | Tabela                 | Para que serve                                                                                                                                                                                                                                                                                                           | Regras importantes                                                                                                                                                                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `reports`              | Denúncias de tópico, resposta, paper, comentário ou perfil.                                                                                                                                                                                                                                                              | A denunciante cria e vê as próprias; moderação vê todas e resolve (`resolved_by`/`resolved_at` são preenchidos pelo trigger com quem resolveu). `resolution_note` é **visível para quem denunciou** (vai no aviso `report_resolved`); nada interno vai nela. |
-| `moderation_audit_log` | Registro das ações da moderação: `actor_id`, `action` (`reveal_author`, `hide_paper`, `unhide_paper`, `lock_thread`, `unlock_thread`, `pin_thread`, `unpin_thread`, `delete_content`, `resolve_report`, `dismiss_report`, `change_role`), alvo (`target_type`/`target_id`), `report_id`, `reason` (≤ 500), `created_at`. | **Só moderação lê**; inclui só em nome próprio (`actor_id = auth.uid()`); **ninguém edita nem apaga** pela API. As RPCs de moderação e o trigger de denúncias gravam sozinhos (docs/09 §8).                                                                  |
+| `moderation_audit_log` | Registro das ações da moderação: `actor_id`, `action` (`reveal_author`, `hide_paper`, `unhide_paper`, `lock_thread`, `unlock_thread`, `pin_thread`, `unpin_thread`, `delete_content`, `resolve_report`, `dismiss_report`, `change_role`), alvo (`target_type`/`target_id`), `report_id`, `reason` (≤ 500), `created_at`. | **Só moderação lê**; inclui só em nome próprio (`actor_id = auth.uid()`); **ninguém edita nem apaga** pela API. As RPCs de moderação, o trigger de denúncias e o de exclusões (`delete_content`) gravam sozinhos (docs/09 §8).                               |
 | `notifications`        | Avisos para a usuária (pedido de mentoria, resposta, nova resposta no tópico, solução marcada, comentário no paper, denúncia concluída).                                                                                                                                                                                 | Cada uma vê/apaga as próprias e só pode alterar `read_at`. Criadas **apenas** por triggers. Publicadas no Realtime (`supabase_realtime`), que respeita o RLS.                                                                                                |
 
 ---
@@ -278,6 +320,7 @@ RPCs (`EXECUTE`):
 | `get_mentorship_contact(...)`                                                 | —                     | sim             | só participante de mentoria **aceita**                           |
 | `get_community_leaderboard(...)`                                              | —                     | sim             |                                                                  |
 | `reveal_anonymous_author(...)`, `moderate_thread(...)`, `moderate_paper(...)` | —                     | sim             | erro `42501` se não for moderação; gravam `moderation_audit_log` |
+| `moderate_delete_content(...)`                                                | —                     | sim             | SECURITY INVOKER; `42501` se não for moderação; o trigger audita |
 | `newsletter_reserve_confirmation(...)`                                        | —                     | —               | só `service_role`                                                |
 
 ---
@@ -338,37 +381,41 @@ Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
 
 ## 6. Triggers
 
-| Tabela                                         | Trigger                                    | O que faz                                                                                                                                                                                                    |
-| ---------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `auth.users`                                   | `on_auth_user_created`                     | Cria o perfil com `full_name` (`full_name` ou `name` do `raw_user_meta_data`) e `avatar_url` (`avatar_url` ou `picture`, só se for URL http/https).                                                          |
-| `profiles`                                     | `profiles_before_write`                    | Normaliza campos; atualiza `updated_at`; preenche/limpa `ai_consent_at`.                                                                                                                                     |
-| `profiles`                                     | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding e as sugestões de mentoras (`mentor_suggestions`) da mentoranda.                                                                                                    |
-| `profile_embeddings`, `newsletter_subscribers` | `*_set_updated_at`                         | Atualiza `updated_at`.                                                                                                                                                                                       |
-| `mentorship_requests`                          | `mentorship_requests_before_insert`        | Mensagens amigáveis: não é mentora / indisponível (`CD003`), pedido duplicado (`CD004`); limites contra pedir-e-cancelar em laço: 3 pedidos para a mesma mentora a cada 7 dias e 10 a cada 24 h (`CD020`).   |
-| `mentorship_requests`                          | `mentorship_requests_before_update`        | Máquina de estados (`CD002`), só participantes (`CD003`), só a mentora escreve a resposta, capacidade da mentora ao aceitar (`CD001`, com lock para aceites simultâneos), `responded_at`.                    |
-| `mentorship_requests`                          | `mentorship_requests_notify_insert/update` | Notifica a mentora (novo pedido) e a outra participante (aceite, recusa, cancelamento, conclusão).                                                                                                           |
-| `forum_threads`                                | `forum_threads_before_insert`              | Autoria (`CD013`), anonimato (`CD010`) e registro da autoria anônima.                                                                                                                                        |
-| `forum_threads`                                | `forum_threads_before_update`              | Bloqueia troca de autoria/anonimato; valida `solution_post_id` (`CD014`); `edited_at`/`updated_at`.                                                                                                          |
-| `forum_threads`                                | `forum_threads_notify_solution`            | Solução marcada → notifica a autora da resposta.                                                                                                                                                             |
-| `forum_posts`                                  | `forum_posts_before_insert`                | Autoria, tópico trancado (`CD011`), anonimato.                                                                                                                                                               |
-| `forum_posts`                                  | `forum_posts_before_update`                | Bloqueia troca de autoria/anonimato/tópico; `edited_at`.                                                                                                                                                     |
-| `forum_posts`                                  | `forum_posts_after_insert/delete`          | Mantém `reply_count` e `last_activity_at`.                                                                                                                                                                   |
-| `forum_posts`                                  | `forum_posts_notify_reply`                 | Nova resposta → notifica a autora do tópico (inclusive anônima).                                                                                                                                             |
-| `forum_anonymous_authorship`                   | `..._after_delete`                         | Apaga o conteúdo anônimo quando a autoria some (LGPD).                                                                                                                                                       |
-| `papers`                                       | `papers_before_write`                      | Normaliza DOI/strings/palavras-chave; `updated_at` só muda em edição real (votos não contam).                                                                                                                |
-| `paper_votes`                                  | `paper_votes_before_insert`                | Sem voto no próprio paper (`CD012`) nem em paper oculto (`CD015`).                                                                                                                                           |
-| `paper_votes`                                  | `paper_votes_after_insert/delete`          | Mantém `vote_count`.                                                                                                                                                                                         |
-| `paper_comments`                               | `..._after_insert/delete`, `..._notify`    | Mantém `comment_count`; notifica quem enviou o paper.                                                                                                                                                        |
-| `newsletter_editions`                          | `newsletter_editions_before_write`         | Preenche `published_at`/`sent_at` ao mudar o status.                                                                                                                                                         |
-| `reports`                                      | `reports_before_write`                     | Força `status = 'open'` na criação; recusa alvo inexistente/invisível (`CD015`), denúncia repetida ainda aberta (`CD018`) e mais de 20 por hora (`CD019`); ao resolver preenche `resolved_by`/`resolved_at`. |
-| `reports`                                      | `reports_after_status_change`              | Aberta → resolvida/arquivada: grava `resolve_report`/`dismiss_report` no registro de auditoria e avisa a denunciante (`report_resolved`, com a nota, sem dizer quem moderou).                                |
+| Tabela                                                                    | Trigger                                    | O que faz                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.users`                                                              | `on_auth_user_created`                     | Cria o perfil com `full_name` (`full_name` ou `name` do `raw_user_meta_data`). `avatar_url`/`picture` só ficam se forem o avatar da própria pasta no Storage — na prática a foto do provedor (Google) é descartada e o perfil começa com as iniciais.                                                                                                                                                                                                             |
+| `profiles`                                                                | `profiles_before_write`                    | Normaliza campos; atualiza `updated_at`; preenche/limpa `ai_consent_at`.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `profiles`                                                                | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding e as sugestões de mentoras (`mentor_suggestions`) da mentoranda.                                                                                                                                                                                                                                                                                                                                                         |
+| `profile_embeddings`, `newsletter_subscribers`                            | `*_set_updated_at`                         | Atualiza `updated_at`.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `mentorship_requests`                                                     | `mentorship_requests_before_insert`        | Mensagens amigáveis: não é mentora / indisponível (`CD003`), pedido duplicado (`CD004`); limites contra pedir-e-cancelar em laço: 3 pedidos para a mesma mentora a cada 7 dias e 5 a cada 24 h (`CD020`; moderação sem o limite diário).                                                                                                                                                                                                                          |
+| `mentorship_requests`                                                     | `mentorship_requests_before_update`        | Máquina de estados (`CD002`), só participantes (`CD003`), só a mentora escreve a resposta, capacidade da mentora ao aceitar (`CD001`, com lock para aceites simultâneos), `responded_at`.                                                                                                                                                                                                                                                                         |
+| `mentorship_requests`                                                     | `mentorship_requests_notify_insert/update` | Notifica a mentora (novo pedido) e a outra participante (aceite, recusa, cancelamento, conclusão).                                                                                                                                                                                                                                                                                                                                                                |
+| `forum_threads`                                                           | `forum_threads_before_insert`              | Autoria (`CD013`), anonimato (`CD010`) e registro da autoria anônima.                                                                                                                                                                                                                                                                                                                                                                                             |
+| `forum_threads`                                                           | `forum_threads_before_update`              | Bloqueia troca de autoria/anonimato; valida `solution_post_id` (`CD014`); `edited_at`/`updated_at`.                                                                                                                                                                                                                                                                                                                                                               |
+| `forum_threads`                                                           | `forum_threads_notify_solution`            | Solução marcada → notifica a autora da resposta.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `forum_posts`                                                             | `forum_posts_before_insert`                | Autoria, tópico trancado (`CD011`), anonimato.                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `forum_posts`                                                             | `forum_posts_before_update`                | Bloqueia troca de autoria/anonimato/tópico; `edited_at`.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `forum_posts`                                                             | `forum_posts_after_insert/delete`          | Mantém `reply_count` e `last_activity_at`.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `forum_posts`                                                             | `forum_posts_notify_reply`                 | Nova resposta → notifica a autora do tópico (inclusive anônima).                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `forum_anonymous_authorship`                                              | `..._after_delete`                         | Apaga o conteúdo anônimo quando a autoria some (LGPD).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `papers`                                                                  | `papers_before_write`                      | Normaliza DOI/strings/palavras-chave; `updated_at` só muda em edição real (votos não contam).                                                                                                                                                                                                                                                                                                                                                                     |
+| `paper_votes`                                                             | `paper_votes_before_insert`                | Sem voto no próprio paper (`CD012`) nem em paper oculto (`CD015`).                                                                                                                                                                                                                                                                                                                                                                                                |
+| `paper_votes`                                                             | `paper_votes_after_insert/delete`          | Mantém `vote_count`.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `paper_comments`                                                          | `..._after_insert/delete`, `..._notify`    | Mantém `comment_count`; notifica quem enviou o paper.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `newsletter_editions`                                                     | `newsletter_editions_before_write`         | Preenche `published_at`/`sent_at` ao mudar o status.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `reports`                                                                 | `reports_before_write`                     | Força `status = 'open'` na criação; recusa alvo inexistente/invisível (`CD015`), denúncia repetida ainda aberta (`CD018`) e mais de 10 em 24 h (`CD019`; moderação sem limite); ao resolver preenche `resolved_by`/`resolved_at`.                                                                                                                                                                                                                                 |
+| `reports`                                                                 | `reports_after_status_change`              | Aberta → resolvida/arquivada: grava `resolve_report`/`dismiss_report` no registro de auditoria e avisa a denunciante (`report_resolved`, com a nota, sem dizer quem moderou).                                                                                                                                                                                                                                                                                     |
+| `forum_threads`, `forum_posts`, `paper_comments`, `papers`, `paper_votes` | `*_rate_limit` (BEFORE INSERT)             | Limite anti-spam por pessoa (`private.enforce_rate_limit`): 5 tópicos/h (`CD021`), 30 respostas/h (`CD022`), 20 comentários/h (`CD023`), 5 papers/24 h (`CD024`), 60 destaques/h (`CD025`). Moderação e contexto confiável sem limite. Conta em `private.rate_limit_events` (apagar o conteúdo não devolve a cota).                                                                                                                                               |
+| `forum_threads`, `forum_posts`, `papers`, `paper_comments`                | `*_audit_moderator_delete` (BEFORE DELETE) | Moderadora/admin apagando conteúdo de **outra** pessoa (em qualquer tela ou pela API) → `delete_content` em `moderation_audit_log`. Não registra a própria autora (inclusive anônima) fora do painel — pela RPC `moderate_delete_content` registra sempre, para a linha que faltaria não revelar autoria anônima —, contexto confiável nem o que some em cascata. BEFORE porque a cascata da FK apaga a linha de autoria anônima antes de qualquer trigger AFTER. |
 
 Funções auxiliares no schema `private` (não expostas pela API): `is_moderator()`,
 `is_admin()`, `is_anonymous_thread_author()`, `is_anonymous_post_author()` (respondem só
 "a usuária atual é a autora anônima?", sem revelar ninguém),
 `thread_real_author()`, `post_real_author()`, `notify()`, `log_moderation()`, `display_name()`,
-`normalize_tags()`, `text_array_ok()`, `is_trusted_context()`, `set_updated_at()` e as
-funções de trigger.
+`normalize_tags()`, `text_array_ok()`, `is_trusted_context()`, `set_updated_at()`,
+`unaccent_immutable()`, `search_text()` (busca), `enforce_rate_limit()` (limites anti-spam),
+`is_own_avatar_url()` (CHECK do avatar) e as funções de trigger (inclusive
+`rate_limit_before_insert()` e `audit_moderator_delete()`).
 
 ---
 
@@ -493,6 +540,25 @@ Oculta/reexibe um paper da Vitrine e dos rankings (ex.: ao resolver uma denúnci
 await supabase.rpc("moderate_paper", { p_paper_id: paperId, p_hidden: true });
 ```
 
+### `moderate_delete_content(p_target_type, p_target_id, p_reason?, p_report_id?)` — moderação
+
+Apaga um tópico (`thread`), resposta (`post`), paper (`paper`) ou comentário (`paper_comment`) com o
+RLS de quem chama (SECURITY INVOKER) e passa motivo e denúncia para o trigger de auditoria, que grava
+**uma** linha `delete_content` na mesma transação. Devolve `true` se apagou agora e `false` se o
+conteúdo já não existia. `42501` se não for moderação; `22023` para `profile`; `CD017` se a denúncia
+não for sobre aquele conteúdo. Apagar com um `delete` comum (fórum, Vitrine, API) também é auditado —
+só sem motivo/denúncia. Pela RPC a exclusão é registrada **sempre**, inclusive quando quem modera é a
+autora (anônima ou não): sem a linha, o registro mostraria só o encerramento da denúncia e deixaria
+deduzir a autoria anônima (migration `20261028170400`).
+
+```ts
+const { data: removed, error } = await supabase.rpc("moderate_delete_content", {
+  p_target_type: "post",
+  p_target_id: postId,
+  p_report_id: reportId, // opcional
+});
+```
+
 ### `newsletter_reserve_confirmation(p_subscriber_id, p_max_per_address = 3, p_max_per_day = 80)` — só service role
 
 Reserva atômica de um e-mail de confirmação da newsletter: devolve `ok` (e conta o envio em
@@ -580,13 +646,18 @@ await supabase
 | `CD014`      | Solução que não é resposta do tópico                                                        | "A resposta escolhida como solução não pertence a este tópico."  |
 | `CD015`      | Categoria/tópico/paper inexistente (ou paper oculto ao votar); denúncia de alvo inexistente | "Tópico não encontrado." etc.                                    |
 | `CD016`      | Revelar autoria sem motivo de 20 a 300 caracteres                                           | "Explique o motivo da revelação com 20 a 300 caracteres…"        |
-| `CD017`      | Revelar autoria citando uma denúncia sobre outro conteúdo                                   | "A denúncia informada não é sobre esta publicação."              |
+| `CD017`      | Revelar autoria ou excluir pelo painel citando uma denúncia sobre outro conteúdo            | "A denúncia informada não é sobre esta publicação."              |
 | `CD018`      | Denúncia repetida (mesma pessoa, mesmo alvo, ainda aberta)                                  | "Você já denunciou este conteúdo e a moderação está analisando…" |
-| `CD019`      | Mais de 20 denúncias da mesma pessoa em 1 hora                                              | "Você enviou muitas denúncias em pouco tempo…"                   |
-| `CD020`      | Mais de 3 pedidos para a mesma mentora em 7 dias ou mais de 10 pedidos em 24 h              | "Você já fez 3 pedidos para esta mentora nos últimos 7 dias…"    |
+| `CD019`      | Mais de 10 denúncias da mesma pessoa em 24 h (moderação sem limite)                         | "Você já enviou 10 denúncias nas últimas 24 horas…"              |
+| `CD020`      | Mais de 3 pedidos para a mesma mentora em 7 dias ou mais de 5 pedidos em 24 h               | "Você já fez 3 pedidos para esta mentora nos últimos 7 dias…"    |
+| `CD021`      | Mais de 5 tópicos em 1 hora (anônimos contam)                                               | "Você publicou muitos tópicos na última hora. Respire…"          |
+| `CD022`      | Mais de 30 respostas no fórum em 1 hora                                                     | "Você enviou muitas respostas na última hora…"                   |
+| `CD023`      | Mais de 20 comentários em papers em 1 hora                                                  | "Você comentou muitas vezes na última hora…"                     |
+| `CD024`      | Mais de 5 papers divulgados em 24 h                                                         | "Você já divulgou 5 papers nas últimas 24 horas…"                |
+| `CD025`      | Mais de 60 destaques (votos) em 1 hora — tirar e pôr de novo também conta                   | "Você destacou muitos papers na última hora…"                    |
 | `42501`      | Sem GRANT/RLS (inclui RPCs de moderação e RPCs que exigem login)                            | mensagem do Postgres (em inglês) ou pt-BR nas RPCs               |
 | `23505`      | Duplicado (voto, reação, DOI)                                                               | trate como "já existe"                                           |
-| `23514`      | CHECK violado (tamanhos, URL sem http(s), tópico de mentoria inválido...)                   | valide antes com zod                                             |
+| `23514`      | CHECK violado (tamanhos, URL sem http(s), avatar fora da própria pasta, tópico inválido...) | valide antes com zod                                             |
 | `22023`      | Parâmetro inválido (período do ranking, reveal sem alvo)                                    |                                                                  |
 
 Sugestão: mostre `error.message` quando `error.code` começar com `CD`; para os demais,
@@ -628,6 +699,14 @@ Sem ambiguidade: `forum_threads → author:profiles(...)`, `category:forum_categ
   `storage.objects` só permitem listar/enviar/substituir/apagar dentro da própria pasta.
 - A leitura é pela URL pública (não passa por RLS), então não existe política de SELECT
   pública: isso evita que alguém **liste** o bucket inteiro.
+- `profiles.avatar_url` só aceita **NULL** ou o avatar público da **própria** pasta (CHECK
+  `profiles_avatar_url_own_storage`, função `private.is_own_avatar_url(id, url)`):
+  `http(s)://<servidor>/storage/v1/object/public/avatars/<id do perfil>/<arquivo>` — sem
+  usuário/senha na URL, subpastas, `..`, query ou fragmento. Imagem de outro servidor (inclusive a
+  foto do Google no cadastro), a pasta de outra pessoa ou outro bucket → `23514`. O banco não sabe o
+  endereço do Storage (local, preview, Cloud); a origem exata (`NEXT_PUBLIC_SUPABASE_URL`) é conferida
+  pelo app ao gravar (`ownAvatarFileName`) e ao exibir (`displayableAvatarSrc`). A migration
+  `20261028170200` zera os avatares antigos que não seguiam a regra (as iniciais aparecem no lugar).
 
 ```ts
 const path = `${user.id}/avatar-${Date.now()}.webp`;
@@ -736,7 +815,7 @@ Detalhes úteis dos tipos: `vector` aparece como `string` (envie `JSON.stringify
 ## 14. Validação local sem Docker
 
 Para validar migrations, seed e testes em qualquer Postgres 15+ com as extensões `vector`,
-`citext`, `pg_trgm` e `pgcrypto` (ex.: Postgres 16 + pgvector 0.6):
+`citext`, `pg_trgm`, `pgcrypto` e `unaccent` (contrib; ex.: Postgres 16 + pgvector 0.6):
 
 ```bash
 scripts/db/validate-local.sh                        # padrão: postgres@127.0.0.1:54329
@@ -770,6 +849,11 @@ moderação, falsificação, categoria proibida, RLS sem o trigger); tópico tra
 de cosseno; privacidade de embeddings e sugestões; newsletter invisível; notificações;
 denúncias; leaderboard; storage; exclusão de conta (LGPD); e uma checagem de higiene (RLS em
 todas as tabelas, nenhuma função executável por `PUBLIC`, `search_path` fixo).
+`search_limits_audit.test.sql` cobre a busca sem acento (`search_text` nas três tabelas, sem a
+autoria no fórum, GRANTs iguais aos da tabela), os limites anti-spam (N envios passam, o N+1 recebe o
+código; moderação e `service_role` sem limite; apagar não devolve a cota), a auditoria de exclusões
+(uma linha por exclusão alheia, nada para a própria autora — inclusive anônima — nem para cascatas) e
+a regra do avatar.
 
 Diferença conhecida: localmente o pgvector pode ser 0.6, no Supabase é mais novo — o que as
 migrations usam (`vector(768)`, `<=>`, HNSW `vector_cosine_ops`) funciona nos dois.
@@ -871,9 +955,18 @@ select cron.unschedule('newsletter-semanal');
 - **Rascunhos da newsletter** são escritos pelo servidor com `createAdminClient()`; admins
   também conseguem pelo RLS, se o painel precisar.
 - **Moderação:** fixar/trancar tópicos e ocultar papers só pelas RPCs; apagar conteúdo é um
-  `delete` comum (o RLS libera para moderadoras).
+  `delete` comum (o RLS libera para moderadoras) — o trigger grava `delete_content` na auditoria. O
+  painel usa `moderate_delete_content` para ligar o registro à denúncia.
+- **Limites anti-spam nos testes:** quem passa de 5 tópicos/h, 30 respostas/h, 20 comentários/h,
+  5 papers/24 h ou 60 destaques/h recebe `CD021`–`CD025` (denúncias: 10/24 h, `CD019`; pedidos de
+  mentoria: 5/24 h, `CD020`). Use contas de moderação para testes de carga ou zere o registro no
+  banco local: `delete from private.rate_limit_events where user_id = '<uuid>';` (apagar o conteúdo
+  criado não devolve a cota; denúncias e pedidos contam as próprias linhas).
 - **`service_role` ignora o RLS** — use `createAdminClient()` só em newsletter, cron e
   tarefas administrativas, nunca no fluxo normal de uma usuária.
 - **Datas** são `timestamptz` (UTC no banco). Formate em `America/Sao_Paulo` na interface.
+- **Colunas geradas em triggers BEFORE:** `search_text` ainda não foi calculada e chega **NULL** em
+  `NEW` (em `OLD` tem o valor antigo). Trigger que compara a linha inteira (`to_jsonb(new)` vs
+  `to_jsonb(old)`) precisa tirá-la da comparação — senão todo voto/resposta vira "edição".
 - **Notificações em tempo real:** `supabase.channel('notificacoes').on('postgres_changes',
 { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, ...)`.

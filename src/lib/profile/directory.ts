@@ -22,9 +22,10 @@ function first(value: string | string[] | undefined): string {
 }
 
 /**
- * Limpa o termo de busca para uso em `ilike` dentro de um filtro `or=(...)` do PostgREST:
- * remove os caracteres que têm significado na sintaxe (vírgula, parênteses, aspas, barra
- * invertida, dois-pontos) e os curingas do LIKE (% _ *), e corta em 80 caracteres.
+ * Limpa o termo de busca que volta para a URL e aparece na tela: remove pontuação que não ajuda
+ * a buscar (vírgula, parênteses, aspas, barra invertida, dois-pontos, ponto) e os curingas do LIKE
+ * (% _ *), colapsa espaços e corta em 80 caracteres. Acentos e maiúsculas ficam como a pessoa
+ * digitou — a busca em si (`profiles.search_text`) ignora os dois (src/lib/search/normalize.ts).
  */
 export function sanitizeSearchTerm(raw: string): string {
   return raw
@@ -33,16 +34,6 @@ export function sanitizeSearchTerm(raw: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
-}
-
-/** Filtro `or` para buscar o termo no nome, na instituição e no título do perfil. */
-export function buildSearchOrFilter(term: string): string | null {
-  const clean = sanitizeSearchTerm(term);
-  if (clean.length < 2) return null;
-  const pattern = `%${clean.replace(/ /g, "%")}%`;
-  return ["full_name", "institution", "headline"]
-    .map((column) => `${column}.ilike.${pattern}`)
-    .join(",");
 }
 
 export function parseDirectoryFilters(params: RawParams): DirectoryFilters {

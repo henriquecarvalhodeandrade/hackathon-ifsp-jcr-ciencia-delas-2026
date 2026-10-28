@@ -17,6 +17,7 @@ Sumário
 9. [Arquivos](#9-arquivos)
 10. [Como testar](#10-como-testar)
 11. [Decisões e limitações conhecidas](#11-decisões-e-limitações-conhecidas)
+12. [Importar do ORCID](#12-importar-do-orcid)
 
 ---
 
@@ -59,6 +60,9 @@ fazem embed de perfis. Para visitantes, "Quem indicou" mostra só a relação co
 
 ### Divulgar um paper
 
+0. **Atalho opcional, Importar do ORCID:** acima do formulário, a membra lista as publicações
+   públicas de um ORCID iD (o do perfil já vem preenchido) e escolhe uma; o formulário é
+   preenchido pelo Crossref (com DOI) ou com os dados do próprio ORCID ([seção 12](#12-importar-do-orcid)).
 1. `/papers/novo` → **Passo 1, Onde encontrar:** DOI (opcional) e "Buscar dados pelo DOI", que
    preenche título, autoras, revista, ano e resumo pelo Crossref ([seção 7](#7-busca-pelo-doi-crossref)).
    Se o DOI já estiver na Vitrine, a busca avisa e mostra o link do paper existente. Link para o
@@ -216,6 +220,11 @@ src/lib/papers/actions.ts               Server Actions
 src/lib/papers/queries.ts               Leitura (server-only)
 src/lib/papers/lookup.ts                Chamada ao Crossref (server-only)
 src/lib/papers/{doi,crossref,schema,params,errors,limits}.ts   Módulos puros (+ *.test.ts)
+src/lib/papers/orcid.ts                 ORCID: iD, URL, conversão do JSON, dedupe (puro; + orcid.test.ts
+                                        e orcid.fixture.ts, resposta realista da API v3.0)
+src/lib/papers/orcid-lookup.ts          Chamada à API pública do ORCID (server-only; + orcid-lookup.test.ts)
+src/lib/papers/orcid-actions.ts         Server Action searchOrcidWorks
+src/components/papers/orcid-import.tsx  Painel "Importar do ORCID" (cliente), montado pelo PaperForm
 ```
 
 `PaperCard` e `VoteButton` podem ser reutilizados em outras telas (ex.: landing): passe um
@@ -231,7 +240,8 @@ npx vitest run src/lib/papers
 
 Cobrem normalização de DOI, conversão do Crossref (JATS, entidades, limites, datas), validação do
 formulário e dos comentários, parâmetros de URL, áreas (grande área → subáreas), rótulos do
-ranking e a tradução de erros do banco.
+ranking, a tradução de erros do banco e a importação do ORCID (dígito verificador, URL fixa,
+conversão do JSON da v3.0, dedupe por DOI, preenchimento do formulário).
 
 **Manual (Supabase local + seed, senha `ciencia-delas-demo`):**
 
@@ -270,3 +280,104 @@ login. Prefixe com `[teste]` os títulos criados e apague só os seus registros 
 - **Ranking da comunidade** mostra o top 20; quem não aparece recebe um convite para participar.
 - A **moderação oculta papers** pelo painel `/admin` (RPC `moderate_paper`); aqui ela pode excluir
   papers e comentários.
+
+## 12. Importar do ORCID
+
+O painel **Importar do ORCID** fica acima do formulário em `/papers/novo` (não aparece na
+edição). Ele não grava nada: só preenche o formulário, que a membra revisa antes de publicar.
+
+### Fluxo
+
+1. **ORCID iD:** vem com o `profiles.orcid` da membra (normalizado para `0000-0000-0000-0000`;
+   perfis antigos com URL também funcionam). Sem ORCID no perfil, o campo fica vazio, aceita o iD,
+   os 16 dígitos ou o link `orcid.org/…` e mostra o atalho "Salvar meu ORCID no perfil". Dá para
+   buscar o ORCID de outra pesquisadora (para indicar o trabalho dela).
+2. **Buscar publicações** → Server Action `searchOrcidWorks` (`src/lib/papers/orcid-actions.ts`):
+   confere a sessão, valida o iD **antes** de qualquer chamada externa (dígito verificador
+   ISO 7064 MOD 11-2, a mesma regra de `normalizeOrcid` do perfil), busca os trabalhos e marca os
+   que já estão na Vitrine (consulta `papers.doi` com o cliente da usuária, em lotes de 100).
+3. **Lista:** título (serifada, como na Vitrine), ano · revista · tipo em pt-BR ("Artigo em
+   periódico", "Capítulo de livro"…) e o DOI. Com mais de 6 itens aparece o filtro (título,
+   revista, ano ou DOI, sem diferenciar acentos); a lista mostra 10 por vez ("Mostrar mais").
+   Trabalho cujo DOI já está na Vitrine aparece com o selo "Já está na Vitrine" e o link para o
+   paper, em vez do botão.
+4. **Usar esta:**
+   - **com DOI**, o formulário chama a mesma `lookupDoi` do botão "Buscar dados pelo DOI"
+     (Crossref: título, autoras, resumo, revista, ano) e completa revista/ano com o ORCID se o
+     Crossref não trouxer; se o Crossref falhar (DOI do DataCite, fora do ar), preenche com os
+     dados do ORCID e explica o motivo;
+   - **sem DOI**, preenche título, ano, revista/evento e o link do registro (só se o campo Link
+     estiver vazio) e pede para completar autoras e resumo à mão.
+
+   O resultado aparece no passo 1 (a mesma mensagem da busca pelo DOI), a página rola até ele e o
+   foco vai para o título do passo 1; o item escolhido ganha o selo "No formulário". Área,
+   palavras-chave, relação, confirmação de autoria e resumo acessível nunca são alterados.
+
+   **Trocar de trabalho** desfaz a escolha anterior antes de aplicar a nova (`undoOrcidImport`):
+   DOI, link, título, autoras, resumo, revista e ano que a importação anterior preencheu e que a
+   membra não editou depois voltam ao valor de antes. Assim, escolher um trabalho sem DOI depois
+   de um com DOI não deixa o DOI, as autoras e o resumo do primeiro sob o título do segundo. O que
+   ela digitou ou corrigiu fica. Se o Crossref não trouxer o título, vale o do ORCID.
+
+   Um iD recusado (dígito verificador ou 404) devolve o foco ao campo, que anuncia o erro.
+
+### Chamada à API (`src/lib/papers/orcid-lookup.ts`, server-only)
+
+`GET https://pub.orcid.org/v3.0/{orcid}/works` — API pública, **sem chave**, com
+`Accept: application/json`, `User-Agent: Artemis/1.0 (+<site>; mailto:CONTACT_EMAIL)` (só ASCII),
+`cache: "no-store"`, `redirect: "error"` e **timeout de 8 s** (vale também para a leitura do
+corpo). Respostas acima de 8 MB são recusadas pelo `Content-Length` ou durante a leitura, que para
+assim que passa do teto (o corpo inteiro nunca fica na memória). Limites da API anônima (FAQ do ORCID, out/2026): 12 requisições/s, rajada de 40 e
+25 mil leituras por dia **por IP** — acima da rajada o ORCID responde 503. Por isso o servidor
+aceita uma busca a cada 3 s por pessoa (melhor esforço, por instância).
+
+| Resposta                            | Mensagem (pt-BR)                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| iD com formato ou dígito errado     | no campo: "Esse ORCID iD não confere (o último dígito não bate)…" (nada é buscado) |
+| 404                                 | no campo: "Não encontramos esse ORCID iD. Confira os números…"                     |
+| 409 (registro desativado/bloqueado) | "Este registro ORCID está desativado, bloqueado ou foi unificado com outro…"       |
+| 429 ou 503 (limite)                 | "O ORCID recebeu muitas buscas agora. Espere um minutinho…"                        |
+| outros 5xx, timeout, rede           | "O ORCID não respondeu agora. Tente de novo em instantes…"                         |
+| JSON inesperado                     | "O ORCID respondeu num formato inesperado…"                                        |
+| lista vazia                         | explica que cada trabalho precisa estar com visibilidade "Todos" no ORCID          |
+| mais de 300 trabalhos               | mostra os 300 mais recentes e avisa                                                |
+
+**SSRF:** o host é fixo (`pub.orcid.org`) e o iD só entra na URL depois de validado no formato
+canônico com o dígito verificador — `orcidWorksUrl()` lança erro para qualquer outra coisa
+(`../`, `@host`, URLs). Redirecionamentos não são seguidos.
+
+### Conversão (`src/lib/papers/orcid.ts`, puro e testado)
+
+| Campo          | De onde vem (`group[].work-summary[]`)                                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Título         | `title.title.value`, sem marcação/entidades (mesmo `stripMarkup` do Crossref), até 300 caracteres. O `subtitle` é ignorado (muitas fontes põem a revista nele)                        |
+| Ano            | `publication-date.year.value` com 4 dígitos, de 1900 a 2100 (fora disso fica vazio)                                                                                                   |
+| Revista/evento | `journal-title.value`, até 300                                                                                                                                                        |
+| DOI            | `external-ids` com tipo `doi` e relação **`self`** (o `part-of` é o DOI do livro ou periódico); usa `external-id-normalized` quando existe; normalizado e validado como no formulário |
+| Link           | `url.value`, só `http(s)`                                                                                                                                                             |
+
+- Cada `group` é um trabalho informado por várias fontes: usamos a versão preferida (maior
+  `display-index`) e completamos ano, revista, DOI e link com as outras.
+- **Duplicatas:** o mesmo DOI (sem diferenciar maiúsculas, com ou sem `https://doi.org/`) vira
+  um item só; um trabalho sem DOI com o mesmo título e ano (sem acentos e pontuação) de outro item
+  também sai. Grupos malformados são ignorados sem derrubar a lista.
+- Ordem: mais recentes primeiro; no mesmo ano, por título.
+
+### Como testar
+
+- `npx vitest run src/lib/papers/orcid.test.ts` — dígito verificador (inclusive `X`), URL fixa e
+  recusa de entradas maliciosas, conversão de uma resposta realista da v3.0
+  (`orcid.fixture.ts`: fontes agrupadas, DOI `part-of`, entidades HTML, DOI repetido em outro
+  grupo, fonte sem título, ano inválido, link `javascript:`), dedupe, ordem, preenchimento e
+  troca de trabalho sem misturar dados (`undoOrcidImport`).
+- `npx vitest run src/lib/papers/orcid-lookup.test.ts` — com `fetch` simulado: URL e cabeçalhos
+  exatos (host fixo, `Accept`, `User-Agent`, `no-store`, `redirect: "error"`, timeout de 8 s),
+  nenhuma chamada com iD inválido, 404/409/429/503/5xx, rede e tempo esgotado (também no meio do
+  corpo), JSON inesperado e o teto de 8 MB (pelo `Content-Length` e durante a leitura).
+- Manual, como `yasmin@…` (ou qualquer membra): em `/papers/novo`, busque
+  `0000-0002-1825-0097` (Josiah Carberry, o registro de testes do próprio ORCID, com DOIs
+  `10.5555/…` que existem no Crossref) e use "Toward a Unified Theory…"; busque
+  `0000-0001-5109-3700` (mais de 200 trabalhos, alguns sem DOI) para ver o filtro, o "Mostrar
+  mais" e o preenchimento sem DOI (use primeiro um trabalho com DOI e depois um sem: DOI, autoras e
+  resumo do primeiro precisam sair); `0000-0002-1825-0098` mostra o erro do dígito verificador
+  (com o foco de volta no campo) e `0000-0000-0000-0001` o 404.

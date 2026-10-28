@@ -20,9 +20,19 @@ import {
 import { PAPER_RELATIONS } from "@/lib/constants";
 import { generateSummary, lookupDoi, savePaper, type PaperFormState } from "@/lib/papers/actions";
 import { PAPER_LIMITS } from "@/lib/papers/limits";
+import {
+  filledByOrcid,
+  joinPt,
+  mergeOrcidIntoValues,
+  missingAfterOrcid,
+  undoOrcidImport,
+  type OrcidImportRecord,
+} from "@/lib/papers/orcid";
+import type { OrcidWorkItem } from "@/lib/papers/orcid-actions";
 import type { AreaRow } from "@/lib/papers/params";
 import { mergeCrossrefIntoValues, readPaperForm, type PaperFormValues } from "@/lib/papers/schema";
 import { AreaSelect } from "./area-select";
+import { OrcidImportPanel } from "./orcid-import";
 
 export interface PaperFormProps {
   mode: "create" | "edit";
@@ -31,6 +41,8 @@ export interface PaperFormProps {
   areas: AreaRow[];
   aiEnabled: boolean;
   cancelHref: string;
+  /** Mostra o painel "Importar do ORCID" acima do formulário (só no envio). */
+  orcidImport?: { defaultOrcid: string };
 }
 
 type Notice = { tone: FormMessageTone; text: string; existingPaperId?: string } | null;
@@ -54,7 +66,7 @@ function SectionTitle({
   return (
     <div className="grid gap-1">
       <p className="eyebrow text-primary">Passo {step} de 4</p>
-      <h2 id={id} className="font-display text-xl font-semibold text-fg">
+      <h2 id={id} tabIndex={-1} className="font-display text-xl font-semibold text-fg">
         {children}
       </h2>
       {description && <p className="text-[0.9375rem] text-fg-muted">{description}</p>}
@@ -74,6 +86,7 @@ export function PaperForm({
   areas,
   aiEnabled,
   cancelHref,
+  orcidImport,
 }: PaperFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction] = useActionState<PaperFormState, FormData>(savePaper, null);
@@ -84,6 +97,8 @@ export function PaperForm({
   const [summaryNotice, setSummaryNotice] = useState<Notice>(null);
   const [isLookingUp, startLookup] = useTransition();
   const [isSummarizing, startSummary] = useTransition();
+  const [focusStep1, setFocusStep1] = useState(0);
+  const lastOrcidImport = useRef<OrcidImportRecord | null>(null);
 
   if (state !== lastState) {
     setLastState(state);
@@ -99,6 +114,18 @@ export function PaperForm({
     const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
     invalid?.focus();
   }, [state]);
+
+  // Depois de importar do ORCID, leva a pessoa ao passo 1, onde está o resultado da importação.
+  useEffect(() => {
+    if (focusStep1 === 0) return;
+    const heading = document.getElementById("passo-link");
+    if (!heading) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    heading.focus({ preventScroll: true });
+    heading
+      .closest("section")
+      ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }, [focusStep1]);
 
   const values = source.values;
   const v = source.version;
@@ -129,6 +156,64 @@ export function PaperForm({
     });
   }
 
+  /**
+   * Trabalho escolhido no painel do ORCID. Com DOI, usa a mesma busca do Crossref do botão
+   * "Buscar dados pelo DOI" (e completa revista/ano com o ORCID se o Crossref não trouxer);
+   * sem DOI ou se o Crossref falhar, preenche com os dados do próprio ORCID.
+   */
+  async function handleOrcidPick(work: OrcidWorkItem): Promise<boolean> {
+    // Trocar de trabalho não pode misturar dados: desfaz o que a escolha anterior preencheu.
+    const current = undoOrcidImport(currentValues(), lastOrcidImport.current);
+    setLookupNotice(null);
+    const apply = (next: PaperFormValues) => {
+      lastOrcidImport.current = { before: current, after: next };
+      setSource((s) => ({ values: next, version: s.version + 1 }));
+    };
+    let applied = true;
+
+    if (work.doi) {
+      const result = await lookupDoi(work.doi, paperId ?? null);
+      if (result.ok) {
+        const merged = mergeCrossrefIntoValues(current, result.data);
+        apply({
+          ...merged,
+          title: merged.title || work.title,
+          venue: merged.venue || work.journal || "",
+          year: merged.year || (work.year ? String(work.year) : ""),
+        });
+        setLookupNotice({
+          tone: "success",
+          text: `Publicação importada do ORCID. ${result.message}`,
+        });
+      } else if (result.existingPaperId) {
+        applied = false;
+        setLookupNotice({
+          tone: "error",
+          text: result.error,
+          existingPaperId: result.existingPaperId,
+        });
+      } else {
+        apply(mergeOrcidIntoValues(current, work));
+        setLookupNotice({
+          tone: "info",
+          text: `Preenchemos ${joinPt(filledByOrcid(work, current))} com os dados do ORCID. ${result.error}`,
+        });
+      }
+    } else {
+      const next = mergeOrcidIntoValues(current, work);
+      const missing = missingAfterOrcid(next);
+      apply(next);
+      setLookupNotice({
+        tone: "success",
+        text: `Preenchemos ${joinPt(filledByOrcid(work, current))} com os dados do ORCID. Essa publicação não tem DOI: ${
+          missing.length > 0 ? `complete ${joinPt(missing)} à mão e revise` : "revise"
+        } tudo antes de publicar.`,
+      });
+    }
+    setFocusStep1((n) => n + 1);
+    return applied;
+  }
+
   function handleSummary() {
     const current = currentValues();
     setSummaryNotice(null);
@@ -154,7 +239,7 @@ export function PaperForm({
     });
   }
 
-  return (
+  const form = (
     <form ref={formRef} action={formAction} noValidate className="grid gap-8">
       {paperId && <input type="hidden" name="paper_id" value={paperId} />}
       <input type="hidden" name="plain_summary_source" value={summarySource} />
@@ -467,5 +552,13 @@ export function PaperForm({
         <p className="w-full text-sm text-fg-subtle sm:w-auto">Campos com * são obrigatórios.</p>
       </div>
     </form>
+  );
+
+  if (!orcidImport) return form;
+  return (
+    <div className="grid gap-8">
+      <OrcidImportPanel defaultOrcid={orcidImport.defaultOrcid} onPick={handleOrcidPick} />
+      {form}
+    </div>
   );
 }

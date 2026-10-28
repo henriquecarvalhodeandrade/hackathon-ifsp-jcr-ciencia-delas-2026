@@ -395,6 +395,16 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
+          <strong>Portabilidade (art. 18, V):</strong> em{" "}
+          <Link href="/perfil#dados">Meu perfil</Link>, “Baixar meus dados” gera na hora um arquivo
+          JSON, formato aberto que outros serviços conseguem ler, com o seu perfil, mentorias,
+          publicações no fórum (inclusive as anônimas), papers, destaques, comentários,
+          notificações, denúncias que você fez e a situação da sua inscrição no Boletim. De outras
+          pessoas, o arquivo traz só o nome de quem participou das suas mentorias e das mentoras
+          sugeridas a você. Ele liga o seu nome às suas publicações anônimas: guarde-o em lugar
+          seguro.
+        </p>
+        <p>
           Se não ficar satisfeita, você pode reclamar à Autoridade Nacional de Proteção de Dados (
           <ExternalLink href={ANPD_URL}>ANPD</ExternalLink>). Texto completo da lei:{" "}
           <ExternalLink href={LGPD_URL}>Lei nº 13.709/2018</ExternalLink>.

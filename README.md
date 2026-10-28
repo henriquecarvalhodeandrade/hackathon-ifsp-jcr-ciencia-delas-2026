@@ -5,6 +5,8 @@
 
 # Artemis
 
+[![CI](https://github.com/henriquecarvalhodeandrade/hackathon-ifsp-jcr-ciencia-delas-2026/actions/workflows/ci.yml/badge.svg)](https://github.com/henriquecarvalhodeandrade/hackathon-ifsp-jcr-ciencia-delas-2026/actions/workflows/ci.yml)
+
 **Rede de apoio, mentoria e visibilidade para mulheres na ciência.**
 Projeto do **Hackathon IFSP Câmpus Jacareí 2026** — tema _Ciência Delas_. O nome vem de Ártemis,
 deusa grega da caça e da Lua; o símbolo é uma lua crescente com uma estrela âmbar.
@@ -48,6 +50,12 @@ Entre com uma conta de demonstração (senha `ciencia-delas-demo`), por exemplo
 `admin@demo.cienciadelas.dev` (administradora). E-mails locais chegam no Mailpit: http://127.0.0.1:54324.
 
 Guia completo, variáveis de ambiente e deploy (Supabase Cloud + Vercel): **[docs/07-setup-e-deploy.md](docs/07-setup-e-deploy.md)**.
+
+## Instalar no celular
+
+A Artemis pode ser instalada como app (PWA), com ícone na tela inicial e abrindo em tela cheia. No Android,
+abra o site no Chrome e toque em **Instalar app** (ou menu → _Adicionar à tela inicial_); no iPhone, no Safari,
+toque em **Compartilhar** → _Adicionar à Tela de Início_. Não há modo offline: é preciso estar conectada à internet.
 
 ## Qualidade
 

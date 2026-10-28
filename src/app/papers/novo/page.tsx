@@ -5,6 +5,7 @@ import { isAiEnabled } from "@/lib/ai";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { getResearchAreas } from "@/lib/papers/queries";
 import { EMPTY_PAPER_VALUES } from "@/lib/papers/schema";
+import { normalizeOrcid } from "@/lib/profile/links";
 
 export const metadata: Metadata = {
   title: "Divulgar um paper",
@@ -12,8 +13,10 @@ export const metadata: Metadata = {
 };
 
 export default async function NewPaperPage() {
-  await requireOnboardedProfile("/papers/novo");
+  const profile = await requireOnboardedProfile("/papers/novo");
   const areas = await getResearchAreas();
+  // Perfis antigos podem ter o ORCID salvo como URL: o painel recebe só o iD canônico.
+  const savedOrcid = profile.orcid ? normalizeOrcid(profile.orcid) : null;
 
   return (
     <Container size="narrow" className="pb-16">
@@ -29,6 +32,7 @@ export default async function NewPaperPage() {
         areas={areas}
         aiEnabled={isAiEnabled()}
         cancelHref="/papers"
+        orcidImport={{ defaultOrcid: savedOrcid?.ok ? savedOrcid.value : "" }}
       />
     </Container>
   );

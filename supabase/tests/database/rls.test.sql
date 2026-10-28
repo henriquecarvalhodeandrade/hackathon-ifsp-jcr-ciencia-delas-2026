@@ -136,8 +136,8 @@ begin
     (select full_name from public.profiles where id = 'f0000000-0000-4000-8000-000000000001') = 'Ana Teste',
     'full_name vem de raw_user_meta_data.full_name');
   perform cdtest.check(
-    (select avatar_url from public.profiles where id = 'f0000000-0000-4000-8000-000000000001') = 'https://example.test/ana.png',
-    'avatar_url vem de raw_user_meta_data.avatar_url');
+    (select avatar_url from public.profiles where id = 'f0000000-0000-4000-8000-000000000001') is null,
+    'avatar de outro servidor em raw_user_meta_data.avatar_url é descartado (só vale o Storage do projeto)');
   perform cdtest.check(
     (select full_name from public.profiles where id = 'f0000000-0000-4000-8000-000000000002') = 'Bruna Teste',
     'full_name usa "name" como alternativa');
@@ -1322,11 +1322,12 @@ begin
       = array['unhide_paper:Revisado: pode voltar.', 'hide_paper:-'],
     'ocultar/reexibir registrados só quando mudam');
 
-  -- Inclusão manual (ex.: exclusão de conteúdo pelo painel) só em nome próprio; registro imutável.
+  -- Inclusão manual (ex.: troca de papel pelo painel) só em nome próprio; registro imutável.
   insert into public.moderation_audit_log (action, target_type, target_id, report_id, reason)
   values ('delete_content', 'post', cdtest.get('bruna_post'), null, 'Spam repetido.');
   perform cdtest.check(
-    (select actor_id from public.moderation_audit_log where action = 'delete_content')
+    (select actor_id from public.moderation_audit_log
+     where action = 'delete_content' and target_id = cdtest.get('bruna_post'))
       = 'f0000000-0000-4000-8000-000000000005',
     'actor_id padrão é a própria moderadora');
   perform cdtest.throws($q$insert into public.moderation_audit_log (actor_id, action) values ('f0000000-0000-4000-8000-000000000006', 'change_role')$q$,
@@ -1498,6 +1499,7 @@ select pass('get_mentor_open_slots: vagas das mentoras para membros');
 -- -----------------------------------------------------------------------------
 
 -- Denúncias: sem repetição, sem alvo inexistente, sem rajadas (mesmo pela API).
+-- (Limite revisto na migration 20261028170100_anti_spam_limits.sql: 10 denúncias em 24 h.)
 do $$
 declare
   v_posts uuid[];
@@ -1527,13 +1529,20 @@ begin
     'CD015', 'denúncia de tópico inexistente é recusada');
 
   select count(*) into v_prior from public.reports
-  where reporter_id = 'f0000000-0000-4000-8000-000000000002' and created_at > now() - interval '1 hour';
-  for i in 1 .. (20 - v_prior) loop
+  where reporter_id = 'f0000000-0000-4000-8000-000000000002' and created_at > now() - interval '24 hours';
+  for i in 1 .. (10 - v_prior) loop
     insert into public.reports (target_type, target_id, reason) values ('post', v_posts[i], 'spam');
   end loop;
   perform cdtest.throws(format($q$insert into public.reports (target_type, target_id, reason)
       values ('post', %L, 'spam')$q$, v_posts[25]),
-    'CD019', 'a 21ª denúncia na mesma hora é recusada');
+    'CD019', 'a 11ª denúncia em 24 h é recusada');
+  perform cdtest.logout();
+
+  -- Moderação não tem o limite de denúncias.
+  perform cdtest.login('f0000000-0000-4000-8000-000000000006');
+  for i in 1 .. 11 loop
+    insert into public.reports (target_type, target_id, reason) values ('post', v_posts[i], 'spam');
+  end loop;
   perform cdtest.logout();
 
   -- Contexto confiável (seed/service role) não sofre os limites.
@@ -1541,9 +1550,10 @@ begin
   values ('f0000000-0000-4000-8000-000000000002', 'post', v_posts[25], 'spam');
 end
 $$;
-select pass('reports: banco recusa denúncia repetida, alvo inexistente e mais de 20 por hora');
+select pass('reports: banco recusa denúncia repetida, alvo inexistente e mais de 10 em 24 h (moderação sem limite)');
 
--- Pedidos de mentoria: no máximo 3 por mentora a cada 7 dias e 10 a cada 24 h.
+-- Pedidos de mentoria: no máximo 3 por mentora a cada 7 dias e 5 a cada 24 h
+-- (o limite diário era 10 até a migration 20261028170100_anti_spam_limits.sql).
 do $$
 declare
   v_mentor uuid;
@@ -1575,14 +1585,14 @@ begin
   end;
   perform cdtest.check(v_msg like '%7 dias%', 'limite por mentora explica a espera de 7 dias');
 
-  -- Limite diário: completa 10 pedidos em 24 h com outras mentoras; o 11º é recusado.
+  -- Limite diário: completa 5 pedidos em 24 h com outras mentoras; o 6º é recusado.
   select count(*) into v_count from public.mentorship_requests
   where mentee_id = 'f0000000-0000-4000-8000-000000000002' and created_at > now() - interval '24 hours';
   foreach v_mentor in array array['f0000000-0000-4000-8000-000000000003', 'f0000000-0000-4000-8000-000000000005',
                                   'f0000000-0000-4000-8000-000000000006']::uuid[] loop
     for i in 1 .. 3 loop
-      -- A última mentora guarda uma vaga (< 3) para o 11º pedido bater no limite diário.
-      exit when v_count >= 10
+      -- A última mentora guarda uma vaga (< 3) para o 6º pedido bater no limite diário.
+      exit when v_count >= 5
         or (select count(*) from public.mentorship_requests
             where mentee_id = 'f0000000-0000-4000-8000-000000000002' and mentor_id = v_mentor)
            >= case when v_mentor = 'f0000000-0000-4000-8000-000000000006' then 2 else 3 end;
@@ -1593,12 +1603,12 @@ begin
       v_count := v_count + 1;
     end loop;
   end loop;
-  perform cdtest.check(v_count = 10, format('preparou 10 pedidos em 24 h (veio %s)', v_count));
+  perform cdtest.check(v_count = 5, format('preparou 5 pedidos em 24 h (veio %s)', v_count));
   v_msg := null;
   begin
     insert into public.mentorship_requests (mentor_id, message)
-    values ('f0000000-0000-4000-8000-000000000006', 'Décimo primeiro pedido do dia, deve ser recusado.');
-    raise exception 'FALHOU: o 11º pedido em 24 h foi aceito';
+    values ('f0000000-0000-4000-8000-000000000006', 'Sexto pedido do dia, deve ser recusado.');
+    raise exception 'FALHOU: o 6º pedido em 24 h foi aceito';
   exception when sqlstate 'CD020' then
     v_msg := sqlerrm;
   end;
@@ -1606,7 +1616,7 @@ begin
   perform cdtest.logout();
 end
 $$;
-select pass('mentorship_requests: pedir e cancelar em laço tem limite (3 por mentora/7 dias, 10/24 h)');
+select pass('mentorship_requests: pedir e cancelar em laço tem limite (3 por mentora/7 dias, 5/24 h)');
 
 -- Cota do matching com IA: guardada no banco, fora do alcance da usuária.
 do $$

@@ -22,10 +22,10 @@ import { ROLE_LABELS } from "./params";
  * trocar papéis (a coluna `role` não tem GRANT de UPDATE para ninguém) e pela
  * newsletter, sempre depois de confirmar que quem pediu é admin.
  *
- * Auditoria (`moderation_audit_log`, docs/09): as RPCs de moderação e o trigger de
- * denúncias registram sozinhos; aqui registramos a exclusão de conteúdo e a troca de
- * papel. `reports.resolution_note` é uma nota VISÍVEL para quem denunciou — nada
- * interno vai para ela.
+ * Auditoria (`moderation_audit_log`, docs/09): as RPCs de moderação, o trigger de
+ * denúncias e o trigger de exclusão de conteúdo (`delete_content`, qualquer tela) registram
+ * sozinhos; aqui registramos só a troca de papel. `reports.resolution_note` é uma nota
+ * VISÍVEL para quem denunciou — nada interno vai para ela.
  */
 
 type Gate =
@@ -270,10 +270,10 @@ const deleteSchema = z.object({
 });
 
 const DELETE_LABELS = {
-  thread: { table: "forum_threads", done: "Tópico excluído (as respostas também)." },
-  post: { table: "forum_posts", done: "Resposta excluída." },
-  paper: { table: "papers", done: "Paper excluído da Vitrine." },
-  paper_comment: { table: "paper_comments", done: "Comentário excluído." },
+  thread: "Tópico excluído (as respostas também).",
+  post: "Resposta excluída.",
+  paper: "Paper excluído da Vitrine.",
+  paper_comment: "Comentário excluído.",
 } as const;
 
 export async function deleteReportedContent(
@@ -293,7 +293,6 @@ export async function deleteReportedContent(
   const { targetType, targetId, note, reportId } = parsed.data;
 
   const supabase = await createClient();
-  const table = DELETE_LABELS[targetType].table;
 
   // Para revalidar a página certa depois.
   let parentPath: string | null = null;
@@ -322,24 +321,19 @@ export async function deleteReportedContent(
     cascade = { type: "paper_comment", ids: (data ?? []).map((c) => c.id) };
   }
 
-  const { error, count } = await supabase.from(table).delete({ count: "exact" }).eq("id", targetId);
+  // A RPC apaga com o RLS da moderadora e o trigger do banco grava `delete_content` (com o motivo
+  // e a denúncia) na MESMA transação — uma linha por exclusão, sem gravação extra aqui.
+  const { data: deleted, error } = await supabase.rpc("moderate_delete_content", {
+    p_target_type: targetType,
+    p_target_id: targetId,
+    ...(note ? { p_reason: cleanAuditReason(note) ?? undefined } : {}),
+    ...(reportId ? { p_report_id: reportId } : {}),
+  });
   if (error)
     return actionError(
       friendlyDbError(error, "Não conseguimos excluir o conteúdo. Tente de novo."),
     );
-
-  if (count) {
-    // Registro de auditoria (o RLS exige moderação e actor_id = quem está agindo, o padrão).
-    const audit = await supabase.from("moderation_audit_log").insert({
-      action: "delete_content",
-      target_type: targetType,
-      target_id: targetId,
-      report_id: reportId ?? null,
-      reason: cleanAuditReason(note),
-    });
-    if (audit.error)
-      console.error("[moderacao] falha ao registrar exclusão na auditoria", audit.error.code);
-  }
+  const removed = deleted === true;
 
   let closed = await resolveOpenReportsFor(
     supabase,
@@ -347,7 +341,7 @@ export async function deleteReportedContent(
     [targetId],
     note ?? "Conteúdo excluído pela moderação.",
   );
-  if (count && cascade) {
+  if (removed && cascade) {
     closed += await resolveOpenReportsFor(
       supabase,
       cascade.type,
@@ -367,7 +361,7 @@ export async function deleteReportedContent(
   }
   if (parentPath) revalidatePath(parentPath);
 
-  if (!count) {
+  if (!removed) {
     return {
       ok: true,
       message:
@@ -378,7 +372,7 @@ export async function deleteReportedContent(
   }
   return {
     ok: true,
-    message: `${DELETE_LABELS[targetType].done}${closed > 0 ? ` ${closed === 1 ? "A denúncia foi encerrada." : `${closed} denúncias foram encerradas.`}` : ""}`,
+    message: `${DELETE_LABELS[targetType]}${closed > 0 ? ` ${closed === 1 ? "A denúncia foi encerrada." : `${closed} denúncias foram encerradas.`}` : ""}`,
   };
 }
 

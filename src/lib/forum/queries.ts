@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { applySearchText } from "@/lib/search/normalize";
 import { createClient } from "@/lib/supabase/server";
 import { REACTION_KIND_VALUES, type ReactionKindValue } from "./schema";
 import {
@@ -79,7 +80,10 @@ export const getCategoryBySlug = cache(async (slug: string): Promise<ForumCatego
 export type ListThreadsOptions = {
   viewerId: string;
   categoryId?: number;
-  /** Termo já sanitizado (sanitizeSearchTerm). Busca em título e corpo. */
+  /**
+   * Termo já sanitizado (sanitizeSearchTerm). Busca sem acento e sem diferença de maiúsculas em
+   * título, corpo e tags (`search_text`); cada palavra precisa aparecer.
+   */
   q?: string;
   /** Tag já sanitizada (sanitizeTag). */
   tag?: string;
@@ -100,7 +104,7 @@ export async function listThreads(
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
   if (opts.pinned !== undefined) query = query.eq("is_pinned", opts.pinned);
   if (opts.tag) query = query.contains("tags", [opts.tag]);
-  if (opts.q) query = query.or(`title.ilike.%${opts.q}%,body.ilike.%${opts.q}%`);
+  if (opts.q) query = applySearchText(query, opts.q);
 
   const { data, count, error } = await query
     .order("is_pinned", { ascending: false })

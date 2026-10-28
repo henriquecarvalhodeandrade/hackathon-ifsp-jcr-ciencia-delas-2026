@@ -1,11 +1,11 @@
 import "server-only";
 import { cache } from "react";
 import type { RankingPeriod } from "@/lib/constants";
+import { applySearchText } from "@/lib/search/normalize";
 import { createClient } from "@/lib/supabase/server";
 import {
   PAPERS_PAGE_SIZE,
   areaIdsForSlug,
-  escapeLikePattern,
   rankingVotes,
   type AreaRow,
   type VitrineOrder,
@@ -107,8 +107,10 @@ export type ListResult<T> =
   { ok: true; items: T[]; total: number } | { ok: false; items: T[]; total: 0 };
 
 /**
- * Vitrine paginada. Períodos usam a RPC `get_paper_ranking`; "recent" e a busca (?q=, no
- * título) usam uma consulta simples em `papers` (a RPC não tem busca por texto).
+ * Vitrine paginada. Períodos usam a RPC `get_paper_ranking`; "recent" e a busca (?q=) usam uma
+ * consulta simples em `papers` (a RPC não tem busca por texto). A busca ignora acentos e
+ * maiúsculas e olha título, resumo, autoras, palavras-chave e veículo (`search_text`); cada
+ * palavra precisa aparecer.
  */
 export async function listVitrine(options: {
   order: VitrineOrder;
@@ -130,7 +132,7 @@ export async function listVitrine(options: {
       .from("papers")
       .select("id", { count: "exact", head: true })
       .eq("is_hidden", false);
-    if (q) countQuery = countQuery.ilike("title", `%${escapeLikePattern(q)}%`);
+    if (q) countQuery = applySearchText(countQuery, q);
     if (areaIds) countQuery = countQuery.in("area_id", areaIds);
     return countQuery;
   };
@@ -140,7 +142,7 @@ export async function listVitrine(options: {
       .from("papers")
       .select(LIST_COLUMNS, { count: "exact" })
       .eq("is_hidden", false);
-    if (q) query = query.ilike("title", `%${escapeLikePattern(q)}%`);
+    if (q) query = applySearchText(query, q);
     if (areaIds) query = query.in("area_id", areaIds);
     query =
       order === "recent"

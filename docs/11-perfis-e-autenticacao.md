@@ -6,9 +6,10 @@
 
 **Resumo:** cadastro com e-mail e senha (com confirmação por e-mail), login por senha ou link
 mágico, Google opcional, recuperação de senha, onboarding em 4 etapas, edição do perfil em
-cartões, foto no Storage, exclusão de conta (LGPD) e diretório de pesquisadoras com filtros.
-Toda gravação usa a **sessão da usuária** e o **RLS**; a chave secreta só aparece na exclusão
-de conta.
+cartões, foto no Storage, "Baixar meus dados" e exclusão de conta (LGPD) e diretório de
+pesquisadoras com filtros. Toda gravação usa a **sessão da usuária** e o **RLS**; a chave secreta
+só aparece na exclusão de conta e, na exportação, para ler a inscrição na newsletter do e-mail da
+própria conta.
 
 Sumário
 
@@ -167,7 +168,10 @@ em `after()`.
   `saveAvatarAction(url)` aceita só URLs públicas **da própria pasta** com o nome esperado,
   grava `profiles.avatar_url` e apaga fotos antigas. Arquivos aceitos: PNG, JPG, WebP; o arquivo
   enviado tem no máximo 2 MB (limite do bucket). "Remover foto" limpa a URL e a pasta.
-- **Conta e segurança:** e-mail de acesso, data de entrada, "Trocar senha" (`/redefinir-senha`).
+- **Conta e segurança:** e-mail de acesso, data de entrada, "Trocar senha" (`/redefinir-senha`),
+  "Baixar meus dados" (abaixo) e "Excluir minha conta".
+- **Baixar meus dados (LGPD, art. 18, V — portabilidade):** ver
+  [Baixar meus dados](#baixar-meus-dados-portabilidade).
 - **Excluir minha conta (LGPD, art. 18):** com `SUPABASE_SECRET_KEY` configurada, um diálogo
   explica o que será apagado e pede para digitar **EXCLUIR**. A action apaga as fotos e o usuário
   (`auth.admin.deleteUser`); o banco remove em cascata perfil, áreas, mentorias, sugestões,
@@ -175,6 +179,53 @@ em `after()`.
   notificações. A inscrição na newsletter fica desvinculada (`profile_id = null`) — o descadastro
   é pelo link do e-mail. Depois a sessão é limpa e a pessoa vai para `/entrar?conta=excluida`.
   Sem a chave secreta, o cartão explica que a exclusão é feita pela equipe.
+
+### Baixar meus dados (portabilidade)
+
+O bloco "Baixar meus dados" (âncora `/perfil#dados`, no cartão "Conta e segurança") tem um `<a>`
+comum para `GET /perfil/exportar` — sem `next/link` (o prefetch geraria o arquivo inteiro à toa) e
+sem o atributo `download` (assim, se der erro, o navegador volta ao perfil com o aviso em vez de
+baixar uma página de erro). A `/privacidade` (seção "Seus direitos") explica o recurso e aponta
+para cá.
+
+**Rota** (`src/app/perfil/exportar/route.ts`): exige sessão (o proxy manda visitantes para
+`/entrar?next=/perfil/exportar`; a rota confere de novo com `getUser()` e, sem sessão, responde
+303 para `/entrar?next=/perfil`). Não exige onboarding: o direito vale para qualquer conta.
+Resposta: `200`, `Content-Type: application/json; charset=utf-8`,
+`Content-Disposition: attachment; filename="artemis-meus-dados-AAAA-MM-DD.json"` (data de São
+Paulo), `Cache-Control: private, no-store, max-age=0`, `X-Robots-Tag: noindex`. Qualquer consulta
+com erro derruba a exportação (melhor avisar do que entregar um arquivo incompleto como se
+estivesse completo): 303 para `/perfil?exportacao=erro#dados`, que mostra "Não conseguimos gerar
+o arquivo agora".
+
+**Dados** (`src/lib/profile/export-data.ts`, server-only): tudo com o cliente **da sessão** — o
+RLS limita cada tabela e os filtros pelo id dela restringem ao que é dela; listas paginadas de
+1.000 em 1.000 (o `max_rows` do PostgREST). A única exceção é a newsletter
+(`newsletter_subscribers` não tem acesso pela API): lida com `createAdminClient()` **só pelo
+e-mail da própria conta**, e só se `SUPABASE_SECRET_KEY` existir — sem a chave, o arquivo diz que
+a situação não pôde ser consultada.
+
+**Montagem** (`src/lib/profile/export.ts`, puro e testado): cada registro passa por uma lista de
+campos permitidos, então colunas a mais nunca vazam. Seções com nomes em português; dentro delas,
+os nomes das colunas do banco (estáveis, documentados no [docs/03](03-banco-de-dados.md)).
+
+| Seção                                                   | Conteúdo                                                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sobre`                                                 | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                               |
+| `conta`                                                 | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                          |
+| `perfil`, `areas_de_pesquisa`, `palavras_chave`         | todas as colunas do perfil dela (inclusive `role` e consentimento de IA), exceto `search_text`; áreas com slug e nome                                        |
+| `mentoria.pedidos_enviados` / `pedidos_recebidos`       | os dois papéis; mensagem, resposta, status, datas, nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`)              |
+| `mentoria.sugestoes_salvas`                             | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                             |
+| `forum.topicos` / `respostas` / `reacoes`               | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela       |
+| `vitrine.papers_enviados` / `destaques` / `comentarios` | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                         |
+| `notificacoes`                                          | todas as notificações dela                                                                                                                                   |
+| `denuncias_feitas`                                      | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                        |
+| `newsletter`                                            | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }` |
+
+Fica de fora: o embedding do perfil (representação numérica da IA, recalculável), anotações da
+moderação, registros técnicos dos provedores e qualquer dado privado de outras pessoas. O arquivo
+liga o nome dela às publicações anônimas — a tela e a `/privacidade` pedem para guardá-lo em lugar
+seguro.
 
 ## 5. Diretório e perfil público
 
@@ -236,20 +287,22 @@ mensagens amigáveis (`src/lib/profile/errors.ts`).
 | `saveProfileSectionAction`                                   | `src/app/perfil/actions.ts`          | grava um cartão do perfil                     |
 | `saveAvatarAction` / `removeAvatarAction`                    | `src/app/perfil/actions.ts`          | foto de perfil                                |
 | `deleteAccountAction`                                        | `src/app/perfil/actions.ts`          | exclusão definitiva (exige "EXCLUIR")         |
+| `GET /perfil/exportar`                                       | `src/app/perfil/exportar/route.ts`   | "Baixar meus dados" (JSON, anexo, sem cache)  |
 | `GET /auth/confirm`, `GET /auth/callback`, `POST /auth/sair` | `src/app/auth/*/route.ts`            | ver [seção 1](#1-rotas)                       |
 
 ## 7. Acesso a dados e segurança
 
-| Dado                                    | Como é lido/escrito                                                             | Proteção                                                     |
-| --------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `profiles` (própria)                    | `update()` com a sessão — **nunca `upsert()`** (o `id` não tem GRANT de UPDATE) | RLS "edita o próprio perfil" + GRANT por coluna (sem `role`) |
-| `profiles` (outras)                     | `select` com **colunas públicas explícitas**                                    | RLS: só `authenticated` lê (visitantes não veem perfis)      |
-| `profile_research_areas`                | lê as atuais, apaga as que saíram, insere as novas                              | RLS: insert/delete só das próprias                           |
-| `research_areas`                        | leitura pública, memoizada por requisição                                       | —                                                            |
-| Storage `avatars`                       | upload no navegador; limpeza no servidor com a sessão                           | políticas da pasta `<uid>/`                                  |
-| Vagas de mentoras                       | `rpc("get_mentor_candidates")`                                                  | SECURITY DEFINER, só agregados                               |
-| Pedido em aberto com a pessoa do perfil | `select status, mentee_id` em `mentorship_requests`                             | RLS: só participantes                                        |
-| Exclusão de conta                       | `createAdminClient().auth.admin.deleteUser(uid)`                                | único uso da chave secreta; uid vem da sessão                |
+| Dado                                       | Como é lido/escrito                                                                                         | Proteção                                                     |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `profiles` (própria)                       | `update()` com a sessão — **nunca `upsert()`** (o `id` não tem GRANT de UPDATE)                             | RLS "edita o próprio perfil" + GRANT por coluna (sem `role`) |
+| `profiles` (outras)                        | `select` com **colunas públicas explícitas**                                                                | RLS: só `authenticated` lê (visitantes não veem perfis)      |
+| `profile_research_areas`                   | lê as atuais, apaga as que saíram, insere as novas                                                          | RLS: insert/delete só das próprias                           |
+| `research_areas`                           | leitura pública, memoizada por requisição                                                                   | —                                                            |
+| Storage `avatars`                          | upload no navegador; limpeza no servidor com a sessão                                                       | políticas da pasta `<uid>/`                                  |
+| Vagas de mentoras                          | `rpc("get_mentor_candidates")`                                                                              | SECURITY DEFINER, só agregados                               |
+| Pedido em aberto com a pessoa do perfil    | `select status, mentee_id` em `mentorship_requests`                                                         | RLS: só participantes                                        |
+| Exclusão de conta                          | `createAdminClient().auth.admin.deleteUser(uid)`                                                            | uid vem da sessão                                            |
+| Exportação dos dados ("Baixar meus dados") | cliente da sessão em todas as tabelas; newsletter com `createAdminClient()` filtrando pelo e-mail da sessão | RLS + filtros pelo id dela; lista de campos permitidos       |
 
 Outros cuidados: nenhum id de usuária vem do cliente; `next` sempre validado; respostas neutras
 em link mágico, reenvio e recuperação; `POST /auth/sair` recusa outras origens; links externos
@@ -259,12 +312,12 @@ do perfil com `rel="noopener noreferrer nofollow"`; o diretório e os perfis tê
 
 ### Variáveis
 
-| Variável                                                           | Para quê                                                         |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`                                             | base dos links de e-mail/OAuth (`emailRedirectTo`, `redirectTo`) |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente do Supabase                                              |
-| `SUPABASE_SECRET_KEY`                                              | **só** para a exclusão de conta pelo próprio app (opcional)      |
-| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`                                  | `true` mostra o botão do Google                                  |
+| Variável                                                           | Para quê                                                                                      |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                                             | base dos links de e-mail/OAuth (`emailRedirectTo`, `redirectTo`)                              |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente do Supabase                                                                           |
+| `SUPABASE_SECRET_KEY`                                              | exclusão de conta pelo próprio app e situação da newsletter no "Baixar meus dados" (opcional) |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`                                  | `true` mostra o botão do Google                                                               |
 
 ### Supabase (local e Cloud)
 
@@ -304,8 +357,9 @@ src/components/auth/      AuthShell, LoginForm, SignupForm, PasswordInput, Googl
 src/components/profile/   campos das seções, AreaPicker, OnboardingWizard, ProfileSectionForm,
                           AvatarUploader, DeleteAccountDialog, ProfileCard, DirectoryFilters…
 src/lib/profile/          (puros, testados) redirect, errors, links, schemas, form-values,
-                          directory, areas, avatar, auth-schemas, consent
-                          (servidor) queries, save, account, auth-next, auth-config
+                          directory, areas, avatar, auth-schemas, consent, export
+                          (servidor) queries, save, account, auth-next, auth-config, export-data
+src/app/perfil/exportar/route.ts   GET "Baixar meus dados"
 ```
 
 ## 10. Como testar
@@ -318,8 +372,16 @@ npx vitest run src/lib/profile
 
 Cobrem: destinos seguros (`safeNextPath`), tradução de erros do Auth e do Postgres,
 normalização de links e ORCID (dígito verificador), validação das 4 seções e dos formulários de
-auth, leitura do `FormData`, filtros do diretório e limpeza da busca, agrupamento de áreas e
-validação da URL do avatar.
+auth, leitura do `FormData`, filtros do diretório e limpeza da busca, agrupamento de áreas,
+validação da URL do avatar e a montagem do "Baixar meus dados" (`export.test.ts`: campos
+permitidos — nada de tokens, `search_text` ou notas da moderação mesmo se vierem na consulta —,
+outra pessoa só com id e nome, anônimos marcados pela autoria anônima, sem repetidos, newsletter
+indisponível e nome do arquivo no fuso de São Paulo) e o escopo das consultas
+(`export-data.test.ts`, com um cliente falso que grava cada consulta: toda leitura com a sessão
+filtra pelo id dela — necessário porque `forum_threads`, `forum_posts`, `forum_reactions`,
+`paper_votes`, `paper_comments` e `profile_research_areas` têm leitura aberta a qualquer membra —,
+anônimos só pelos ids da autoria dela, newsletter só pelo cliente admin e pelo e-mail dela,
+paginação de 1.000 e erro em qualquer consulta derrubando a exportação).
 
 ### Manual (Supabase local + seed)
 
@@ -337,7 +399,12 @@ Contas de demonstração em `docs/03-banco-de-dados.md` §15 (senha `ciencia-del
 5. **Link mágico:** `/entrar?next=/pesquisadoras` → "Receber link de acesso" → Mailpit → o link
    leva para `/pesquisadoras`. Reabrir o mesmo link → `/auth/erro`.
 6. **Recuperação:** `/recuperar-senha` → Mailpit → `/redefinir-senha`.
-7. **Excluir conta:** `/perfil#conta` → digite algo diferente de EXCLUIR (erro) → EXCLUIR →
+7. **Baixar meus dados:** como `larissa@…`, `/perfil#dados` → "Baixar meus dados (JSON)" baixa
+   `artemis-meus-dados-<data>.json` e a página continua no perfil. Confira que da Marina só vêm
+   `id` e `full_name` e que o único e-mail no arquivo é o dela. Como `gabriela@…`, o tópico anônimo
+   dela em "Rede de apoio" aparece com `is_anonymous: true`. Sem login, `/perfil/exportar` leva ao
+   `/entrar`. `/perfil?exportacao=erro#dados` mostra o aviso de falha.
+8. **Excluir conta:** `/perfil#conta` → digite algo diferente de EXCLUIR (erro) → EXCLUIR →
    `/entrar?conta=excluida`; confira no banco que o usuário e o perfil sumiram.
 
 ### E2E com Playwright

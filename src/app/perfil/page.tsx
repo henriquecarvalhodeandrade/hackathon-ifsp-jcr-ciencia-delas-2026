@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Eye, KeyRound, ShieldCheck } from "lucide-react";
+import { Download, Eye, KeyRound, ShieldCheck } from "lucide-react";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { DeleteAccountDialog } from "@/components/profile/delete-account";
 import { ProfileSectionForm } from "@/components/profile/profile-section-form";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
@@ -66,8 +66,11 @@ function SectionCard({
   );
 }
 
-export default async function PerfilPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function PerfilPage({ searchParams }: { searchParams: SearchParams }) {
   const profile = await requireOnboardedProfile("/perfil");
+  const exportFailed = (await searchParams).exportacao === "erro";
   const [areas, areaIds, user] = await Promise.all([
     getResearchAreas(),
     getProfileAreaIds(profile.id),
@@ -188,6 +191,34 @@ export default async function PerfilPage() {
                   <KeyRound aria-hidden="true" />
                   Trocar senha
                 </ButtonLink>
+              </div>
+
+              <div
+                id="dados"
+                className="grid scroll-mt-24 gap-3 rounded-card border border-border bg-surface-2 p-4 sm:p-5"
+              >
+                <h3 className="font-display text-lg font-semibold text-fg">Baixar meus dados</h3>
+                <p className="text-sm text-fg-muted">
+                  Pela LGPD (art. 18, V), você pode levar seus dados com você. O arquivo JSON traz
+                  seu perfil, mentorias, publicações no fórum (inclusive as anônimas), papers,
+                  destaques, comentários, notificações, denúncias que você fez e a situação da sua
+                  inscrição no Boletim. De outras pessoas, só o nome de quem participou das suas
+                  mentorias e das mentoras sugeridas a você. Guarde o arquivo em lugar seguro.
+                </p>
+                {exportFailed && (
+                  <Alert variant="danger" title="Não conseguimos gerar o arquivo agora">
+                    Tente de novo em instantes. Se continuar, escreva para a equipe pelos contatos
+                    da página de <Link href="/privacidade#contato">Privacidade</Link>.
+                  </Alert>
+                )}
+                <div>
+                  {/* <a> comum: sem prefetch (o next/link buscaria o arquivo inteiro) e sem
+                      `download`, para que uma falha volte a esta página com o aviso. */}
+                  <a href="/perfil/exportar" className={buttonVariants({ variant: "outline" })}>
+                    <Download aria-hidden="true" />
+                    Baixar meus dados (JSON)
+                  </a>
+                </div>
               </div>
 
               <div className="grid gap-3 rounded-card border border-danger/30 bg-danger-soft p-4 text-danger-soft-fg sm:p-5">

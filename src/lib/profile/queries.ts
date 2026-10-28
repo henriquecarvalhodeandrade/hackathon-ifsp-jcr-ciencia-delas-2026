@@ -2,15 +2,10 @@ import "server-only";
 import { cache } from "react";
 import type { Enums } from "@/lib/database.types";
 import { isSupabaseConfigured } from "@/lib/env";
+import { applySearchText } from "@/lib/search/normalize";
 import { createClient } from "@/lib/supabase/server";
 import { areaIdsForFilter, sortAreas, type ResearchArea } from "./areas";
-import {
-  buildSearchOrFilter,
-  DIRECTORY_PAGE_SIZE,
-  isUuid,
-  pageRange,
-  type DirectoryFilters,
-} from "./directory";
+import { DIRECTORY_PAGE_SIZE, isUuid, pageRange, type DirectoryFilters } from "./directory";
 
 /**
  * Leituras de perfis para as páginas (sessão da usuária + RLS). Perfis de OUTRAS pessoas
@@ -179,8 +174,9 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
     : supabase.from("profiles").select(columns, { count: "exact" });
 
   query = query.not("onboarded_at", "is", null);
-  const search = buildSearchOrFilter(filters.q);
-  if (search) query = query.or(search);
+  // Busca sem acento e sem diferença de maiúsculas em nome, instituição, título, cidade e
+  // palavras-chave (coluna gerada `search_text`); cada palavra precisa aparecer em algum deles.
+  query = applySearchText(query, filters.q);
   if (filters.stage) query = query.eq("career_stage", filters.stage);
   if (filters.uf) query = query.eq("state", filters.uf);
   if (filters.mentoras) query = query.eq("is_mentor", true);

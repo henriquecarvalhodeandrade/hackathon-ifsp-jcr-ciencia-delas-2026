@@ -1,0 +1,361 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildDataExport,
+  EXPORT_FORMAT,
+  exportFileName,
+  NEWSLETTER_UNAVAILABLE,
+  type ExportProfile,
+  type ExportSources,
+} from "./export";
+
+const ME = "11111111-1111-4111-8111-111111111111";
+const MARINA = "22222222-2222-4222-8222-222222222222";
+const BIA = "33333333-3333-4333-8333-333333333333";
+const T0 = "2026-10-01T12:00:00.000Z";
+const T1 = "2026-10-02T12:00:00.000Z";
+const T2 = "2026-10-03T12:00:00.000Z";
+
+const profile: ExportProfile = {
+  id: ME,
+  full_name: "Larissa Gomes",
+  pronouns: "ela/dela",
+  headline: null,
+  bio: "Bio",
+  avatar_url: null,
+  career_stage: "undergraduate",
+  institution: "IFSP",
+  city: "Jacareí",
+  state: "SP",
+  keywords: ["visão computacional", "abelhas"],
+  lattes_url: null,
+  orcid: "0000-0002-1825-0097",
+  linkedin_url: null,
+  website_url: null,
+  seeks_mentorship: true,
+  mentoring_goals: "Aprender",
+  is_mentor: false,
+  mentor_available: false,
+  mentor_capacity: 0,
+  mentoring_offer: null,
+  mentorship_topics: ["carreira"],
+  meeting_formats: ["online"],
+  languages: ["pt"],
+  role: "member",
+  ai_consent: true,
+  ai_consent_at: T0,
+  onboarded_at: T0,
+  created_at: T0,
+  updated_at: T1,
+};
+
+function sources(overrides: Partial<ExportSources> = {}): ExportSources {
+  return {
+    generatedAt: new Date("2026-10-28T15:00:00.000Z"),
+    account: {
+      id: ME,
+      email: "larissa@demo.cienciadelas.dev",
+      created_at: T0,
+      email_confirmed_at: T0,
+      last_sign_in_at: T2,
+    },
+    profile,
+    areas: [
+      { id: 2, slug: "ecologia", name: "Ecologia", big_area: "Ciências Biológicas" },
+      { id: 1, slug: "computacao", name: "Ciência da Computação", big_area: "Exatas" },
+      { id: 1, slug: "computacao", name: "Ciência da Computação", big_area: "Exatas" },
+    ],
+    mentorshipRequests: [],
+    suggestions: [],
+    threads: [],
+    posts: [],
+    anonymousAuthorship: [],
+    reactions: [],
+    papers: [],
+    votes: [],
+    comments: [],
+    notifications: [],
+    reports: [],
+    newsletter: { available: true, subscription: null },
+    ...overrides,
+  };
+}
+
+const request = {
+  status: "accepted" as const,
+  message: "Oi! Quero conversar sobre carreira em pesquisa.",
+  response_message: "Vamos!",
+  match_score: 87,
+  match_reason: "Mesma área",
+  updated_at: T1,
+  responded_at: T1,
+};
+
+describe("buildDataExport", () => {
+  it("tem o cabeçalho, a conta, o perfil, as áreas (sem repetir) e as palavras-chave", () => {
+    const data = buildDataExport(sources());
+    expect(data.sobre).toMatchObject({
+      formato: EXPORT_FORMAT,
+      versao: 1,
+      gerado_em: "2026-10-28T15:00:00.000Z",
+    });
+    expect(data.conta.email).toBe("larissa@demo.cienciadelas.dev");
+    expect(data.perfil).toEqual(profile);
+    expect(data.areas_de_pesquisa.map((a) => a.slug)).toEqual(["computacao", "ecologia"]);
+    expect(data.palavras_chave).toEqual(["visão computacional", "abelhas"]);
+  });
+
+  it("não deixa passar colunas fora da lista (search_text, tokens, notas da moderação)", () => {
+    const leaky = sources({
+      profile: { ...profile, search_text: "indice interno" } as ExportProfile,
+      reports: [
+        {
+          id: "r1",
+          target_type: "post",
+          target_id: "p9",
+          reason: "harassment",
+          details: "Relato",
+          status: "resolved",
+          created_at: T0,
+          resolved_at: T1,
+          resolution_note: "Nota interna da moderação",
+          resolved_by: MARINA,
+        } as ExportSources["reports"][number],
+      ],
+      newsletter: {
+        available: true,
+        subscription: {
+          email: "larissa@demo.cienciadelas.dev",
+          status: "active",
+          area_ids: [],
+          consent_text: "Aceito",
+          consented_at: T0,
+          confirmed_at: T0,
+          unsubscribed_at: null,
+          created_at: T0,
+          updated_at: T0,
+          confirm_token: "segredo-1",
+          unsubscribe_token: "segredo-2",
+          confirmation_sent_count: 1,
+        } as never,
+      },
+    });
+    const json = JSON.stringify(buildDataExport(leaky));
+    for (const secret of [
+      "indice interno",
+      "search_text",
+      "Nota interna",
+      "resolution_note",
+      "resolved_by",
+      "segredo-1",
+      "segredo-2",
+      "confirmation_sent_count",
+    ]) {
+      expect(json).not.toContain(secret);
+    }
+    const data = buildDataExport(leaky);
+    expect(data.denuncias_feitas[0]).toEqual({
+      id: "r1",
+      target_type: "post",
+      target_id: "p9",
+      reason: "harassment",
+      details: "Relato",
+      status: "resolved",
+      created_at: T0,
+      resolved_at: T1,
+    });
+    expect(data.newsletter).toMatchObject({
+      disponivel: true,
+      inscricao: { email: "larissa@demo.cienciadelas.dev", status: "active" },
+    });
+  });
+
+  it("separa pedidos enviados e recebidos e mostra da outra pessoa só id e nome", () => {
+    const data = buildDataExport(
+      sources({
+        mentorshipRequests: [
+          {
+            ...request,
+            id: "m2",
+            created_at: T1,
+            mentee_id: BIA,
+            mentor_id: ME,
+            mentee: { id: BIA, full_name: "Bia", email: "bia@x.dev", bio: "privada" } as never,
+            mentor: { id: ME, full_name: "Larissa Gomes" },
+          },
+          {
+            ...request,
+            id: "m1",
+            created_at: T0,
+            mentee_id: ME,
+            mentor_id: MARINA,
+            mentee: { id: ME, full_name: "Larissa Gomes" },
+            mentor: { id: MARINA, full_name: "Marina Albuquerque" },
+          },
+          {
+            ...request,
+            id: "de-outras",
+            created_at: T0,
+            mentee_id: BIA,
+            mentor_id: MARINA,
+            mentee: null,
+            mentor: null,
+          },
+        ],
+      }),
+    );
+    expect(data.mentoria.pedidos_enviados).toEqual([
+      {
+        id: "m1",
+        status: "accepted",
+        message: request.message,
+        response_message: "Vamos!",
+        match_score: 87,
+        match_reason: "Mesma área",
+        created_at: T0,
+        updated_at: T1,
+        responded_at: T1,
+        mentora: { id: MARINA, full_name: "Marina Albuquerque" },
+      },
+    ]);
+    expect(data.mentoria.pedidos_recebidos).toHaveLength(1);
+    expect(data.mentoria.pedidos_recebidos[0]!.mentoranda).toEqual({ id: BIA, full_name: "Bia" });
+    expect(JSON.stringify(data.mentoria)).not.toMatch(/bia@x\.dev|privada|de-outras/);
+  });
+
+  it("mantém só id e nome da mentora nas sugestões salvas, na ordem do ranking", () => {
+    const data = buildDataExport(
+      sources({
+        suggestions: [
+          {
+            mentor_id: BIA,
+            score: 70,
+            rank: 2,
+            reason: "B",
+            conversation_starters: [],
+            source: "heuristic",
+            model: null,
+            created_at: T0,
+            mentor: null,
+          },
+          {
+            mentor_id: MARINA,
+            score: 90,
+            rank: 1,
+            reason: "A",
+            conversation_starters: ["Como começou?"],
+            source: "ai",
+            model: "gemini",
+            created_at: T0,
+            mentor: { id: MARINA, full_name: "Marina Albuquerque", headline: "x" } as never,
+          },
+        ],
+      }),
+    );
+    expect(data.mentoria.sugestoes_salvas.map((s) => s.mentora)).toEqual([
+      { id: MARINA, full_name: "Marina Albuquerque" },
+      { id: BIA, full_name: null },
+    ]);
+    expect(JSON.stringify(data.mentoria.sugestoes_salvas)).not.toContain("headline");
+  });
+
+  it("marca como anônimos os tópicos e respostas que estão na autoria anônima dela", () => {
+    const thread = {
+      category_id: 3,
+      body: "Texto",
+      tags: [],
+      is_pinned: false,
+      is_locked: false,
+      solution_post_id: null,
+      reply_count: 0,
+      updated_at: T0,
+      edited_at: null,
+      category: { slug: "apoio", name: "Apoio" },
+    };
+    const data = buildDataExport(
+      sources({
+        threads: [
+          { ...thread, id: "t-anon", title: "Anônimo", is_anonymous: true, created_at: T1 },
+          { ...thread, id: "t-nome", title: "Com nome", is_anonymous: false, created_at: T0 },
+          // o mesmo tópico pode chegar pelas duas consultas: entra uma vez só
+          { ...thread, id: "t-anon", title: "Anônimo", is_anonymous: true, created_at: T1 },
+          // autoria anônima é a fonte da verdade mesmo se a flag vier falsa
+          { ...thread, id: "t-flag", title: "Flag", is_anonymous: false, created_at: T2 },
+        ],
+        posts: [
+          {
+            id: "p1",
+            thread_id: "t-x",
+            body: "Resposta anônima",
+            is_anonymous: false,
+            created_at: T0,
+            updated_at: T0,
+            edited_at: null,
+          },
+        ],
+        anonymousAuthorship: [
+          { thread_id: "t-anon", post_id: null },
+          { thread_id: "t-flag", post_id: null },
+          { thread_id: null, post_id: "p1" },
+        ],
+      }),
+    );
+    expect(data.forum.topicos.map((t) => [t.id, t.is_anonymous])).toEqual([
+      ["t-nome", false],
+      ["t-anon", true],
+      ["t-flag", true],
+    ]);
+    expect(data.forum.topicos[0]!.category).toEqual({ slug: "apoio", name: "Apoio" });
+    expect(data.forum.respostas).toEqual([
+      {
+        id: "p1",
+        thread_id: "t-x",
+        body: "Resposta anônima",
+        is_anonymous: true,
+        created_at: T0,
+        updated_at: T0,
+        edited_at: null,
+      },
+    ]);
+  });
+
+  it("traz destaques com o título do paper (ou null se ele estiver oculto)", () => {
+    const data = buildDataExport(
+      sources({
+        votes: [
+          { paper_id: "b2", created_at: T1, paper: null },
+          { paper_id: "b1", created_at: T0, paper: { title: "Abelhas" } },
+        ],
+      }),
+    );
+    expect(data.vitrine.destaques).toEqual([
+      { paper_id: "b1", created_at: T0, paper_title: "Abelhas" },
+      { paper_id: "b2", created_at: T1, paper_title: null },
+    ]);
+  });
+
+  it("explica quando a situação da newsletter não pôde ser consultada", () => {
+    const data = buildDataExport(sources({ newsletter: { available: false } }));
+    expect(data.newsletter).toEqual({ disponivel: false, motivo: NEWSLETTER_UNAVAILABLE });
+    expect(data.sobre.observacoes).toContain(NEWSLETTER_UNAVAILABLE);
+  });
+
+  it("funciona para uma conta sem perfil e sem nada publicado", () => {
+    const data = buildDataExport(sources({ profile: null, areas: [] }));
+    expect(data.perfil).toBeNull();
+    expect(data.palavras_chave).toEqual([]);
+    expect(data.forum).toEqual({ topicos: [], respostas: [], reacoes: [] });
+    expect(data.vitrine).toEqual({ papers_enviados: [], destaques: [], comentarios: [] });
+  });
+});
+
+describe("exportFileName", () => {
+  it("usa a data de São Paulo", () => {
+    expect(exportFileName(new Date("2026-10-28T15:00:00Z"))).toBe(
+      "artemis-meus-dados-2026-10-28.json",
+    );
+    // 01:30 UTC do dia 29 ainda é dia 28 em São Paulo (UTC−3)
+    expect(exportFileName(new Date("2026-10-29T01:30:00Z"))).toBe(
+      "artemis-meus-dados-2026-10-28.json",
+    );
+  });
+});

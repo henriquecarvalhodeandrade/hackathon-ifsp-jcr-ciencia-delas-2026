@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSearchOrFilter,
   filtersToSearchParams,
   hasActiveFilters,
   isUuid,
@@ -18,19 +17,6 @@ describe("sanitizeSearchTerm", () => {
 
   it("corta termos longos", () => {
     expect(sanitizeSearchTerm("a".repeat(200))).toHaveLength(80);
-  });
-});
-
-describe("buildSearchOrFilter", () => {
-  it("busca nome, instituição e título com curinga entre palavras", () => {
-    expect(buildSearchOrFilter("Marina IFSP")).toBe(
-      "full_name.ilike.%Marina%IFSP%,institution.ilike.%Marina%IFSP%,headline.ilike.%Marina%IFSP%",
-    );
-  });
-
-  it("ignora termos curtos demais ou vazios depois da limpeza", () => {
-    expect(buildSearchOrFilter("a")).toBeNull();
-    expect(buildSearchOrFilter("(),")).toBeNull();
   });
 });
 

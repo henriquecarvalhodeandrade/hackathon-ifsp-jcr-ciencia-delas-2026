@@ -21,7 +21,8 @@
     "db:test": "supabase test db",
     "db:validate": "bash scripts/db/validate-local.sh",
     "ai:backfill": "tsx scripts/ai/backfill-embeddings.ts",
-    "brand:svgs": "tsx scripts/brand/build-logo-svgs.ts"
+    "brand:svgs": "tsx scripts/brand/build-logo-svgs.ts",
+    "brand:pwa": "tsx scripts/brand/build-pwa-icons.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
