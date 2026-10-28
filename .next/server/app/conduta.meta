@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/conduta/layout,_N_T_/conduta/page,_N_T_/conduta"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/4359bd80560c151d64adddc259e1a75b3bbb0d8e29ae191cd3a25bde94447677/$/conduta",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/conduta/page"
+    },
+    "isFallback": false
+  }
+}
