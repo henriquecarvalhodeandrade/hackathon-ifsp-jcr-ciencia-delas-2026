@@ -35,9 +35,9 @@ export default function AboutPage() {
       <DocSection id="missao" title="Nossa missão">
         <p>
           Queremos que nenhuma pesquisadora comece — ou continue — a carreira sozinha. A Artemis
-          conecta quem está chegando à pesquisa com mulheres que já trilharam esse caminho,
-          oferece um espaço seguro para conversar sobre o que costuma ficar em silêncio e dá
-          visibilidade ao trabalho científico feito por mulheres.
+          conecta quem está chegando à pesquisa com mulheres que já trilharam esse caminho, oferece
+          um espaço seguro para conversar sobre o que costuma ficar em silêncio e dá visibilidade ao
+          trabalho científico feito por mulheres.
         </p>
         <p>
           Cada cientista é uma estrela; mentoria, colaboração e reconhecimento desenham
@@ -210,8 +210,8 @@ export default function AboutPage() {
 
       <DocSection id="equipe" title="Equipe do hackathon">
         <p>
-          A Artemis foi criada por uma equipe no Hackathon do IFSP Câmpus Jacareí 2026, com o
-          tema “{SITE.theme}”.
+          A Artemis foi criada por uma equipe no Hackathon do IFSP Câmpus Jacareí 2026, com o tema “
+          {SITE.theme}”.
         </p>
         <DocCallout title="Espaço reservado para a equipe">
           <p>

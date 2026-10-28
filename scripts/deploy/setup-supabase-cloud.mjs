@@ -21,6 +21,8 @@
  *   --write-env[=<arquivo>]    grava as variáveis num arquivo .env* ignorado pelo git (padrão .env.cloud)
  *   --vercel                   cadastra as variáveis na Vercel (precisa de VERCEL_TOKEN)
  *   --redirect-url=<url>       URL extra para "Redirect URLs" (pode repetir; ex.: previews da Vercel)
+ *   --migrations-via-api       aplica as migrations por HTTPS (API de gerenciamento) em vez de
+ *                              `supabase db push`; para redes sem acesso TCP ao Postgres
  *   --with-demo-seed           aplica o seed.sql INTEIRO (contas fictícias, senha pública). Nunca em produção.
  *   --help                     mostra esta ajuda
  *
@@ -31,7 +33,9 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,15 +108,31 @@ export function parseArgs(argv) {
     writeEnv: undefined,
     vercel: false,
     redirectUrls: [],
+    migrationsViaApi: false,
     help: false,
     errors: [],
   };
   const valueFlags = new Set(["--site-url", "--write-env", "--redirect-url"]);
+  // Flags booleanas não aceitam valor: "--with-demo-seed=false" LIGARIA a flag se fosse aceito.
+  const booleanFlags = new Set([
+    "--help",
+    "-h",
+    "--dry-run",
+    "--with-demo-seed",
+    "--vercel",
+    "--migrations-via-api",
+  ]);
   for (let i = 0; i < argv.length; i++) {
     const raw = argv[i];
     const eq = raw.indexOf("=");
     const name = eq === -1 ? raw : raw.slice(0, eq);
     let value = eq === -1 ? undefined : raw.slice(eq + 1);
+    if (booleanFlags.has(name) && value !== undefined) {
+      args.errors.push(
+        `${name} não aceita valor (recebido: ${raw}). Para ligar, use só ${name}; para desligar, omita a flag.`,
+      );
+      continue;
+    }
     if (
       value === undefined &&
       valueFlags.has(name) &&
@@ -135,8 +155,14 @@ export function parseArgs(argv) {
       case "--vercel":
         args.vercel = true;
         break;
+      case "--migrations-via-api":
+        args.migrationsViaApi = true;
+        break;
       case "--site-url":
-        if (!value) args.errors.push("--site-url precisa de um valor (ex.: --site-url=https://seu-app.vercel.app).");
+        if (!value)
+          args.errors.push(
+            "--site-url precisa de um valor (ex.: --site-url=https://seu-app.vercel.app).",
+          );
         args.siteUrl = value;
         break;
       case "--write-env":
@@ -204,7 +230,9 @@ export function resolveEnvFilePath(rootDir, file) {
   const abs = path.resolve(rootDir, file);
   const rel = path.relative(rootDir, abs);
   if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
-    throw new Error(`--write-env precisa apontar para um arquivo dentro do repositório (recebido: ${file}).`);
+    throw new Error(
+      `--write-env precisa apontar para um arquivo dentro do repositório (recebido: ${file}).`,
+    );
   }
   const base = path.basename(abs);
   if (!/^\.env(\..+)?$/.test(base) || base === ".env.example") {
@@ -231,13 +259,22 @@ export function readSmtpConfig(env) {
   if (missing.length) {
     return {
       smtp: null,
-      errors: [`SMTP próprio incompleto: faltam ${missing.join(", ")} (ou remova todas as SMTP_*).`],
+      errors: [
+        `SMTP próprio incompleto: faltam ${missing.join(", ")} (ou remova todas as SMTP_*).`,
+      ],
     };
   }
   const port = (env.SMTP_PORT ?? "465").trim();
   if (!/^\d{2,5}$/.test(port)) return { smtp: null, errors: [`SMTP_PORT inválida: ${port}`] };
   return {
-    smtp: { host, port, user, pass, adminEmail, senderName: env.SMTP_SENDER_NAME?.trim() || undefined },
+    smtp: {
+      host,
+      port,
+      user,
+      pass,
+      adminEmail,
+      senderName: env.SMTP_SENDER_NAME?.trim() || undefined,
+    },
     errors: [],
   };
 }
@@ -266,7 +303,9 @@ export function buildConfig(args, env, { packageName } = {}) {
     `SUPABASE_ACCESS_TOKEN ausente. Crie um Personal Access Token em ${LINKS.supabaseTokens}`,
   );
   if (token && !token.startsWith("sbp_")) {
-    warnings.push('SUPABASE_ACCESS_TOKEN não começa com "sbp_"; confira se é um Personal Access Token.');
+    warnings.push(
+      'SUPABASE_ACCESS_TOKEN não começa com "sbp_"; confira se é um Personal Access Token.',
+    );
   }
   if (rawRef && !isValidProjectRef(ref)) {
     errors.push(
@@ -275,12 +314,18 @@ export function buildConfig(args, env, { packageName } = {}) {
   } else if (rawRef && ref !== rawRef) {
     warnings.push(`SUPABASE_PROJECT_REF veio como URL; usando o ref ${ref}.`);
   }
-  requireOrWarn(Boolean(rawRef), "SUPABASE_PROJECT_REF ausente (Project Settings > General > Project ID)");
-  if (!rawRef) ref = PLACEHOLDER_REF;
   requireOrWarn(
-    Boolean(dbPassword),
-    "SUPABASE_DB_PASSWORD ausente (a senha do banco definida ao criar o projeto)",
+    Boolean(rawRef),
+    "SUPABASE_PROJECT_REF ausente (Project Settings > General > Project ID)",
   );
+  if (!rawRef) ref = PLACEHOLDER_REF;
+  // Só o CLI (link/db push) usa a senha; com --migrations-via-api tudo vai pela API com o token.
+  if (!args.migrationsViaApi) {
+    requireOrWarn(
+      Boolean(dbPassword),
+      "SUPABASE_DB_PASSWORD ausente (a senha do banco definida ao criar o projeto)",
+    );
+  }
 
   let siteUrl;
   try {
@@ -327,6 +372,7 @@ export function buildConfig(args, env, { packageName } = {}) {
       siteUrl,
       redirectUrls,
       withDemoSeed: args.withDemoSeed,
+      migrationsViaApi: args.migrationsViaApi,
       writeEnv: args.writeEnv,
       vercel: args.vercel,
       vercelToken,
@@ -445,7 +491,12 @@ export function parseAuthEmailConfig(tomlText) {
     const section = sections.get(`auth.email.template.${type}`);
     const subject = section?.get("subject");
     const contentPath = section?.get("content_path");
-    if (typeof subject !== "string" || !subject.trim() || typeof contentPath !== "string" || !contentPath) {
+    if (
+      typeof subject !== "string" ||
+      !subject.trim() ||
+      typeof contentPath !== "string" ||
+      !contentPath
+    ) {
       missing.push(type);
       continue;
     }
@@ -534,17 +585,22 @@ export function extractSeedSections(seedSql) {
     throw new Error("Seção de categorias sem INSERT em public.forum_categories.");
   }
   if (/\bauth\.(users|identities)\b/i.test(stripSqlLineComments(referenceSql))) {
-    throw new Error("Os dados de referência extraídos mencionam auth.users: marcadores do seed.sql fora do lugar?");
+    throw new Error(
+      "Os dados de referência extraídos mencionam auth.users: marcadores do seed.sql fora do lugar?",
+    );
   }
   assertIdempotentInserts(referenceSql, "Dados de referência do seed.sql");
 
-  const [areasPart, categoriesPart = ""] = referenceSql.split(/insert\s+into\s+public\.forum_categories/i);
+  const [areasPart, categoriesPart = ""] = referenceSql.split(
+    /insert\s+into\s+public\.forum_categories/i,
+  );
   const counts = {
     areas: areasPart.match(/^\s*\('[a-z0-9-]+',\s*'/gm)?.length ?? 0,
     categories: categoriesPart.match(/^\s*\('[a-z0-9-]+',\s*'/gm)?.length ?? 0,
   };
   const demoMarkerUserId =
-    demoSql.match(/'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'::uuid/)?.[1] ?? null;
+    demoSql.match(/'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'::uuid/)?.[1] ??
+    null;
   return { referenceSql, demoSql, counts, demoMarkerUserId };
 }
 
@@ -555,6 +611,108 @@ export function extractBucketInsert(migrationSql, bucket = STORAGE_BUCKET) {
   assertIdempotentInserts(match[0], `INSERT do bucket ${bucket}`);
   return match[0];
 }
+
+// -----------------------------------------------------------------------------
+// Migrations por HTTPS (--migrations-via-api)
+// -----------------------------------------------------------------------------
+// Mesmo formato do CLI: arquivos <versão>_<nome>.sql e o histórico em
+// supabase_migrations.schema_migrations(version, name, statements), para que um
+// `supabase db push` posterior reconheça o que já foi aplicado.
+
+const MIGRATION_FILE = /^([0-9]+)_(.*)\.sql$/;
+
+export function parseMigrationFileName(file) {
+  const m = MIGRATION_FILE.exec(file);
+  return m ? { file, version: m[1], name: m[2] } : null;
+}
+
+/**
+ * Compara as migrations locais com o histórico remoto, com as mesmas regras do `db push`:
+ * versões remotas sem arquivo local ou arquivos locais anteriores à última versão remota
+ * interrompem o processo.
+ * @param {string[]} files nomes dos arquivos em supabase/migrations
+ * @param {string[]} appliedVersions versões já registradas no banco
+ */
+export function planMigrations(files, appliedVersions) {
+  const local = files
+    .map(parseMigrationFileName)
+    .filter(Boolean)
+    .sort((a, b) => (a.version < b.version ? -1 : a.version > b.version ? 1 : 0));
+  const localVersions = new Set(local.map((m) => m.version));
+  const applied = [...new Set(appliedVersions.map(String))].sort();
+  const missingLocal = applied.filter((v) => !localVersions.has(v));
+  if (missingLocal.length) {
+    return {
+      pending: [],
+      error: `O banco tem migrations que não existem em supabase/migrations: ${missingLocal.join(", ")}. Resolva com "npx supabase migration list" antes de continuar.`,
+    };
+  }
+  const appliedSet = new Set(applied);
+  const pending = local.filter((m) => !appliedSet.has(m.version));
+  const last = applied.at(-1);
+  const outOfOrder = last ? pending.filter((m) => m.version < last) : [];
+  if (outOfOrder.length) {
+    return {
+      pending: [],
+      error: `Migrations locais anteriores à última aplicada (${last}): ${outOfOrder.map((m) => m.file).join(", ")}. Use "npx supabase db push --include-all" numa rede com acesso ao Postgres.`,
+    };
+  }
+  return { pending, error: null };
+}
+
+function quoteLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+/** Dollar-quote com uma etiqueta que não aparece no conteúdo. */
+export function dollarQuote(content) {
+  let n = 0;
+  let tag = "$migration$";
+  while (content.includes(tag)) tag = `$migration_${++n}$`;
+  return `${tag}${content}${tag}`;
+}
+
+/** Remove corpos entre $$...$$ / $tag$...$tag$ (funções plpgsql, DO) para análises simples. */
+export function stripDollarQuoted(sql) {
+  return sql.replace(/\$([A-Za-z_][A-Za-z0-9_]*)?\$[\s\S]*?\$\1\$/g, "''");
+}
+
+/** true se o SQL tem BEGIN/COMMIT/ROLLBACK/START TRANSACTION como instruções próprias. */
+export function hasTransactionControl(sql) {
+  const code = stripDollarQuoted(stripSqlLineComments(sql));
+  return /(^|;)\s*(begin|start\s+transaction|commit|rollback)(\s+(work|transaction))?\s*;/i.test(
+    code,
+  );
+}
+
+/**
+ * SQL de uma migration + registro no histórico, enviado numa única requisição. Várias instruções
+ * numa mesma consulta simples rodam numa transação implícita: se algo falhar, nada fica aplicado
+ * nem registrado. Por isso o arquivo não pode ter BEGIN/COMMIT próprios.
+ */
+export function buildMigrationQuery(content, { version, name }) {
+  if (!/^[0-9]+$/.test(version)) throw new Error(`Versão de migration inválida: ${version}`);
+  if (hasTransactionControl(content)) {
+    throw new Error(
+      `A migration ${version}_${name} controla a própria transação (BEGIN/COMMIT); aplique-a com "npx supabase db push".`,
+    );
+  }
+  return [
+    content.trimEnd(),
+    ";",
+    "create schema if not exists supabase_migrations;",
+    "create table if not exists supabase_migrations.schema_migrations (version text not null primary key);",
+    "alter table supabase_migrations.schema_migrations add column if not exists statements text[];",
+    "alter table supabase_migrations.schema_migrations add column if not exists name text;",
+    `insert into supabase_migrations.schema_migrations (version, name, statements) values (${quoteLiteral(version)}, ${quoteLiteral(name)}, array[${dollarQuote(content)}]);`,
+    "",
+  ].join("\n");
+}
+
+export const MIGRATION_HISTORY_EXISTS_SQL =
+  "select to_regclass('supabase_migrations.schema_migrations') is not null as present;";
+export const MIGRATION_HISTORY_SQL =
+  "select version from supabase_migrations.schema_migrations order by version;";
 
 // -----------------------------------------------------------------------------
 // Auth
@@ -593,7 +751,8 @@ export function buildAuthConfigPayload({
   };
   for (const type of EMAIL_TEMPLATE_TYPES) {
     const t = templates?.[type];
-    if (!t?.subject || !t?.content) throw new Error(`Modelo de e-mail "${type}" sem assunto ou conteúdo.`);
+    if (!t?.subject || !t?.content)
+      throw new Error(`Modelo de e-mail "${type}" sem assunto ou conteúdo.`);
     payload[`mailer_subjects_${type}`] = t.subject;
     payload[`mailer_templates_${type}_content`] = t.content;
   }
@@ -611,7 +770,8 @@ export function buildAuthConfigPayload({
 /** Resumo legível do payload do Auth (modelos viram tamanhos; senha do SMTP mascarada). */
 export function summarizeAuthPayload(payload) {
   return Object.entries(payload).map(([key, value]) => {
-    if (key.startsWith("mailer_templates_")) return `${key}: (${Buffer.byteLength(value)} bytes de HTML)`;
+    if (key.startsWith("mailer_templates_"))
+      return `${key}: (${Buffer.byteLength(value)} bytes de HTML)`;
     if (key === "smtp_pass") return `${key}: ${maskSecret(value)}`;
     return `${key}: ${JSON.stringify(value)}`;
   });
@@ -621,9 +781,22 @@ export function summarizeAuthPayload(payload) {
 // Chaves da API
 // -----------------------------------------------------------------------------
 
-/** Escolhe as chaves: prefere as novas (sb_publishable_/sb_secret_) e cai para as legadas. */
-export function pickApiKeys(keys) {
-  const list = Array.isArray(keys) ? keys.filter((k) => k && typeof k.api_key === "string" && k.api_key) : [];
+/** Uma chave revelada só tem caracteres de token (sem "•", "*" ou espaços de uma versão mascarada). */
+export function looksRevealed(value) {
+  return typeof value === "string" && /^[A-Za-z0-9_.-]{20,}$/.test(value);
+}
+
+/**
+ * Escolhe as chaves: prefere as novas (sb_publishable_/sb_secret_) e cai para as legadas.
+ * Com `requireRevealed`, ignora valores mascarados (quando a API não revelou o segredo).
+ */
+export function pickApiKeys(keys, { requireRevealed = false } = {}) {
+  const usable = (k) =>
+    k &&
+    typeof k.api_key === "string" &&
+    k.api_key &&
+    (!requireRevealed || looksRevealed(k.api_key));
+  const list = Array.isArray(keys) ? keys.filter(usable) : [];
   const prefer = (arr) => arr.find((k) => k.name === "default") ?? arr[0];
   const publishable = prefer(list.filter((k) => k.type === "publishable"));
   const secret = prefer(list.filter((k) => k.type === "secret"));
@@ -694,7 +867,10 @@ export function buildEnvFile(values, existingText = "", { generatedAt = new Date
         `# ${generatedAt.toISOString()} — contém SEGREDOS: não versione nem compartilhe este arquivo.`,
       );
     } else {
-      out.push("", `# Atualizado por scripts/deploy/setup-supabase-cloud.mjs em ${generatedAt.toISOString()}`);
+      out.push(
+        "",
+        `# Atualizado por scripts/deploy/setup-supabase-cloud.mjs em ${generatedAt.toISOString()}`,
+      );
     }
     for (const [key, value] of pending) out.push(`${key}=${formatEnvValue(value)}`);
   }
@@ -706,7 +882,8 @@ export function resolveCronSecret(env, existingEnv, randomHex) {
   const fromEnv = env.CRON_SECRET?.trim();
   if (fromEnv && fromEnv !== CRON_SECRET_PLACEHOLDER) return { value: fromEnv, source: "ambiente" };
   const fromFile = existingEnv?.get("CRON_SECRET")?.trim();
-  if (fromFile && fromFile !== CRON_SECRET_PLACEHOLDER) return { value: fromFile, source: "arquivo" };
+  if (fromFile && fromFile !== CRON_SECRET_PLACEHOLDER)
+    return { value: fromFile, source: "arquivo" };
   return { value: randomHex(32), source: "gerado" };
 }
 
@@ -729,7 +906,11 @@ export function buildVercelEnvVars(appEnv, env, targets = ["production", "previe
     { key: "SUPABASE_SECRET_KEY", value: appEnv.SUPABASE_SECRET_KEY, secret: true },
     { key: "NEXT_PUBLIC_SITE_URL", value: appEnv.NEXT_PUBLIC_SITE_URL, secret: false },
     { key: "CRON_SECRET", value: appEnv.CRON_SECRET, secret: true },
-    ...OPTIONAL_PASSTHROUGH_VARS.map(({ key, secret }) => ({ key, value: env[key]?.trim(), secret })),
+    ...OPTIONAL_PASSTHROUGH_VARS.map(({ key, secret }) => ({
+      key,
+      value: env[key]?.trim(),
+      secret,
+    })),
   ];
   return items
     .filter((item) => item.value)
@@ -745,7 +926,9 @@ export function buildVercelEnvVars(appEnv, env, targets = ["production", "previe
 /** teamId (team_...) ou slug do time, como query string da API da Vercel. */
 export function vercelTeamQuery(team) {
   if (!team) return "";
-  return team.startsWith("team_") ? `teamId=${encodeURIComponent(team)}` : `slug=${encodeURIComponent(team)}`;
+  return team.startsWith("team_")
+    ? `teamId=${encodeURIComponent(team)}`
+    : `slug=${encodeURIComponent(team)}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -754,10 +937,15 @@ export function vercelTeamQuery(team) {
 
 export class HttpError extends Error {
   constructor({ status, data, method, url }) {
-    const detail =
-      data && typeof data === "object"
-        ? (data.message ?? data.error?.message ?? data.error ?? JSON.stringify(data))
-        : String(data ?? "");
+    let detail;
+    if (data && typeof data === "object") {
+      detail =
+        data.message ??
+        data.error?.message ??
+        (typeof data.error === "string" ? data.error : JSON.stringify(data));
+    } else {
+      detail = String(data ?? "");
+    }
     super(`${method} ${url} -> ${status || "falha de rede"}: ${String(detail).slice(0, 400)}`);
     this.status = status;
     this.data = data;
@@ -770,7 +958,10 @@ export class HttpError extends Error {
  * rede só para operações idempotentes.
  */
 export function createRequester({ fetchImpl, sleep, retries = 3 }) {
-  return async function request(url, { method = "GET", headers = {}, body, idempotent, timeoutMs = 60_000 } = {}) {
+  return async function request(
+    url,
+    { method = "GET", headers = {}, body, idempotent, timeoutMs = 60_000 } = {},
+  ) {
     const canRepeat = idempotent ?? method === "GET";
     for (let attempt = 0; ; attempt++) {
       let res;
@@ -805,7 +996,9 @@ export function createRequester({ fetchImpl, sleep, retries = 3 }) {
       const retryable = res.status === 429 || (canRepeat && res.status >= 500);
       if (retryable && attempt < retries) {
         const retryAfter = Number(res.headers?.get?.("retry-after"));
-        await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** attempt);
+        await sleep(
+          Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** attempt,
+        );
         continue;
       }
       throw new HttpError({ status: res.status, data, method, url });
@@ -823,9 +1016,23 @@ export function createSupabaseApi({ request, token, ref, base = SUPABASE_API_BAS
     updateAuthConfig: (body) =>
       request(`${project}/config/auth`, { method: "PATCH", headers, body, idempotent: true }),
     runQuery: (query, { idempotent = true, timeoutMs = 180_000 } = {}) =>
-      request(`${project}/database/query`, { method: "POST", headers, body: { query }, idempotent, timeoutMs }),
+      request(`${project}/database/query`, {
+        method: "POST",
+        headers,
+        body: { query },
+        idempotent,
+        timeoutMs,
+      }),
+    runReadOnlyQuery: (query) =>
+      request(`${project}/database/query/read-only`, {
+        method: "POST",
+        headers,
+        body: { query },
+        idempotent: true,
+      }),
     listBuckets: () => request(`${project}/storage/buckets`, { headers }),
-    getApiKeys: ({ reveal }) => request(`${project}/api-keys?reveal=${reveal ? "true" : "false"}`, { headers }),
+    getApiKeys: ({ reveal }) =>
+      request(`${project}/api-keys?reveal=${reveal ? "true" : "false"}`, { headers }),
     createApiKey: (type, name) =>
       request(`${project}/api-keys?reveal=true`, {
         method: "POST",
@@ -845,7 +1052,8 @@ export function createVercelApi({ request, token, team, base = VERCEL_API_BASE }
     return parts.length ? `?${parts.join("&")}` : "";
   };
   return {
-    getProject: (idOrName) => request(`${base}/v9/projects/${encodeURIComponent(idOrName)}${qs()}`, { headers }),
+    getProject: (idOrName) =>
+      request(`${base}/v9/projects/${encodeURIComponent(idOrName)}${qs()}`, { headers }),
     upsertEnv: (idOrName, items) =>
       request(`${base}/v10/projects/${encodeURIComponent(idOrName)}/env${qs("upsert=true")}`, {
         method: "POST",
@@ -856,27 +1064,50 @@ export function createVercelApi({ request, token, team, base = VERCEL_API_BASE }
   };
 }
 
+/**
+ * Permissões que faltam a um token escopado. Desde out/2026 o 403 da API lista essas permissões num
+ * array `missing_permissions` (https://supabase.com/changelog/scoped-personal-access-tokens-ga); o
+ * formato exato dos itens não está documentado, então aceita texto ou objeto.
+ */
+export function missingPermissions(data) {
+  const list =
+    data?.missing_permissions ??
+    data?.error?.missing_permissions ??
+    data?.details?.missing_permissions;
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((p) =>
+      typeof p === "string"
+        ? p
+        : (p?.name ?? p?.permission ?? p?.id ?? (p ? JSON.stringify(p) : "")),
+    )
+    .filter(Boolean)
+    .map((p) => String(p).slice(0, 80));
+}
+
 /** Mensagens amigáveis para erros da API do Supabase. */
-export function describeSupabaseError(err, what) {
+export function describeSupabaseError(err, what, { networkHint = "" } = {}) {
   switch (err?.status) {
     case 401:
       return `${what}: token do Supabase inválido ou expirado (401). Gere um novo Personal Access Token em ${LINKS.supabaseTokens} e exporte SUPABASE_ACCESS_TOKEN.`;
-    case 403:
-      return `${what}: sem permissão (403). O token precisa ser de uma conta com acesso de Owner/Admin/Developer à organização do projeto.`;
+    case 403: {
+      const missing = missingPermissions(err.data);
+      return `${what}: sem permissão (403).${missing.length ? ` Faltam no token: ${missing.join(", ")}.` : ""} Tokens criados no painel são escopados por padrão: gere outro com as permissões listadas em scripts/deploy/README.md (seção 1), para uma conta Owner/Admin/Developer do projeto.`;
+    }
     case 404:
       return `${what}: projeto não encontrado (404). Confira SUPABASE_PROJECT_REF (Project Settings > General > Project ID) e se o token é da conta dona do projeto.`;
     case 429:
       return `${what}: limite de requisições da API do Supabase atingido (429). Espere um minuto e rode de novo (o script pode ser reexecutado).`;
     case 0:
     case undefined:
-      return `${what}: falha de rede ao falar com a API do Supabase (${err?.detail ?? err?.message}). Confira sua conexão.`;
+      return `${what}: falha de rede ao falar com a API do Supabase (${err?.detail ?? err?.message}). Confira sua conexão.${networkHint}`;
     default:
       return `${what}: a API do Supabase respondeu ${err.status}: ${err.detail}`;
   }
 }
 
 /** Mensagens amigáveis para erros da API da Vercel. */
-export function describeVercelError(err, what) {
+export function describeVercelError(err, what, { networkHint = "" } = {}) {
   switch (err?.status) {
     case 401:
       return `${what}: VERCEL_TOKEN inválido ou expirado (401). Crie outro em ${LINKS.vercelTokens}.`;
@@ -886,7 +1117,7 @@ export function describeVercelError(err, what) {
       return `${what}: projeto não encontrado na Vercel (404). Importe o repositório em ${LINKS.vercelNew} e/ou defina VERCEL_PROJECT com o nome ou id do projeto.`;
     case 0:
     case undefined:
-      return `${what}: falha de rede ao falar com a Vercel (${err?.detail ?? err?.message}).`;
+      return `${what}: falha de rede ao falar com a Vercel (${err?.detail ?? err?.message}).${networkHint}`;
     default:
       return `${what}: a Vercel respondeu ${err.status}: ${err.detail}`;
   }
@@ -896,17 +1127,74 @@ export function describeVercelError(err, what) {
 // Dependências padrão (injetáveis nos testes)
 // -----------------------------------------------------------------------------
 
-/** Roda `npx supabase <args>` repassando a saída em tempo real. Resolve com o código de saída. */
+/**
+ * Entrada JS do CLI do Supabase instalado no projeto (devDependency `supabase`; desde a 2.x o `bin` do
+ * pacote é um launcher Node, `dist/supabase.js`). null se não estiver instalado.
+ */
+export function resolveLocalSupabaseCli(rootDir) {
+  let pkgFile;
+  try {
+    pkgFile = createRequire(path.join(rootDir, "package.json")).resolve("supabase/package.json");
+  } catch {
+    pkgFile = path.join(rootDir, "node_modules", "supabase", "package.json");
+  }
+  try {
+    const pkg = JSON.parse(readFileSync(pkgFile, "utf8"));
+    const rel = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.supabase;
+    if (!rel) return null;
+    const entry = path.resolve(path.dirname(pkgFile), rel);
+    return existsSync(entry) ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Aspas para o cmd.exe (só no fallback do Windows; caminhos com espaço, ex.: C:\Users\Maria Silva). */
+function quoteForCmd(arg) {
+  const s = String(arg);
+  return /^[A-Za-z0-9_\-.:\\/=@]+$/.test(s) ? s : `"${s.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Como chamar o CLI do Supabase em Windows, macOS e Linux.
+ * - Com o CLI instalado no projeto: `node <launcher> ...args`, sem shell (sem problemas de aspas,
+ *   sem depender do npx no PATH e sem o erro EINVAL de .cmd sem shell no Node 20+).
+ * - Sem ele: `npx supabase ...`; no Windows via cmd.exe com os argumentos já entre aspas.
+ */
+export function buildCliInvocation(
+  args,
+  { platform = process.platform, cliEntry = null, execPath = process.execPath } = {},
+) {
+  if (cliEntry && /\.[cm]?js$/.test(cliEntry)) {
+    return { command: execPath, args: [cliEntry, ...args], shell: false };
+  }
+  if (platform === "win32") {
+    return {
+      command: ["npx.cmd", "supabase", ...args].map(quoteForCmd).join(" "),
+      args: [],
+      shell: true,
+    };
+  }
+  return { command: "npx", args: ["supabase", ...args], shell: false };
+}
+
+/** Roda o CLI do Supabase repassando a saída em tempo real. Resolve com o código de saída. */
 export function defaultRunCli(args, { cwd, env }) {
   return new Promise((resolve, reject) => {
-    const isWindows = process.platform === "win32";
-    const child = spawn(isWindows ? "npx.cmd" : "npx", ["supabase", ...args], {
+    const inv = buildCliInvocation(args, { cliEntry: resolveLocalSupabaseCli(cwd) });
+    const child = spawn(inv.command, inv.args, {
       cwd,
       env,
       stdio: "inherit",
-      shell: isWindows,
+      shell: inv.shell,
     });
-    child.on("error", reject);
+    child.on("error", (e) =>
+      reject(
+        new StepError(
+          `Não consegui executar o CLI do Supabase (${e.message}). Rode "npm install" na raiz do repositório ou use --migrations-via-api.`,
+        ),
+      ),
+    );
     child.on("close", (code) => resolve(code ?? 1));
   });
 }
@@ -978,6 +1266,8 @@ Opções:
   --write-env[=<arquivo>]   grava as variáveis num .env* ignorado pelo git (padrão ${DEFAULT_ENV_FILE})
   --vercel                  cadastra as variáveis na Vercel (VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT)
   --redirect-url=<url>      Redirect URL extra (repetível), ex.: https://*-sua-conta.vercel.app/**
+  --migrations-via-api      aplica as migrations por HTTPS em vez de "supabase db push" (rede sem acesso
+                            TCP ao Postgres, ex.: sessão na nuvem atrás de proxy)
   --with-demo-seed          aplica o seed.sql inteiro (contas fictícias, senha pública) — nunca em produção
   --help                    esta ajuda
 
@@ -1022,6 +1312,12 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   }
 
   const offline = config.dryRun && (!config.hasToken || config.refIsPlaceholder);
+  const networkHint =
+    (env.HTTPS_PROXY || env.https_proxy) && env.NODE_USE_ENV_PROXY !== "1"
+      ? " Há HTTPS_PROXY no ambiente: rode com NODE_USE_ENV_PROXY=1 (Node 22.21+) para o fetch do Node usar o proxy."
+      : "";
+  const supaErr = (e, what) => describeSupabaseError(e, what, { networkHint });
+  const vercelErr = (e, what) => describeVercelError(e, what, { networkHint });
   const done = [];
   const pending = [];
   let failed = false;
@@ -1041,10 +1337,12 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   out("==============================");
   out(
     config.dryRun
-      ? `Modo: SIMULAÇÃO (--dry-run) — nada será alterado${offline ? " e nenhuma chamada de rede será feita" : "; só leituras (GET) para conferir o acesso"}.`
+      ? `Modo: SIMULAÇÃO (--dry-run) — nada será alterado${offline ? " e nenhuma chamada de rede será feita" : "; só leituras (GET e SQL somente leitura) para conferir o acesso"}.`
       : "Modo: PARA VALER — o projeto do Supabase será alterado.",
   );
-  out(`Projeto: ${config.ref}${config.refIsPlaceholder ? " (placeholder)" : ""} — ${config.supabaseUrl}`);
+  out(
+    `Projeto: ${config.ref}${config.refIsPlaceholder ? " (placeholder)" : ""} — ${config.supabaseUrl}`,
+  );
   out(`Site: ${config.siteUrl}`);
   out(`Token: ${config.hasToken ? maskSecret(config.token) : "(ausente)"}`);
   for (const w of warnings) out(`AVISO: ${w}`);
@@ -1056,7 +1354,11 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   out("");
   out("Plano:");
   out("  1. Conferir o projeto (acesso, região e status) na API de gerenciamento");
-  out("  2. Ligar o CLI ao projeto e aplicar as migrations (supabase link + supabase db push)");
+  out(
+    config.migrationsViaApi
+      ? `  2. Aplicar as migrations pendentes por HTTPS (${local.migrations.length} no repositório), registrando no histórico do CLI`
+      : "  2. Ligar o CLI ao projeto e aplicar as migrations (supabase link + supabase db push)",
+  );
   out(
     config.withDemoSeed
       ? "  3. Aplicar o seed.sql INTEIRO (referência + DEMONSTRAÇÃO fictícia)"
@@ -1103,13 +1405,17 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       try {
         ({ data: project } = await supabase.getProject());
       } catch (e) {
-        throw new StepError(describeSupabaseError(e, "Não consegui acessar o projeto"));
+        throw new StepError(supaErr(e, "Não consegui acessar o projeto"));
       }
       state.project = project;
-      out(`  Nome: ${project?.name ?? "?"} | região: ${project?.region ?? "?"} | status: ${project?.status ?? "?"}`);
+      out(
+        `  Nome: ${project?.name ?? "?"} | região: ${project?.region ?? "?"} | status: ${project?.status ?? "?"}`,
+      );
       if (project?.database?.version) out(`  Postgres: ${project.database.version}`);
       if (project?.region && project.region !== "sa-east-1") {
-        out("  Obs.: a região não é São Paulo (sa-east-1); funciona, só com mais latência para o Brasil.");
+        out(
+          "  Obs.: a região não é São Paulo (sa-east-1); funciona, só com mais latência para o Brasil.",
+        );
       }
       const status = project?.status;
       if (status === "INACTIVE" || status === "PAUSING") {
@@ -1117,66 +1423,145 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
           `O projeto está pausado (${status}). Restaure-o em ${LINKS.supabaseDashboard}/${config.ref} e rode o script de novo.`,
         );
       }
-      if (["COMING_UP", "RESTORING", "RESTARTING", "UPGRADING", "RESIZING", "GOING_DOWN"].includes(status)) {
-        throw new StepError(`O projeto ainda está em ${status}. Espere ficar "Healthy" no painel e rode de novo.`);
+      if (
+        ["COMING_UP", "RESTORING", "RESTARTING", "UPGRADING", "RESIZING", "GOING_DOWN"].includes(
+          status,
+        )
+      ) {
+        throw new StepError(
+          `O projeto ainda está em ${status}. Espere ficar "Healthy" no painel e rode de novo.`,
+        );
       }
       if (["INIT_FAILED", "RESTORE_FAILED", "PAUSE_FAILED", "REMOVED"].includes(status)) {
-        throw new StepError(`O projeto está em ${status}; resolva no painel do Supabase antes de continuar.`);
+        throw new StepError(
+          `O projeto está em ${status}; resolva no painel do Supabase antes de continuar.`,
+        );
       }
-      if (status && status !== "ACTIVE_HEALTHY") out(`  AVISO: status ${status}; seguindo mesmo assim.`);
-      done.push(`Projeto conferido: ${project?.name ?? config.ref} (${project?.region ?? "região ?"})`);
+      if (status && status !== "ACTIVE_HEALTHY")
+        out(`  AVISO: status ${status}; seguindo mesmo assim.`);
+      done.push(
+        `Projeto conferido: ${project?.name ?? config.ref} (${project?.region ?? "região ?"})`,
+      );
     }
 
     // ------------------------------------------------------------ 2. migrations
-    step(2, "Migrations (CLI do Supabase)");
     const cliEnv = {
       ...env,
       SUPABASE_ACCESS_TOKEN: config.token,
       SUPABASE_DB_PASSWORD: config.dbPassword,
     };
-    const linkArgs = ["link", "--project-ref", config.ref];
-    const pushArgs = ["db", "push", "--linked", "--yes"];
-    out(`  $ npx supabase ${linkArgs.join(" ")}`);
-    out(`  $ npx supabase ${pushArgs.join(" ")}`);
-    out("    (SUPABASE_ACCESS_TOKEN e SUPABASE_DB_PASSWORD vão pelo ambiente, não pela linha de comando)");
-    if (config.dryRun) {
-      out("  (simulação) comandos não executados.");
-    } else {
-      const linkCode = await deps.runCli(linkArgs, { cwd: rootDir, env: cliEnv });
-      if (linkCode !== 0) {
-        throw new StepError(
-          `"supabase link" falhou (código ${linkCode}). Confira o token, o ref e a senha do banco (Project Settings > Database > Reset password, se precisar).`,
-        );
-      }
-      const pushCode = await deps.runCli(pushArgs, { cwd: rootDir, env: cliEnv });
-      if (pushCode !== 0) {
-        throw new StepError(
-          `"supabase db push" falhou (código ${pushCode}). Leia a saída acima; se o banco remoto já tiver migrations fora do histórico, veja "supabase migration list".`,
-        );
-      }
-      done.push("Migrations aplicadas (supabase db push)");
-    }
 
-    // Aplica SQL pela API; se o endpoint (beta) sumir, usa `supabase db query --linked`.
+    // Aplica SQL pela API; se o endpoint (beta) sumir, usa `supabase db query --linked`
+    // (só quando o CLI foi ligado ao projeto, isto é, fora do modo --migrations-via-api).
     const applySql = async (sql, label, { idempotent }) => {
       try {
         await supabase.runQuery(sql, { idempotent });
         return;
       } catch (e) {
-        if (![404, 405, 410].includes(e?.status)) {
-          throw new StepError(describeSupabaseError(e, `Falha ao aplicar ${label}`));
+        if (config.migrationsViaApi || ![404, 405, 410].includes(e?.status)) {
+          throw new StepError(supaErr(e, `Falha ao aplicar ${label}`));
         }
       }
-      out("  O endpoint /database/query não respondeu; tentando pelo CLI (supabase db query --linked)...");
+      out(
+        "  O endpoint /database/query não respondeu; tentando pelo CLI (supabase db query --linked)...",
+      );
       const code = await deps.withTempFile("query.sql", sql, (file) =>
         deps.runCli(["db", "query", "--linked", "--file", file], { cwd: rootDir, env: cliEnv }),
       );
       if (code !== 0) throw new StepError(`Falha ao aplicar ${label} pelo CLI (código ${code}).`);
     };
+    // Na simulação, SELECTs vão pelo endpoint somente leitura.
     const selectRows = async (sql) => {
-      const { data } = await supabase.runQuery(sql, { idempotent: true });
+      const { data } = config.dryRun
+        ? await supabase.runReadOnlyQuery(sql)
+        : await supabase.runQuery(sql, { idempotent: true });
       return Array.isArray(data) ? data : [];
     };
+
+    if (config.migrationsViaApi) {
+      step(2, "Migrations (por HTTPS, sem o CLI)");
+      let applied = [];
+      if (offline) {
+        out(
+          `  (simulação offline) ${local.migrations.length} migrations locais; seriam aplicadas as que faltam no histórico do banco.`,
+        );
+      } else {
+        try {
+          const [row] = await selectRows(MIGRATION_HISTORY_EXISTS_SQL);
+          if (row?.present === true || row?.present === "t") {
+            applied = (await selectRows(MIGRATION_HISTORY_SQL)).map((r) => String(r.version));
+          }
+        } catch (e) {
+          if (!config.dryRun) {
+            throw new StepError(supaErr(e, "Não consegui ler o histórico de migrations"));
+          }
+          out(`  AVISO (simulação): ${supaErr(e, "histórico de migrations não lido")}`);
+        }
+        const plan = planMigrations(
+          local.migrations.map((m) => m.file),
+          applied,
+        );
+        if (plan.error) throw new StepError(plan.error);
+        out(`  Já aplicadas: ${applied.length}. Pendentes: ${plan.pending.length}.`);
+        for (const m of plan.pending) {
+          const content = local.migrations.find((x) => x.file === m.file).content;
+          const query = buildMigrationQuery(content, m);
+          if (config.dryRun) {
+            out(`  (simulação) ${m.file} (${Buffer.byteLength(content)} bytes)`);
+            continue;
+          }
+          out(`  Aplicando ${m.file}...`);
+          try {
+            await supabase.runQuery(query, { idempotent: false });
+          } catch (e) {
+            // 4xx: o Postgres recusou e a transação foi desfeita. Sem resposta (rede/timeout) ou 5xx:
+            // não dá para saber; como a migration e o registro no histórico vão juntos, rodar de
+            // novo é seguro (o histórico diz se ela entrou).
+            const certain = e?.status >= 400 && e?.status < 500;
+            throw new StepError(
+              `${supaErr(e, `Falha na migration ${m.file}`)} ${
+                certain
+                  ? "Nada desta migration ficou aplicado (transação desfeita); corrija e rode de novo."
+                  : "Sem confirmação da API: ela pode ter sido aplicada ou não (migration e histórico vão juntos, na mesma transação). Rode o script de novo: ele relê o histórico e só aplica o que falta."
+              }`,
+            );
+          }
+        }
+        if (!config.dryRun) {
+          done.push(
+            `Migrations aplicadas por HTTPS (${plan.pending.length} novas, ${applied.length} já existiam)`,
+          );
+        }
+      }
+    } else {
+      step(2, "Migrations (CLI do Supabase)");
+      const linkArgs = ["link", "--project-ref", config.ref];
+      const pushArgs = ["db", "push", "--linked", "--yes"];
+      out(`  $ npx supabase ${linkArgs.join(" ")}`);
+      out(`  $ npx supabase ${pushArgs.join(" ")}`);
+      out(
+        "    (SUPABASE_ACCESS_TOKEN e SUPABASE_DB_PASSWORD vão pelo ambiente, não pela linha de comando)",
+      );
+      const tcpHint =
+        " Se o erro foi de conexão com o banco (rede que só libera HTTPS), rode de novo com --migrations-via-api.";
+      if (config.dryRun) {
+        out("  (simulação) comandos não executados.");
+      } else {
+        const linkCode = await deps.runCli(linkArgs, { cwd: rootDir, env: cliEnv });
+        if (linkCode !== 0) {
+          throw new StepError(
+            `"supabase link" falhou (código ${linkCode}). Confira o token, o ref e a senha do banco (Project Settings > Database > Reset password, se precisar).${tcpHint}`,
+          );
+        }
+        const pushCode = await deps.runCli(pushArgs, { cwd: rootDir, env: cliEnv });
+        if (pushCode !== 0) {
+          throw new StepError(
+            `"supabase db push" falhou (código ${pushCode}). Leia a saída acima; se o banco remoto já tiver migrations fora do histórico, veja "supabase migration list".${tcpHint}`,
+          );
+        }
+        done.push("Migrations aplicadas (supabase db push)");
+      }
+    }
 
     // ------------------------------------------------------------ 3. dados
     step(3, config.withDemoSeed ? "Seed completo (DEMONSTRAÇÃO)" : "Dados de referência");
@@ -1201,11 +1586,18 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
             );
             present = rows[0]?.present === true || rows[0]?.present === "t";
           } catch (e) {
-            throw new StepError(describeSupabaseError(e, "Não consegui verificar se o seed de demonstração já existe"));
+            throw new StepError(
+              describeSupabaseError(
+                e,
+                "Não consegui verificar se o seed de demonstração já existe",
+              ),
+            );
           }
         }
         if (present) {
-          out("  O seed de demonstração já estava aplicado; nada a fazer (ele não pode ser reaplicado).");
+          out(
+            "  O seed de demonstração já estava aplicado; nada a fazer (ele não pode ser reaplicado).",
+          );
         } else {
           await applySql(local.seedSql, "o seed de demonstração", { idempotent: false });
           state.demoApplied = true;
@@ -1240,7 +1632,7 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
         out(`  site_url atual: ${data?.site_url ?? "(vazio)"}`);
         out(`  Redirect URLs atuais: ${currentAllowList || "(nenhuma)"}`);
       } catch (e) {
-        throw new StepError(describeSupabaseError(e, "Não consegui ler a configuração do Auth"));
+        throw new StepError(supaErr(e, "Não consegui ler a configuração do Auth"));
       }
     }
     const authPayload = buildAuthConfigPayload({
@@ -1251,7 +1643,9 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       passwordMinLength: local.passwordMinLength,
       smtp: config.smtp,
     });
-    out(`  PATCH /v1/projects/{ref}/config/auth${config.dryRun ? " (simulação, não enviado)" : ""}:`);
+    out(
+      `  PATCH /v1/projects/{ref}/config/auth${config.dryRun ? " (simulação, não enviado)" : ""}:`,
+    );
     for (const line of summarizeAuthPayload(authPayload)) out(`    ${line}`);
     if (!config.dryRun) {
       try {
@@ -1260,7 +1654,7 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
           out(`  AVISO: a API devolveu site_url=${data.site_url}; confira no painel.`);
         }
       } catch (e) {
-        throw new StepError(describeSupabaseError(e, "Não consegui atualizar o Auth"));
+        throw new StepError(supaErr(e, "Não consegui atualizar o Auth"));
       }
       done.push(
         `Auth configurado: site_url, Redirect URLs, confirmação de e-mail ligada, senha mínima ${authPayload.password_min_length}, ${EMAIL_TEMPLATE_TYPES.length} modelos pt-BR${config.smtp ? ", SMTP próprio" : ""}`,
@@ -1275,22 +1669,29 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       let bucket = null;
       try {
         const { data } = await supabase.listBuckets();
-        bucket = (Array.isArray(data) ? data : []).find((b) => b?.id === STORAGE_BUCKET || b?.name === STORAGE_BUCKET);
+        bucket = (Array.isArray(data) ? data : []).find(
+          (b) => b?.id === STORAGE_BUCKET || b?.name === STORAGE_BUCKET,
+        );
       } catch (e) {
-        throw new StepError(describeSupabaseError(e, "Não consegui listar os buckets"));
+        throw new StepError(supaErr(e, "Não consegui listar os buckets"));
       }
       if (bucket) {
         out(`  OK: bucket existe (público: ${bucket.public ? "sim" : "não"}).`);
-        if (!bucket.public) out("  AVISO: o app espera o bucket público (leitura pela URL pública).");
+        if (!bucket.public)
+          out("  AVISO: o app espera o bucket público (leitura pela URL pública).");
         done.push(`Bucket "${STORAGE_BUCKET}" conferido`);
       } else if (config.dryRun) {
-        out("  Ainda não existe; a migration de storage cria o bucket no db push.");
+        out(
+          "  Ainda não existe; a migration de storage cria o bucket quando as migrations forem aplicadas.",
+        );
       } else if (local.bucketInsert) {
         out("  Não encontrado; aplicando o INSERT da migration de storage...");
         await applySql(local.bucketInsert, `o bucket ${STORAGE_BUCKET}`, { idempotent: true });
         done.push(`Bucket "${STORAGE_BUCKET}" criado`);
       } else {
-        out("  AVISO: bucket não encontrado e não achei o INSERT nas migrations. Crie-o em Storage no painel.");
+        out(
+          "  AVISO: bucket não encontrado e não achei o INSERT nas migrations. Crie-o em Storage no painel.",
+        );
         pending.push(`Criar o bucket público "${STORAGE_BUCKET}" (Storage no painel)`);
       }
     }
@@ -1304,23 +1705,30 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       try {
         ({ data: keys } = await supabase.getApiKeys({ reveal: !config.dryRun }));
       } catch (e) {
-        throw new StepError(describeSupabaseError(e, "Não consegui ler as chaves da API"));
+        throw new StepError(supaErr(e, "Não consegui ler as chaves da API"));
       }
-      let picked = pickApiKeys(keys);
-      const missing = [!picked.publishable && "publishable", !picked.secret && "secret"].filter(Boolean);
+      let picked = pickApiKeys(keys, { requireRevealed: !config.dryRun });
+      const missing = [!picked.publishable && "publishable", !picked.secret && "secret"].filter(
+        Boolean,
+      );
       if (missing.length && config.dryRun) {
-        out(`  (simulação) faltam chaves ${missing.join(" e ")}; seriam criadas via POST /v1/projects/{ref}/api-keys.`);
+        out(
+          `  (simulação) faltam chaves ${missing.join(" e ")}; seriam criadas via POST /v1/projects/{ref}/api-keys.`,
+        );
       } else if (missing.length) {
         for (const type of missing) {
           try {
-            const { data } = await supabase.createApiKey(type, type === "publishable" ? "app_publishable" : "app_secret");
+            const { data } = await supabase.createApiKey(
+              type,
+              type === "publishable" ? "app_publishable" : "app_secret",
+            );
             if (data?.api_key) {
               redact.add(data.api_key);
               picked = { ...picked, [type]: data.api_key };
               out(`  Chave ${type} criada.`);
             }
           } catch (e) {
-            out(`  AVISO: ${describeSupabaseError(e, `não consegui criar a chave ${type}`)}`);
+            out(`  AVISO: ${supaErr(e, `não consegui criar a chave ${type}`)}`);
           }
         }
       }
@@ -1341,7 +1749,9 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
           );
         }
         if (!(picked.publishable && picked.secret)) {
-          out("  AVISO: usando chaves legadas; o Supabase vai desativá-las até o fim de 2026. Crie chaves novas no painel.");
+          out(
+            "  AVISO: usando chaves legadas; o Supabase vai desativá-las até o fim de 2026. Crie chaves novas no painel.",
+          );
         }
         done.push(`Chaves da API obtidas (${state.keys.source})`);
       }
@@ -1350,22 +1760,30 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
     // ------------------------------------------------------------ 7. arquivo .env
     step(7, "Variáveis do app");
     const existingEnvText =
-      local.envFile && (await deps.fileExists(local.envFile.abs)) ? await deps.readText(local.envFile.abs) : "";
+      local.envFile && (await deps.fileExists(local.envFile.abs))
+        ? await deps.readText(local.envFile.abs)
+        : "";
     const cron = resolveCronSecret(env, parseEnvText(existingEnvText), deps.randomHex);
     redact.add(cron.value);
     state.cronSecret = cron;
     state.appEnv = {
       NEXT_PUBLIC_SUPABASE_URL: config.supabaseUrl,
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: state.keys.publishable ?? "sb_publishable_(obtida_na_execucao_real)",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+        state.keys.publishable ?? "sb_publishable_(obtida_na_execucao_real)",
       SUPABASE_SECRET_KEY: state.keys.secret ?? "sb_secret_(obtida_na_execucao_real)",
       NEXT_PUBLIC_SITE_URL: config.siteUrl,
       CRON_SECRET: cron.value,
     };
     for (const [key, value] of Object.entries(state.appEnv)) {
-      const shown = key.startsWith("NEXT_PUBLIC_SUPABASE_URL") || key === "NEXT_PUBLIC_SITE_URL" ? value : maskSecret(value);
+      const shown =
+        key === "NEXT_PUBLIC_SUPABASE_URL" || key === "NEXT_PUBLIC_SITE_URL"
+          ? value
+          : maskSecret(value);
       out(`  ${key}=${shown}`);
     }
-    out(`  (CRON_SECRET: ${cron.source === "gerado" ? "novo, 32 bytes aleatórios" : `reaproveitado do ${cron.source}`})`);
+    out(
+      `  (CRON_SECRET: ${cron.source === "gerado" ? "novo, 32 bytes aleatórios" : `reaproveitado do ${cron.source}`})`,
+    );
     if (config.writeEnv) {
       if (local.envFile.autoloadedByNext) {
         out(
@@ -1375,40 +1793,54 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       if (config.dryRun) {
         out(`  (simulação) ${local.envFile.rel} não foi gravado.`);
       } else {
-        await deps.writeText(local.envFile.abs, buildEnvFile(state.appEnv, existingEnvText, { generatedAt: deps.now() }));
+        await deps.writeText(
+          local.envFile.abs,
+          buildEnvFile(state.appEnv, existingEnvText, { generatedAt: deps.now() }),
+        );
         state.envWritten = true;
         out(`  Gravado em ${local.envFile.rel} (permissão 600, ignorado pelo git).`);
         done.push(`Variáveis gravadas em ${local.envFile.rel}`);
       }
     } else if (!config.dryRun && cron.source === "gerado") {
-      out("  AVISO: o CRON_SECRET gerado não foi salvo em lugar nenhum; use --write-env para guardá-lo.");
+      out(
+        "  AVISO: o CRON_SECRET gerado não foi salvo em lugar nenhum; use --write-env para guardá-lo.",
+      );
     }
 
     // ------------------------------------------------------------ 8. vercel
     step(8, "Vercel");
     const vercelVars = buildVercelEnvVars(state.appEnv, env);
-    for (const v of vercelVars) redact.add(v.value);
+    // Só segredos entram no redator (URLs públicas continuam legíveis na saída).
+    for (const v of vercelVars) if (v.type === "sensitive") redact.add(v.value);
     if (config.vercel && config.vercelToken) {
       if (!config.vercelProject) {
         throw new StepError("Defina VERCEL_PROJECT com o nome ou id do projeto na Vercel.");
       }
-      const vercel = createVercelApi({ request, token: config.vercelToken, team: config.vercelTeam });
+      const vercel = createVercelApi({
+        request,
+        token: config.vercelToken,
+        team: config.vercelTeam,
+      });
       try {
         const { data } = await vercel.getProject(config.vercelProject);
         out(`  Projeto Vercel: ${data?.name ?? config.vercelProject} (${data?.id ?? "?"})`);
       } catch (e) {
-        throw new StepError(describeVercelError(e, "Não consegui acessar o projeto na Vercel"));
+        throw new StepError(vercelErr(e, "Não consegui acessar o projeto na Vercel"));
       }
-      out(`  POST /v10/projects/{idOrName}/env?upsert=true${config.dryRun ? " (simulação, não enviado)" : ""}:`);
+      out(
+        `  POST /v10/projects/{idOrName}/env?upsert=true${config.dryRun ? " (simulação, não enviado)" : ""}:`,
+      );
       for (const v of vercelVars) {
-        out(`    ${v.key} [${v.type === "sensitive" ? "Secret" : "Config"}; ${v.target.join(", ")}] = ${v.type === "sensitive" || v.key.includes("KEY") ? maskSecret(v.value) : v.value}`);
+        out(
+          `    ${v.key} [${v.type === "sensitive" ? "Secret" : "Config"}; ${v.target.join(", ")}] = ${v.type === "sensitive" || v.key.includes("KEY") ? maskSecret(v.value) : v.value}`,
+        );
       }
       if (!config.dryRun) {
         let result;
         try {
           ({ data: result } = await vercel.upsertEnv(config.vercelProject, vercelVars));
         } catch (e) {
-          throw new StepError(describeVercelError(e, "Não consegui gravar as variáveis na Vercel"));
+          throw new StepError(vercelErr(e, "Não consegui gravar as variáveis na Vercel"));
         }
         const failures = Array.isArray(result?.failed) ? result.failed : [];
         if (failures.length) {
@@ -1416,17 +1848,25 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
             const key = f?.error?.key ?? f?.error?.envVarKey ?? "?";
             out(`  ERRO em ${key}: ${f?.error?.code ?? ""} ${f?.error?.message ?? ""}`.trimEnd());
           }
-          throw new StepError(`${failures.length} variável(is) não foram gravadas na Vercel (veja acima).`);
+          throw new StepError(
+            `${failures.length} variável(is) não foram gravadas na Vercel (veja acima).`,
+          );
         }
         state.vercelDone = true;
         done.push(`Variáveis cadastradas na Vercel (${vercelVars.length}, produção e preview)`);
-        out("  Para publicar com as variáveis novas, faça um novo deploy (as NEXT_PUBLIC_* entram no build):");
+        out(
+          "  Para publicar com as variáveis novas, faça um novo deploy (as NEXT_PUBLIC_* entram no build):",
+        );
         out("    - Vercel > projeto > Deployments > ... no último deploy > Redeploy; ou");
         out("    - git push na branch de produção; ou");
-        out("    - npx vercel deploy --prod --token \"$VERCEL_TOKEN\"");
+        out('    - npx vercel deploy --prod --token "$VERCEL_TOKEN"');
       }
     } else {
-      out(config.vercel ? "  Sem VERCEL_TOKEN: cadastre à mão (Settings > Environment Variables):" : "  Pulado. Para cadastrar à mão (Settings > Environment Variables):");
+      out(
+        config.vercel
+          ? "  Sem VERCEL_TOKEN: cadastre à mão (Settings > Environment Variables):"
+          : "  Pulado. Para cadastrar à mão (Settings > Environment Variables):",
+      );
       for (const v of vercelVars) {
         out(`    ${v.key} [${v.type === "sensitive" ? "Secret" : "Config"}; Production e Preview]`);
       }
@@ -1435,15 +1875,22 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
     }
   } catch (e) {
     failed = true;
+    pending.unshift(
+      "Corrigir o erro indicado e rodar o script de novo (os passos já feitos são refeitos sem duplicar nada)",
+    );
     err("");
-    err(`ERRO: ${e instanceof StepError ? e.message : e?.stack ?? e}`);
+    err(`ERRO: ${e instanceof StepError ? e.message : (e?.stack ?? e)}`);
     err("O script pode ser rodado de novo com segurança: os passos são idempotentes.");
   }
 
   // ---------------------------------------------------------------- 9. checklist
   step(9, "Checklist");
   if (config.dryRun) {
-    out("  Simulação concluída: nada foi alterado. Rode sem --dry-run para aplicar.");
+    out(
+      failed
+        ? "  Simulação interrompida pelo erro acima (nada foi alterado). Corrija e simule de novo antes de rodar para valer."
+        : "  Simulação concluída: nada foi alterado. Rode sem --dry-run para aplicar.",
+    );
   }
   if (done.length) {
     out("  Feito:");
@@ -1470,7 +1917,9 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
   );
   out("    [ ] Rodar Advisors > Security e Performance no painel do Supabase.");
   if (config.withDemoSeed || state.demoApplied) {
-    out("    [ ] Este projeto tem contas de DEMONSTRAÇÃO com senha pública: não divulgue como produção.");
+    out(
+      "    [ ] Este projeto tem contas de DEMONSTRAÇÃO com senha pública: não divulgue como produção.",
+    );
   }
 
   if (failed) return 1;
@@ -1501,24 +1950,29 @@ async function loadLocalInputs(deps, config) {
         break;
       }
     }
-    if (!content?.trim()) throw new Error(`Modelo de e-mail não encontrado ou vazio: ${contentPath}`);
+    if (!content?.trim())
+      throw new Error(`Modelo de e-mail não encontrado ou vazio: ${contentPath}`);
     templates[type] = { subject, content };
   }
 
   const seedSql = await deps.readText(path.join(supabaseDir, "seed.sql"));
   const seed = extractSeedSections(seedSql);
 
+  const migrationsDir = path.join(supabaseDir, "migrations");
+  const migrations = [];
+  for (const file of (await deps.listDir(migrationsDir)).sort()) {
+    if (!parseMigrationFileName(file)) continue;
+    migrations.push({ file, content: await deps.readText(path.join(migrationsDir, file)) });
+  }
+  if (!migrations.length) throw new Error("Nenhuma migration encontrada em supabase/migrations.");
+  if (config.migrationsViaApi) {
+    // Valida já (antes de qualquer chamada remota) que todas podem ir por HTTPS.
+    for (const m of migrations) buildMigrationQuery(m.content, parseMigrationFileName(m.file));
+  }
   let bucketInsert = null;
-  try {
-    const migrationsDir = path.join(supabaseDir, "migrations");
-    const files = (await deps.listDir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
-    for (const file of files) {
-      const sql = await deps.readText(path.join(migrationsDir, file));
-      bucketInsert = extractBucketInsert(sql);
-      if (bucketInsert) break;
-    }
-  } catch {
-    bucketInsert = null;
+  for (const m of migrations) {
+    bucketInsert = extractBucketInsert(m.content);
+    if (bucketInsert) break;
   }
 
   let envFile = null;
@@ -1526,16 +1980,33 @@ async function loadLocalInputs(deps, config) {
     envFile = resolveEnvFilePath(rootDir, config.writeEnv);
     const ignored = deps.isGitIgnored(envFile.rel);
     if (ignored === false) {
-      throw new Error(`${envFile.rel} NÃO está no .gitignore; escolha outro nome (ex.: ${DEFAULT_ENV_FILE}).`);
+      throw new Error(
+        `${envFile.rel} NÃO está no .gitignore; escolha outro nome (ex.: ${DEFAULT_ENV_FILE}).`,
+      );
     }
   }
 
-  return { templates, passwordMinLength: authEmail.passwordMinLength, seedSql, seed, bucketInsert, envFile };
+  return {
+    migrations,
+    templates,
+    passwordMinLength: authEmail.passwordMinLength,
+    seedSql,
+    seed,
+    bucketInsert,
+    envFile,
+  };
 }
 
+// `import.meta.main` (Node 22.18+/24.2+) é o jeito confiável. No Node mais antigo, compara caminhos
+// reais: o Node resolve symlinks do script principal (pasta via symlink, /tmp no macOS) e no Windows a
+// letra do drive pode vir em caixa diferente; sem isso o script terminaria em silêncio sem fazer nada.
 const isEntryPoint = (() => {
+  if (typeof import.meta.main === "boolean") return import.meta.main;
   try {
-    return process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+    if (!process.argv[1]) return false;
+    const a = realpathSync(path.resolve(process.argv[1]));
+    const b = realpathSync(fileURLToPath(import.meta.url));
+    return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
   } catch {
     return false;
   }

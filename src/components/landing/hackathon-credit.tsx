@@ -16,12 +16,15 @@ export function HackathonCredit() {
               Nasceu no Hackathon IFSP Câmpus Jacareí 2026
             </h2>
             <p className="text-fg-muted">
-              Projeto criado para o tema “{SITE.theme}”, com código aberto e custo zero de operação. O verde da marca é
-              o mesmo dos Institutos Federais.
+              Projeto criado para o tema “{SITE.theme}”, com código aberto e custo zero de operação.
+              O verde da marca é o mesmo dos Institutos Federais.
             </p>
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <Link href="/sobre" className="font-semibold text-primary underline-offset-4 hover:underline">
+            <Link
+              href="/sobre"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
               Conheça o projeto
             </Link>
             <a

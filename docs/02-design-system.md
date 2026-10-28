@@ -77,13 +77,13 @@ espaçamento −0,02em, numa cor só (a do texto).
 `BRAND_HEX`). Todos os arquivos abaixo saem dela; os SVGs estáticos são gerados com
 `npm run brand:svgs`, e o teste `logo-geometry.test.ts` falha se algum ficar desatualizado.
 
-| Arquivo                                                               | Uso                                                                          |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `<Logo />` / `<Logo variant="mark" />` (`src/components/ui/logo.tsx`) | Em telas. A lua usa `currentColor`; a estrela é sempre `ambar-400`.          |
-| `src/app/icon.svg`                                                    | Favicon (fundo violeta, lua branca). Gerado.                                 |
-| `src/app/apple-icon.tsx`                                              | Ícone iOS 180×180 gerado com `next/og`.                                      |
-| `src/app/opengraph-image.tsx`                                         | Imagem de compartilhamento 1200×630 (fonte embutida, nada baixado no build). |
-| `public/brand/logo-mark.svg`, `logo-mark-white.svg`, `logo-icon.svg`  | Para README, slides, e-mails (use PNG em e-mail se precisar). Gerados.       |
+| Arquivo                                                               | Uso                                                                               |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `<Logo />` / `<Logo variant="mark" />` (`src/components/ui/logo.tsx`) | Em telas. A lua usa `currentColor`; a estrela é sempre `ambar-400`.               |
+| `src/app/icon.svg`                                                    | Favicon (fundo violeta, lua branca). Gerado.                                      |
+| `src/app/apple-icon.tsx`                                              | Ícone iOS 180×180 gerado com `next/og`.                                           |
+| `src/app/opengraph-image.tsx`                                         | Imagem 1200×630 em Bricolage Grotesque (`src/assets/fonts`, OFL); nada é baixado. |
+| `public/brand/logo-mark.svg`, `logo-mark-white.svg`, `logo-icon.svg`  | Para README, slides, e-mails (use PNG em e-mail se precisar). Gerados.            |
 
 Regras do logo: não mude a cor da estrela, não aplique sombra/contorno, não gire a lua, deixe respiro
 de pelo menos metade da altura do símbolo, tamanho mínimo 16 px de altura. Sobre fundos
@@ -721,7 +721,7 @@ cuidadoso em erros, assédio, maternidade e saúde mental.
 
 | Situação    | Faça                                                                                                  | Evite                                                           |
 | ----------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Boas-vindas | "Bem-vinda à Artemis! Conte um pouco da sua pesquisa para encontrarmos mentoras para você."     | "Bem-vindo(a), usuário! Preencha todos os campos obrigatórios." |
+| Boas-vindas | "Bem-vinda à Artemis! Conte um pouco da sua pesquisa para encontrarmos mentoras para você."           | "Bem-vindo(a), usuário! Preencha todos os campos obrigatórios." |
 | Erro        | "Não conseguimos salvar seu perfil. Verifique sua conexão e tente de novo — seu texto continua aqui." | "Erro 500: falha na operação."                                  |
 | Vazio       | "Ainda não há papers nesta área. Que tal indicar o primeiro?"                                         | "Nenhum resultado encontrado."                                  |
 | Botões      | "Pedir mentoria", "Destacar paper", "Salvar perfil" (verbo no infinitivo)                             | "OK", "Clique aqui", "Enviar dados"                             |

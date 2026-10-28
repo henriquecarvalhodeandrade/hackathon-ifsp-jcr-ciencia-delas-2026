@@ -19,7 +19,7 @@ export default function NotFound() {
       <div className="relative isolate overflow-hidden rounded-dialog border border-border bg-surface px-6 py-14 text-center shadow-card sm:px-12 sm:py-20">
         <ConstellationPattern
           density="medium"
-          className="absolute inset-0 -z-10 size-full text-primary/25 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_75%)]"
+          className="absolute inset-0 -z-10 size-full [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_75%)] text-primary/25"
         />
         <p className="eyebrow text-primary">Erro 404</p>
         <p
@@ -46,7 +46,8 @@ export default function NotFound() {
           Essa estrela ainda não está no nosso mapa
         </h1>
         <p className="mx-auto mt-3 max-w-lg text-lg text-fg-muted">
-          A página que você procurou não existe ou mudou de lugar. Que tal voltar para a constelação?
+          A página que você procurou não existe ou mudou de lugar. Que tal voltar para a
+          constelação?
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink href="/" size="lg">

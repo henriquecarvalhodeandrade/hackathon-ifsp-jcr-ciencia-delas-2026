@@ -82,9 +82,7 @@ for (const [fn, columns] of Object.entries(NULLABLE_RETURN_COLUMNS)) {
   const head = body.slice(0, returnsAt);
   const lines = body.slice(returnsAt).split("\n");
   for (const column of columns) {
-    const start = lines.findIndex((line) =>
-      new RegExp(`^\\s+${column}\\??:`).test(line),
-    );
+    const start = lines.findIndex((line) => new RegExp(`^\\s+${column}\\??:`).test(line));
     if (start === -1) {
       problems.push(`coluna ${fn}.${column} não encontrada`);
       continue;
@@ -105,8 +103,7 @@ for (const [fn, columns] of Object.entries(NULLABLE_RETURN_COLUMNS)) {
   }
   const returns = lines.join("\n");
   body = head + returns;
-  functions =
-    functions.slice(0, fnBlock.start) + body + functions.slice(fnBlock.end);
+  functions = functions.slice(0, fnBlock.start) + body + functions.slice(fnBlock.end);
 }
 
 for (const fn of NULLABLE_SCALAR_RETURNS) {
@@ -116,19 +113,13 @@ for (const fn of NULLABLE_SCALAR_RETURNS) {
     continue;
   }
   const body = functions.slice(fnBlock.start, fnBlock.end);
-  const patched = body.replace(
-    /Returns: ([^;\n{}]+?)(;?)(\s*\n|\s*})/,
-    (all, type, semi, rest) =>
-      /\bnull\b/.test(type) ? all : `Returns: ${type} | null${semi}${rest}`,
+  const patched = body.replace(/Returns: ([^;\n{}]+?)(;?)(\s*\n|\s*})/, (all, type, semi, rest) =>
+    /\bnull\b/.test(type) ? all : `Returns: ${type} | null${semi}${rest}`,
   );
-  functions =
-    functions.slice(0, fnBlock.start) + patched + functions.slice(fnBlock.end);
+  functions = functions.slice(0, fnBlock.start) + patched + functions.slice(fnBlock.end);
 }
 
-source =
-  source.slice(0, functionsBlock.start) +
-  functions +
-  source.slice(functionsBlock.end);
+source = source.slice(0, functionsBlock.start) + functions + source.slice(functionsBlock.end);
 writeFileSync(file, source);
 
 if (problems.length > 0) {

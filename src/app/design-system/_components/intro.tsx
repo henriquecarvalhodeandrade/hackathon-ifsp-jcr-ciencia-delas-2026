@@ -4,7 +4,15 @@ import { LogoMark } from "@/components/ui/logo";
 import { formatNumber } from "@/lib/utils";
 import { DsSection } from "./ds";
 
-export function Hero({ componentCount, tokenCount, pairCount }: { componentCount: number; tokenCount: number; pairCount: number }) {
+export function Hero({
+  componentCount,
+  tokenCount,
+  pairCount,
+}: {
+  componentCount: number;
+  tokenCount: number;
+  pairCount: number;
+}) {
   return (
     <div
       data-theme="dark"
@@ -13,19 +21,17 @@ export function Hero({ componentCount, tokenCount, pairCount }: { componentCount
       <ConstellationPattern
         density="high"
         align="end"
-        className="absolute inset-x-0 bottom-0 -z-10 h-52 w-full text-violeta-300/50 [mask-image:linear-gradient(to_bottom,transparent,black_70%)] sm:inset-0 sm:h-full sm:text-violeta-300/60 sm:[mask-image:linear-gradient(100deg,transparent_25%,black_70%)]"
+        className="absolute inset-x-0 bottom-0 -z-10 h-52 w-full [mask-image:linear-gradient(to_bottom,transparent,black_70%)] text-violeta-300/50 sm:inset-0 sm:h-full sm:[mask-image:linear-gradient(100deg,transparent_25%,black_70%)] sm:text-violeta-300/60"
       />
       <div className="flex items-center gap-3 text-violeta-200">
         <LogoMark size={40} className="text-white" />
         <p className="eyebrow">Design system · versão 1.0</p>
       </div>
-      <h1 className="mt-6 max-w-3xl font-display text-display font-bold text-white">
-        Artemis
-      </h1>
+      <h1 className="mt-6 max-w-3xl font-display text-display font-bold text-white">Artemis</h1>
       <p className="mt-4 max-w-2xl text-xl leading-relaxed text-violeta-100">
-        Cada cientista é uma estrela. Quando uma mentora encontra uma pesquisadora iniciante, quando um paper ganha
-        destaque, quando alguém responde no fórum — desenhamos constelações. Este é o sistema visual que dá forma a
-        isso na Artemis.
+        Cada cientista é uma estrela. Quando uma mentora encontra uma pesquisadora iniciante, quando
+        um paper ganha destaque, quando alguém responde no fórum — desenhamos constelações. Este é o
+        sistema visual que dá forma a isso na Artemis.
       </p>
       <dl className="mt-10 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/15 pt-6">
         {[
@@ -35,7 +41,9 @@ export function Hero({ componentCount, tokenCount, pairCount }: { componentCount
         ].map((s) => (
           <div key={s.label} className="grid gap-1">
             <dt className="order-2 text-sm text-violeta-200">{s.label}</dt>
-            <dd className="tabular font-display text-3xl font-semibold text-white sm:text-4xl">{formatNumber(s.value)}</dd>
+            <dd className="font-display text-3xl font-semibold text-white tabular sm:text-4xl">
+              {formatNumber(s.value)}
+            </dd>
           </div>
         ))}
       </dl>
@@ -82,12 +90,17 @@ export function Principles() {
     >
       <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PRINCIPLES.map((p, i) => (
-          <li key={p.title} className="rounded-card border border-border bg-surface p-5 shadow-card">
+          <li
+            key={p.title}
+            className="rounded-card border border-border bg-surface p-5 shadow-card"
+          >
             <div className="flex items-center justify-between">
               <span className="inline-flex size-10 items-center justify-center rounded-full bg-primary-soft text-primary-soft-fg">
                 <p.icon aria-hidden="true" className="size-5" />
               </span>
-              <span className="tabular font-display text-sm font-semibold text-fg-subtle">0{i + 1}</span>
+              <span className="font-display text-sm font-semibold text-fg-subtle tabular">
+                0{i + 1}
+              </span>
             </div>
             <h3 className="mt-4 font-display text-lg font-semibold text-fg">{p.title}</h3>
             <p className="mt-1.5 text-[0.9375rem] text-fg-muted">{p.text}</p>
@@ -111,33 +124,42 @@ export function BrandStory() {
         <div className="grid gap-5 text-[1.0625rem] leading-relaxed text-fg-muted">
           <p>
             <strong className="text-fg">Roxo, branco e verde.</strong> Em 1908, a{" "}
-            <em>Women&apos;s Social and Political Union</em> escolheu três cores para a luta pelo voto feminino:{" "}
-            <span className="font-semibold text-primary">violeta pela dignidade</span>, branco pela pureza de propósito
-            e <span className="font-semibold text-secondary">verde pela esperança</span>. Mais de um século depois,
-            mulheres ainda são minoria nos cargos mais altos da ciência — a luta mudou de lugar, não de cor.
+            <em>Women&apos;s Social and Political Union</em> escolheu três cores para a luta pelo
+            voto feminino:{" "}
+            <span className="font-semibold text-primary">violeta pela dignidade</span>, branco pela
+            pureza de propósito e{" "}
+            <span className="font-semibold text-secondary">verde pela esperança</span>. Mais de um
+            século depois, mulheres ainda são minoria nos cargos mais altos da ciência — a luta
+            mudou de lugar, não de cor.
           </p>
           <p>
-            O verde também é <strong className="text-fg">o verde dos Institutos Federais</strong>: nosso{" "}
-            <code className="rounded-badge bg-surface-2 px-1.5 py-0.5 font-mono text-sm">verde-500</code> é o #32A041
-            da marca da Rede Federal. Nascemos num hackathon do IFSP Jacareí, e isso faz parte de quem somos.
+            O verde também é <strong className="text-fg">o verde dos Institutos Federais</strong>:
+            nosso{" "}
+            <code className="rounded-badge bg-surface-2 px-1.5 py-0.5 font-mono text-sm">
+              verde-500
+            </code>{" "}
+            é o #32A041 da marca da Rede Federal. Nascemos num hackathon do IFSP Jacareí, e isso faz
+            parte de quem somos.
           </p>
           <p>
-            <strong className="text-fg">O âmbar é a luz das estrelas</strong> — destaques, votos e conquistas. E o
-            fundo não é creme nem cinza frio: é um branco-papel levemente violeta de dia e um céu noturno à noite.
+            <strong className="text-fg">O âmbar é a luz das estrelas</strong> — destaques, votos e
+            conquistas. E o fundo não é creme nem cinza frio: é um branco-papel levemente violeta de
+            dia e um céu noturno à noite.
           </p>
           <p>
-            <strong className="text-fg">O nome e o símbolo.</strong> Na mitologia grega, Ártemis é a deusa da caça e
-            da Lua — e o nome também batiza o programa da NASA de volta à Lua. O símbolo é uma{" "}
-            <strong className="text-fg">lua crescente</strong> com uma{" "}
-            <strong className="text-fg">estrela âmbar</strong> de quatro pontas na curva: a lua que ilumina quem
-            caminha à noite e a estrela que é cada pesquisadora ganhando luz. As pontas da lua são arredondadas, como
-            as linhas do resto do sistema. O padrão de fundo inclui o{" "}
+            <strong className="text-fg">O nome e o símbolo.</strong> Na mitologia grega, Ártemis é a
+            deusa da caça e da Lua — e o nome também batiza o programa da NASA de volta à Lua. O
+            símbolo é uma <strong className="text-fg">lua crescente</strong> com uma{" "}
+            <strong className="text-fg">estrela âmbar</strong> de quatro pontas na curva: a lua que
+            ilumina quem caminha à noite e a estrela que é cada pesquisadora ganhando luz. As pontas
+            da lua são arredondadas, como as linhas do resto do sistema. O padrão de fundo inclui o{" "}
             <strong className="text-fg">Cruzeiro do Sul</strong>, que está na bandeira do Brasil.
           </p>
           <p>
-            <strong className="text-fg">Atkinson Hyperlegible</strong> foi criada pelo Braille Institute para leitoras
-            com baixa visão: letras como I, l e 1 ou O e 0 nunca se confundem. Escolher essa fonte para todo o texto
-            da interface é uma decisão de inclusão, não de estilo.
+            <strong className="text-fg">Atkinson Hyperlegible</strong> foi criada pelo Braille
+            Institute para leitoras com baixa visão: letras como I, l e 1 ou O e 0 nunca se
+            confundem. Escolher essa fonte para todo o texto da interface é uma decisão de inclusão,
+            não de estilo.
           </p>
         </div>
         <div className="grid content-start gap-4">
@@ -146,7 +168,7 @@ export function BrandStory() {
               density="low"
               orbits={false}
               accents={false}
-              className="absolute inset-0 -z-10 size-full text-primary/25 [mask-image:radial-gradient(circle_at_center,transparent_28%,black_62%)]"
+              className="absolute inset-0 -z-10 size-full [mask-image:radial-gradient(circle_at_center,transparent_28%,black_62%)] text-primary/25"
             />
             <LogoMark size={150} className="text-primary" title="Símbolo da Artemis" />
           </div>

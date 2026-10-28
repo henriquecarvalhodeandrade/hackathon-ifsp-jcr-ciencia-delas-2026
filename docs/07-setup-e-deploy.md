@@ -8,12 +8,12 @@ na Vercel + Supabase Cloud.
 
 ## 1. Pré-requisitos
 
-| Ferramenta | Versão | Para quê |
-| --- | --- | --- |
-| Node.js | 20.9+ (recomendado 22) | Next.js 16 |
-| npm | 10+ | dependências |
-| Docker Desktop (ou Docker Engine) | atual | Supabase local (`npx supabase start`) |
-| Git | qualquer | clonar o repositório |
+| Ferramenta                        | Versão                 | Para quê                              |
+| --------------------------------- | ---------------------- | ------------------------------------- |
+| Node.js                           | 20.9+ (recomendado 22) | Next.js 16                            |
+| npm                               | 10+                    | dependências                          |
+| Docker Desktop (ou Docker Engine) | atual                  | Supabase local (`npx supabase start`) |
+| Git                               | qualquer               | clonar o repositório                  |
 
 O CLI do Supabase já vem como dependência de desenvolvimento (`npx supabase ...`), não precisa instalar à parte.
 
@@ -33,11 +33,11 @@ cp .env.example .env.local
 
 O `npx supabase start` imprime as chaves. Copie para o `.env.local`:
 
-| Saída do `supabase start` | Variável no `.env.local` |
-| --- | --- |
-| `API URL` (http://127.0.0.1:54321) | `NEXT_PUBLIC_SUPABASE_URL` |
+| Saída do `supabase start`                | Variável no `.env.local`               |
+| ---------------------------------------- | -------------------------------------- |
+| `API URL` (http://127.0.0.1:54321)       | `NEXT_PUBLIC_SUPABASE_URL`             |
 | `Publishable key` (`sb_publishable_...`) | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
-| `Secret key` (`sb_secret_...`) | `SUPABASE_SECRET_KEY` |
+| `Secret key` (`sb_secret_...`)           | `SUPABASE_SECRET_KEY`                  |
 
 Rode `npx supabase status` para ver de novo. Depois:
 
@@ -47,25 +47,25 @@ npm run dev            # http://localhost:3000
 
 Serviços locais úteis:
 
-| Serviço | Endereço |
-| --- | --- |
-| App | http://localhost:3000 |
-| API do Supabase | http://127.0.0.1:54321 |
-| Banco (psql) | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
-| **Mailpit** (todos os e-mails de cadastro, login e newsletter caem aqui) | http://127.0.0.1:54324 |
-| Studio (se não tiver sido desligado) | http://127.0.0.1:54323 |
+| Serviço                                                                  | Endereço                                                  |
+| ------------------------------------------------------------------------ | --------------------------------------------------------- |
+| App                                                                      | http://localhost:3000                                     |
+| API do Supabase                                                          | http://127.0.0.1:54321                                    |
+| Banco (psql)                                                             | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
+| **Mailpit** (todos os e-mails de cadastro, login e newsletter caem aqui) | http://127.0.0.1:54324                                    |
+| Studio (se não tiver sido desligado)                                     | http://127.0.0.1:54323                                    |
 
 ### Contas de demonstração
 
 Senha de todas: **`ciencia-delas-demo`** (dados fictícios — não use o seed em produção).
 
-| Para testar | Conta |
-| --- | --- |
-| Mentoranda com mentoria ativa | `larissa@demo.cienciadelas.dev` |
-| Mentoranda com pedido pendente | `yasmin@demo.cienciadelas.dev` |
-| Mentora (recebe pedidos) | `marina@demo.cienciadelas.dev` |
-| Moderadora | `moderacao@demo.cienciadelas.dev` |
-| Administradora (newsletter, papéis) | `admin@demo.cienciadelas.dev` |
+| Para testar                         | Conta                             |
+| ----------------------------------- | --------------------------------- |
+| Mentoranda com mentoria ativa       | `larissa@demo.cienciadelas.dev`   |
+| Mentoranda com pedido pendente      | `yasmin@demo.cienciadelas.dev`    |
+| Mentora (recebe pedidos)            | `marina@demo.cienciadelas.dev`    |
+| Moderadora                          | `moderacao@demo.cienciadelas.dev` |
+| Administradora (newsletter, papéis) | `admin@demo.cienciadelas.dev`     |
 
 A lista completa está em [`03-banco-de-dados.md` §15](03-banco-de-dados.md#15-contas-de-demonstração).
 
@@ -74,17 +74,17 @@ no Mailpit; clique no link e você cai no onboarding.
 
 ### Comandos do dia a dia
 
-| Comando | O que faz |
-| --- | --- |
-| `npm run dev` | servidor de desenvolvimento |
-| `npm run check` | lint + typecheck + testes unitários |
-| `npm test` | testes unitários (Vitest) |
-| `npm run db:test` | testes do banco (pgTAP: RLS, triggers, RPCs) |
-| `npm run db:reset` | recria o banco local do zero (migrations + seed) |
-| `npm run db:types` | regenera `src/lib/database.types.ts` a partir do banco local |
-| `npx supabase migration new <nome>` | cria uma migration nova |
-| `npm run ai:backfill` | gera embeddings dos perfis (precisa de `GEMINI_API_KEY`) |
-| `npm run format` | formata o código (Prettier) |
+| Comando                             | O que faz                                                    |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `npm run dev`                       | servidor de desenvolvimento                                  |
+| `npm run check`                     | lint + typecheck + testes unitários                          |
+| `npm test`                          | testes unitários (Vitest)                                    |
+| `npm run db:test`                   | testes do banco (pgTAP: RLS, triggers, RPCs)                 |
+| `npm run db:reset`                  | recria o banco local do zero (migrations + seed)             |
+| `npm run db:types`                  | regenera `src/lib/database.types.ts` a partir do banco local |
+| `npx supabase migration new <nome>` | cria uma migration nova                                      |
+| `npm run ai:backfill`               | gera embeddings dos perfis (precisa de `GEMINI_API_KEY`)     |
+| `npm run format`                    | formata o código (Prettier)                                  |
 
 > Sem Docker? Dá para validar as migrations num Postgres 16 comum com `npm run db:validate`
 > (ver [`03-banco-de-dados.md`](03-banco-de-dados.md)). O app, porém, precisa de um Supabase (local ou cloud).
@@ -93,22 +93,22 @@ no Mailpit; clique no link e você cai no onboarding.
 
 Todas estão documentadas em [`.env.example`](../.env.example). Resumo:
 
-| Variável | Obrigatória? | Onde conseguir |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | sim em produção | URL pública do site (links de e-mail, redirects de login) |
-| `NEXT_PUBLIC_SUPABASE_URL` | **sim** | `supabase status` ou Project Settings → API |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **sim** | `sb_publishable_...` (ou a anon key legada) |
-| `SUPABASE_SECRET_KEY` | para newsletter, cron, exclusão de conta e painel admin | `sb_secret_...` (ou service_role legada) — **nunca** com `NEXT_PUBLIC_` |
-| `GEMINI_API_KEY` | opcional (IA) | https://aistudio.google.com/apikey — grátis, sem cartão |
-| `GROQ_API_KEY` | opcional (IA, fallback) | https://console.groq.com/keys — grátis |
-| `OPENROUTER_API_KEY` | opcional (IA, fallback) | https://openrouter.ai/keys |
-| `AI_PROVIDER` | opcional | `gemini`, `groq`, `openrouter` ou `none`; vazio = primeira chave encontrada |
-| `RESEND_API_KEY` | opcional (envio da newsletter) | https://resend.com/api-keys |
-| `NEWSLETTER_FROM` | com Resend | remetente de um **domínio verificado** no Resend |
-| `NEWSLETTER_MAX_PER_RUN` | opcional | teto de e-mails por execução (padrão 90) |
-| `CRON_SECRET` | sim em produção | string aleatória longa (`openssl rand -hex 32`) |
-| `CONTACT_EMAIL` | opcional | contato usado no User-Agent do Crossref |
-| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | opcional | `true` depois de configurar o Google no Supabase |
+| Variável                               | Obrigatória?                                            | Onde conseguir                                                              |
+| -------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                 | sim em produção                                         | URL pública do site (links de e-mail, redirects de login)                   |
+| `NEXT_PUBLIC_SUPABASE_URL`             | **sim**                                                 | `supabase status` ou Project Settings → API                                 |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **sim**                                                 | `sb_publishable_...` (ou a anon key legada)                                 |
+| `SUPABASE_SECRET_KEY`                  | para newsletter, cron, exclusão de conta e painel admin | `sb_secret_...` (ou service_role legada) — **nunca** com `NEXT_PUBLIC_`     |
+| `GEMINI_API_KEY`                       | opcional (IA)                                           | https://aistudio.google.com/apikey — grátis, sem cartão                     |
+| `GROQ_API_KEY`                         | opcional (IA, fallback)                                 | https://console.groq.com/keys — grátis                                      |
+| `OPENROUTER_API_KEY`                   | opcional (IA, fallback)                                 | https://openrouter.ai/keys                                                  |
+| `AI_PROVIDER`                          | opcional                                                | `gemini`, `groq`, `openrouter` ou `none`; vazio = primeira chave encontrada |
+| `RESEND_API_KEY`                       | opcional (envio da newsletter)                          | https://resend.com/api-keys                                                 |
+| `NEWSLETTER_FROM`                      | com Resend                                              | remetente de um **domínio verificado** no Resend                            |
+| `NEWSLETTER_MAX_PER_RUN`               | opcional                                                | teto de e-mails por execução (padrão 90)                                    |
+| `CRON_SECRET`                          | sim em produção                                         | string aleatória longa (`openssl rand -hex 32`)                             |
+| `CONTACT_EMAIL`                        | opcional                                                | contato usado no User-Agent do Crossref                                     |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | opcional                                                | `true` depois de configurar o Google no Supabase                            |
 
 **O app funciona sem as chaves opcionais:** sem IA, a mentoria usa o score heurístico; sem Resend, as edições da
 newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mailpit).
@@ -130,13 +130,13 @@ newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mail
      `seed.sql` (linhas iniciais, antes de `2. DEMONSTRAÇÃO`).
    - **Ambiente de demonstração:** rode o arquivo inteiro (inclui as contas e dados fictícios).
 3. **Authentication → URL Configuration**:
-   - *Site URL*: `https://<seu-app>.vercel.app`
-   - *Redirect URLs*: `https://<seu-app>.vercel.app/**` e, para previews, `https://*-<sua-conta>.vercel.app/**`
+   - _Site URL_: `https://<seu-app>.vercel.app`
+   - _Redirect URLs_: `https://<seu-app>.vercel.app/**` e, para previews, `https://*-<sua-conta>.vercel.app/**`
 4. **Authentication → Email Templates**: cole o conteúdo de `supabase/templates/*.html` (confirmação, link mágico,
    recuperação, troca de e-mail, convite) e os assuntos que estão em `supabase/config.toml`. Os templates apontam
    para `/auth/confirm` com `token_hash` (fluxo PKCE recomendado para SSR).
 5. **Authentication → Sign In / Providers → Email**: deixe "Confirm email" ligado; senha mínima 8.
-6. (Opcional) **Google**: crie credenciais OAuth no Google Cloud, cole Client ID/Secret em *Providers → Google*,
+6. (Opcional) **Google**: crie credenciais OAuth no Google Cloud, cole Client ID/Secret em _Providers → Google_,
    adicione `https://<PROJECT_REF>.supabase.co/auth/v1/callback` como URI de redirecionamento no Google e defina
    `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED=true` na Vercel.
 7. Gere os tipos a partir da nuvem quando mudar o schema: `SUPABASE_PROJECT_REF=<ref> npm run db:types:remote`.
@@ -144,12 +144,12 @@ newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mail
    críticos.
 
 > O e-mail embutido do Supabase Free envia poucas mensagens por hora. Para um evento com muitas inscrições,
-> configure SMTP próprio (pode ser o próprio Resend) em *Project Settings → Auth → SMTP*.
+> configure SMTP próprio (pode ser o próprio Resend) em _Project Settings → Auth → SMTP_.
 
 ### 4.2 Vercel (plano Hobby)
 
 1. Importe o repositório em https://vercel.com/new (framework detectado: Next.js).
-2. Em *Settings → Environment Variables*, cadastre as variáveis da seção 3 (no mínimo as três do Supabase,
+2. Em _Settings → Environment Variables_, cadastre as variáveis da seção 3 (no mínimo as três do Supabase,
    `NEXT_PUBLIC_SITE_URL` e `CRON_SECRET`).
 3. Faça o deploy. O `vercel.json` já registra o **cron semanal** da newsletter:
    `GET /api/cron/newsletter` toda segunda às 12:00 UTC (09:00 em Brasília). A Vercel envia
@@ -177,7 +177,7 @@ Administradoras podem promover moderadoras pelo painel `/admin`.
 ### 4.4 Newsletter de verdade (Resend)
 
 1. Crie a conta no Resend e uma API key.
-2. Verifique um domínio seu em *Domains* (registros SPF e DKIM no DNS). Sem domínio verificado, o remetente de
+2. Verifique um domínio seu em _Domains_ (registros SPF e DKIM no DNS). Sem domínio verificado, o remetente de
    teste `onboarding@resend.dev` **só entrega para o e-mail da própria conta Resend**.
 3. Defina `RESEND_API_KEY` e `NEWSLETTER_FROM="Artemis <boletim@seu-dominio>"` na Vercel.
 4. Plano gratuito: 100 e-mails/dia e 3.000/mês. O serviço envia em lotes e retoma na execução seguinte
@@ -206,12 +206,12 @@ Administradoras podem promover moderadoras pelo painel `/admin`.
 
 ## 6. Problemas comuns
 
-| Sintoma | Causa provável | Solução |
-| --- | --- | --- |
-| Faixa "Configure o Supabase" no topo | `.env.local` sem URL/chave | Seção 2 |
-| Cadastro não chega | Em dev o e-mail está no Mailpit; em produção, limite do SMTP do Supabase | Abra http://127.0.0.1:54324 ou configure SMTP |
-| Link do e-mail volta para `localhost` em produção | Site URL / Redirect URLs | Seção 4.1 passo 3 |
-| `permission denied for table ...` (42501) | Tentativa de ler/escrever algo que o RLS ou os GRANTs não permitem | Esperado para dados de outras pessoas; para tabelas novas, declare os `GRANT`s na migration |
-| Mentoria sem "Sugestão por IA" | Sem chave de IA, sem consentimento, ou cota gratuita esgotada (429) | Modo heurístico continua funcionando; veja os logs do servidor |
-| "Another next dev server is already running" | Next 16 permite um `next dev` por pasta | Feche o outro servidor ou rode `next build && next start -p 3001` |
-| Tipos desatualizados após mudar o banco | `database.types.ts` antigo | `npm run db:types` |
+| Sintoma                                           | Causa provável                                                           | Solução                                                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Faixa "Configure o Supabase" no topo              | `.env.local` sem URL/chave                                               | Seção 2                                                                                     |
+| Cadastro não chega                                | Em dev o e-mail está no Mailpit; em produção, limite do SMTP do Supabase | Abra http://127.0.0.1:54324 ou configure SMTP                                               |
+| Link do e-mail volta para `localhost` em produção | Site URL / Redirect URLs                                                 | Seção 4.1 passo 3                                                                           |
+| `permission denied for table ...` (42501)         | Tentativa de ler/escrever algo que o RLS ou os GRANTs não permitem       | Esperado para dados de outras pessoas; para tabelas novas, declare os `GRANT`s na migration |
+| Mentoria sem "Sugestão por IA"                    | Sem chave de IA, sem consentimento, ou cota gratuita esgotada (429)      | Modo heurístico continua funcionando; veja os logs do servidor                              |
+| "Another next dev server is already running"      | Next 16 permite um `next dev` por pasta                                  | Feche o outro servidor ou rode `next build && next start -p 3001`                           |
+| Tipos desatualizados após mudar o banco           | `database.types.ts` antigo                                               | `npm run db:types`                                                                          |

@@ -66,7 +66,12 @@ const SCALE = [
   { token: "text-2xl", size: "24px", lh: "32px", sample: "Papers em destaque" },
   { token: "text-xl", size: "20px", lh: "30px", sample: "Bolsas e editais abertos" },
   { token: "text-lg", size: "18px", lh: "28px", sample: "Descrição de página e chamadas" },
-  { token: "text-base", size: "16px", lh: "26px", sample: "Texto corrido da interface e dos posts." },
+  {
+    token: "text-base",
+    size: "16px",
+    lh: "26px",
+    sample: "Texto corrido da interface e dos posts.",
+  },
   { token: "text-sm", size: "14px", lh: "22px", sample: "Metadados, rótulos, ajuda de campos." },
   { token: "text-xs", size: "12px", lh: "18px", sample: "Contadores e legendas curtas." },
 ] as const;
@@ -82,15 +87,23 @@ export function Typography() {
     >
       <div className="grid gap-4 md:grid-cols-2">
         {FAMILIES.map((f) => (
-          <article key={f.token} className="grid content-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card">
+          <article
+            key={f.token}
+            className="grid content-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-display text-lg font-semibold text-fg">{f.name}</h3>
                 <p className="text-sm text-fg-muted">{f.role}</p>
               </div>
-              <code className="shrink-0 rounded-badge bg-surface-2 px-1.5 py-0.5 font-mono text-xs text-fg-muted">{f.token}</code>
+              <code className="shrink-0 rounded-badge bg-surface-2 px-1.5 py-0.5 font-mono text-xs text-fg-muted">
+                {f.token}
+              </code>
             </div>
-            <p className={cn("text-[2.75rem] leading-none text-fg", f.className)} aria-hidden="true">
+            <p
+              className={cn("text-[2.75rem] leading-none text-fg", f.className)}
+              aria-hidden="true"
+            >
               Aa Çç Ãã
             </p>
             <p className={cn("text-xl text-fg", f.className)}>{f.sample}</p>
@@ -104,15 +117,20 @@ export function Typography() {
       </DsSubheading>
       <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
         {SCALE.map((s) => (
-          <div key={s.token} className="grid items-baseline gap-x-6 gap-y-1 px-5 py-4 sm:grid-cols-[9rem_7rem_1fr]">
+          <div
+            key={s.token}
+            className="grid items-baseline gap-x-6 gap-y-1 px-5 py-4 sm:grid-cols-[9rem_7rem_1fr]"
+          >
             <code className="font-mono text-[0.8125rem] font-semibold text-primary">{s.token}</code>
-            <span className="tabular font-mono text-xs text-fg-subtle">
+            <span className="font-mono text-xs text-fg-subtle tabular">
               {s.size} / {s.lh}
             </span>
             <p
               className={cn(
                 s.token,
-                s.token.match(/display|5xl|4xl|3xl|2xl|xl$/) ? "font-display font-semibold tracking-[-0.02em]" : "",
+                s.token.match(/display|5xl|4xl|3xl|2xl|xl$/)
+                  ? "font-display font-semibold tracking-[-0.02em]"
+                  : "",
                 "min-w-0 truncate text-fg",
               )}
             >
@@ -137,7 +155,9 @@ export function Typography() {
           <p className="mt-1 font-mono text-xs text-fg-subtle">10.5555/demo.2026.0042</p>
         </div>
         <div className="rounded-card border border-border bg-surface p-5">
-          <p className="tabular font-display text-5xl font-semibold tracking-[-0.03em] text-fg">1.284</p>
+          <p className="font-display text-5xl font-semibold tracking-[-0.03em] text-fg tabular">
+            1.284
+          </p>
           <p className="mt-1 text-sm text-fg-muted">pesquisadoras na rede · .tabular</p>
         </div>
       </div>
@@ -148,16 +168,44 @@ export function Typography() {
 const SPACING = [1, 2, 3, 4, 6, 8, 12, 16] as const;
 
 const RADII = [
-  { token: "rounded-badge", px: "6px", use: "Badges, kbd, código inline", className: "rounded-badge" },
-  { token: "rounded-control", px: "10px", use: "Botões, campos, itens de menu", className: "rounded-control" },
-  { token: "rounded-card", px: "16px", use: "Cartões, alertas, painéis", className: "rounded-card" },
-  { token: "rounded-dialog", px: "20px", use: "Diálogos, gavetas, hero", className: "rounded-dialog" },
+  {
+    token: "rounded-badge",
+    px: "6px",
+    use: "Badges, kbd, código inline",
+    className: "rounded-badge",
+  },
+  {
+    token: "rounded-control",
+    px: "10px",
+    use: "Botões, campos, itens de menu",
+    className: "rounded-control",
+  },
+  {
+    token: "rounded-card",
+    px: "16px",
+    use: "Cartões, alertas, painéis",
+    className: "rounded-card",
+  },
+  {
+    token: "rounded-dialog",
+    px: "20px",
+    use: "Diálogos, gavetas, hero",
+    className: "rounded-dialog",
+  },
   { token: "rounded-pill", px: "999px", use: "Chips, tags, contadores", className: "rounded-pill" },
-  { token: "rounded-full", px: "50%", use: "Avatares, nós da constelação", className: "rounded-full" },
+  {
+    token: "rounded-full",
+    px: "50%",
+    use: "Avatares, nós da constelação",
+    className: "rounded-full",
+  },
 ] as const;
 
 const SHADOWS = [
-  { token: "shadow-card", use: "Cartões em repouso — quase imperceptível; a borda faz o trabalho." },
+  {
+    token: "shadow-card",
+    use: "Cartões em repouso — quase imperceptível; a borda faz o trabalho.",
+  },
   { token: "shadow-raised", use: "Hover de cartões interativos, elementos arrastados." },
   { token: "shadow-overlay", use: "Menus, diálogos e gavetas (camada acima da página)." },
 ] as const;
@@ -179,7 +227,7 @@ export function Foundations() {
           <div key={n} className="flex items-center gap-4">
             <code className="w-12 shrink-0 font-mono text-xs text-fg-muted">{n}</code>
             <span className="h-3 rounded-[2px] bg-primary" style={{ width: `${n * 4}px` }} />
-            <span className="tabular font-mono text-xs text-fg-subtle">{n * 4}px</span>
+            <span className="font-mono text-xs text-fg-subtle tabular">{n * 4}px</span>
           </div>
         ))}
       </div>
@@ -202,7 +250,10 @@ export function Foundations() {
       </DsSubheading>
       <div className="grid gap-6 rounded-card bg-surface-2 p-6 sm:grid-cols-3">
         {SHADOWS.map((s) => (
-          <div key={s.token} className={cn("grid gap-1 rounded-card border border-border bg-surface p-5", s.token)}>
+          <div
+            key={s.token}
+            className={cn("grid gap-1 rounded-card border border-border bg-surface p-5", s.token)}
+          >
             <code className="font-mono text-sm font-semibold text-fg">{s.token}</code>
             <p className="text-sm text-fg-muted">{s.use}</p>
           </div>
@@ -214,11 +265,15 @@ export function Foundations() {
       </DsSubheading>
       <ul className="grid gap-3 text-[0.9375rem] text-fg-muted sm:grid-cols-2">
         <li className="rounded-card border border-border bg-surface p-4">
-          <code className="font-mono text-sm font-semibold text-fg">duration-150 · ease-out-soft</code>
+          <code className="font-mono text-sm font-semibold text-fg">
+            duration-150 · ease-out-soft
+          </code>
           <p className="mt-1">Cores e bordas de hover/foco.</p>
         </li>
         <li className="rounded-card border border-border bg-surface p-4">
-          <code className="font-mono text-sm font-semibold text-fg">animate-pop-in · animate-fade-in</code>
+          <code className="font-mono text-sm font-semibold text-fg">
+            animate-pop-in · animate-fade-in
+          </code>
           <p className="mt-1">Entrada de menus e diálogos (≤ 200ms).</p>
         </li>
         <li className="rounded-card border border-border bg-surface p-4">
@@ -269,31 +324,38 @@ export function Iconography() {
       <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
         <ul className="grid content-start gap-3 text-[0.9375rem] text-fg-muted">
           <li>
-            <strong className="text-fg">Tamanhos:</strong> 16px (size-4) junto a text-sm · 18px em botões md · 20px
-            (size-5) na navegação · 24px (size-6) em estados vazios.
+            <strong className="text-fg">Tamanhos:</strong> 16px (size-4) junto a text-sm · 18px em
+            botões md · 20px (size-5) na navegação · 24px (size-6) em estados vazios.
           </li>
           <li>
-            <strong className="text-fg">Decorativo?</strong> Sempre <code className="font-mono text-sm">aria-hidden=&quot;true&quot;</code>{" "}
-            quando há texto ao lado.
+            <strong className="text-fg">Decorativo?</strong> Sempre{" "}
+            <code className="font-mono text-sm">aria-hidden=&quot;true&quot;</code> quando há texto
+            ao lado.
           </li>
           <li>
             <strong className="text-fg">Só ícone?</strong> O botão precisa de{" "}
-            <code className="font-mono text-sm">aria-label</code> (ex.: “Fechar”). Tooltip é complemento, não nome.
+            <code className="font-mono text-sm">aria-label</code> (ex.: “Fechar”). Tooltip é
+            complemento, não nome.
           </li>
           <li>
-            <strong className="text-fg">Cor:</strong> herda o texto (currentColor). Estrela de voto ativa:{" "}
-            <code className="font-mono text-sm">fill-accent text-accent-strong</code>.
+            <strong className="text-fg">Cor:</strong> herda o texto (currentColor). Estrela de voto
+            ativa: <code className="font-mono text-sm">fill-accent text-accent-strong</code>.
           </li>
           <li>
-            <strong className="text-fg">Categorias do fórum:</strong> o banco guarda o nome em kebab-case
-            (“graduation-cap”); renderize com{" "}
-            <code className="font-mono text-sm">&lt;CategoryIcon name=&#123;categoria.icon&#125; /&gt;</code> —
-            ele já troca “shield-heart” (que não existe no lucide 1.x) por ShieldPlus.
+            <strong className="text-fg">Categorias do fórum:</strong> o banco guarda o nome em
+            kebab-case (“graduation-cap”); renderize com{" "}
+            <code className="font-mono text-sm">
+              &lt;CategoryIcon name=&#123;categoria.icon&#125; /&gt;
+            </code>{" "}
+            — ele já troca “shield-heart” (que não existe no lucide 1.x) por ShieldPlus.
           </li>
         </ul>
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-4">
           {ICONS.map(({ icon: Icon, name, use }) => (
-            <li key={name} className="flex items-center gap-3 rounded-control border border-border bg-surface px-3 py-2.5">
+            <li
+              key={name}
+              className="flex items-center gap-3 rounded-control border border-border bg-surface px-3 py-2.5"
+            >
               <Icon aria-hidden="true" className="size-5 text-primary" />
               <span className="grid min-w-0">
                 <span className="truncate text-sm font-semibold text-fg">{use}</span>

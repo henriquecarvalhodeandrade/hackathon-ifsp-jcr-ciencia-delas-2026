@@ -25,13 +25,14 @@
      variáveis de ambiente/segredos) as variáveis abaixo e abrir uma **sessão nova** neste branch.
      Nunca colar tokens no chat.
 
-     | Variável | Valor |
-     | --- | --- |
+     | Variável                | Valor                   |
+     | ----------------------- | ----------------------- |
      | `SUPABASE_ACCESS_TOKEN` | o Personal Access Token |
-     | `SUPABASE_PROJECT_REF` | o Project ref |
-     | `SUPABASE_DB_PASSWORD` | a senha do banco |
+     | `SUPABASE_PROJECT_REF`  | o Project ref           |
+     | `SUPABASE_DB_PASSWORD`  | a senha do banco        |
 
      Depois é só pedir: "configure o Supabase Cloud com o script de deploy".
+
    - **Vocês configuram:** seguir [`07-setup-e-deploy.md`](07-setup-e-deploy.md) §4.1 ou rodar o script
      `scripts/deploy/setup-supabase-cloud.mjs` (instruções no topo do arquivo).
 

@@ -40,7 +40,11 @@ const desktopLink = cn(
 const desktopActive = "text-fg after:bg-primary";
 
 /** Cabeçalho "puro" (sem buscar dados) — usado pelo SiteHeader e pelo guia vivo. */
-export function SiteHeaderView({ account, sticky = true, navLabel = "Principal" }: SiteHeaderViewProps) {
+export function SiteHeaderView({
+  account,
+  sticky = true,
+  navLabel = "Principal",
+}: SiteHeaderViewProps) {
   const items = account ? MEMBER_NAV : PUBLIC_NAV;
   return (
     <header
@@ -50,7 +54,11 @@ export function SiteHeaderView({ account, sticky = true, navLabel = "Principal" 
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="-ml-1 rounded-control px-1 py-1" aria-label="Artemis — página inicial">
+        <Link
+          href="/"
+          className="-ml-1 flex rounded-control px-1 py-1"
+          aria-label="Artemis — página inicial"
+        >
           <Logo size={28} />
         </Link>
 
@@ -77,12 +85,13 @@ export function SiteHeaderView({ account, sticky = true, navLabel = "Principal" 
               >
                 <Bell aria-hidden="true" />
                 <span className="sr-only">
-                  Notificações{account.unread > 0 ? ` (${formatNumber(account.unread)} não lidas)` : ""}
+                  Notificações
+                  {account.unread > 0 ? ` (${formatNumber(account.unread)} não lidas)` : ""}
                 </span>
                 {account.unread > 0 && (
                   <span
                     aria-hidden="true"
-                    className="tabular absolute top-1 right-1 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-pill bg-accent px-1 text-[0.6875rem] leading-none font-bold text-accent-fg ring-2 ring-bg"
+                    className="absolute top-1 right-1 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-pill bg-accent px-1 text-[0.6875rem] leading-none font-bold text-accent-fg tabular ring-2 ring-bg"
                   >
                     {account.unread > 99 ? "99+" : account.unread}
                   </span>
@@ -114,7 +123,9 @@ export function SiteHeaderView({ account, sticky = true, navLabel = "Principal" 
             <MobileNav
               items={items}
               account={
-                account ? { name: account.name, unread: account.unread, isModerator: account.isModerator } : null
+                account
+                  ? { name: account.name, unread: account.unread, isModerator: account.isModerator }
+                  : null
               }
             />
           </div>

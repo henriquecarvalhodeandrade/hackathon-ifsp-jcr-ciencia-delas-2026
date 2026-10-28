@@ -274,7 +274,9 @@
   --font-display: var(--font-bricolage, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-atkinson, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-newsreader, ui-serif), ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-atkinson-mono, ui-monospace), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono:
+    var(--font-atkinson-mono, ui-monospace), ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
 }
 
 /* ------------------------------------------------------------------------ */

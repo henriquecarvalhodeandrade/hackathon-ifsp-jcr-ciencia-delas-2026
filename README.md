@@ -1,9 +1,12 @@
-<img src="public/brand/logo-mark.svg" alt="" width="64" height="64" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/brand/logo-mark-white.svg" />
+  <img src="public/brand/logo-mark.svg" alt="" width="64" height="64" />
+</picture>
 
 # Artemis
 
 **Rede de apoio, mentoria e visibilidade para mulheres na ciência.**
-Projeto do **Hackathon IFSP Câmpus Jacareí 2026** — tema *Ciência Delas*. O nome vem de Ártemis,
+Projeto do **Hackathon IFSP Câmpus Jacareí 2026** — tema _Ciência Delas_. O nome vem de Ártemis,
 deusa grega da caça e da Lua; o símbolo é uma lua crescente com uma estrela âmbar.
 
 Pesquisadoras iniciantes encontram mentoras experientes com ajuda de IA, conversam num fórum seguro e dão
@@ -11,16 +14,16 @@ visibilidade ao trabalho de mulheres com uma vitrine de papers, rankings de dest
 
 ## O que a plataforma faz
 
-| | Funcionalidade | Rota |
-| --- | --- | --- |
-| **Fórum seguro** | Categorias (carreira, bolsas, dúvidas de pesquisa, maternidade, rede de apoio, saúde mental, eventos), reações de apoio, resposta marcada como solução, **publicação anônima** em temas sensíveis, denúncia em todo conteúdo. Só para membras. | `/forum` |
-| **Mentoria com IA** | A mentoranda descreve áreas, palavras-chave e objetivos; recebe **sugestões de mentoras** com pontuação de afinidade, o porquê da combinação e temas para a primeira conversa; envia o pedido; a mentora aceita e as duas trocam contato. | `/mentoria` |
-| **Vitrine Delas** | Divulgação de papers com autoria feminina (metadados buscados pelo **DOI** no Crossref), **resumo acessível** gerado por IA e revisado, votos de **destaque**, comentários. | `/papers` |
-| **Ranking** | Mais destacados da semana, mês, ano e de todos os tempos, "em alta" com decaimento no tempo, filtro por área e ranking da comunidade. | `/ranking` |
-| **Boletim Delas** | Newsletter semanal automática com os papers mais destacados e o que movimentou a comunidade; dupla confirmação e descadastro com um clique. | `/newsletter` |
-| **Pesquisadoras** | Diretório de membras com filtros por área, estágio da carreira, estado e mentoras com vaga. | `/pesquisadoras` |
-| **Moderação** | Fila de denúncias, ocultar/excluir conteúdo, trancar e fixar tópicos, papéis de moderadora e admin, envio do boletim. | `/admin` |
-| **Design system** | Guia vivo do design system Artemis: marca, cores, tipografia, componentes, voz e acessibilidade. | `/design-system` |
+|                     | Funcionalidade                                                                                                                                                                                                                                 | Rota             |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Fórum seguro**    | Categorias (carreira, bolsas, dúvidas de pesquisa, maternidade, rede de apoio, saúde mental, eventos), reações de apoio, resposta marcada como solução, **publicação anônima** em temas sensíveis, denúncia em todo conteúdo. Só para membras. | `/forum`         |
+| **Mentoria com IA** | A mentoranda descreve áreas, palavras-chave e objetivos; recebe **sugestões de mentoras** com pontuação de afinidade, o porquê da combinação e temas para a primeira conversa; envia o pedido; a mentora aceita e as duas trocam contato.      | `/mentoria`      |
+| **Vitrine Delas**   | Divulgação de papers com autoria feminina (metadados buscados pelo **DOI** no Crossref), **resumo acessível** gerado por IA e revisado, votos de **destaque**, comentários.                                                                    | `/papers`        |
+| **Ranking**         | Mais destacados da semana, mês, ano e de todos os tempos, "em alta" com decaimento no tempo, filtro por área e ranking da comunidade.                                                                                                          | `/ranking`       |
+| **Boletim Delas**   | Newsletter semanal automática com os papers mais destacados e o que movimentou a comunidade; dupla confirmação e descadastro com um clique.                                                                                                    | `/newsletter`    |
+| **Pesquisadoras**   | Diretório de membras com filtros por área, estágio da carreira, estado e mentoras com vaga.                                                                                                                                                    | `/pesquisadoras` |
+| **Moderação**       | Fila de denúncias, ocultar/excluir conteúdo, trancar e fixar tópicos, papéis de moderadora e admin, envio do boletim.                                                                                                                          | `/admin`         |
+| **Design system**   | Guia vivo do design system Artemis: marca, cores, tipografia, componentes, voz e acessibilidade.                                                                                                                                               | `/design-system` |
 
 ## Stack
 
@@ -48,30 +51,30 @@ Guia completo, variáveis de ambiente e deploy (Supabase Cloud + Vercel): **[doc
 
 ## Qualidade
 
-| Comando | Verifica |
-| --- | --- |
-| `npm run check` | ESLint + TypeScript + testes unitários (Vitest) |
+| Comando           | Verifica                                                                       |
+| ----------------- | ------------------------------------------------------------------------------ |
+| `npm run check`   | ESLint + TypeScript + testes unitários (Vitest)                                |
 | `npm run db:test` | testes pgTAP de segurança do banco (RLS, anonimato, regras de mentoria, votos) |
-| `npm run build` | build de produção |
+| `npm run build`   | build de produção                                                              |
 
 ## Documentação
 
-| Documento | Conteúdo |
-| --- | --- |
-| [00 · Visão geral](docs/00-visao-geral.md) | Problema, proposta, público, jornada da demo, princípios |
-| [01 · Arquitetura](docs/01-arquitetura.md) | Stack, diagramas, pastas, fluxo de dados, rotas, segurança em camadas |
-| [02 · Design system](docs/02-design-system.md) | Marca, tokens, tipografia, componentes, voz e tom, acessibilidade |
-| [03 · Banco de dados](docs/03-banco-de-dados.md) | Modelo de dados, RLS, triggers, RPCs, seed, testes |
-| [04 · Mentoria com IA](docs/04-mentoria-com-ia.md) | Algoritmo de matching, prompts, provedores gratuitos, LGPD |
-| [05 · Papers e ranking](docs/05-papers-e-ranking.md) | Vitrine, DOI/Crossref, votos, fórmulas de ranking |
-| [06 · Fórum](docs/06-forum.md) | Categorias, anonimato, reações, soluções, moderação |
-| [07 · Setup e deploy](docs/07-setup-e-deploy.md) | Rodar localmente, variáveis, Supabase Cloud, Vercel, Resend |
-| [08 · Newsletter](docs/08-newsletter.md) | Geração semanal, envio, cron, descadastro, LGPD |
-| [09 · Moderação e segurança](docs/09-moderacao-e-seguranca.md) | Denúncias, papéis, auditoria, privacidade, checklist |
-| [10 · Roadmap](docs/10-roadmap.md) | Próximos passos |
-| [11 · Perfis e autenticação](docs/11-perfis-e-autenticacao.md) | Login, onboarding, perfil, diretório |
-| [12 · Fluxos da mentoria](docs/12-mentoria-fluxos.md) | Telas e estados de pedidos de mentoria |
-| [ADRs](docs/adr/README.md) | Decisões de arquitetura e por quê |
+| Documento                                                      | Conteúdo                                                              |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [00 · Visão geral](docs/00-visao-geral.md)                     | Problema, proposta, público, jornada da demo, princípios              |
+| [01 · Arquitetura](docs/01-arquitetura.md)                     | Stack, diagramas, pastas, fluxo de dados, rotas, segurança em camadas |
+| [02 · Design system](docs/02-design-system.md)                 | Marca, tokens, tipografia, componentes, voz e tom, acessibilidade     |
+| [03 · Banco de dados](docs/03-banco-de-dados.md)               | Modelo de dados, RLS, triggers, RPCs, seed, testes                    |
+| [04 · Mentoria com IA](docs/04-mentoria-com-ia.md)             | Algoritmo de matching, prompts, provedores gratuitos, LGPD            |
+| [05 · Papers e ranking](docs/05-papers-e-ranking.md)           | Vitrine, DOI/Crossref, votos, fórmulas de ranking                     |
+| [06 · Fórum](docs/06-forum.md)                                 | Categorias, anonimato, reações, soluções, moderação                   |
+| [07 · Setup e deploy](docs/07-setup-e-deploy.md)               | Rodar localmente, variáveis, Supabase Cloud, Vercel, Resend           |
+| [08 · Newsletter](docs/08-newsletter.md)                       | Geração semanal, envio, cron, descadastro, LGPD                       |
+| [09 · Moderação e segurança](docs/09-moderacao-e-seguranca.md) | Denúncias, papéis, auditoria, privacidade, checklist                  |
+| [10 · Roadmap](docs/10-roadmap.md)                             | Próximos passos                                                       |
+| [11 · Perfis e autenticação](docs/11-perfis-e-autenticacao.md) | Login, onboarding, perfil, diretório                                  |
+| [12 · Fluxos da mentoria](docs/12-mentoria-fluxos.md)          | Telas e estados de pedidos de mentoria                                |
+| [ADRs](docs/adr/README.md)                                     | Decisões de arquitetura e por quê                                     |
 
 ## Estrutura
 

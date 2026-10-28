@@ -99,7 +99,13 @@ export function ConstellationPattern({
       {...props}
     >
       {orbits && (
-        <g stroke="currentColor" strokeWidth="1" strokeDasharray="2 7" strokeLinecap="round" opacity="0.45">
+        <g
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="2 7"
+          strokeLinecap="round"
+          opacity="0.45"
+        >
           <ellipse cx="660" cy="150" rx="150" ry="52" transform="rotate(-16 660 150)" />
           <ellipse cx="160" cy="124" rx="118" ry="118" opacity="0.6" />
           <circle cx="722" cy="178" r="24" />
@@ -122,7 +128,13 @@ export function ConstellationPattern({
       </g>
 
       {/* linhas das constelações */}
-      <g stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" opacity="0.7">
+      <g
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.7"
+      >
         <path d={line([CRUZEIRO[0]!, CRUZEIRO[1]!])} />
         <path d={line([CRUZEIRO[2]!, CRUZEIRO[3]!])} />
         <path d={line(MENTORIA)} />

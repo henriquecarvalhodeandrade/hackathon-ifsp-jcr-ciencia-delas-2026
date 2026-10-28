@@ -322,7 +322,7 @@ Em desenvolvimento a página e o formulário mostram um aviso "Modo de desenvolv
 | ---------------------------------- | --------------------------------------------------------------------------------- |
 | `SUPABASE_SECRET_KEY`              | Obrigatória: inscrição e envio usam o service role.                               |
 | `RESEND_API_KEY`                   | Envio real.                                                                       |
-| `NEWSLETTER_FROM`                  | Remetente, ex.: `Artemis <boletim@seu-dominio.org>`.                        |
+| `NEWSLETTER_FROM`                  | Remetente, ex.: `Artemis <boletim@seu-dominio.org>`.                              |
 | `CRON_SECRET`                      | Protege `/api/cron/newsletter` (gere com `openssl rand -hex 32`).                 |
 | `NEXT_PUBLIC_SITE_URL`             | Base dos links dos e-mails (confirmação, descadastro, papers).                    |
 | `NEWSLETTER_MAX_PER_RUN`           | Teto de e-mails por execução (padrão 90).                                         |

@@ -36,7 +36,9 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
   const filters = parseDirectoryFilters(await searchParams);
   const [areas, page] = await Promise.all([getResearchAreas(), getDirectoryPage(filters)]);
   const availability = await getMentorAvailability(
-    page.items.filter((profile) => profile.is_mentor && profile.id !== me.id).map((profile) => profile.id),
+    page.items
+      .filter((profile) => profile.is_mentor && profile.id !== me.id)
+      .map((profile) => profile.id),
   );
   const ownSlots = me.is_mentor ? await getOwnOpenSlots(me.id, me.mentor_capacity) : null;
   const areaGroups = groupAreas(areas);

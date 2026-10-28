@@ -12,16 +12,23 @@ export function ThemeCompare() {
       title="Claro e escuro"
       description={
         <>
-          Os mesmos componentes, lado a lado, em “ilhas” de tema (<code className="font-mono text-base">data-theme</code>{" "}
-          em qualquer elemento). O botão de tema no cabeçalho alterna automático → claro → escuro.
+          Os mesmos componentes, lado a lado, em “ilhas” de tema (
+          <code className="font-mono text-base">data-theme</code> em qualquer elemento). O botão de
+          tema no cabeçalho alterna automático → claro → escuro.
         </>
       }
     >
       <div className="grid gap-4 lg:grid-cols-2">
         {(["light", "dark"] as const).map((theme) => (
-          <div key={theme} data-theme={theme} className="grid gap-4 rounded-dialog border border-border bg-bg p-4 text-fg sm:p-6">
+          <div
+            key={theme}
+            data-theme={theme}
+            className="grid gap-4 rounded-dialog border border-border bg-bg p-4 text-fg sm:p-6"
+          >
             <div className="flex items-center justify-between">
-              <p className="eyebrow text-fg-muted">{theme === "light" ? "Tema claro" : "Tema escuro"}</p>
+              <p className="eyebrow text-fg-muted">
+                {theme === "light" ? "Tema claro" : "Tema escuro"}
+              </p>
               <div className="flex gap-1.5">
                 <Badge variant="primary">primary</Badge>
                 <Badge variant="secondary">secondary</Badge>
@@ -34,7 +41,11 @@ export function ThemeCompare() {
               <Button>Primário</Button>
               <Button variant="secondary">Secundário</Button>
               <Button variant="outline">Contorno</Button>
-              <ScoreMeter value={76} size="sm" label={`Exemplo no tema ${theme === "light" ? "claro" : "escuro"}`} />
+              <ScoreMeter
+                value={76}
+                size="sm"
+                label={`Exemplo no tema ${theme === "light" ? "claro" : "escuro"}`}
+              />
             </div>
             <Alert variant="warning" title="Atenção">
               Prazo do edital termina em 3 dias.
@@ -46,12 +57,13 @@ export function ThemeCompare() {
         <p>
           <strong className="text-fg">Como funciona:</strong> os tokens usam{" "}
           <code className="font-mono text-sm">light-dark()</code> e respondem ao{" "}
-          <code className="font-mono text-sm">color-scheme</code> do elemento. Sem escolha salva, segue o sistema
-          (inclusive sem JavaScript).
+          <code className="font-mono text-sm">color-scheme</code> do elemento. Sem escolha salva,
+          segue o sistema (inclusive sem JavaScript).
         </p>
         <p>
-          <strong className="text-fg">Regra de ouro:</strong> nunca escreva cores fixas (hex, bg-white, text-black) em
-          componentes. Se precisar de algo novo, crie um token semântico com os dois valores e verifique o contraste.
+          <strong className="text-fg">Regra de ouro:</strong> nunca escreva cores fixas (hex,
+          bg-white, text-black) em componentes. Se precisar de algo novo, crie um token semântico
+          com os dois valores e verifique o contraste.
         </p>
       </div>
     </DsSection>
@@ -59,10 +71,22 @@ export function ThemeCompare() {
 }
 
 const VOICE = [
-  { title: "Acolhedora", text: "Fala com quem chega como uma colega mais experiente fala: sem jargão desnecessário, sem condescendência." },
-  { title: "Direta", text: "Frases curtas, verbo no começo, uma ideia por frase. Diga o que aconteceu e o que fazer agora." },
-  { title: "Precisa", text: "Ciência exige rigor: números, datas e nomes certos. Na dúvida, mostre a fonte." },
-  { title: "Inclusiva", text: "Feminino por padrão para a comunidade (“pesquisadoras”, “bem-vinda”). Sem “x” ou “@”: leitores de tela não leem." },
+  {
+    title: "Acolhedora",
+    text: "Fala com quem chega como uma colega mais experiente fala: sem jargão desnecessário, sem condescendência.",
+  },
+  {
+    title: "Direta",
+    text: "Frases curtas, verbo no começo, uma ideia por frase. Diga o que aconteceu e o que fazer agora.",
+  },
+  {
+    title: "Precisa",
+    text: "Ciência exige rigor: números, datas e nomes certos. Na dúvida, mostre a fonte.",
+  },
+  {
+    title: "Inclusiva",
+    text: "Feminino por padrão para a comunidade (“pesquisadoras”, “bem-vinda”). Sem “x” ou “@”: leitores de tela não leem.",
+  },
 ] as const;
 
 const DO_DONT: ReadonlyArray<{ context: string; do: string; dont: string }> = [
@@ -124,8 +148,11 @@ export function VoiceTone() {
       <DsSubheading>Faça / evite</DsSubheading>
       <div className="grid gap-3">
         {DO_DONT.map((row) => (
-          <div key={row.context} className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-[10rem_1fr_1fr] md:items-start">
-            <p className="eyebrow pt-1 text-fg-subtle">{row.context}</p>
+          <div
+            key={row.context}
+            className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-[10rem_1fr_1fr] md:items-start"
+          >
+            <p className="pt-1 eyebrow text-fg-subtle">{row.context}</p>
             <p className="flex gap-2.5 text-[0.9375rem] text-fg">
               <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
                 <Check aria-hidden="true" className="size-3.5" strokeWidth={3} />
@@ -151,16 +178,16 @@ export function VoiceTone() {
       <DsSubheading>Formatos</DsSubheading>
       <ul className="grid gap-2 text-[0.9375rem] text-fg-muted sm:grid-cols-2">
         <li>
-          <strong className="text-fg">Datas:</strong> “27 de out. de 2026” (formatDate) · “há 3 horas” (formatRelativeTime),
-          fuso de São Paulo.
+          <strong className="text-fg">Datas:</strong> “27 de out. de 2026” (formatDate) · “há 3
+          horas” (formatRelativeTime), fuso de São Paulo.
         </li>
         <li>
-          <strong className="text-fg">Números:</strong> “1.284 pesquisadoras”, “15,3 mil destaques” (formatNumber,
-          pluralize).
+          <strong className="text-fg">Números:</strong> “1.284 pesquisadoras”, “15,3 mil destaques”
+          (formatNumber, pluralize).
         </li>
         <li>
-          <strong className="text-fg">Títulos:</strong> só a primeira letra maiúscula (“Pedir mentoria”, não “Pedir
-          Mentoria”).
+          <strong className="text-fg">Títulos:</strong> só a primeira letra maiúscula (“Pedir
+          mentoria”, não “Pedir Mentoria”).
         </li>
         <li>
           <strong className="text-fg">Votos:</strong> chamamos de “destaques”; o verbo é “destacar”.
@@ -182,7 +209,7 @@ const CHECKLIST = [
   "Imagens informativas têm alt; avatares ao lado do nome são decorativos (alt vazio).",
   "Animações respeitam prefers-reduced-motion; nada pisca mais de 3 vezes por segundo.",
   "Links que abrem nova aba avisam “(abre em nova aba)” para leitores de tela.",
-  "Idioma da página é pt-BR (<html lang>) e trechos em outra língua usam lang=\"en\".",
+  'Idioma da página é pt-BR (<html lang>) e trechos em outra língua usam lang="en".',
 ] as const;
 
 export function AccessibilityChecklist() {
@@ -196,7 +223,10 @@ export function AccessibilityChecklist() {
     >
       <ul className="grid gap-2 md:grid-cols-2">
         {CHECKLIST.map((item) => (
-          <li key={item} className="flex gap-3 rounded-control border border-border bg-surface p-3.5 text-[0.9375rem] text-fg">
+          <li
+            key={item}
+            className="flex gap-3 rounded-control border border-border bg-surface p-3.5 text-[0.9375rem] text-fg"
+          >
             <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-soft-fg">
               <Check aria-hidden="true" className="size-3.5" strokeWidth={3} />
             </span>

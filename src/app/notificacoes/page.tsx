@@ -27,12 +27,21 @@ export default async function NotificationsPage({
         eyebrow="Sua conta"
         title="Notificações"
         description="Respostas nos seus tópicos, pedidos de mentoria, comentários nos seus papers e o resultado das denúncias que você fez."
-        actions={page.error || page.total === 0 ? undefined : <NotificationBulkActions unread={page.unread} read={page.read} />}
+        actions={
+          page.error || page.total === 0 ? undefined : (
+            <NotificationBulkActions unread={page.unread} read={page.read} />
+          )
+        }
       >
         <TabNav
           label="Filtrar notificações"
           items={[
-            { href: "/notificacoes", label: "Todas", count: page.total, active: filter === "todas" },
+            {
+              href: "/notificacoes",
+              label: "Todas",
+              count: page.total,
+              active: filter === "todas",
+            },
             {
               href: "/notificacoes?filtro=nao-lidas",
               label: "Não lidas",
@@ -45,7 +54,8 @@ export default async function NotificationsPage({
 
       {page.error ? (
         <Alert variant="danger" title="Não conseguimos carregar suas notificações">
-          Verifique sua conexão e recarregue a página. Se o problema continuar, tente de novo em alguns minutos.
+          Verifique sua conexão e recarregue a página. Se o problema continuar, tente de novo em
+          alguns minutos.
         </Alert>
       ) : page.items.length === 0 ? (
         filter === "nao-lidas" && page.total > 0 ? (
@@ -77,7 +87,8 @@ export default async function NotificationsPage({
           <NotificationList items={page.items} />
           {page.truncated && (
             <p className="mt-4 text-center text-sm text-fg-subtle">
-              Mostrando as 100 notificações mais recentes. Use “Limpar lidas” para organizar a lista.
+              Mostrando as 100 notificações mais recentes. Use “Limpar lidas” para organizar a
+              lista.
             </p>
           )}
         </>

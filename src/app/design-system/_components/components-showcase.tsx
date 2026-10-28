@@ -906,7 +906,8 @@ export function ComponentsShowcase() {
           <div className="flex flex-wrap items-center gap-6">
             <Logo size={36} />
             <Logo variant="mark" size={40} />
-            <span className="inline-flex size-12 items-center justify-center rounded-[11px] bg-primary text-primary-fg">
+            {/* Ícone de app: peça de marca fixa (violeta-700 + lua branca), igual ao favicon nos dois temas. */}
+            <span className="inline-flex size-12 items-center justify-center rounded-[11px] bg-violeta-700 text-white">
               <LogoMark size={30} />
             </span>
           </div>

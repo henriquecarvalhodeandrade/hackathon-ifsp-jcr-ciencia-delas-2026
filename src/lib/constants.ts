@@ -129,12 +129,7 @@ export const REACTION_KINDS: Record<ReactionKind, { label: string; icon: string 
 };
 
 export type ReportReason =
-  | "harassment"
-  | "spam"
-  | "misinformation"
-  | "offensive"
-  | "plagiarism"
-  | "other";
+  "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
 
 export const REPORT_REASONS: Record<ReportReason, string> = {
   harassment: "Assédio ou intimidação",

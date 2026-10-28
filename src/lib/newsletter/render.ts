@@ -179,9 +179,7 @@ export function renderEditionEmail(
   const preheader = editionPreheader(edition);
   const summary = edition.summary?.trim();
 
-  const rows: string[] = [
-    headerRow(eyebrow, edition.title, "A newsletter semanal da Artemis"),
-  ];
+  const rows: string[] = [headerRow(eyebrow, edition.title, "A newsletter semanal da Artemis")];
 
   if (summary) {
     rows.push(`<tr><td class="cd-px" style="padding:32px 40px 0;">

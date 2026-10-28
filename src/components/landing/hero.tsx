@@ -101,7 +101,9 @@ export function LandingHero({ viewer }: { viewer: LandingViewer | null }) {
       />
       <div className="mx-auto grid max-w-7xl gap-12 px-4 pt-14 pb-20 sm:px-6 sm:pt-20 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:gap-16 lg:px-8 lg:pt-24 lg:pb-28">
         <div className="grid content-start gap-6">
-          <p className="eyebrow text-violeta-200">{SITE.theme} · rede de apoio, mentoria e visibilidade</p>
+          <p className="eyebrow text-violeta-200">
+            {SITE.name} · rede de apoio, mentoria e visibilidade
+          </p>
           <h1 id="hero-titulo" className="font-display text-display font-bold text-white">
             Ciência também é{" "}
             <span className="font-serif font-semibold text-ambar-300 italic">delas</span>.

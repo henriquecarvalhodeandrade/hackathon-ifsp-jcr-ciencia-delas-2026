@@ -55,7 +55,7 @@ Seções (componentes em `src/components/landing/`):
 | A rede em números             | `platform-stats.tsx`   | `rpc('get_platform_stats')` — números reais; sem dados a seção some                                                                                                   |
 | Por que existimos             | `why-section.tsx`      | Texto + **um** dado citado com fonte (veja abaixo)                                                                                                                    |
 | Três pilares                  | `pillars.tsx`          | Estático (Fórum seguro · Mentoria com IA · Vitrine e Boletim)                                                                                                         |
-| Como funciona a mentoria      | `mentorship-steps.tsx` | Estático. Aviso: as sugestões funcionam sem IA (nada sai da plataforma); a IA é opcional, com consentimento — link para `/privacidade#ia` |
+| Como funciona a mentoria      | `mentorship-steps.tsx` | Estático. Aviso: as sugestões funcionam sem IA (nada sai da plataforma); a IA é opcional, com consentimento — link para `/privacidade#ia`                             |
 | Destaques da semana           | `featured-papers.tsx`  | `rpc('get_paper_ranking', { p_period: 'week', p_limit: 3 })`; se ninguém destacou nada em 7 dias, usa `hot` e muda o título para “Em alta na Vitrine” (`featured.ts`) |
 | Boletim                       | `newsletter-cta.tsx`   | Edição publicada mais recente (`newsletter_editions`, status `published`/`sent`)                                                                                      |
 | Crédito do hackathon          | `hackathon-credit.tsx` | Estático                                                                                                                                                              |
@@ -323,16 +323,16 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 
 ## 11. LGPD na prática
 
-| Direito / obrigação                   | Onde está                                                                                                      |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                            |
+| Direito / obrigação                   | Onde está                                                                                                                                                                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                                                                                                                                                                          |
 | Consentimento de IA (art. 7º, I e 8º) | Opcional: sem ele, as sugestões heurísticas funcionam e nada sai da plataforma. Caixa desmarcada no onboarding/perfil, com 18+, que só liga embeddings do Gemini e explicações por LLM; revogar apaga o embedding e as `mentor_suggestions` salvas (trigger) |
-| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                          |
-| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                |
-| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro |
-| Minimização                           | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids                                        |
-| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                              |
-| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+                                                             |
+| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                                                                                                                                                                        |
+| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                                                                                                                                                              |
+| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro                                                                                                                                               |
+| Minimização                           | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids                                                                                                                                                                                      |
+| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                                                                                                                                                                            |
+| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+                                                                                                                                                                                                           |
 
 ## 12. Arquivos
 

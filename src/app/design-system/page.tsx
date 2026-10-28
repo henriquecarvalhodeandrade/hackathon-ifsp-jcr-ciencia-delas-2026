@@ -51,7 +51,10 @@ export default function DesignSystemPage() {
       />
 
       {/* Sumário no celular: rolagem horizontal */}
-      <nav aria-label="Seções do guia" className="-mx-4 mt-6 overflow-x-auto px-4 scrollbar-none lg:hidden">
+      <nav
+        aria-label="Seções do guia"
+        className="-mx-4 mt-6 scrollbar-none overflow-x-auto px-4 lg:hidden"
+      >
         <ul className="flex min-w-max gap-2">
           {TOC.filter((t) => !("sub" in t)).map((item) => (
             <li key={item.id}>

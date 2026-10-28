@@ -19,7 +19,8 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
   useEffect(() => {
     try {
       const preference = localStorage.getItem(THEME_STORAGE_KEY);
-      if (preference === "light" || preference === "dark") document.documentElement.dataset.theme = preference;
+      if (preference === "light" || preference === "dark")
+        document.documentElement.dataset.theme = preference;
     } catch {
       // armazenamento bloqueado: segue o tema do sistema
     }
@@ -35,7 +36,8 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
           <p className="eyebrow text-primary">Artemis</p>
           <h1 className="mt-3 text-3xl font-bold">Algo saiu da órbita</h1>
           <p className="mt-3 text-fg-muted">
-            O site encontrou um erro inesperado. Tente recarregar — se persistir, volte em alguns minutos.
+            O site encontrou um erro inesperado. Tente recarregar — se persistir, volte em alguns
+            minutos.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button

@@ -63,9 +63,9 @@ export default function PrivacyPage() {
 
       <DocSection id="controladora" title="Quem cuida dos seus dados">
         <p>
-          A controladora dos dados é a equipe responsável pela Artemis, projeto criado no
-          Hackathon IFSP Câmpus Jacareí 2026. Os dados de identificação e o contato da pessoa
-          encarregada estão na seção <a href="#contato">Contato</a>.
+          A controladora dos dados é a equipe responsável pela Artemis, projeto criado no Hackathon
+          IFSP Câmpus Jacareí 2026. Os dados de identificação e o contato da pessoa encarregada
+          estão na seção <a href="#contato">Contato</a>.
         </p>
       </DocSection>
 

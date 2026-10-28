@@ -5,16 +5,16 @@ autenticação, IA e rotas. Decisões e alternativas descartadas estão nos [ADR
 
 ## 1. Stack
 
-| Camada | Tecnologia | Por quê |
-| --- | --- | --- |
-| Framework | **Next.js 16.4** (App Router, React 19, TypeScript estrito) | Front e back no mesmo repo; Server Components e Server Actions |
-| Estilo | **Tailwind CSS v4** (tokens em CSS via `@theme`) | Design system em variáveis CSS, tema claro/escuro |
-| Backend | **Supabase**: Auth, Postgres 17 + RLS, Storage, `pgvector` | Backend gerenciado e gratuito, autorização no banco |
-| IA | **Gemini** (`gemini-3.5-flash-lite`, `gemini-embedding-2`), **Groq** (`openai/gpt-oss-120b`), **OpenRouter** (`openrouter/free`) | Planos gratuitos, com fallback e modo heurístico |
-| E-mail | **Resend** (REST) | 100 e-mails/dia grátis, descadastro one-click |
-| Agendamento | **Vercel Cron** (ou `pg_cron` + `pg_net`) | Boletim semanal automático |
-| Testes | **Vitest** (unidade), **pgTAP** (`supabase test db`), Playwright (E2E manual/scripts) | |
-| Deploy | **Vercel Hobby** + **Supabase Free** | Custo zero |
+| Camada      | Tecnologia                                                                                                                       | Por quê                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Framework   | **Next.js 16.4** (App Router, React 19, TypeScript estrito)                                                                      | Front e back no mesmo repo; Server Components e Server Actions |
+| Estilo      | **Tailwind CSS v4** (tokens em CSS via `@theme`)                                                                                 | Design system em variáveis CSS, tema claro/escuro              |
+| Backend     | **Supabase**: Auth, Postgres 17 + RLS, Storage, `pgvector`                                                                       | Backend gerenciado e gratuito, autorização no banco            |
+| IA          | **Gemini** (`gemini-3.5-flash-lite`, `gemini-embedding-2`), **Groq** (`openai/gpt-oss-120b`), **OpenRouter** (`openrouter/free`) | Planos gratuitos, com fallback e modo heurístico               |
+| E-mail      | **Resend** (REST)                                                                                                                | 100 e-mails/dia grátis, descadastro one-click                  |
+| Agendamento | **Vercel Cron** (ou `pg_cron` + `pg_net`)                                                                                        | Boletim semanal automático                                     |
+| Testes      | **Vitest** (unidade), **pgTAP** (`supabase test db`), Playwright (E2E manual/scripts)                                            |                                                                |
+| Deploy      | **Vercel Hobby** + **Supabase Free**                                                                                             | Custo zero                                                     |
 
 ## 2. Visão de alto nível
 
@@ -149,26 +149,26 @@ template é usado. Detalhes, pesos e prompts: [`04-mentoria-com-ia.md`](04-mento
 
 ## 7. Mapa de rotas
 
-| Rota | Acesso | O que é |
-| --- | --- | --- |
-| `/` | público | Landing: proposta, números da comunidade, destaques da semana |
-| `/entrar`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha` | público | Autenticação |
-| `/auth/confirm`, `/auth/callback`, `/auth/sair`, `/auth/erro` | — | Rotas técnicas de login/logout |
-| `/onboarding` | membra | Perfil em 4 passos |
-| `/perfil` | membra | Editar perfil, avatar, consentimentos |
-| `/pesquisadoras`, `/pesquisadoras/[id]` | membra | Diretório com filtros e perfil |
-| `/forum`, `/forum/c/[slug]`, `/forum/t/[id]`, `/forum/novo` | membra | Fórum |
-| `/mentoria` | membra | Sugestões por IA, pedidos enviados/recebidos, mentorias ativas |
-| `/papers`, `/papers/[id]` | público | Vitrine e detalhe do paper |
-| `/papers/novo`, `/papers/[id]/editar` | membra | Divulgar e editar paper |
-| `/ranking` | público (aba Comunidade: membra) | Rankings por período e área |
-| `/newsletter`, `/newsletter/[slug]` | público | Inscrição e arquivo do Boletim Delas |
-| `/newsletter/confirmar`, `/newsletter/cancelar` | público (token) | Dupla confirmação e descadastro |
-| `/notificacoes` | membra | Central de notificações |
-| `/admin` | moderadora/admin | Denúncias, newsletter, membros |
-| `/sobre`, `/conduta`, `/privacidade`, `/design-system` | público | Institucional e guia de estilo |
-| `GET/POST /api/cron/newsletter` | `Bearer CRON_SECRET` | Gera, publica e envia a edição semanal |
-| `POST /api/newsletter/unsubscribe` | token | Descadastro one-click (RFC 8058) |
+| Rota                                                           | Acesso                           | O que é                                                        |
+| -------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------- |
+| `/`                                                            | público                          | Landing: proposta, números da comunidade, destaques da semana  |
+| `/entrar`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha` | público                          | Autenticação                                                   |
+| `/auth/confirm`, `/auth/callback`, `/auth/sair`, `/auth/erro`  | —                                | Rotas técnicas de login/logout                                 |
+| `/onboarding`                                                  | membra                           | Perfil em 4 passos                                             |
+| `/perfil`                                                      | membra                           | Editar perfil, avatar, consentimentos                          |
+| `/pesquisadoras`, `/pesquisadoras/[id]`                        | membra                           | Diretório com filtros e perfil                                 |
+| `/forum`, `/forum/c/[slug]`, `/forum/t/[id]`, `/forum/novo`    | membra                           | Fórum                                                          |
+| `/mentoria`                                                    | membra                           | Sugestões por IA, pedidos enviados/recebidos, mentorias ativas |
+| `/papers`, `/papers/[id]`                                      | público                          | Vitrine e detalhe do paper                                     |
+| `/papers/novo`, `/papers/[id]/editar`                          | membra                           | Divulgar e editar paper                                        |
+| `/ranking`                                                     | público (aba Comunidade: membra) | Rankings por período e área                                    |
+| `/newsletter`, `/newsletter/[slug]`                            | público                          | Inscrição e arquivo do Boletim Delas                           |
+| `/newsletter/confirmar`, `/newsletter/cancelar`                | público (token)                  | Dupla confirmação e descadastro                                |
+| `/notificacoes`                                                | membra                           | Central de notificações                                        |
+| `/admin`                                                       | moderadora/admin                 | Denúncias, newsletter, membros                                 |
+| `/sobre`, `/conduta`, `/privacidade`, `/design-system`         | público                          | Institucional e guia de estilo                                 |
+| `GET/POST /api/cron/newsletter`                                | `Bearer CRON_SECRET`             | Gera, publica e envia a edição semanal                         |
+| `POST /api/newsletter/unsubscribe`                             | token                            | Descadastro one-click (RFC 8058)                               |
 
 ## 8. Segurança em camadas
 

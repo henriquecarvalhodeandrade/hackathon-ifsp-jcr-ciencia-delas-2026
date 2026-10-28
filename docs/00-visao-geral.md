@@ -1,7 +1,7 @@
 # Visão geral do produto
 
 > **Artemis** — rede de apoio, mentoria e visibilidade para mulheres na ciência.
-> Projeto do Hackathon IFSP Câmpus Jacareí 2026, tema *Ciência Delas*.
+> Projeto do Hackathon IFSP Câmpus Jacareí 2026, tema _Ciência Delas_.
 
 ## O problema
 
@@ -18,11 +18,11 @@ pós — costumam enfrentar os mesmos obstáculos:
 
 Um fórum com rede de conexões em três pilares:
 
-| Pilar | O que faz | Onde |
-| --- | --- | --- |
-| **Fórum seguro** | Discussões por categoria (carreira, bolsas, dúvidas de pesquisa, maternidade, rede de apoio, saúde mental, eventos), reações de apoio, respostas marcadas como solução e publicação **anônima** em temas sensíveis. Só para membras. | `/forum` |
-| **Mentoria com IA** | A pesquisadora iniciante preenche o perfil (áreas, palavras-chave, objetivos) e recebe **sugestões de mentoras experientes** com uma explicação do porquê da combinação e temas para a primeira conversa. Depois envia o pedido; a mentora aceita ou recusa. | `/mentoria` |
-| **Vitrine + Ranking + Boletim** | Divulgação de papers com autoria feminina, **resumo acessível** (escrito pela autora ou gerado por IA), votos de destaque, **rankings** por semana/mês/ano/sempre e por área, e o **Boletim Delas**, newsletter semanal automática com os destaques. | `/papers`, `/ranking`, `/newsletter` |
+| Pilar                           | O que faz                                                                                                                                                                                                                                                    | Onde                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| **Fórum seguro**                | Discussões por categoria (carreira, bolsas, dúvidas de pesquisa, maternidade, rede de apoio, saúde mental, eventos), reações de apoio, respostas marcadas como solução e publicação **anônima** em temas sensíveis. Só para membras.                         | `/forum`                             |
+| **Mentoria com IA**             | A pesquisadora iniciante preenche o perfil (áreas, palavras-chave, objetivos) e recebe **sugestões de mentoras experientes** com uma explicação do porquê da combinação e temas para a primeira conversa. Depois envia o pedido; a mentora aceita ou recusa. | `/mentoria`                          |
+| **Vitrine + Ranking + Boletim** | Divulgação de papers com autoria feminina, **resumo acessível** (escrito pela autora ou gerado por IA), votos de destaque, **rankings** por semana/mês/ano/sempre e por área, e o **Boletim Delas**, newsletter semanal automática com os destaques.         | `/papers`, `/ranking`, `/newsletter` |
 
 ## Para quem
 
@@ -60,17 +60,17 @@ Contas de demonstração e o passo a passo para rodar localmente estão em
 
 ## Mapa da documentação
 
-| Documento | Conteúdo |
-| --- | --- |
-| [`01-arquitetura.md`](01-arquitetura.md) | Stack, diagrama, pastas, fluxo de dados, rotas |
-| [`02-design-system.md`](02-design-system.md) | Marca, tokens, tipografia, componentes, voz e tom |
-| [`03-banco-de-dados.md`](03-banco-de-dados.md) | Modelo de dados, RLS, triggers, RPCs, seed |
-| [`04-mentoria-com-ia.md`](04-mentoria-com-ia.md) | Algoritmo de matching, prompts, provedores gratuitos, LGPD |
-| [`05-papers-e-ranking.md`](05-papers-e-ranking.md) | Vitrine, votos, fórmulas de ranking, DOI/Crossref |
-| [`06-forum.md`](06-forum.md) | Categorias, anonimato, reações, soluções, moderação |
-| [`07-setup-e-deploy.md`](07-setup-e-deploy.md) | Rodar localmente, variáveis de ambiente, deploy |
-| [`08-newsletter.md`](08-newsletter.md) | Boletim semanal, envio, cron, descadastro |
-| [`09-moderacao-e-seguranca.md`](09-moderacao-e-seguranca.md) | Denúncias, papéis, LGPD, checklist de segurança |
-| [`10-roadmap.md`](10-roadmap.md) | Próximos passos e ideias |
-| [`11-perfis-e-autenticacao.md`](11-perfis-e-autenticacao.md) | Login, onboarding, perfil, diretório |
-| [`adr/`](adr/README.md) | Decisões de arquitetura |
+| Documento                                                    | Conteúdo                                                   |
+| ------------------------------------------------------------ | ---------------------------------------------------------- |
+| [`01-arquitetura.md`](01-arquitetura.md)                     | Stack, diagrama, pastas, fluxo de dados, rotas             |
+| [`02-design-system.md`](02-design-system.md)                 | Marca, tokens, tipografia, componentes, voz e tom          |
+| [`03-banco-de-dados.md`](03-banco-de-dados.md)               | Modelo de dados, RLS, triggers, RPCs, seed                 |
+| [`04-mentoria-com-ia.md`](04-mentoria-com-ia.md)             | Algoritmo de matching, prompts, provedores gratuitos, LGPD |
+| [`05-papers-e-ranking.md`](05-papers-e-ranking.md)           | Vitrine, votos, fórmulas de ranking, DOI/Crossref          |
+| [`06-forum.md`](06-forum.md)                                 | Categorias, anonimato, reações, soluções, moderação        |
+| [`07-setup-e-deploy.md`](07-setup-e-deploy.md)               | Rodar localmente, variáveis de ambiente, deploy            |
+| [`08-newsletter.md`](08-newsletter.md)                       | Boletim semanal, envio, cron, descadastro                  |
+| [`09-moderacao-e-seguranca.md`](09-moderacao-e-seguranca.md) | Denúncias, papéis, LGPD, checklist de segurança            |
+| [`10-roadmap.md`](10-roadmap.md)                             | Próximos passos e ideias                                   |
+| [`11-perfis-e-autenticacao.md`](11-perfis-e-autenticacao.md) | Login, onboarding, perfil, diretório                       |
+| [`adr/`](adr/README.md)                                      | Decisões de arquitetura                                    |

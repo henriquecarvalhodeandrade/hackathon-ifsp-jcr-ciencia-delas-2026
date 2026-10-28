@@ -81,7 +81,12 @@ export function brandSvgFiles(): Record<string, string> {
   const title = "Artemis";
   return {
     "src/app/icon.svg": logoSvg({ line: BRAND_HEX.white, tile: BRAND_HEX.violeta700, title }),
-    "public/brand/logo-icon.svg": logoSvg({ line: BRAND_HEX.white, tile: BRAND_HEX.violeta700, title, size: 512 }),
+    "public/brand/logo-icon.svg": logoSvg({
+      line: BRAND_HEX.white,
+      tile: BRAND_HEX.violeta700,
+      title,
+      size: 512,
+    }),
     "public/brand/logo-mark.svg": logoSvg({ line: BRAND_HEX.violeta700, title, size: 160 }),
     "public/brand/logo-mark-white.svg": logoSvg({ line: BRAND_HEX.white, title, size: 160 }),
   };
