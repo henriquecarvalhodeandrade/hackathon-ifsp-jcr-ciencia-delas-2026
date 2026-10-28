@@ -10,7 +10,7 @@ import { safeNextPath, withNext } from "@/lib/profile/redirect";
 
 export const metadata: Metadata = {
   title: "Criar conta",
-  description: "Crie sua conta na Ciência Delas: fórum, mentoria e vitrine de pesquisadoras.",
+  description: "Crie sua conta na Artemis: fórum, mentoria e vitrine de pesquisadoras.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;

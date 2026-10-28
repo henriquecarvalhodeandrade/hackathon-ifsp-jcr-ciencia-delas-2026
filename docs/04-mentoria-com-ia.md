@@ -1,6 +1,6 @@
 # Mentoria com IA
 
-> Como a Ciência Delas sugere mentoras para pesquisadoras iniciantes, o que é enviado para a IA,
+> Como a Artemis sugere mentoras para pesquisadoras iniciantes, o que é enviado para a IA,
 > como funciona a pontuação e o que fazer quando algo dá errado.
 
 **Resumo:** a pesquisadora preenche o perfil de pesquisa e ativa "Quero ser mentorada". Um
@@ -385,7 +385,7 @@ sugestões com IA" de `/mentoria` (campo `ai_consent`; fonte no código:
 `src/lib/profile/consent.ts`):
 
 > **Quero ativar as sugestões de mentoria com inteligência artificial.**
-> Declaro que tenho 18 anos ou mais e autorizo a Ciência Delas a enviar meus dados de pesquisa
+> Declaro que tenho 18 anos ou mais e autorizo a Artemis a enviar meus dados de pesquisa
 > (etapa da carreira, áreas, palavras-chave, temas e objetivos de mentoria, sem meu nome, e-mail
 > ou contatos) a serviços de IA de terceiros (Google Gemini e, como reserva, Groq ou OpenRouter),
 > para analisar o sentido do meu perfil e explicar as sugestões de mentoria. Sei que, no plano

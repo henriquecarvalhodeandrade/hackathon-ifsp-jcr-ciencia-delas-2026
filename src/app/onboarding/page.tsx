@@ -49,7 +49,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: S
       <PageHeader
         eyebrow="Boas-vindas"
         title={
-          firstName ? `Bem-vinda à Ciência Delas, ${firstName}!` : "Bem-vinda à Ciência Delas!"
+          firstName ? `Bem-vinda à Artemis, ${firstName}!` : "Bem-vinda à Artemis!"
         }
         description="Conte um pouco sobre você e sua pesquisa para encontrarmos mentoras e conexões. Leva uns 5 minutos — e dá para mudar tudo depois, no seu perfil."
       />

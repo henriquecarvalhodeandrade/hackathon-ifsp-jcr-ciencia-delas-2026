@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 11 — newsletter: mentoras só em agregado no arquivo público
+-- Artemis · 11 — newsletter: mentoras só em agregado no arquivo público
 -- =============================================================================
 -- Edições publicadas são legíveis por visitantes (anon) pela API, então o `content`
 -- não pode levar nomes/perfis de mentoras (o diretório é exclusivo para membras).

@@ -140,6 +140,7 @@ vi.mock("@/lib/ai", () => ({
 import {
   MatchingError,
   findMentorsForCurrentUser,
+  getMySavedSuggestions,
   isNewMentorCandidate,
   refreshMyEmbedding,
 } from "./service";
@@ -510,5 +511,50 @@ describe("findMentorsForCurrentUser", () => {
     const again = await findMentorsForCurrentUser();
     expect(second.rpcCalls).toHaveLength(0);
     expect(again.warnings[0]).toMatch(/acabou de gerar/);
+  });
+});
+
+describe("getMySavedSuggestions", () => {
+  it("esconde sugestões salvas de quem já é mentora dela (aceite depois da busca), mantém pendentes", async () => {
+    const tables = baseTables({ consent: false });
+    const mentor = (id: string, name: string) => ({
+      id,
+      full_name: name,
+      avatar_url: null,
+      headline: null,
+      institution: null,
+      state: "SP",
+      career_stage: "professor",
+      keywords: [],
+      mentorship_topics: [],
+      meeting_formats: ["online"],
+      languages: ["pt"],
+    });
+    tables.profiles = [
+      ...tables.profiles.filter((p) => p.id === ME),
+      mentor(MENTOR_A, "Helena Demo Souza"),
+      mentor(MENTOR_B, "Paula Demo Lima"),
+    ];
+    const saved = (mentorId: string, rank: number) => ({
+      mentee_id: ME,
+      mentor_id: mentorId,
+      rank,
+      score: 80 - rank,
+      reason: `Motivo ${rank}.`,
+      conversation_starters: [],
+      source: "heuristic",
+      model: null,
+      created_at: "2026-10-27T12:00:00Z",
+    });
+    tables.mentor_suggestions = [saved(MENTOR_A, 1), saved(MENTOR_B, 2)];
+    tables.mentorship_requests = [
+      { mentee_id: ME, mentor_id: MENTOR_A, status: "accepted" },
+      { mentee_id: ME, mentor_id: MENTOR_B, status: "pending" },
+    ];
+    const fake = createFakeSupabase(tables, { userId: ME });
+
+    // O cliente falso só implementa o que o serviço usa.
+    const res = await getMySavedSuggestions({ supabase: fake.client as never, userId: ME });
+    expect(res?.suggestions.map((s) => s.mentorId)).toEqual([MENTOR_B]);
   });
 });

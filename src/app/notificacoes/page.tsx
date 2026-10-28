@@ -26,7 +26,7 @@ export default async function NotificationsPage({
       <PageHeader
         eyebrow="Sua conta"
         title="Notificações"
-        description="Respostas nos seus tópicos, pedidos de mentoria e comentários nos seus papers."
+        description="Respostas nos seus tópicos, pedidos de mentoria, comentários nos seus papers e o resultado das denúncias que você fez."
         actions={page.error || page.total === 0 ? undefined : <NotificationBulkActions unread={page.unread} read={page.read} />}
       >
         <TabNav
@@ -63,7 +63,7 @@ export default async function NotificationsPage({
           <EmptyState
             icon={<BellOff />}
             title="Nenhuma notificação ainda"
-            description="Quando alguém responder a um tópico seu, pedir sua mentoria ou comentar um paper que você divulgou, o aviso aparece aqui."
+            description="Quando alguém responder a um tópico seu, pedir sua mentoria ou comentar um paper que você divulgou — ou quando a moderação concluir uma denúncia sua —, o aviso aparece aqui."
             action={
               <ButtonLink href="/forum">
                 <MessagesSquare aria-hidden="true" />

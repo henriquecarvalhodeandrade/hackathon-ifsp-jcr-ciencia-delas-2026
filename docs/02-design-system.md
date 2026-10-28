@@ -1,6 +1,6 @@
-# Design system "Constelação"
+# Design system Artemis
 
-> Tudo o que uma pessoa do time precisa para construir telas da Ciência Delas com a cara da marca,
+> Tudo o que uma pessoa do time precisa para construir telas da Artemis com a cara da marca,
 > acessíveis e corretas nos temas claro e escuro.
 
 **Resumo:** cada cientista é uma estrela; mentoria, colaboração e votos desenham constelações.
@@ -59,22 +59,37 @@ Anticlichês que evitamos de propósito: gradiente roxo→azul em hero, emoji co
 (pureza de propósito) e verde (esperança) para a luta pelo voto feminino. O nosso `verde-500` é o
 `#32A041`, verde da marca da Rede Federal (IFs). O âmbar é a luz das estrelas.
 
-**Símbolo.** O sinal astronômico de Vênus (♀) — a "Estrela d'Alva" — desenhado como uma **órbita**
-com uma **estrela âmbar** e a haste como uma pequena **constelação** de três estrelas.
+**Nome.** A plataforma se chama **Artemis** (no feminino: "a Artemis", "na Artemis", "à Artemis").
+Na mitologia grega, Ártemis é a deusa da caça e da Lua — e o nome também batiza o programa da NASA
+de volta à Lua. **Ciência Delas** é o tema do hackathon e fica como nome secundário: no eyebrow do
+hero, nos créditos do hackathon e em assinaturas como "Artemis — uma rede Ciência Delas"
+(`SITE.theme` em `src/lib/constants.ts`). As funcionalidades **Vitrine Delas** e **Boletim Delas**
+mantêm o nome.
+
+**Símbolo.** Uma **lua crescente**, aberta para cima e para a direita, com uma **estrela âmbar** de
+quatro pontas na curva: a lua que ilumina quem caminha à noite e a estrela que é cada pesquisadora
+ganhando luz. A lua é um círculo menos outro círculo deslocado, com as pontas arredondadas (a mesma
+linguagem de pontas redondas das linhas do sistema). Lê bem a 16 px (favicon), 32 px e 120 px ou
+mais, nos dois temas e sobre o violeta do hero. O nome ao lado é "Artemis" em Bricolage Grotesque 700,
+espaçamento −0,02em, numa cor só (a do texto).
+
+**Fonte única da geometria:** `src/components/ui/logo-geometry.ts` (`LOGO_PATHS`, `LOGO_VIEWBOX`,
+`BRAND_HEX`). Todos os arquivos abaixo saem dela; os SVGs estáticos são gerados com
+`npm run brand:svgs`, e o teste `logo-geometry.test.ts` falha se algum ficar desatualizado.
 
 | Arquivo                                                               | Uso                                                                          |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `<Logo />` / `<Logo variant="mark" />` (`src/components/ui/logo.tsx`) | Em telas. As linhas usam `currentColor`; a estrela é sempre `ambar-400`.     |
-| `src/app/icon.svg`                                                    | Favicon (fundo violeta, marca branca).                                       |
+| `<Logo />` / `<Logo variant="mark" />` (`src/components/ui/logo.tsx`) | Em telas. A lua usa `currentColor`; a estrela é sempre `ambar-400`.          |
+| `src/app/icon.svg`                                                    | Favicon (fundo violeta, lua branca). Gerado.                                 |
 | `src/app/apple-icon.tsx`                                              | Ícone iOS 180×180 gerado com `next/og`.                                      |
 | `src/app/opengraph-image.tsx`                                         | Imagem de compartilhamento 1200×630 (fonte embutida, nada baixado no build). |
-| `public/brand/logo-mark.svg`, `public/brand/logo-icon.svg`            | Para README, slides, e-mails (use PNG em e-mail se precisar).                |
+| `public/brand/logo-mark.svg`, `logo-mark-white.svg`, `logo-icon.svg`  | Para README, slides, e-mails (use PNG em e-mail se precisar). Gerados.       |
 
-Regras do logo: não mude a cor da estrela, não aplique sombra/contorno, deixe respiro de pelo menos
-metade da altura do símbolo, tamanho mínimo 16 px de altura. Sobre fundos escuros/violeta use as linhas
-em branco (`className="text-white"`).
+Regras do logo: não mude a cor da estrela, não aplique sombra/contorno, não gire a lua, deixe respiro
+de pelo menos metade da altura do símbolo, tamanho mínimo 16 px de altura. Sobre fundos
+escuros/violeta use a lua em branco (`className="text-white"`).
 
-**Padrão "Constelação"** (`<ConstellationPattern />`): estrelas, linhas e órbitas desenhadas de forma
+**Padrão de constelação** (`<ConstellationPattern />`): estrelas, linhas e órbitas desenhadas de forma
 determinística (igual no servidor e no cliente). Inclui o **Cruzeiro do Sul** (bandeira do Brasil) e
 um "caminho de mentoria" que sobe até uma estrela-guia âmbar. Sempre decorativo (`aria-hidden`).
 Use em hero, estados vazios, 404, cabeçalho da newsletter — nunca atrás de texto longo sem máscara.
@@ -527,7 +542,7 @@ a parte visual (`SiteHeaderView`) mora em `site-header-view.tsx` e sai pelo índ
 Arquivos especiais: `not-found.tsx` (404 com a órbita no "0"), `error.tsx` (cliente; `retry()` + código
 do erro), `global-error.tsx` (documento próprio com o tema), `loading.tsx` (skeleton genérico — rotas
 podem ter o seu), `icon.svg`, `apple-icon.tsx`, `opengraph-image.tsx`. Metadata: título
-`%s · Ciência Delas` — **toda página exporta `metadata.title`** em pt-BR.
+`%s · Artemis` — **toda página exporta `metadata.title`** em pt-BR.
 
 ## 12. Padrões de tela
 
@@ -706,7 +721,7 @@ cuidadoso em erros, assédio, maternidade e saúde mental.
 
 | Situação    | Faça                                                                                                  | Evite                                                           |
 | ----------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Boas-vindas | "Bem-vinda à Ciência Delas! Conte um pouco da sua pesquisa para encontrarmos mentoras para você."     | "Bem-vindo(a), usuário! Preencha todos os campos obrigatórios." |
+| Boas-vindas | "Bem-vinda à Artemis! Conte um pouco da sua pesquisa para encontrarmos mentoras para você."     | "Bem-vindo(a), usuário! Preencha todos os campos obrigatórios." |
 | Erro        | "Não conseguimos salvar seu perfil. Verifique sua conexão e tente de novo — seu texto continua aqui." | "Erro 500: falha na operação."                                  |
 | Vazio       | "Ainda não há papers nesta área. Que tal indicar o primeiro?"                                         | "Nenhum resultado encontrado."                                  |
 | Botões      | "Pedir mentoria", "Destacar paper", "Salvar perfil" (verbo no infinitivo)                             | "OK", "Clique aqui", "Enviar dados"                             |

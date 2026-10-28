@@ -11,7 +11,7 @@ export const AI_CONSENT_TITLE =
   "Quero ativar as sugestões de mentoria com inteligência artificial.";
 
 export const AI_CONSENT_TEXT =
-  "Declaro que tenho 18 anos ou mais e autorizo a Ciência Delas a enviar meus dados de pesquisa (etapa da carreira, áreas, palavras-chave, temas e objetivos de mentoria, sem meu nome, e-mail ou contatos) a serviços de IA de terceiros (Google Gemini e, como reserva, Groq ou OpenRouter), para analisar o sentido do meu perfil e explicar as sugestões de mentoria. Sei que, no plano gratuito, o Google pode usar esses dados para melhorar os produtos dele e que posso retirar este consentimento a qualquer momento no meu perfil. Nesse caso, a análise do meu perfil e as sugestões já geradas são apagadas.";
+  "Declaro que tenho 18 anos ou mais e autorizo a Artemis a enviar meus dados de pesquisa (etapa da carreira, áreas, palavras-chave, temas e objetivos de mentoria, sem meu nome, e-mail ou contatos) a serviços de IA de terceiros (Google Gemini e, como reserva, Groq ou OpenRouter), para analisar o sentido do meu perfil e explicar as sugestões de mentoria. Sei que, no plano gratuito, o Google pode usar esses dados para melhorar os produtos dele e que posso retirar este consentimento a qualquer momento no meu perfil. Nesse caso, a análise do meu perfil e as sugestões já geradas são apagadas.";
 
 /** O que acontece com e sem a IA, em linguagem simples (exibido acima da caixa de seleção). */
 export const AI_MATCHING_EXPLAINER = [

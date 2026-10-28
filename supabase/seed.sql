@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas — seed (dados de referência + DEMONSTRAÇÃO)
+-- Artemis — seed (dados de referência + DEMONSTRAÇÃO)
 -- =============================================================================
 -- 1. Áreas de pesquisa (9 grandes áreas do CNPq + subáreas) e categorias do fórum.
 -- 2. DADOS DE DEMONSTRAÇÃO, TODOS FICTÍCIOS: pessoas, tópicos, papers, votos,
@@ -224,7 +224,7 @@ from (
   values
     -- Administração e moderação
     ('d0000000-0000-4000-8000-000000000001'::uuid, 'ela/dela',
-     'Coordenadora da rede Ciência Delas',
+     'Coordenadora da rede Artemis',
      'Bióloga de formação, cuida da governança da comunidade e da newsletter semanal.',
      'IFSP — Câmpus Jacareí', 'Jacareí', 'SP', 'professor'::public.career_stage,
      array['gestão de comunidades', 'divulgação científica', 'equidade de gênero'],
@@ -784,7 +784,7 @@ insert into public.newsletter_editions (
 select
   'e1000000-0000-4000-8000-000000000001',
   to_char(w.period_start, 'IYYY') || '-s' || to_char(w.period_start, 'IW'),
-  'Ciência Delas #' || to_char(w.period_start, 'IW') || ' — satélites, café e saúde materna (edição de demonstração)',
+  'Boletim Delas #' || to_char(w.period_start, 'IW') || ' — satélites, café e saúde materna (edição de demonstração)',
   'Nesta semana, a rede celebrou papers sobre queimadas no Vale do Paraíba e diagnóstico de doenças do café pelo celular, '
     || 'acolheu novas pesquisadoras e abriu três novas mentorias. Obrigada por fazer parte! (Edição fictícia de demonstração.)',
   jsonb_build_object(

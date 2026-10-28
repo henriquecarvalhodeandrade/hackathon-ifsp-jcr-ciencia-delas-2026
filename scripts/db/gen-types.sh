@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Ciência Delas — gera src/lib/database.types.ts
+# Artemis — gera src/lib/database.types.ts
 #
 # Modo padrão (Supabase local rodando com Docker):
 #   scripts/db/gen-types.sh

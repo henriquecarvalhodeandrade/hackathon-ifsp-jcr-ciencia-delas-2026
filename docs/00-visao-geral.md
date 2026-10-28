@@ -1,6 +1,6 @@
 # Visão geral do produto
 
-> **Ciência Delas** — rede de apoio, mentoria e visibilidade para mulheres na ciência.
+> **Artemis** — rede de apoio, mentoria e visibilidade para mulheres na ciência.
 > Projeto do Hackathon IFSP Câmpus Jacareí 2026, tema *Ciência Delas*.
 
 ## O problema

@@ -26,7 +26,7 @@ import { pluralize } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Fórum",
   description:
-    "Conversas da comunidade Ciência Delas: carreira, bolsas, pesquisa, maternidade e apoio.",
+    "Conversas da comunidade da Artemis: carreira, bolsas, pesquisa, maternidade e apoio.",
   robots: { index: false },
 };
 

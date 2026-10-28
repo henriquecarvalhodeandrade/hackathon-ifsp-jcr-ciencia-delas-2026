@@ -1,6 +1,6 @@
 # Arquitetura
 
-Visão técnica de como a Ciência Delas funciona: stack, organização das pastas, fluxo de dados,
+Visão técnica de como a Artemis funciona: stack, organização das pastas, fluxo de dados,
 autenticação, IA e rotas. Decisões e alternativas descartadas estão nos [ADRs](adr/README.md).
 
 ## 1. Stack

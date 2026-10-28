@@ -1,6 +1,6 @@
 # 11 · Autenticação, onboarding e perfis
 
-> Como uma pesquisadora entra na Ciência Delas, completa o perfil, edita os dados e encontra
+> Como uma pesquisadora entra na Artemis, completa o perfil, edita os dados e encontra
 > outras membros. Cobre as rotas, as Server Actions, o acesso a dados (RLS), a configuração do
 > Supabase e como testar.
 

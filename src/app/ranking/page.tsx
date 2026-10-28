@@ -36,7 +36,7 @@ import {
 export const metadata: Metadata = {
   title: "Ranking",
   description:
-    "Os papers de pesquisadoras mais destacados pela comunidade Ciência Delas — em alta, na semana, no mês, no ano e de todos os tempos.",
+    "Os papers de pesquisadoras mais destacados pela comunidade da Artemis — em alta, na semana, no mês, no ano e de todos os tempos.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;

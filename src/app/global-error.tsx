@@ -28,11 +28,11 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <title>Algo saiu da órbita · Ciência Delas</title>
+        <title>Algo saiu da órbita · Artemis</title>
       </head>
       <body className="flex min-h-dvh items-center justify-center bg-bg p-6 font-sans text-fg">
         <main className="max-w-md text-center">
-          <p className="eyebrow text-primary">Ciência Delas</p>
+          <p className="eyebrow text-primary">Artemis</p>
           <h1 className="mt-3 text-3xl font-bold">Algo saiu da órbita</h1>
           <p className="mt-3 text-fg-muted">
             O site encontrou um erro inesperado. Tente recarregar — se persistir, volte em alguns minutos.

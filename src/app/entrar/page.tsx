@@ -11,7 +11,7 @@ import { safeNextPath, withNext } from "@/lib/profile/redirect";
 
 export const metadata: Metadata = {
   title: "Entrar",
-  description: "Entre na Ciência Delas com seu e-mail e senha ou com um link de acesso.",
+  description: "Entre na Artemis com seu e-mail e senha ou com um link de acesso.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -27,7 +27,7 @@ export default async function EntrarPage({ searchParams }: { searchParams: Searc
   return (
     <AuthShell
       eyebrow="Boas-vindas de volta"
-      title="Entrar na Ciência Delas"
+      title="Entrar na Artemis"
       description="Use seu e-mail e senha, ou receba um link de acesso — sem precisar lembrar a senha."
       footer={
         <>

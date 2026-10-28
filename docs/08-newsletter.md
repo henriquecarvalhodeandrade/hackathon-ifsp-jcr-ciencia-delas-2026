@@ -1,6 +1,6 @@
 # 08 · Newsletter — Boletim Delas
 
-O **Boletim Delas** é a newsletter semanal da Ciência Delas: toda segunda-feira, os papers de
+O **Boletim Delas** é a newsletter semanal da Artemis: toda segunda-feira, os papers de
 pesquisadoras mais destacados pela comunidade, as conversas que movimentaram o fórum, quantas novas
 mentoras chegaram (e de quais áreas) e os números da semana. Qualquer pessoa pode assinar (não precisa de conta) e o arquivo de
 edições é público.
@@ -322,7 +322,7 @@ Em desenvolvimento a página e o formulário mostram um aviso "Modo de desenvolv
 | ---------------------------------- | --------------------------------------------------------------------------------- |
 | `SUPABASE_SECRET_KEY`              | Obrigatória: inscrição e envio usam o service role.                               |
 | `RESEND_API_KEY`                   | Envio real.                                                                       |
-| `NEWSLETTER_FROM`                  | Remetente, ex.: `Ciência Delas <boletim@seu-dominio.org>`.                        |
+| `NEWSLETTER_FROM`                  | Remetente, ex.: `Artemis <boletim@seu-dominio.org>`.                        |
 | `CRON_SECRET`                      | Protege `/api/cron/newsletter` (gere com `openssl rand -hex 32`).                 |
 | `NEXT_PUBLIC_SITE_URL`             | Base dos links dos e-mails (confirmação, descadastro, papers).                    |
 | `NEWSLETTER_MAX_PER_RUN`           | Teto de e-mails por execução (padrão 90).                                         |
@@ -341,9 +341,9 @@ garante que nada se repete).
 - **Consentimento específico e destacado**, caixa desmarcada, texto exato gravado em `consent_text`
   com versão:
 
-  > Quero receber o Boletim Delas, a newsletter semanal da Ciência Delas, no e-mail informado. Sei que
+  > Quero receber o Boletim Delas, a newsletter semanal da Artemis, no e-mail informado. Sei que
   > posso cancelar quando quiser pelo link presente em todos os e-mails e que meus dados são tratados
-  > conforme a Política de Privacidade. Tenho 18 anos ou mais. (versão 2026-10)
+  > conforme a Política de Privacidade. Tenho 18 anos ou mais. (versão 2026-10b)
 
   (O texto mora em `src/lib/newsletter/constants.ts`; ao mudá-lo, troque `NEWSLETTER_CONSENT_VERSION`.)
 

@@ -25,7 +25,7 @@ import { formatNumber, pluralize } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Pesquisadoras",
-  description: "Diretório de pesquisadoras e mentoras da comunidade Ciência Delas.",
+  description: "Diretório de pesquisadoras e mentoras da comunidade da Artemis.",
   robots: { index: false },
 };
 

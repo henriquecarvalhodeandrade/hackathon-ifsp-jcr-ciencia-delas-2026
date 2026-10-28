@@ -52,7 +52,7 @@ export function SiteFooter() {
           <p className="max-w-sm text-fg-muted">{SITE.tagline}.</p>
           <p className="text-sm text-fg-subtle">
             Feito no <strong className="font-semibold text-fg-muted">Hackathon IFSP Jacareí 2026</strong> — tema
-            “Ciência Delas”.
+            “{SITE.theme}”.
           </p>
         </div>
         <nav aria-label="Rodapé" className="grid grid-cols-2 gap-8 sm:grid-cols-3">
@@ -82,7 +82,7 @@ export function SiteFooter() {
       </div>
       <div className="relative border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-sm text-fg-subtle sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p>© {new Date().getFullYear()} Ciência Delas · código aberto sob licença MIT</p>
+          <p>© {new Date().getFullYear()} {SITE.name} · código aberto sob licença MIT</p>
           <p>Feito com cuidado para pesquisadoras de todo o Brasil.</p>
         </div>
       </div>

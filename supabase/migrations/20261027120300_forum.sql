@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 04 — fórum: categorias, tópicos, respostas, anonimato, reações
+-- Artemis · 04 — fórum: categorias, tópicos, respostas, anonimato, reações
 -- =============================================================================
 -- Anonimato (ver docs/03-banco-de-dados.md, seção "Anonimato"):
 --   1. A cliente insere { author_id: <uid>, is_anonymous: true, ... }.

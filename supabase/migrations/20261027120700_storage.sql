@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 08 — Storage: bucket público de avatares
+-- Artemis · 08 — Storage: bucket público de avatares
 -- =============================================================================
 -- Arquivos ficam em `avatars/<user_id>/<arquivo>`. O bucket é público: a leitura
 -- acontece pela URL pública (`getPublicUrl`), que não passa por RLS. As políticas

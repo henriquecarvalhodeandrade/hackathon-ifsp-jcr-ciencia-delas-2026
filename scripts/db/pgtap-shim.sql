@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas — "shim" mínimo de pgTAP para a validação local sem Docker.
+-- Artemis — "shim" mínimo de pgTAP para a validação local sem Docker.
 --
 -- Os testes em supabase/tests/database/*.sql usam só no_plan(), pass(), ok() e
 -- finish(). No Supabase (`supabase test db`) eles vêm da extensão pgtap de

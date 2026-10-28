@@ -395,7 +395,7 @@ function compatibilityReasons(breakdown: MatchBreakdown, candidate: MentorCandid
 
 const GENERIC_REASONS = [
   "Está disponível para novas mentorias na comunidade.",
-  "Faz parte da rede de mentoras da Ciência Delas.",
+  "Faz parte da rede de mentoras da Artemis.",
 ];
 
 function buildReasons(

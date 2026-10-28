@@ -1,5 +1,5 @@
 {
-  "name": "ciencia-delas",
+  "name": "artemis",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -20,7 +20,8 @@
     "db:push": "supabase db push",
     "db:test": "supabase test db",
     "db:validate": "bash scripts/db/validate-local.sh",
-    "ai:backfill": "tsx scripts/ai/backfill-embeddings.ts"
+    "ai:backfill": "tsx scripts/ai/backfill-embeddings.ts",
+    "brand:svgs": "tsx scripts/brand/build-logo-svgs.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { ReportButton } from "@/components/moderation/report-button";
-import { Avatar, Badge } from "@/components/ui";
+import { Avatar, Badge, Button, ConfirmDialog } from "@/components/ui";
+import { deleteComment } from "@/lib/papers/actions";
 import type { PaperComment } from "@/lib/papers/queries";
 import { formatDateTime, formatRelativeTime, toIsoString } from "@/lib/utils";
-import { DeleteCommentButton } from "./delete-comment-button";
 
 export interface CommentListProps {
   comments: PaperComment[];
@@ -67,10 +68,20 @@ export function CommentList({
               </p>
               <footer className="flex flex-wrap items-center justify-end gap-2">
                 {(own || canModerate) && (
-                  <DeleteCommentButton
-                    commentId={comment.id}
-                    paperId={paperId}
-                    asModerator={!own}
+                  // O gatilho pode vir daqui (Server Component): o Dialog não usa cloneElement.
+                  <ConfirmDialog
+                    trigger={
+                      <Button variant="ghost" size="sm">
+                        <Trash2 aria-hidden="true" />
+                        {own ? "Excluir" : "Excluir (moderação)"}
+                      </Button>
+                    }
+                    title="Excluir este comentário?"
+                    description="Ele some da conversa para todas as pessoas. Essa ação não pode ser desfeita."
+                    confirmLabel="Sim, excluir"
+                    pendingLabel="Excluindo…"
+                    action={deleteComment}
+                    hiddenFields={{ id: comment.id, paper_id: paperId }}
                   />
                 )}
                 {!own && <ReportButton targetType="paper_comment" targetId={comment.id} />}

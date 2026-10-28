@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 06 — newsletter: inscritas, edições e envios
+-- Artemis · 06 — newsletter: inscritas, edições e envios
 -- =============================================================================
 -- Inscrição, confirmação (double opt-in), descadastro e envio são feitos pelo
 -- servidor com o cliente admin (service role). Clientes da API não enxergam

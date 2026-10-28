@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 01 — extensões, enums, schema private e funções utilitárias
+-- Artemis · 01 — extensões, enums, schema private e funções utilitárias
 -- =============================================================================
 -- Convenções de todo o banco (ver docs/03-banco-de-dados.md):
 --   * toda função usa `set search_path = ''` e nomes totalmente qualificados;

@@ -36,7 +36,7 @@ export const env = {
     return clean(process.env.RESEND_API_KEY);
   },
   get newsletterFrom() {
-    return clean(process.env.NEWSLETTER_FROM) ?? "Ciência Delas <onboarding@resend.dev>";
+    return clean(process.env.NEWSLETTER_FROM) ?? "Artemis <onboarding@resend.dev>";
   },
   get cronSecret() {
     return clean(process.env.CRON_SECRET);

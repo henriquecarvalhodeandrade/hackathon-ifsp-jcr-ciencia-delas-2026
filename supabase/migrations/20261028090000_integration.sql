@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 10 — rodada de integração
+-- Artemis · 10 — rodada de integração
 --   1. Revogar o consentimento de IA apaga também as sugestões de mentoras.
 --   2. moderation_audit_log: registro das ações da moderação. revelar autoria exige
 --      motivo (20–300 caracteres) e fica registrada na mesma transação; fixar/trancar

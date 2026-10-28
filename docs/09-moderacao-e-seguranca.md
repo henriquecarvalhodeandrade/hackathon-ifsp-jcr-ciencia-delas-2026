@@ -55,7 +55,7 @@ Seções (componentes em `src/components/landing/`):
 | A rede em números             | `platform-stats.tsx`   | `rpc('get_platform_stats')` — números reais; sem dados a seção some                                                                                                   |
 | Por que existimos             | `why-section.tsx`      | Texto + **um** dado citado com fonte (veja abaixo)                                                                                                                    |
 | Três pilares                  | `pillars.tsx`          | Estático (Fórum seguro · Mentoria com IA · Vitrine e Boletim)                                                                                                         |
-| Como funciona a mentoria      | `mentorship-steps.tsx` | Estático, com aviso de consentimento de IA e link para `/privacidade#ia`                                                                                              |
+| Como funciona a mentoria      | `mentorship-steps.tsx` | Estático. Aviso: as sugestões funcionam sem IA (nada sai da plataforma); a IA é opcional, com consentimento — link para `/privacidade#ia` |
 | Destaques da semana           | `featured-papers.tsx`  | `rpc('get_paper_ranking', { p_period: 'week', p_limit: 3 })`; se ninguém destacou nada em 7 dias, usa `hot` e muda o título para “Em alta na Vitrine” (`featured.ts`) |
 | Boletim                       | `newsletter-cta.tsx`   | Edição publicada mais recente (`newsletter_editions`, status `published`/`sent`)                                                                                      |
 | Crédito do hackathon          | `hackathon-credit.tsx` | Estático                                                                                                                                                              |
@@ -96,8 +96,10 @@ com aviso para leitor de tela; `DocCallout` destaca avisos.
   `REPORT_REASONS`), consequências graduais e canais de ajuda fora da plataforma (Ligue 180, 190,
   CVV 188, ouvidoria da instituição).
 - **`/privacidade`** — resumo, controladora, dados coletados, finalidades e **bases legais (art. 7º)**,
-  IA (Gemini/Groq/OpenRouter, uso de dados no plano gratuito, pseudonimização `c1..cN`, 18+,
-  consentimento revogável que apaga o embedding), Boletim (consentimento, confirmação dupla,
+  IA (as sugestões heurísticas funcionam sem consentimento e nada sai da plataforma; o consentimento,
+  18+ e revogável, só liga os embeddings do Gemini e as explicações por LLM — Gemini/Groq/OpenRouter,
+  uso de dados no plano gratuito, pseudonimização `c1..cN`; revogar apaga o embedding e as sugestões
+  salvas em `mentor_suggestions`), Boletim (consentimento, confirmação dupla,
   descadastro em um clique, exclusão), operadores (Supabase, Vercel, Google/Groq/OpenRouter,
   Resend) e transferência internacional, cookies (só sessão + tema em `localStorage`), retenção,
   segurança, **direitos do art. 18**, menores de idade (art. 14) e contato.
@@ -324,7 +326,7 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 | Direito / obrigação                   | Onde está                                                                                                      |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                            |
-| Consentimento de IA (art. 7º, I e 8º) | Caixa desmarcada no onboarding/perfil, com 18+; revogar apaga o embedding e as sugestões de mentoras (trigger) |
+| Consentimento de IA (art. 7º, I e 8º) | Opcional: sem ele, as sugestões heurísticas funcionam e nada sai da plataforma. Caixa desmarcada no onboarding/perfil, com 18+, que só liga embeddings do Gemini e explicações por LLM; revogar apaga o embedding e as `mentor_suggestions` salvas (trigger) |
 | Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                          |
 | Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                |
 | Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro |

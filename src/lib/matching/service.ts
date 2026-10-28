@@ -544,6 +544,8 @@ interface SavedSuggestionRow {
  * Lê as sugestões já gravadas da usuária logada (sem IA, sem RPC). Ideal para o carregamento
  * da página /mentoria; use `findMentorsForCurrentUser` só quando ela pedir novas sugestões.
  * Retorna null se não houver sugestões (ou se forem mais antigas que `maxAgeSeconds`).
+ * Como numa busca nova (`isNewMentorCandidate`), deixa de fora as mentoras com quem ela já está
+ * em mentoria (pedido aceito) — a sugestão pode ter sido gravada antes do aceite.
  */
 export async function getMySavedSuggestions(
   options: { supabase?: ServerClient; userId?: string; maxAgeSeconds?: number } = {},
@@ -570,7 +572,7 @@ export async function getMySavedSuggestions(
   }
 
   const mentorIds = rows.map((r) => r.mentor_id);
-  const [{ data: mentors }, { data: links }, areas] = await Promise.all([
+  const [{ data: mentors }, { data: links }, { data: accepted }, areas] = await Promise.all([
     supabase
       .from("profiles")
       .select(
@@ -581,9 +583,16 @@ export async function getMySavedSuggestions(
       .from("profile_research_areas")
       .select("profile_id, area_id")
       .in("profile_id", mentorIds),
+    supabase
+      .from("mentorship_requests")
+      .select("mentor_id")
+      .eq("mentee_id", userId)
+      .eq("status", "accepted")
+      .in("mentor_id", mentorIds),
     loadAreas(supabase),
   ]);
   const byId = new Map((mentors ?? []).map((m) => [m.id, m]));
+  const inMentorship = new Set((accepted ?? []).map((r) => r.mentor_id));
   const areaIdsByProfile = new Map<string, number[]>();
   for (const link of links ?? []) {
     const list = areaIdsByProfile.get(link.profile_id) ?? [];
@@ -595,6 +604,7 @@ export async function getMySavedSuggestions(
   for (const row of rows) {
     const m = byId.get(row.mentor_id);
     if (!m) continue; // mentora removida ou indisponível
+    if (inMentorship.has(row.mentor_id)) continue; // já é mentora dela (pedido aceito)
     const areaIds = areaIdsByProfile.get(row.mentor_id) ?? [];
     suggestions.push({
       mentorId: row.mentor_id,

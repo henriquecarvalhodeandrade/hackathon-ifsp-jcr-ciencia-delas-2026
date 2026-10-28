@@ -1,6 +1,6 @@
 # Setup e deploy
 
-Como rodar a Ciência Delas na sua máquina, configurar cada serviço (todos com plano gratuito) e publicar
+Como rodar a Artemis na sua máquina, configurar cada serviço (todos com plano gratuito) e publicar
 na Vercel + Supabase Cloud.
 
 > Resumo rápido: `npm install` → `npx supabase start` → copiar as chaves para `.env.local` → `npm run dev`
@@ -179,7 +179,7 @@ Administradoras podem promover moderadoras pelo painel `/admin`.
 1. Crie a conta no Resend e uma API key.
 2. Verifique um domínio seu em *Domains* (registros SPF e DKIM no DNS). Sem domínio verificado, o remetente de
    teste `onboarding@resend.dev` **só entrega para o e-mail da própria conta Resend**.
-3. Defina `RESEND_API_KEY` e `NEWSLETTER_FROM="Ciência Delas <boletim@seu-dominio>"` na Vercel.
+3. Defina `RESEND_API_KEY` e `NEWSLETTER_FROM="Artemis <boletim@seu-dominio>"` na Vercel.
 4. Plano gratuito: 100 e-mails/dia e 3.000/mês. O serviço envia em lotes e retoma na execução seguinte
    (`NEWSLETTER_MAX_PER_RUN`). Detalhes: [`08-newsletter.md`](08-newsletter.md).
 

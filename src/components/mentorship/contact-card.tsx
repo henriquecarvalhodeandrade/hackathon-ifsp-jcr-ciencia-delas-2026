@@ -25,7 +25,7 @@ export function ContactCard({ email, name }: { email: string; name: string }) {
     }
   }
 
-  const subject = encodeURIComponent("Nossa mentoria na Ciência Delas");
+  const subject = encodeURIComponent("Nossa mentoria na Artemis");
 
   return (
     <div className="grid gap-2 rounded-control border border-border bg-surface-2 p-3.5">

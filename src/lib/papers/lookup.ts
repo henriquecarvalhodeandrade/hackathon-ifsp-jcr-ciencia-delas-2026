@@ -21,7 +21,7 @@ export async function fetchCrossrefWork(doi: string): Promise<CrossrefLookup> {
       headers: {
         Accept: "application/json",
         // Cabeçalhos HTTP aceitam só ASCII: nada de "Ciência" aqui.
-        "User-Agent": `CienciaDelas/1.0 (+${getSiteUrl()}; ${CONTACT})`,
+        "User-Agent": `Artemis/1.0 (+${getSiteUrl()}; ${CONTACT})`,
       },
       cache: "no-store",
       signal: AbortSignal.timeout(CROSSREF_TIMEOUT_MS),

@@ -1,7 +1,10 @@
-# Ciência Delas
+<img src="public/brand/logo-mark.svg" alt="" width="64" height="64" />
+
+# Artemis
 
 **Rede de apoio, mentoria e visibilidade para mulheres na ciência.**
-Projeto do **Hackathon IFSP Câmpus Jacareí 2026** — tema *Ciência Delas*.
+Projeto do **Hackathon IFSP Câmpus Jacareí 2026** — tema *Ciência Delas*. O nome vem de Ártemis,
+deusa grega da caça e da Lua; o símbolo é uma lua crescente com uma estrela âmbar.
 
 Pesquisadoras iniciantes encontram mentoras experientes com ajuda de IA, conversam num fórum seguro e dão
 visibilidade ao trabalho de mulheres com uma vitrine de papers, rankings de destaques e um boletim semanal.
@@ -17,7 +20,7 @@ visibilidade ao trabalho de mulheres com uma vitrine de papers, rankings de dest
 | **Boletim Delas** | Newsletter semanal automática com os papers mais destacados e o que movimentou a comunidade; dupla confirmação e descadastro com um clique. | `/newsletter` |
 | **Pesquisadoras** | Diretório de membras com filtros por área, estágio da carreira, estado e mentoras com vaga. | `/pesquisadoras` |
 | **Moderação** | Fila de denúncias, ocultar/excluir conteúdo, trancar e fixar tópicos, papéis de moderadora e admin, envio do boletim. | `/admin` |
-| **Design system** | Guia vivo da marca "Constelação": cores, tipografia, componentes, voz e acessibilidade. | `/design-system` |
+| **Design system** | Guia vivo do design system Artemis: marca, cores, tipografia, componentes, voz e acessibilidade. | `/design-system` |
 
 ## Stack
 

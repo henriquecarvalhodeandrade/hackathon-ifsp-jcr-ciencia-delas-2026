@@ -5,7 +5,7 @@ import { DocCallout, DocLayout, DocSection, ExternalLink } from "@/components/la
 export const metadata: Metadata = {
   title: "Política de privacidade",
   description:
-    "Como a Ciência Delas trata dados pessoais segundo a LGPD: dados coletados, finalidades e bases legais, IA, newsletter, compartilhamento, retenção e direitos das titulares.",
+    "Como a Artemis trata dados pessoais segundo a LGPD: dados coletados, finalidades e bases legais, IA, newsletter, compartilhamento, retenção e direitos das titulares.",
   alternates: { canonical: "/privacidade" },
 };
 
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
 
       <DocSection id="controladora" title="Quem cuida dos seus dados">
         <p>
-          A controladora dos dados é a equipe responsável pela Ciência Delas, projeto criado no
+          A controladora dos dados é a equipe responsável pela Artemis, projeto criado no
           Hackathon IFSP Câmpus Jacareí 2026. Os dados de identificação e o contato da pessoa
           encarregada estão na seção <a href="#contato">Contato</a>.
         </p>
@@ -259,8 +259,8 @@ export default function PrivacyPage() {
           <li>
             As edições ficam num arquivo público e reúnem só o que já é público ou agregado: papers
             da Vitrine, títulos de discussões do fórum (sem o nome de quem escreveu e nunca da
-            categoria “Apresente-se” nem das categorias que aceitam anonimato) e quantas mentoras
-            novas chegaram, com as áreas delas.
+            categoria “Apresente-se” nem das categorias que aceitam anonimato) e as mentoras novas
+            só em número, com as áreas delas — <strong>nunca pelo nome</strong>.
           </li>
           <li>
             O arquivo público{" "}
@@ -423,8 +423,7 @@ export default function PrivacyPage() {
       <DocSection id="contato" title="Contato">
         <DocCallout title="Dados da controladora (a preencher pela equipe)">
           <p>
-            <strong>Controladora:</strong> [nome da equipe ou instituição responsável pela Ciência
-            Delas]
+            <strong>Controladora:</strong> [nome da equipe ou instituição responsável pela Artemis]
           </p>
           <p>
             <strong>Encarregada pelo tratamento de dados (DPO):</strong> [nome] — [e-mail de

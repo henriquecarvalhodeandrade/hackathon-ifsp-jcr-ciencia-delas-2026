@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/constants";
 import { formatNumber, pluralize, truncate } from "@/lib/utils";
 import { CONFIRM_TOKEN_TTL_DAYS, NEWSLETTER_NAME } from "./constants";
 import type { NewsletterContent } from "./content";
@@ -28,6 +29,9 @@ const C = {
 
 const SANS = "'Atkinson Hyperlegible Next','Atkinson Hyperlegible',Arial,Helvetica,sans-serif";
 const SERIF = "Newsreader,Georgia,'Times New Roman',serif";
+
+/** Assinatura do rodapé dos e-mails: nome da plataforma + tema do hackathon (nome secundário). */
+const BRAND_FOOTER = `${SITE.name} — rede de apoio, mentoria e visibilidade para mulheres na ciência. Feito no Hackathon IFSP Jacareí 2026, tema ${SITE.theme}.`;
 
 export function escapeHtml(value: string): string {
   return value
@@ -176,7 +180,7 @@ export function renderEditionEmail(
   const summary = edition.summary?.trim();
 
   const rows: string[] = [
-    headerRow(eyebrow, edition.title, "A newsletter semanal da Ciência Delas"),
+    headerRow(eyebrow, edition.title, "A newsletter semanal da Artemis"),
   ];
 
   if (summary) {
@@ -267,7 +271,7 @@ ${button(webUrl, "Ver a edição no site")}
     footerRow([
       recipientLine,
       `<a href="${escapeHtml(ctx.unsubscribeUrl)}" style="color:${C.primary};font-weight:700;">Cancelar inscrição</a> &nbsp;·&nbsp; <a href="${escapeHtml(privacyUrl)}" style="color:${C.primary};">Política de privacidade</a> &nbsp;·&nbsp; <a href="${escapeHtml(webUrl)}" style="color:${C.primary};">Ver no navegador</a>`,
-      "Ciência Delas — rede de apoio, mentoria e visibilidade para mulheres na ciência. Feito no Hackathon IFSP Jacareí 2026.",
+      BRAND_FOOTER,
     ]),
   );
 
@@ -330,14 +334,14 @@ export interface ConfirmationEmailContext {
 /** E-mail do double opt-in. */
 export function renderConfirmationEmail(ctx: ConfirmationEmailContext): RenderedEmail {
   const subject = `Confirme sua inscrição no ${NEWSLETTER_NAME}`;
-  const preheader = "Falta só um clique para receber os destaques da semana da Ciência Delas.";
+  const preheader = "Falta só um clique para receber os destaques da semana da Artemis.";
   const privacyUrl = absoluteUrl(ctx.siteUrl, "/privacidade");
   const days = pluralize(CONFIRM_TOKEN_TTL_DAYS, "dia");
 
   const body = [
     headerRow(NEWSLETTER_NAME, "Falta só um passo", "Confirme que este e-mail é seu."),
     `<tr><td class="cd-px" style="padding:32px 40px 8px;">
-<p style="margin:0 0 16px;font-family:${SANS};font-size:16px;line-height:26px;color:${C.text};">Olá! Recebemos um pedido para enviar o <strong>${NEWSLETTER_NAME}</strong> — a newsletter semanal da Ciência Delas, com papers de pesquisadoras, conversas da comunidade e novas mentoras — para este endereço.</p>
+<p style="margin:0 0 16px;font-family:${SANS};font-size:16px;line-height:26px;color:${C.text};">Olá! Recebemos um pedido para enviar o <strong>${NEWSLETTER_NAME}</strong> — a newsletter semanal da Artemis, com papers de pesquisadoras, conversas da comunidade e novas mentoras — para este endereço.</p>
 <p style="margin:0 0 24px;font-family:${SANS};font-size:16px;line-height:26px;color:${C.text};">Para confirmar, é só clicar no botão:</p>
 ${button(ctx.confirmUrl, "Confirmar inscrição")}
 <p style="margin:24px 0 0;font-family:${SANS};font-size:14px;line-height:22px;color:${C.muted};">O link vale por ${escapeHtml(days)}. Se você não pediu a inscrição, ignore este e-mail: sem a confirmação, não enviamos nada.${ctx.removeUrl ? ` Se preferir, <a href="${escapeHtml(ctx.removeUrl)}" style="color:${C.primary};">remova este endereço da nossa lista</a>.` : ""}</p>
@@ -345,14 +349,14 @@ ${button(ctx.confirmUrl, "Confirmar inscrição")}
 </td></tr>`,
     footerRow([
       `<a href="${escapeHtml(privacyUrl)}" style="color:${C.primary};">Como tratamos seus dados</a>`,
-      "Ciência Delas — rede de apoio, mentoria e visibilidade para mulheres na ciência. Feito no Hackathon IFSP Jacareí 2026.",
+      BRAND_FOOTER,
     ]),
   ].join("\n");
 
   const text = [
     `${NEWSLETTER_NAME.toUpperCase()} — CONFIRME SUA INSCRIÇÃO`,
     "",
-    `Olá! Recebemos um pedido para enviar o ${NEWSLETTER_NAME}, a newsletter semanal da Ciência Delas, para este endereço.`,
+    `Olá! Recebemos um pedido para enviar o ${NEWSLETTER_NAME}, a newsletter semanal da Artemis, para este endereço.`,
     "",
     "Para confirmar, abra o link:",
     ctx.confirmUrl,

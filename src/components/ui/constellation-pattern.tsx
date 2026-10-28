@@ -72,7 +72,7 @@ export interface ConstellationPatternProps extends React.ComponentProps<"svg"> {
 }
 
 /**
- * Padrão decorativo "Constelação": estrelas, linhas finas e órbitas. Sempre aria-hidden.
+ * Padrão decorativo de constelação: estrelas, linhas finas e órbitas. Sempre aria-hidden.
  * Usa currentColor (controle com text-primary/20 etc.); as estrelas-guia usam o âmbar.
  * Posicione com `absolute inset-0 size-full` dentro de um container `relative overflow-hidden`.
  */

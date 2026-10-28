@@ -50,7 +50,7 @@ export function SiteHeaderView({ account, sticky = true, navLabel = "Principal" 
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="-ml-1 rounded-control px-1 py-1" aria-label="Ciência Delas — página inicial">
+        <Link href="/" className="-ml-1 rounded-control px-1 py-1" aria-label="Artemis — página inicial">
           <Logo size={28} />
         </Link>
 

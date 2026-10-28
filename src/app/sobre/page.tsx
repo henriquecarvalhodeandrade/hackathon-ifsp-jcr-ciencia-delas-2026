@@ -6,7 +6,7 @@ import { SITE } from "@/lib/constants";
 export const metadata: Metadata = {
   title: "Sobre o projeto",
   description:
-    "Missão, problema, funcionamento e tecnologia da Ciência Delas — rede de apoio, mentoria e visibilidade para mulheres na ciência, criada no Hackathon IFSP Jacareí 2026.",
+    "Missão, problema, funcionamento e tecnologia da Artemis — rede de apoio, mentoria e visibilidade para mulheres na ciência, criada no Hackathon IFSP Jacareí 2026.",
   alternates: { canonical: "/sobre" },
 };
 
@@ -34,8 +34,8 @@ export default function AboutPage() {
     >
       <DocSection id="missao" title="Nossa missão">
         <p>
-          Queremos que nenhuma pesquisadora comece — ou continue — a carreira sozinha. A Ciência
-          Delas conecta quem está chegando à pesquisa com mulheres que já trilharam esse caminho,
+          Queremos que nenhuma pesquisadora comece — ou continue — a carreira sozinha. A Artemis
+          conecta quem está chegando à pesquisa com mulheres que já trilharam esse caminho,
           oferece um espaço seguro para conversar sobre o que costuma ficar em silêncio e dá
           visibilidade ao trabalho científico feito por mulheres.
         </p>
@@ -199,7 +199,7 @@ export default function AboutPage() {
               <tr>
                 <td>Design</td>
                 <td>
-                  Design system “Constelação”, com tokens de cor verificados em WCAG AA —{" "}
+                  Design system Artemis, com tokens de cor verificados em WCAG AA —{" "}
                   <Link href="/design-system">veja o guia vivo</Link>
                 </td>
               </tr>
@@ -210,8 +210,8 @@ export default function AboutPage() {
 
       <DocSection id="equipe" title="Equipe do hackathon">
         <p>
-          A Ciência Delas foi criada por uma equipe no Hackathon do IFSP Câmpus Jacareí 2026, com o
-          tema “Ciência Delas”.
+          A Artemis foi criada por uma equipe no Hackathon do IFSP Câmpus Jacareí 2026, com o
+          tema “{SITE.theme}”.
         </p>
         <DocCallout title="Espaço reservado para a equipe">
           <p>
@@ -235,7 +235,7 @@ export default function AboutPage() {
             </ExternalLink>
           </li>
           <li>
-            <Link href="/design-system">Design system “Constelação”</Link>
+            <Link href="/design-system">Design system Artemis</Link>
           </li>
           <li>
             <Link href="/conduta">Código de conduta</Link> e{" "}

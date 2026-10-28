@@ -11,7 +11,7 @@ import { Patterns } from "./_components/patterns";
 export const metadata: Metadata = {
   title: "Design system",
   description:
-    "Constelação: o design system da Ciência Delas — cores com contraste verificado, tipografia legível, componentes acessíveis e guia de voz.",
+    "Artemis: o design system da plataforma — cores com contraste verificado, tipografia legível, componentes acessíveis e guia de voz.",
 };
 
 const TOC = [

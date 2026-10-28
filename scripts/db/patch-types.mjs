@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Ciência Delas — ajuste pós-geração de src/lib/database.types.ts
+ * Artemis — ajuste pós-geração de src/lib/database.types.ts
  *
  * `supabase gen types` (postgres-meta) não sabe quais colunas de uma função
  * `returns table (...)` podem vir NULL e marca todas como não nulas. Este script

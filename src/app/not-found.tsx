@@ -3,6 +3,11 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ConstellationPattern } from "@/components/ui/constellation-pattern";
 import { Container } from "@/components/ui/container";
+import { LOGO_PATHS } from "@/components/ui/logo-geometry";
+
+/** A estrela de quatro pontas da marca (centro 34,9; 13 e raio 8 na grade) levada para (52, 15), raio 13. */
+const STAR_SCALE = 13 / 8;
+const STAR_TRANSFORM = `translate(${52 - 34.9 * STAR_SCALE} ${15 - 13 * STAR_SCALE}) scale(${STAR_SCALE})`;
 
 export const metadata: Metadata = {
   title: "Página não encontrada",
@@ -22,10 +27,18 @@ export default function NotFound() {
           className="mx-auto mt-4 flex items-center justify-center font-display text-[clamp(5rem,18vw,9rem)] leading-none font-bold tracking-[-0.05em] text-primary"
         >
           <span>4</span>
-          {/* o "0" é a órbita da marca, com a estrela âmbar */}
+          {/* o "0" é uma lua cheia em contorno, com a estrela âmbar da marca (recortada do fundo) */}
           <svg viewBox="0 0 64 80" fill="none" className="mx-[0.03em] h-[0.74em] w-[0.6em]">
             <ellipse cx="32" cy="40" rx="22" ry="31" stroke="currentColor" strokeWidth="13" />
-            <circle cx="52" cy="15" r="10.5" fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth="5" />
+            <path
+              d={LOGO_PATHS.star}
+              transform={STAR_TRANSFORM}
+              fill="var(--color-accent)"
+              stroke="var(--color-surface)"
+              strokeWidth={5 / STAR_SCALE}
+              strokeLinejoin="round"
+              paintOrder="stroke"
+            />
           </svg>
           <span>4</span>
         </p>

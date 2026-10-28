@@ -1,6 +1,6 @@
 # 03 · Banco de dados (Supabase / Postgres)
 
-Este documento descreve o banco da **Ciência Delas**: modelo de dados, regras de
+Este documento descreve o banco da **Artemis**: modelo de dados, regras de
 segurança (RLS), anonimato no fórum, triggers, RPCs, seed de demonstração e como
 rodar tudo — com ou sem Docker.
 

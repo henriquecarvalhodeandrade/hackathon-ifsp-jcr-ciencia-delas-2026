@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas · 09 — RPCs públicas (supabase.rpc(...))
+-- Artemis · 09 — RPCs públicas (supabase.rpc(...))
 -- =============================================================================
 -- Toda RPC: search_path vazio, nomes qualificados, EXECUTE revogado de PUBLIC e
 -- concedido apenas aos papéis que precisam.

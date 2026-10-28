@@ -139,7 +139,7 @@ export function pseudonymizeCandidates(
 // Prompt
 // ---------------------------------------------------------------------------
 
-export const EXPLAIN_SYSTEM = `Você ajuda a comunidade Ciência Delas a conectar pesquisadoras iniciantes a mentoras experientes.
+export const EXPLAIN_SYSTEM = `Você ajuda a comunidade da Artemis a conectar pesquisadoras iniciantes a mentoras experientes.
 Recebe o perfil de pesquisa de uma mentoranda (sem nome) e uma lista de mentoras candidatas identificadas apenas por códigos (c1, c2, ...), já pré-selecionadas por um algoritmo.
 
 Para cada candidata, avalie o encaixe com a mentoranda e devolva:

@@ -20,7 +20,7 @@ max_rows = 1000
 # `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
 # without explicit GRANTs, matching the cloud default. Set to `false` to require explicit GRANTs
 # instead. Left unset, a fresh project falls back to `true`.
-# Ciência Delas: false — toda migration faz GRANT explícito (modelo do Supabase em 2026).
+# Artemis: false — toda migration faz GRANT explícito (modelo do Supabase em 2026).
 auto_expose_new_tables = false
 
 [api.tls]
@@ -126,7 +126,7 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
-# Ciência Delas: avatares (leitura pública pela URL; escrita só em <user_id>/...).
+# Artemis: avatares (leitura pública pela URL; escrita só em <user_id>/...).
 # A migration 20261027120700_storage.sql cria o mesmo bucket no Supabase Cloud.
 [storage.buckets.avatars]
 public = true
@@ -232,7 +232,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-# Ciência Delas: true, igual ao padrão do Supabase Cloud. Localmente os e-mails
+# Artemis: true, igual ao padrão do Supabase Cloud. Localmente os e-mails
 # chegam no Mailpit (http://127.0.0.1:54324).
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
@@ -259,26 +259,26 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
-# Ciência Delas: modelos em pt-BR. Todos apontam para /auth/confirm (verifyOtp com
+# Artemis: modelos em pt-BR. Todos apontam para /auth/confirm (verifyOtp com
 # token_hash), que funciona em qualquer navegador/dispositivo.
 [auth.email.template.confirmation]
-subject = "Confirme seu e-mail na Ciência Delas"
+subject = "Confirme seu e-mail na Artemis"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.magic_link]
-subject = "Seu link de acesso à Ciência Delas"
+subject = "Seu link de acesso à Artemis"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.recovery]
-subject = "Redefina sua senha da Ciência Delas"
+subject = "Redefina sua senha da Artemis"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.email_change]
-subject = "Confirme seu novo e-mail na Ciência Delas"
+subject = "Confirme seu novo e-mail na Artemis"
 content_path = "./supabase/templates/email_change.html"
 
 [auth.email.template.invite]
-subject = "Você foi convidada para a Ciência Delas"
+subject = "Você foi convidada para a Artemis"
 content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
@@ -350,7 +350,7 @@ max_frequency = "5s"
 # enroll_enabled = true
 # verify_enabled = true
 
-# Ciência Delas: Google OAuth (opcional). Para ativar localmente, defina as variáveis
+# Artemis: Google OAuth (opcional). Para ativar localmente, defina as variáveis
 # SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID e SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET e
 # mude enabled para true. O callback do app é /auth/callback.
 [auth.external.google]

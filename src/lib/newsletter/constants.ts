@@ -6,7 +6,7 @@ export const NEWSLETTER_NAME = "Boletim Delas";
 
 /** Texto EXATO do consentimento exibido ao lado da caixa (desmarcada) e gravado em consent_text. */
 export const NEWSLETTER_CONSENT_TEXT =
-  "Quero receber o Boletim Delas, a newsletter semanal da Ciência Delas, no e-mail informado. " +
+  "Quero receber o Boletim Delas, a newsletter semanal da Artemis, no e-mail informado. " +
   "Sei que posso cancelar quando quiser pelo link presente em todos os e-mails e que meus dados " +
   "são tratados conforme a Política de Privacidade.";
 
@@ -14,7 +14,7 @@ export const NEWSLETTER_CONSENT_TEXT =
 export const NEWSLETTER_AGE_TEXT = "Tenho 18 anos ou mais.";
 
 /** Versão do texto — muda quando o texto mudar, para sabermos com o que cada pessoa concordou. */
-export const NEWSLETTER_CONSENT_VERSION = "2026-10";
+export const NEWSLETTER_CONSENT_VERSION = "2026-10b";
 
 /** Valor gravado em newsletter_subscribers.consent_text. */
 export function buildConsentRecord(): string {

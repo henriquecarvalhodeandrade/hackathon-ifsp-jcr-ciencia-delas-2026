@@ -6,7 +6,7 @@ import { formatEditionPeriod } from "@/lib/newsletter/week";
 import { truncate } from "@/lib/utils";
 
 /**
- * Destaque da última edição — peça de marca (violeta-950 nos dois temas) com o padrão Constelação,
+ * Destaque da última edição — peça de marca (violeta-950 nos dois temas) com o padrão de constelação,
  * como o "Cabeçalho da newsletter" do design system.
  */
 export function LatestEdition({ edition }: { edition: EditionListItem | null }) {

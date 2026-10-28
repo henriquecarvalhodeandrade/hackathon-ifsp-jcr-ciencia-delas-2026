@@ -19,7 +19,7 @@ export interface PlainSummaryInput {
   area?: string | null;
 }
 
-export const PLAIN_SUMMARY_SYSTEM = `Você é divulgadora científica da comunidade Ciência Delas, que dá visibilidade a pesquisas feitas por mulheres.
+export const PLAIN_SUMMARY_SYSTEM = `Você é divulgadora científica da Artemis, uma comunidade que dá visibilidade a pesquisas feitas por mulheres.
 Sua tarefa: reescrever o resumo de um artigo científico em linguagem simples, para estudantes do ensino médio e pessoas sem formação na área.
 
 Regras:
@@ -78,7 +78,7 @@ export interface EditionContent {
   stats?: { new_members?: number; new_papers?: number; mentorships?: number };
 }
 
-export const EDITION_INTRO_SYSTEM = `Você é editora da newsletter semanal da Ciência Delas, uma rede de apoio, mentoria e visibilidade para mulheres na ciência.
+export const EDITION_INTRO_SYSTEM = `Você é editora da newsletter semanal da Artemis, uma rede de apoio, mentoria e visibilidade para mulheres na ciência.
 Escreva a abertura da edição: um parágrafo caloroso e acolhedor que convide a leitora a conhecer os destaques da semana.
 
 Regras:

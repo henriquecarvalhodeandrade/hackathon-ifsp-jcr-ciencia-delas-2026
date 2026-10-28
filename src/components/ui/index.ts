@@ -1,5 +1,5 @@
 /**
- * Design system "Constelação" — componentes de interface.
+ * Design system Artemis — componentes de interface.
  * Importe daqui: import { Button, Card, Field } from "@/components/ui";
  * Documentação: docs/02-design-system.md · Guia vivo: /design-system
  *

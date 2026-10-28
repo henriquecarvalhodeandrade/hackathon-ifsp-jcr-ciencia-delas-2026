@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Ciência Delas — validação do banco SEM Docker
+# Artemis — validação do banco SEM Docker
 #
 # Cria um banco novo num Postgres local (16+ com pgvector), aplica o "stub" do
 # Supabase, todas as migrations em ordem, o seed e os testes de RLS/regras.

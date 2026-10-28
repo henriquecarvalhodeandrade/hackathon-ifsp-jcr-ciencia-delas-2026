@@ -6,8 +6,8 @@ import type { EmailMessage } from "./types";
 
 describe("address helpers", () => {
   it("parseAddress", () => {
-    expect(parseAddress("Ciência Delas <onboarding@resend.dev>")).toEqual({
-      name: "Ciência Delas",
+    expect(parseAddress("Artemis <onboarding@resend.dev>")).toEqual({
+      name: "Artemis",
       email: "onboarding@resend.dev",
     });
     expect(parseAddress('"Boletim" <a@b.co>')).toEqual({ name: "Boletim", email: "a@b.co" });

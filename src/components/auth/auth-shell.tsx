@@ -35,9 +35,9 @@ export function AuthShell({
   return (
     <Container size="wide" className={cn("py-6 sm:py-12", className)}>
       <div className="mx-auto grid max-w-5xl overflow-hidden rounded-dialog border border-border bg-surface shadow-card lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        {/* Ilha de tema escuro: o violeta da marca (Logo, "Delas") fica claro sobre o fundo violeta-950. */}
+        {/* Ilha de tema escuro: o violeta da marca (a lua do Logo) fica claro sobre o fundo violeta-950. */}
         <aside
-          aria-label="Sobre a Ciência Delas"
+          aria-label="Sobre a Artemis"
           data-theme="dark"
           className="relative isolate hidden min-h-[36rem] flex-col gap-8 overflow-hidden bg-violeta-950 p-10 text-white lg:flex"
         >

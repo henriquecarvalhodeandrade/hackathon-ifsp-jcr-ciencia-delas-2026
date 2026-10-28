@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { BRAND_HEX, LOGO_PATHS, LOGO_VIEWBOX } from "@/components/ui/logo-geometry";
 import { SITE } from "@/lib/constants";
 
 // Imagem de compartilhamento padrão (1200×630). Usa só a fonte embutida do next/og —
@@ -7,9 +8,7 @@ export const alt = `${SITE.name} — ${SITE.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const VIOLETA_950 = "#251046";
-const VIOLETA_300 = "#cbaeff";
-const AMBAR_400 = "#ffb24a";
+const { violeta950: VIOLETA_950, violeta300: VIOLETA_300, ambar400: AMBAR_400 } = BRAND_HEX;
 const VERDE_400 = "#5bc96c";
 
 /** Estrelas de fundo determinísticas. */
@@ -38,49 +37,62 @@ export default function OpengraphImage() {
           {STARS.map((s, i) => (
             <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#ffffff" fillOpacity={s.o} />
           ))}
-          <ellipse
-            cx="930"
-            cy="250"
-            rx="250"
-            ry="86"
-            transform="rotate(-16 930 250)"
+          {/* caminho de mentoria: nós ligados que sobem, dentro da curva da lua, até a estrela âmbar */}
+          <path
+            d="M884 352 L930 300 L978 312 L1058 160"
             fill="none"
             stroke={VIOLETA_300}
-            strokeOpacity="0.45"
-            strokeWidth="2"
-            strokeDasharray="3 10"
+            strokeOpacity="0.6"
+            strokeWidth="2.5"
           />
-          <path d="M780 520 L850 450 L915 470 L985 380 L1070 300" fill="none" stroke={VIOLETA_300} strokeWidth="2.5" />
           {[
-            [780, 520],
-            [850, 450],
-            [915, 470],
-            [985, 380],
+            [884, 352],
+            [930, 300],
+            [978, 312],
           ].map(([x, y]) => (
-            <circle key={`${x}-${y}`} cx={x} cy={y} r="7" fill={VIOLETA_300} />
+            <circle key={`${x}-${y}`} cx={x} cy={y} r="6" fill={VIOLETA_300} fillOpacity="0.85" />
           ))}
-          <circle cx="1070" cy="300" r="14" fill={AMBAR_400} />
-          <circle cx="1070" cy="300" r="34" fill="none" stroke={AMBAR_400} strokeOpacity="0.5" strokeWidth="2" />
+        </svg>
+        {/* a lua da marca em grande escala, com a estrela âmbar */}
+        <svg
+          width="430"
+          height="430"
+          viewBox={LOGO_VIEWBOX}
+          fill="none"
+          style={{ position: "absolute", top: 70, left: 720 }}
+        >
+          <g opacity="0.24">
+            <path
+              d={LOGO_PATHS.moon}
+              fill={VIOLETA_300}
+              stroke={VIOLETA_300}
+              strokeWidth={LOGO_PATHS.moonStrokeWidth}
+              strokeLinejoin="round"
+            />
+          </g>
+          <path d={LOGO_PATHS.star} fill={AMBAR_400} />
         </svg>
 
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-            <svg width="66" height="104" viewBox="11 6 26 41" fill="none">
-              <path d="M33.93 17.78A10 10 0 1 1 25.22 9.07" stroke="#ffffff" strokeWidth="3.4" strokeLinecap="round" />
-              <path d="M24 29v13.2M17.6 35.6h12.8" stroke="#ffffff" strokeWidth="3.4" strokeLinecap="round" />
-              <circle cx="17.6" cy="35.6" r="2.7" fill="#ffffff" />
-              <circle cx="30.4" cy="35.6" r="2.7" fill="#ffffff" />
-              <circle cx="24" cy="42.4" r="2.9" fill="#ffffff" />
-              <circle cx="31.07" cy="11.93" r="3.5" fill={AMBAR_400} />
+            <svg width="72" height="72" viewBox={LOGO_VIEWBOX} fill="none">
+              <path
+                d={LOGO_PATHS.moon}
+                fill="#ffffff"
+                stroke="#ffffff"
+                strokeWidth={LOGO_PATHS.moonStrokeWidth}
+                strokeLinejoin="round"
+              />
+              <path d={LOGO_PATHS.star} fill={AMBAR_400} />
             </svg>
-            <div style={{ display: "flex", fontSize: 40, letterSpacing: -0.5, color: VIOLETA_300 }}>
-              Hackathon IFSP Jacareí 2026
+            <div style={{ display: "flex", fontSize: 34, letterSpacing: -0.3, color: VIOLETA_300 }}>
+              {SITE.theme} · Hackathon IFSP Jacareí 2026
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", maxWidth: 820 }}>
             <div style={{ display: "flex", fontSize: 112, lineHeight: 1, letterSpacing: -4 }}>
-              Ciência&nbsp;<span style={{ color: AMBAR_400 }}>Delas</span>
+              {SITE.name}
             </div>
             <div style={{ display: "flex", marginTop: 28, fontSize: 38, lineHeight: 1.3, color: "#efe6ff" }}>
               {SITE.tagline}

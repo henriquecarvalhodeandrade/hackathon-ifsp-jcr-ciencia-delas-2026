@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas — "stub" mínimo de um banco Supabase para validação local SEM Docker.
+-- Artemis — "stub" mínimo de um banco Supabase para validação local SEM Docker.
 --
 -- Emula apenas o que as migrations, o seed e os testes usam:
 --   * papéis anon / authenticated / service_role (BYPASSRLS) / authenticator /

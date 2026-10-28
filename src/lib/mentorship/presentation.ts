@@ -129,7 +129,7 @@ export function defaultRequestMessage(
   const name = firstName(mentorName);
   const greeting = name ? `Olá, ${name}! ` : "Olá! ";
   const body =
-    "Vi o seu perfil na Ciência Delas e gostaria muito de contar com a sua mentoria. " +
+    "Vi o seu perfil na Artemis e gostaria muito de contar com a sua mentoria. " +
     "Hoje estou trabalhando em [conte rapidamente sua pesquisa ou momento de carreira] e queria ajuda com [o que você busca].";
   const question = starter?.trim() ? `\n\nUma pergunta para começarmos: ${starter.trim()}` : "";
   return `${greeting}${body}${question}`;

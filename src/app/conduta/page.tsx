@@ -6,7 +6,7 @@ import { REPORT_REASONS } from "@/lib/constants";
 export const metadata: Metadata = {
   title: "Código de conduta",
   description:
-    "As regras de convivência da Ciência Delas: acolhimento, respeito, zero tolerância a assédio, anonimato, moderação, como denunciar e consequências.",
+    "As regras de convivência da Artemis: acolhimento, respeito, zero tolerância a assédio, anonimato, moderação, como denunciar e consequências.",
   alternates: { canonical: "/conduta" },
 };
 
@@ -28,13 +28,13 @@ export default function ConductPage() {
     <DocLayout
       eyebrow="Comunidade"
       title="Código de conduta"
-      description="As regras que mantêm a Ciência Delas um lugar seguro para perguntar, compartilhar e crescer. Valem para o fórum, a mentoria, a Vitrine e qualquer conversa iniciada aqui."
+      description="As regras que mantêm a Artemis um lugar seguro para perguntar, compartilhar e crescer. Valem para o fórum, a mentoria, a Vitrine e qualquer conversa iniciada aqui."
       toc={TOC}
       updatedAt="2026-10-27"
     >
       <DocSection id="compromisso" title="Nosso compromisso">
         <p>
-          A Ciência Delas existe para que mulheres na ciência se apoiem. Ao criar uma conta, você se compromete a tratar
+          A Artemis existe para que mulheres na ciência se apoiem. Ao criar uma conta, você se compromete a tratar
           as outras pessoas com respeito, a contribuir de boa-fé e a seguir este código. A moderação tem o dever de
           aplicá-lo com cuidado, coerência e o mínimo de exposição de quem está envolvida.
         </p>
@@ -160,7 +160,7 @@ export default function ConductPage() {
       </DocSection>
 
       <DocSection id="ajuda" title="Ajuda fora da plataforma">
-        <p>A Ciência Delas é uma rede de apoio, não um serviço de emergência. Se você precisar de ajuda agora:</p>
+        <p>A Artemis é uma rede de apoio, não um serviço de emergência. Se você precisar de ajuda agora:</p>
         <ul>
           <li>
             <strong>Ligue 180</strong> — Central de Atendimento à Mulher, gratuita, 24 horas, para orientar e receber

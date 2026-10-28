@@ -33,7 +33,7 @@ import { formatNumber, pluralize } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Vitrine de papers",
   description:
-    "Papers com autoria de mulheres, indicados pela comunidade Ciência Delas, com resumos em linguagem simples e destaques.",
+    "Papers com autoria de mulheres, indicados pela comunidade da Artemis, com resumos em linguagem simples e destaques.",
 };
 
 const PAGE_TITLE = "Papers de pesquisadoras";

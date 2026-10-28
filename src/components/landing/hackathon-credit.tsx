@@ -16,7 +16,7 @@ export function HackathonCredit() {
               Nasceu no Hackathon IFSP Câmpus Jacareí 2026
             </h2>
             <p className="text-fg-muted">
-              Projeto criado para o tema “Ciência Delas”, com código aberto e custo zero de operação. O verde da marca é
+              Projeto criado para o tema “{SITE.theme}”, com código aberto e custo zero de operação. O verde da marca é
               o mesmo dos Institutos Federais.
             </p>
           </div>

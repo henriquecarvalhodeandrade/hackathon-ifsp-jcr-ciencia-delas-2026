@@ -68,7 +68,7 @@ const VOICE = [
 const DO_DONT: ReadonlyArray<{ context: string; do: string; dont: string }> = [
   {
     context: "Boas-vindas",
-    do: "Bem-vinda à Ciência Delas! Conte um pouco da sua pesquisa para encontrarmos mentoras para você.",
+    do: "Bem-vinda à Artemis! Conte um pouco da sua pesquisa para encontrarmos mentoras para você.",
     dont: "Bem-vindo(a), usuário! Preencha todos os campos obrigatórios do formulário.",
   },
   {

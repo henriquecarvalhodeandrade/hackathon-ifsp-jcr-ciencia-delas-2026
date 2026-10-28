@@ -174,7 +174,7 @@ faz uma consulta separada em `profiles` (com sessão), sem precisar da dica
 ## 7. Busca pelo DOI (Crossref)
 
 - `src/lib/papers/lookup.ts` chama `GET https://api.crossref.org/works/{doi}` (API pública, sem
-  chave), com `User-Agent: CienciaDelas/1.0 (+<site>; mailto:...)` ("polite pool"), `cache: "no-store"`
+  chave), com `User-Agent: Artemis/1.0 (+<site>; mailto:...)` ("polite pool"), `cache: "no-store"`
   e **timeout de 8 s** (`AbortSignal.timeout`). Cabeçalhos HTTP aceitam só ASCII.
 - `src/lib/papers/crossref.ts` (puro, testado) converte a resposta: `title[0]` (+ subtítulo),
   autoras `given + family` (ou `name` de instituições, sem repetir, até 50), `container-title[0]`
@@ -210,7 +210,7 @@ src/app/papers/[id]/editar/page.tsx     Edição, só quem enviou (+ loading.tsx
 src/app/ranking/page.tsx                Ranking de papers e da comunidade (+ loading.tsx)
 src/components/papers/                  PaperCard, VoteButton (cliente), PaperFilters, AreaSelect,
                                         PaperForm (cliente), PlainSummary, CommentList, CommentForm,
-                                        DeleteCommentButton, PaperOwnerActions, skeletons
+                                        PaperOwnerActions, skeletons (excluir comentário: ConfirmDialog no CommentList)
 src/components/ranking/                 Podium, RankingList, Leaderboard, LeaderboardRules
 src/lib/papers/actions.ts               Server Actions
 src/lib/papers/queries.ts               Leitura (server-only)

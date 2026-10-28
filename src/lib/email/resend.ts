@@ -62,7 +62,7 @@ async function resendRequest(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
     "Content-Type": "application/json",
-    "User-Agent": "CienciaDelas/1.0",
+    "User-Agent": "Artemis/1.0",
   };
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey.slice(0, 256);
 

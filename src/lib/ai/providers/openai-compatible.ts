@@ -50,7 +50,7 @@ export function buildOpenAiCompatibleRequest(
         authorization: `Bearer ${config.apiKey}`,
         // Atribuição opcional recomendada pelo OpenRouter (valores ASCII).
         ...(options.siteUrl ? { "HTTP-Referer": options.siteUrl } : {}),
-        "X-Title": "Ciencia Delas",
+        "X-Title": "Artemis",
       },
       body: {
         model: config.model,

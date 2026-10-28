@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     "IFSP Jacareí",
     "hackathon",
   ],
-  authors: [{ name: "Equipe Ciência Delas — Hackathon IFSP Jacareí 2026" }],
+  authors: [{ name: `Equipe ${SITE.name} — Hackathon IFSP Jacareí 2026` }],
   openGraph: {
     type: "website",
     locale: "pt_BR",

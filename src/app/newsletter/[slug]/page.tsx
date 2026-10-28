@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!edition) return { title: "Edição não encontrada", robots: { index: false, follow: false } };
   const description = edition.summary
     ? truncate(edition.summary, 160)
-    : "Os destaques da semana na Ciência Delas.";
+    : "Os destaques da semana na Artemis.";
   return {
     title: edition.title,
     description,

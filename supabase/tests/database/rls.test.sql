@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ciência Delas — testes de RLS, permissões, triggers e RPCs
+-- Artemis — testes de RLS, permissões, triggers e RPCs
 -- =============================================================================
 -- Roda de dois jeitos:
 --   * `npx supabase test db` (pgTAP de verdade, com Docker);

@@ -59,7 +59,7 @@ const FAMILIES = [
 ] as const;
 
 const SCALE = [
-  { token: "text-display", size: "40–72px", lh: "1,02", sample: "Constelação" },
+  { token: "text-display", size: "40–72px", lh: "1,02", sample: "Artemis" },
   { token: "text-5xl", size: "48px", lh: "52px", sample: "Ranking da semana" },
   { token: "text-4xl", size: "36px", lh: "42px", sample: "Encontre sua mentora" },
   { token: "text-3xl", size: "30px", lh: "36px", sample: "Fórum da comunidade" },

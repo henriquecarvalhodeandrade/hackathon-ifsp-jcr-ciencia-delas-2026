@@ -14,7 +14,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  // A home usa o título completo (sem o template "· Ciência Delas").
+  // A home usa o título completo (sem o template "· Artemis").
   title: { absolute: `${SITE.name} — ${SITE.tagline}` },
   description: SITE.description,
   alternates: { canonical: "/" },

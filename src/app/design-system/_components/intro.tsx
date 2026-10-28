@@ -20,12 +20,12 @@ export function Hero({ componentCount, tokenCount, pairCount }: { componentCount
         <p className="eyebrow">Design system · versão 1.0</p>
       </div>
       <h1 className="mt-6 max-w-3xl font-display text-display font-bold text-white">
-        Constelação
+        Artemis
       </h1>
       <p className="mt-4 max-w-2xl text-xl leading-relaxed text-violeta-100">
         Cada cientista é uma estrela. Quando uma mentora encontra uma pesquisadora iniciante, quando um paper ganha
         destaque, quando alguém responde no fórum — desenhamos constelações. Este é o sistema visual que dá forma a
-        isso na Ciência Delas.
+        isso na Artemis.
       </p>
       <dl className="mt-10 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/15 pt-6">
         {[
@@ -126,9 +126,12 @@ export function BrandStory() {
             fundo não é creme nem cinza frio: é um branco-papel levemente violeta de dia e um céu noturno à noite.
           </p>
           <p>
-            <strong className="text-fg">O símbolo</strong> é o sinal astronômico de Vênus (♀), a “Estrela d&apos;Alva”,
-            o astro mais brilhante do amanhecer. Desenhamos o círculo como uma órbita com uma estrela âmbar e a haste
-            como uma pequena constelação: três estrelas ligadas. O padrão de fundo inclui o{" "}
+            <strong className="text-fg">O nome e o símbolo.</strong> Na mitologia grega, Ártemis é a deusa da caça e
+            da Lua — e o nome também batiza o programa da NASA de volta à Lua. O símbolo é uma{" "}
+            <strong className="text-fg">lua crescente</strong> com uma{" "}
+            <strong className="text-fg">estrela âmbar</strong> de quatro pontas na curva: a lua que ilumina quem
+            caminha à noite e a estrela que é cada pesquisadora ganhando luz. As pontas da lua são arredondadas, como
+            as linhas do resto do sistema. O padrão de fundo inclui o{" "}
             <strong className="text-fg">Cruzeiro do Sul</strong>, que está na bandeira do Brasil.
           </p>
           <p>
@@ -145,7 +148,7 @@ export function BrandStory() {
               accents={false}
               className="absolute inset-0 -z-10 size-full text-primary/25 [mask-image:radial-gradient(circle_at_center,transparent_28%,black_62%)]"
             />
-            <LogoMark size={150} className="text-primary" title="Símbolo da Ciência Delas" />
+            <LogoMark size={150} className="text-primary" title="Símbolo da Artemis" />
           </div>
           <div className="grid grid-cols-3 overflow-hidden rounded-card border border-border shadow-card">
             <div className="grid gap-1 bg-violeta-700 p-4 text-white">

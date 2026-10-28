@@ -4,11 +4,16 @@
  */
 
 export const SITE = {
-  name: "Ciência Delas",
-  shortName: "Delas",
+  /** Nome da plataforma (feminino: "a Artemis", "na Artemis", "à Artemis"). */
+  name: "Artemis",
+  /**
+   * Tema do hackathon — nome secundário, nunca o principal: use só como assinatura
+   * ("Artemis — uma rede Ciência Delas"), no eyebrow do hero e nos créditos do hackathon.
+   */
+  theme: "Ciência Delas",
   tagline: "Rede de apoio, mentoria e visibilidade para mulheres na ciência",
   description:
-    "Fórum e rede que conecta pesquisadoras iniciantes a mentoras experientes, dá visibilidade a papers de mulheres e reúne uma comunidade de apoio. Projeto do Hackathon IFSP Jacareí 2026.",
+    "Fórum e rede que conecta pesquisadoras iniciantes a mentoras experientes, dá visibilidade a papers de mulheres e reúne uma comunidade de apoio. Projeto do Hackathon IFSP Jacareí 2026, tema Ciência Delas.",
   locale: "pt-BR",
   timeZone: "America/Sao_Paulo",
   repoUrl: "https://github.com/henriquecarvalhodeandrade/hackathon-ifsp-jcr-ciencia-delas-2026",

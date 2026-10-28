@@ -7,7 +7,7 @@ export interface ParsedAddress {
   name: string | null;
 }
 
-/** "Ciência Delas <onboarding@resend.dev>" → { name: "Ciência Delas", email: "onboarding@resend.dev" }. */
+/** "Artemis <onboarding@resend.dev>" → { name: "Artemis", email: "onboarding@resend.dev" }. */
 export function parseAddress(value: string): ParsedAddress {
   const trimmed = value.trim();
   const match = /^(.*?)\s*<\s*([^<>\s]+@[^<>\s]+)\s*>$/.exec(trimmed);
