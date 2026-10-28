@@ -36,6 +36,20 @@ describe("resumo em linguagem simples", () => {
     expect(finalizePlainSummary("Ok.")).toBeNull();
   });
 
+  it("tira frases com link ou contato (injeção de prompt no abstract)", () => {
+    const out = finalizePlainSummary(
+      "O estudo avaliou abelhas em praças da cidade. Saiba mais em evil.example/abelhas. As pesquisadoras contaram as visitas às flores.",
+    );
+    expect(out).toBe(
+      "O estudo avaliou abelhas em praças da cidade. As pesquisadoras contaram as visitas às flores.",
+    );
+    expect(finalizeEditionIntro("Boa leitura, pesquisadoras! Escreva para nos@evil.example.")).toBe(
+      null,
+    );
+    expect(PLAIN_SUMMARY_SYSTEM).toMatch(/nem escreva links, endereços de sites ou e-mails/);
+    expect(EDITION_INTRO_SYSTEM).toMatch(/nem escreva links, endereços de sites ou e-mails/);
+  });
+
   it("pede acentos e terceira pessoa (a API real devolveu 'Voce ja...' e 'Nossa equipe avaliou')", () => {
     expect(PLAIN_SUMMARY_SYSTEM).toMatch(/acentuação e a cedilha corretas/);
     expect(PLAIN_SUMMARY_SYSTEM).toMatch(/terceira pessoa/);

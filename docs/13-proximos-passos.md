@@ -106,7 +106,8 @@ git), para validar a IA com os dados fictícios do seed. Falta:
 
 1. **Trocar a chave antes de publicar.** Ela foi colada no chat da sessão, então trate-a como exposta: em
    https://aistudio.google.com/apikey, crie uma chave nova e apague a antiga. Não cole a nova no chat:
-   cadastre-a direto nas configurações (ambiente da sessão e Vercel).
+   cadastre-a direto nas configurações (ambiente da sessão e Vercel) e no `.env.local` de quem roda o app
+   localmente.
 2. Cadastrar a chave (a nova) como `GEMINI_API_KEY` na **Vercel** (para o site publicado) e, se quiserem que eu
    continue testando, no ambiente da sessão.
 3. Depois de criar o banco na nuvem, gerar os embeddings dos perfis: `npm run ai:backfill` (com as variáveis
@@ -170,13 +171,14 @@ git), para validar a IA com os dados fictícios do seed. Falta:
 
 ## Como retomar comigo
 
-1. Cadastrem as variáveis da seção 1 (e, se quiserem, `GEMINI_API_KEY` e `VERCEL_TOKEN`) nas configurações do
-   ambiente.
+1. Cadastrem as variáveis da seção 1 (e, se quiserem, `VERCEL_TOKEN` e a `GEMINI_API_KEY` **nova**, depois de
+   trocar a chave — seção 2) nas configurações do ambiente, sem colar valores no chat.
 2. Abram uma **sessão nova** neste repositório, no branch `claude/plataforma-ciencia-delas`.
 3. Peçam: "continue a partir do docs/13: configure o Supabase Cloud, teste a IA e publique na Vercel".
 
-Com as variáveis presentes, eu rodo o script de deploy (primeiro em `--dry-run`), testo o matching com a IA de
-verdade, gero os embeddings dos perfis (`npm run ai:backfill`) e confiro o site publicado.
+Com as variáveis presentes, eu rodo o script de deploy (primeiro em `--dry-run`), gero os embeddings dos perfis
+no banco da nuvem (`npm run ai:backfill`), confiro a IA no site publicado (já validada localmente —
+[04 §15](04-mentoria-com-ia.md#15-validação-com-a-api-real-28102026)) e confiro o resto do site.
 
 ## Contas usadas até aqui
 

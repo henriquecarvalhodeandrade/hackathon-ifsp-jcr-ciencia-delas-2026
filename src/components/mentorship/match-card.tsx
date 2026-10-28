@@ -75,8 +75,8 @@ export function MatchCard({ match }: { match: MatchCardData }) {
         <p>{match.reason}</p>
         {match.source === "ai" && (
           <p className="mt-2 text-xs text-fg-subtle">
-            Texto gerado por IA a partir das áreas e temas dos perfis. Revise antes de enviar o
-            pedido.
+            Texto gerado por IA a partir dos perfis de pesquisa (áreas, temas, palavras-chave e
+            objetivos). Pode conter imprecisões: confira o perfil dela antes de enviar o pedido.
           </p>
         )}
       </div>

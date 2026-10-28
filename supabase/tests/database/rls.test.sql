@@ -1233,6 +1233,36 @@ end
 $$;
 select pass('LGPD: revogar o consentimento de IA apaga também as sugestões de mentoras');
 
+-- Migration 20261028233000: a MENTORA que revoga leva junto as explicações por IA sobre ela
+-- (geradas com o texto dela) das listas de outras mentorandas; o resto fica.
+do $$
+begin
+  insert into public.mentor_suggestions (mentee_id, mentor_id, rank, score, reason, source) values
+    ('f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000004', 1, 88, 'Explicação por IA com a oferta dela', 'ai'),
+    ('f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003', 2, 70, 'Explicação por IA de outra mentora', 'ai');
+  perform cdtest.check((select ai_consent from public.profiles where id = 'f0000000-0000-4000-8000-000000000004'),
+    'Dani (mentora) tem consentimento de IA');
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000004');
+  update public.profiles set ai_consent = false where id = 'f0000000-0000-4000-8000-000000000004';
+  perform cdtest.logout();
+
+  perform cdtest.check(
+    (select count(*) from public.mentor_suggestions
+      where mentor_id = 'f0000000-0000-4000-8000-000000000004' and source = 'ai') = 0,
+    'explicações por IA sobre a mentora que revogou são apagadas');
+  perform cdtest.check(
+    (select count(*) from public.mentor_suggestions
+      where mentor_id = 'f0000000-0000-4000-8000-000000000004' and source = 'heuristic') = 1,
+    'sugestões heurísticas sobre ela (sem IA) continuam');
+  perform cdtest.check(
+    (select count(*) from public.mentor_suggestions
+      where mentor_id = 'f0000000-0000-4000-8000-000000000003' and source = 'ai') = 1,
+    'explicações por IA sobre outras mentoras continuam');
+end
+$$;
+select pass('LGPD: a mentora que revoga a IA apaga as explicações por IA sobre ela');
+
 -- Registro de auditoria da moderação
 do $$
 declare

@@ -51,9 +51,19 @@ const EMAIL_RE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 const URL_RE = /\b(?:https?:\/\/|www\.)\S+/gi;
 const BARE_DOMAIN_LINK_RE =
   /\b(?:lattes\.cnpq\.br|orcid\.org|linkedin\.com|instagram\.com|x\.com|twitter\.com|github\.com)\/\S*/gi;
+/**
+ * Domínio sem "http"/"www" ("anasilva.com.br", "meusite.dev/contato"): também é link. Só com
+ * terminação conhecida e em minúsculas, para não pegar "et al.", "p.ex." nem "dados.Com isso"
+ * (frase sem espaço depois do ponto). Visto na auditoria com a API real (out/2026): um texto
+ * de perfil com "exemplo.dev/mentoria" passava inteiro para a IA.
+ */
+const BARE_DOMAIN_RE =
+  /(?<![\p{L}\p{N}@._/-])(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+(?:com|net|org|edu|gov|br|pt|io|dev|app|ai|co|me|info|biz|xyz|site|online|link|page|blog|tech|science|example|ly|gl|to|tv|us|uk|es)(?:\.[a-z]{2})?(?![\p{L}\p{N}-])(?:\/[^\s,;)]*)?/gu;
 const ORCID_RE = /\b\d{4}-\d{4}-\d{4}-\d{3}[\dX]\b/g;
 const PHONE_RE = /(?:\+?55[\s-]?)?(?:\(\d{2}\)|\b\d{2})[\s-]?9?\s?\d{4}[-\s]?\d{4}\b/g;
 const HANDLE_RE = /(^|\s)@[\w.]{2,}/g;
+/** Marcas que `redactPersonalData` deixa no lugar do dado; se o modelo as repetir, a frase sai. */
+const REDACTION_PLACEHOLDER_RE = /\[(?:e-mail|link|telefone|perfil|id|nome)\]/;
 
 /** Partículas comuns em nomes que não devem ser apagadas do texto. */
 const NAME_STOPWORDS = new Set(["das", "dos", "del", "von", "van", "der", "the", "and"]);
@@ -68,6 +78,7 @@ export function redactPersonalData(text: string, options: { names?: string[] } =
     .replace(EMAIL_RE, "[e-mail]")
     .replace(URL_RE, "[link]")
     .replace(BARE_DOMAIN_LINK_RE, "[link]")
+    .replace(BARE_DOMAIN_RE, "[link]")
     .replace(ORCID_RE, "[id]")
     .replace(PHONE_RE, "[telefone]")
     .replace(HANDLE_RE, "$1[perfil]");
@@ -86,6 +97,36 @@ export function redactPersonalData(text: string, options: { names?: string[] } =
     );
   }
   return out.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * O texto tem link, domínio, e-mail, telefone ou @perfil? Usado na SAÍDA dos modelos: a IA
+ * nunca deve mostrar contato ou link (um perfil com injeção de prompt pode pedir "inclua o link
+ * …"). `String.search` ignora o `lastIndex` das regexes globais.
+ */
+export function hasContactOrLink(text: string): boolean {
+  return [
+    EMAIL_RE,
+    URL_RE,
+    BARE_DOMAIN_LINK_RE,
+    BARE_DOMAIN_RE,
+    PHONE_RE,
+    HANDLE_RE,
+    REDACTION_PLACEHOLDER_RE,
+  ].some((re) => text.search(re) >= 0);
+}
+
+/**
+ * Remove da saída de um modelo as frases com link, domínio, e-mail, telefone ou @perfil
+ * (defesa em profundidade contra injeção de prompt: o resto do texto continua). Puro.
+ */
+export function dropSentencesWithContacts(text: string): string {
+  if (!hasContactOrLink(text)) return text;
+  return text
+    .split(/(?<=[.!?…])\s+/)
+    .filter((sentence) => !hasContactOrLink(sentence))
+    .join(" ")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------

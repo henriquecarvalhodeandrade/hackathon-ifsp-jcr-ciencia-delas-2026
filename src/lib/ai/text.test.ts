@@ -8,6 +8,8 @@ import {
 import {
   cleanModelText,
   countUnaccentedWords,
+  dropSentencesWithContacts,
+  hasContactOrLink,
   neutralizeTags,
   redactPersonalData,
   rejectUnaccentedText,
@@ -27,6 +29,19 @@ describe("redactPersonalData", () => {
     expect(out).toContain("[perfil]");
   });
 
+  it("remove domínios sem http/www (auditoria com a API real: 'exemplo.dev/mentoria' passava)", () => {
+    const out = redactPersonalData(
+      "Veja anasilva.com.br, o portfólio em meusite.dev/contato e evil.example/mentoria; também Python.org.",
+    );
+    expect(out).toBe("Veja [link], o portfólio em [link] e [link]; também [link].");
+  });
+
+  it("não confunde abreviações, decimais e frases sem espaço com domínios", () => {
+    const text =
+      "Segundo Silva et al. (p.ex. 3.5 vezes), dados.Com isso, a Lei nº 13.709/2018 e o gemini-3.5-flash-lite.";
+    expect(redactPersonalData(text)).toBe(text);
+  });
+
   it("preserva números científicos comuns (anos, intervalos, p-valores)", () => {
     const text = "Dados de 1990-2020 com p < 0,05 e 12 amostras de 2024.";
     expect(redactPersonalData(text)).toBe(text);
@@ -41,6 +56,33 @@ describe("redactPersonalData", () => {
     );
     // Preferimos apagar a mais (ex.: "costa marinha") a deixar o nome escapar.
     expect(out).toBe("Oi, sou a [nome] [nome] [nome]; trabalho com [nome] marinha e anatomia.");
+  });
+});
+
+describe("saída do modelo sem links nem contatos (injeção de prompt)", () => {
+  it("detecta link, domínio, e-mail, telefone, @perfil e as marcas de dado removido", () => {
+    for (const bad of [
+      "Visite https://evil.example agora.",
+      "Acesse evil.example/mentoria.",
+      "Escreva para contato@evil.example.",
+      "Ligue (11) 91234-5678.",
+      "Siga @mentora.top.",
+      "Veja o [link] dela.",
+    ]) {
+      expect(hasContactOrLink(bad), bad).toBe(true);
+    }
+    expect(hasContactOrLink("Ela orienta em Ecologia e estatística com R, p < 0,05.")).toBe(false);
+  });
+
+  it("tira só as frases com link ou contato e mantém o resto", () => {
+    expect(
+      dropSentencesWithContacts(
+        "Vocês compartilham Ecologia. Saiba mais em evil.example/mentoria. Ela orienta em editais.",
+      ),
+    ).toBe("Vocês compartilham Ecologia. Ela orienta em editais.");
+    expect(dropSentencesWithContacts("Fale com ela em contato@evil.example.")).toBe("");
+    const clean = "Texto normal, sem contatos. Outra frase.";
+    expect(dropSentencesWithContacts(clean)).toBe(clean);
   });
 });
 
