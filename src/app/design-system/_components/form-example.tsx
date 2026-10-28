@@ -25,11 +25,17 @@ export function FormExample() {
   const values = state?.values;
 
   return (
-    <form action={formAction} noValidate className="grid gap-6 rounded-card border border-border bg-surface p-5 shadow-card sm:p-8">
+    <form
+      action={formAction}
+      noValidate
+      className="grid gap-6 rounded-card border border-border bg-surface p-5 shadow-card sm:p-8"
+    >
       <div className="grid gap-4">
         <div className="grid gap-1">
           <h3 className="font-display text-xl font-semibold text-fg">Conte sobre você</h3>
-          <p className="text-fg-muted">Envie vazio para ver os erros; preencha para ver o sucesso.</p>
+          <p className="text-fg-muted">
+            Envie vazio para ver os erros; preencha para ver o sucesso.
+          </p>
         </div>
         <FormMessage tone={state?.ok ? "success" : "error"}>
           {state ? (state.ok ? state.message : state.error) : null}
@@ -40,8 +46,19 @@ export function FormExample() {
         <Field label="Nome completo" required error={errors?.full_name}>
           <Input name="full_name" autoComplete="name" defaultValue={values?.full_name} />
         </Field>
-        <Field label="E-mail" required hint="Usamos só para avisos da plataforma." error={errors?.email}>
-          <Input name="email" type="email" autoComplete="email" inputMode="email" defaultValue={values?.email} />
+        <Field
+          label="E-mail"
+          required
+          hint="Usamos só para avisos da plataforma."
+          error={errors?.email}
+        >
+          <Input
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            defaultValue={values?.email}
+          />
         </Field>
       </div>
 
@@ -68,10 +85,20 @@ export function FormExample() {
       />
 
       <Field label="Palavras-chave da sua pesquisa" optional error={errors?.keywords}>
-        <KeywordInput key={`kw-${values?.keywords.join(",") ?? ""}`} name="keywords" max={8} defaultValue={values?.keywords} />
+        <KeywordInput
+          key={`kw-${values?.keywords.join(",") ?? ""}`}
+          name="keywords"
+          max={8}
+          defaultValue={values?.keywords}
+        />
       </Field>
 
-      <Field label="Bio curta" optional hint="Em poucas linhas: o que você pesquisa e o que te move." error={errors?.bio}>
+      <Field
+        label="Bio curta"
+        optional
+        hint="Em poucas linhas: o que você pesquisa e o que te move."
+        error={errors?.bio}
+      >
         <Textarea name="bio" maxLength={500} showCount rows={4} defaultValue={values?.bio} />
       </Field>
 
@@ -82,7 +109,9 @@ export function FormExample() {
           description="Respeito, acolhimento e tolerância zero a assédio."
           aria-invalid={errors?.consent ? true : undefined}
         />
-        {errors?.consent && <p className="pl-8 text-sm font-medium text-danger">{errors.consent[0]}</p>}
+        {errors?.consent && (
+          <p className="pl-8 text-sm font-medium text-danger">{errors.consent[0]}</p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">

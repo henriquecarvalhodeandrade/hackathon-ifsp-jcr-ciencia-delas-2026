@@ -38,7 +38,8 @@ function PaletteScale({ family }: { family: PaletteFamily }) {
     <div className="grid gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h4 className="font-display text-lg font-semibold text-fg">
-          {info.name} <span className="font-mono text-sm font-normal text-fg-subtle">{family}-*</span>
+          {info.name}{" "}
+          <span className="font-mono text-sm font-normal text-fg-subtle">{family}-*</span>
         </h4>
         <p className="text-sm text-fg-muted">{info.role}</p>
       </div>
@@ -62,7 +63,7 @@ function Ratio({ value, min }: { value: number; min: number }) {
   const ok = value >= min;
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="tabular font-mono text-sm font-semibold text-fg">
+      <span className="font-mono text-sm font-semibold text-fg tabular">
         {formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
       <span
@@ -71,7 +72,11 @@ function Ratio({ value, min }: { value: number; min: number }) {
           ok ? "bg-success-soft text-success-soft-fg" : "bg-danger-soft text-danger-soft-fg",
         )}
       >
-        {ok ? <Check aria-hidden="true" className="size-3" /> : <X aria-hidden="true" className="size-3" />}
+        {ok ? (
+          <Check aria-hidden="true" className="size-3" />
+        ) : (
+          <X aria-hidden="true" className="size-3" />
+        )}
         {ok ? (min >= 4.5 && value >= 7 ? "AAA" : "AA") : "falha"}
       </span>
     </span>
@@ -83,7 +88,17 @@ function Ratio({ value, min }: { value: number; min: number }) {
  * (bordas, ícones, anel de foco) → mostramos um contorno e um ponto, não texto: texto nessa
  * cor não seria legível e não é assim que o token é usado.
  */
-function PairPreview({ fg, bg, theme, min }: { fg: string; bg: string; theme: "light" | "dark"; min: number }) {
+function PairPreview({
+  fg,
+  bg,
+  theme,
+  min,
+}: {
+  fg: string;
+  bg: string;
+  theme: "light" | "dark";
+  min: number;
+}) {
   const fgHex = semanticValue(fg, theme);
   const bgHex = semanticValue(bg, theme);
   if (min < 4.5) {
@@ -93,7 +108,10 @@ function PairPreview({ fg, bg, theme, min }: { fg: string; bg: string; theme: "l
         className="inline-flex h-8 w-12 items-center justify-center rounded-badge ring-1 ring-border ring-inset"
         style={{ backgroundColor: bgHex }}
       >
-        <span className="flex size-5 items-center justify-center rounded-[0.3125rem] border-2" style={{ borderColor: fgHex }}>
+        <span
+          className="flex size-5 items-center justify-center rounded-[0.3125rem] border-2"
+          style={{ borderColor: fgHex }}
+        >
           <span className="size-1.5 rounded-full" style={{ backgroundColor: fgHex }} />
         </span>
       </span>
@@ -122,9 +140,9 @@ export function Colors() {
       title="Cores"
       description={
         <>
-          Paletas geradas em OKLCH (degraus perceptualmente regulares) e tokens semânticos por cima. Nos
-          componentes, use <strong className="text-fg">sempre os tokens semânticos</strong> — eles trocam sozinhos
-          entre claro e escuro.
+          Paletas geradas em OKLCH (degraus perceptualmente regulares) e tokens semânticos por cima.
+          Nos componentes, use <strong className="text-fg">sempre os tokens semânticos</strong> —
+          eles trocam sozinhos entre claro e escuro.
         </>
       }
     >
@@ -146,17 +164,24 @@ export function Colors() {
       {/* Celular: lista */}
       <ul className="grid gap-2 md:hidden">
         {Object.entries(SEMANTIC).map(([token, entry]) => (
-          <li key={token} className="grid gap-2 rounded-control border border-border bg-surface p-3">
+          <li
+            key={token}
+            className="grid gap-2 rounded-control border border-border bg-surface p-3"
+          >
             <p className="font-mono text-[0.8125rem] font-semibold text-fg">--color-{token}</p>
             <div className="flex flex-wrap gap-x-5 gap-y-1">
               {(["light", "dark"] as const).map((theme) => (
-                <span key={theme} className="inline-flex items-center gap-2 text-[0.8125rem] text-fg-muted">
+                <span
+                  key={theme}
+                  className="inline-flex items-center gap-2 text-[0.8125rem] text-fg-muted"
+                >
                   <span
                     aria-hidden="true"
                     className="size-4 rounded-badge ring-1 ring-border-strong/40 ring-inset"
                     style={{ backgroundColor: semanticValue(token, theme) }}
                   />
-                  {theme === "light" ? "claro" : "escuro"}: <span className="font-mono">{theme === "light" ? entry.light : entry.dark}</span>
+                  {theme === "light" ? "claro" : "escuro"}:{" "}
+                  <span className="font-mono">{theme === "light" ? entry.light : entry.dark}</span>
                 </span>
               ))}
             </div>
@@ -174,16 +199,27 @@ export function Colors() {
         <table className="w-full min-w-[40rem] text-left text-sm">
           <thead className="bg-surface-2 text-fg-muted">
             <tr>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Token</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Claro</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Escuro</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Uso</th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Token
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Claro
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Escuro
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Uso
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {Object.entries(SEMANTIC).map(([token, entry]) => (
               <tr key={token}>
-                <th scope="row" className="px-4 py-2 font-mono text-[0.8125rem] font-semibold text-fg">
+                <th
+                  scope="row"
+                  className="px-4 py-2 font-mono text-[0.8125rem] font-semibold text-fg"
+                >
                   --color-{token}
                 </th>
                 {(["light", "dark"] as const).map((theme) => (
@@ -211,10 +247,12 @@ export function Colors() {
         id="contraste"
         description={
           <>
-            Todos os pares texto/fundo que os componentes usam, nos dois temas. Mínimo WCAG 2.2 AA: 4,5:1 para
-            texto e 3:1 para bordas, ícones e anel de foco. Resultado:{" "}
+            Todos os pares texto/fundo que os componentes usam, nos dois temas. Mínimo WCAG 2.2 AA:
+            4,5:1 para texto e 3:1 para bordas, ícones e anel de foco. Resultado:{" "}
             <strong className={failures === 0 ? "text-success" : "text-danger"}>
-              {failures === 0 ? `${table.length} de ${table.length} pares passam nos dois temas` : `${failures} pares falhando`}
+              {failures === 0
+                ? `${table.length} de ${table.length} pares passam nos dois temas`
+                : `${failures} pares falhando`}
             </strong>
             .
           </>
@@ -228,7 +266,10 @@ export function Colors() {
       {/* Celular: lista */}
       <ul className="grid gap-2 md:hidden">
         {table.map((row) => (
-          <li key={`${row.fg}-${row.bg}`} className="grid gap-2.5 rounded-control border border-border bg-surface p-3">
+          <li
+            key={`${row.fg}-${row.bg}`}
+            className="grid gap-2.5 rounded-control border border-border bg-surface p-3"
+          >
             <div className="grid gap-0.5">
               <p className="font-mono text-[0.8125rem] font-semibold text-fg">
                 {row.fg} / {row.bg}
@@ -259,21 +300,36 @@ export function Colors() {
         <table className="w-full min-w-[46rem] text-left text-sm">
           <thead className="bg-surface-2 text-fg-muted">
             <tr>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Par (texto / fundo)</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Uso</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Mín.</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Claro</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Escuro</th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Par (texto / fundo)
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Uso
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Mín.
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Claro
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Escuro
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {table.map((row) => (
               <tr key={`${row.fg}-${row.bg}`}>
-                <th scope="row" className="px-4 py-2 font-mono text-[0.8125rem] font-semibold whitespace-nowrap text-fg">
+                <th
+                  scope="row"
+                  className="px-4 py-2 font-mono text-[0.8125rem] font-semibold whitespace-nowrap text-fg"
+                >
                   {row.fg} / {row.bg}
                 </th>
                 <td className="min-w-[11rem] px-4 py-2 text-fg-muted">{row.use}</td>
-                <td className="tabular px-4 py-2 font-mono text-[0.8125rem] text-fg-muted">{String(row.min).replace(".", ",")}:1</td>
+                <td className="px-4 py-2 font-mono text-[0.8125rem] text-fg-muted tabular">
+                  {String(row.min).replace(".", ",")}:1
+                </td>
                 <td className="px-4 py-2">
                   <span className="inline-flex items-center gap-2.5">
                     <PairPreview fg={row.fg} bg={row.bg} theme="light" min={row.min} />

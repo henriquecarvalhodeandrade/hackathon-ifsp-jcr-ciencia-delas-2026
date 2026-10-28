@@ -378,6 +378,7 @@ export function buildConfig(args, env, { packageName } = {}) {
       vercelToken,
       vercelTeam: env.VERCEL_TEAM_ID?.trim() || "",
       vercelProject: env.VERCEL_PROJECT?.trim() || packageName || "",
+      vercelProjectExplicit: Boolean(env.VERCEL_PROJECT?.trim()),
       smtp,
       supabaseUrl: `https://${ref}.supabase.co`,
     },
@@ -923,6 +924,17 @@ export function buildVercelEnvVars(appEnv, env, targets = ["production", "previe
     }));
 }
 
+/**
+ * Nome do repositório a partir da URL do remote (https://github.com/dona/repo(.git) ou
+ * git@github.com:dona/repo.git). Ao importar um repositório, a Vercel sugere esse nome para o projeto.
+ */
+export function repoNameFromRemoteUrl(url) {
+  const m = String(url ?? "")
+    .trim()
+    .match(/([^/:]+?)(?:\.git)?\/?$/);
+  return m ? m[1].toLowerCase() : null;
+}
+
 /** teamId (team_...) ou slug do time, como query string da API da Vercel. */
 export function vercelTeamQuery(team) {
   if (!team) return "";
@@ -1238,6 +1250,13 @@ function defaultDeps() {
       }
     },
     isGitIgnored: (relPath) => defaultIsGitIgnored(rootDir, relPath),
+    gitRepoName: () => {
+      const r = spawnSync("git", ["remote", "get-url", "origin"], {
+        cwd: rootDir,
+        encoding: "utf8",
+      });
+      return r.status === 0 ? repoNameFromRemoteUrl(r.stdout) : null;
+    },
     randomHex: (bytes) => randomBytes(bytes).toString("hex"),
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     now: () => new Date(),
@@ -1821,11 +1840,33 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
         token: config.vercelToken,
         team: config.vercelTeam,
       });
-      try {
-        const { data } = await vercel.getProject(config.vercelProject);
-        out(`  Projeto Vercel: ${data?.name ?? config.vercelProject} (${data?.id ?? "?"})`);
-      } catch (e) {
-        throw new StepError(vercelErr(e, "Não consegui acessar o projeto na Vercel"));
+      // Sem VERCEL_PROJECT: tenta o nome do package.json e, se não existir (404), o nome do
+      // repositório, que é o que a Vercel sugere ao importar do GitHub.
+      const candidates = [
+        ...new Set(
+          [
+            config.vercelProject,
+            ...(config.vercelProjectExplicit ? [] : [deps.gitRepoName?.() ?? null]),
+          ].filter(Boolean),
+        ),
+      ];
+      let vercelProject = null;
+      let lastError = null;
+      for (const name of candidates) {
+        try {
+          const { data } = await vercel.getProject(name);
+          vercelProject = name;
+          out(`  Projeto Vercel: ${data?.name ?? name} (${data?.id ?? "?"})`);
+          break;
+        } catch (e) {
+          lastError = e;
+          if (e?.status !== 404) break;
+        }
+      }
+      if (!vercelProject) {
+        throw new StepError(
+          `${vercelErr(lastError, "Não consegui acessar o projeto na Vercel")} (tentei: ${candidates.join(", ")})`,
+        );
       }
       out(
         `  POST /v10/projects/{idOrName}/env?upsert=true${config.dryRun ? " (simulação, não enviado)" : ""}:`,
@@ -1838,7 +1879,7 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       if (!config.dryRun) {
         let result;
         try {
-          ({ data: result } = await vercel.upsertEnv(config.vercelProject, vercelVars));
+          ({ data: result } = await vercel.upsertEnv(vercelProject, vercelVars));
         } catch (e) {
           throw new StepError(vercelErr(e, "Não consegui gravar as variáveis na Vercel"));
         }

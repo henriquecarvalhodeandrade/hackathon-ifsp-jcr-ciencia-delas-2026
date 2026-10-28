@@ -4,7 +4,19 @@
  * e acusa qualquer divergência — então mantenha os dois em sincronia.
  */
 
-export const SCALE_STEPS = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"] as const;
+export const SCALE_STEPS = [
+  "50",
+  "100",
+  "200",
+  "300",
+  "400",
+  "500",
+  "600",
+  "700",
+  "800",
+  "900",
+  "950",
+] as const;
 
 export const PALETTE = {
   violeta: {
@@ -100,7 +112,8 @@ export const FAMILY_INFO: Record<PaletteFamily, { name: string; role: string; st
   verde: {
     name: "Verde",
     role: "Secundária — sucesso, crescimento, mentoria aceita",
-    story: "Esperança das sufragistas e verde institucional dos Institutos Federais (500 = #32A041).",
+    story:
+      "Esperança das sufragistas e verde institucional dos Institutos Federais (500 = #32A041).",
   },
   ambar: {
     name: "Âmbar",
@@ -140,7 +153,11 @@ export const SEMANTIC: Record<string, { light: Ref; dark: Ref; usage: string }> 
   "primary-hover": { light: "violeta-800", dark: "violeta-200", usage: "Hover do primário" },
   "primary-fg": { light: "white", dark: "violeta-950", usage: "Texto sobre primário" },
   "primary-soft": { light: "violeta-100", dark: "violeta-900", usage: "Fundo suave violeta" },
-  "primary-soft-fg": { light: "violeta-800", dark: "violeta-100", usage: "Texto sobre fundo suave" },
+  "primary-soft-fg": {
+    light: "violeta-800",
+    dark: "violeta-100",
+    usage: "Texto sobre fundo suave",
+  },
   secondary: { light: "verde-700", dark: "verde-400", usage: "Botão secundário" },
   "secondary-hover": { light: "verde-800", dark: "verde-300", usage: "Hover do secundário" },
   "secondary-fg": { light: "white", dark: "verde-950", usage: "Texto sobre secundário" },
@@ -151,7 +168,11 @@ export const SEMANTIC: Record<string, { light: Ref; dark: Ref; usage: string }> 
   "accent-fg": { light: "ambar-950", dark: "ambar-950", usage: "Texto sobre âmbar" },
   "accent-soft": { light: "ambar-100", dark: "ambar-900", usage: "Fundo suave âmbar" },
   "accent-soft-fg": { light: "ambar-900", dark: "ambar-100", usage: "Texto sobre âmbar suave" },
-  "accent-strong": { light: "ambar-700", dark: "ambar-400", usage: "Ícone de estrela sobre superfícies" },
+  "accent-strong": {
+    light: "ambar-700",
+    dark: "ambar-400",
+    usage: "Ícone de estrela sobre superfícies",
+  },
   success: { light: "verde-700", dark: "verde-400", usage: "Texto/ícone de sucesso" },
   "success-fg": { light: "white", dark: "verde-950", usage: "Texto sobre sucesso sólido" },
   "success-soft": { light: "verde-50", dark: "verde-950", usage: "Fundo de alerta de sucesso" },
@@ -187,50 +208,51 @@ export function semanticValue(token: string, theme: "light" | "dark"): string {
 }
 
 /** Pares texto/fundo realmente usados pelos componentes, com o mínimo WCAG exigido. */
-export const CONTRAST_PAIRS: ReadonlyArray<{ fg: string; bg: string; min: 3 | 4.5; use: string }> = [
-  { fg: "fg", bg: "bg", min: 4.5, use: "Texto principal no fundo" },
-  { fg: "fg", bg: "surface", min: 4.5, use: "Texto principal em cartões" },
-  { fg: "fg", bg: "surface-2", min: 4.5, use: "Texto em áreas sutis" },
-  { fg: "fg-muted", bg: "bg", min: 4.5, use: "Texto secundário no fundo" },
-  { fg: "fg-muted", bg: "surface", min: 4.5, use: "Texto secundário em cartões" },
-  { fg: "fg-muted", bg: "surface-2", min: 4.5, use: "Texto secundário em áreas sutis" },
-  { fg: "fg-subtle", bg: "bg", min: 4.5, use: "Metadados no fundo" },
-  { fg: "fg-subtle", bg: "surface", min: 4.5, use: "Metadados e placeholders" },
-  { fg: "fg-subtle", bg: "surface-2", min: 4.5, use: "Metadados em áreas sutis" },
-  { fg: "border-strong", bg: "surface", min: 3, use: "Borda de campos (componente de UI)" },
-  { fg: "border-strong", bg: "bg", min: 3, use: "Borda de campos no fundo" },
-  { fg: "primary", bg: "bg", min: 4.5, use: "Links no fundo" },
-  { fg: "primary", bg: "surface", min: 4.5, use: "Links em cartões" },
-  { fg: "primary", bg: "surface-2", min: 4.5, use: "Links em áreas sutis" },
-  { fg: "primary-fg", bg: "primary", min: 4.5, use: "Botão primário" },
-  { fg: "primary-fg", bg: "primary-hover", min: 4.5, use: "Botão primário (hover)" },
-  { fg: "primary-soft-fg", bg: "primary-soft", min: 4.5, use: "Badge e chip violeta" },
-  { fg: "secondary", bg: "surface", min: 4.5, use: "Texto verde em cartões" },
-  { fg: "secondary-fg", bg: "secondary", min: 4.5, use: "Botão secundário" },
-  { fg: "secondary-fg", bg: "secondary-hover", min: 4.5, use: "Botão secundário (hover)" },
-  { fg: "secondary-soft-fg", bg: "secondary-soft", min: 4.5, use: "Badge verde" },
-  { fg: "accent-fg", bg: "accent", min: 4.5, use: "Botão de destaque (âmbar)" },
-  { fg: "accent-fg", bg: "accent-hover", min: 4.5, use: "Botão de destaque (hover)" },
-  { fg: "accent-soft-fg", bg: "accent-soft", min: 4.5, use: "Badge âmbar" },
-  { fg: "accent-strong", bg: "surface", min: 3, use: "Ícone de estrela em cartões" },
-  { fg: "accent-strong", bg: "bg", min: 3, use: "Ícone de estrela no fundo" },
-  { fg: "success", bg: "surface", min: 4.5, use: "Texto de sucesso" },
-  { fg: "success-fg", bg: "success", min: 4.5, use: "Sucesso sólido" },
-  { fg: "success-soft-fg", bg: "success-soft", min: 4.5, use: "Alerta de sucesso" },
-  { fg: "warning", bg: "surface", min: 4.5, use: "Texto de atenção" },
-  { fg: "warning-fg", bg: "warning", min: 4.5, use: "Atenção sólida" },
-  { fg: "warning-soft-fg", bg: "warning-soft", min: 4.5, use: "Alerta de atenção" },
-  { fg: "danger", bg: "surface", min: 4.5, use: "Mensagem de erro em cartões" },
-  { fg: "danger", bg: "bg", min: 4.5, use: "Mensagem de erro no fundo" },
-  { fg: "danger-fg", bg: "danger", min: 4.5, use: "Botão de perigo" },
-  { fg: "danger-fg", bg: "danger-hover", min: 4.5, use: "Botão de perigo (hover)" },
-  { fg: "danger-soft-fg", bg: "danger-soft", min: 4.5, use: "Alerta de erro" },
-  { fg: "info", bg: "surface", min: 4.5, use: "Texto informativo" },
-  { fg: "info-fg", bg: "info", min: 4.5, use: "Informação sólida" },
-  { fg: "info-soft-fg", bg: "info-soft", min: 4.5, use: "Alerta informativo" },
-  { fg: "focus", bg: "bg", min: 3, use: "Anel de foco no fundo" },
-  { fg: "focus", bg: "surface", min: 3, use: "Anel de foco em cartões" },
-];
+export const CONTRAST_PAIRS: ReadonlyArray<{ fg: string; bg: string; min: 3 | 4.5; use: string }> =
+  [
+    { fg: "fg", bg: "bg", min: 4.5, use: "Texto principal no fundo" },
+    { fg: "fg", bg: "surface", min: 4.5, use: "Texto principal em cartões" },
+    { fg: "fg", bg: "surface-2", min: 4.5, use: "Texto em áreas sutis" },
+    { fg: "fg-muted", bg: "bg", min: 4.5, use: "Texto secundário no fundo" },
+    { fg: "fg-muted", bg: "surface", min: 4.5, use: "Texto secundário em cartões" },
+    { fg: "fg-muted", bg: "surface-2", min: 4.5, use: "Texto secundário em áreas sutis" },
+    { fg: "fg-subtle", bg: "bg", min: 4.5, use: "Metadados no fundo" },
+    { fg: "fg-subtle", bg: "surface", min: 4.5, use: "Metadados e placeholders" },
+    { fg: "fg-subtle", bg: "surface-2", min: 4.5, use: "Metadados em áreas sutis" },
+    { fg: "border-strong", bg: "surface", min: 3, use: "Borda de campos (componente de UI)" },
+    { fg: "border-strong", bg: "bg", min: 3, use: "Borda de campos no fundo" },
+    { fg: "primary", bg: "bg", min: 4.5, use: "Links no fundo" },
+    { fg: "primary", bg: "surface", min: 4.5, use: "Links em cartões" },
+    { fg: "primary", bg: "surface-2", min: 4.5, use: "Links em áreas sutis" },
+    { fg: "primary-fg", bg: "primary", min: 4.5, use: "Botão primário" },
+    { fg: "primary-fg", bg: "primary-hover", min: 4.5, use: "Botão primário (hover)" },
+    { fg: "primary-soft-fg", bg: "primary-soft", min: 4.5, use: "Badge e chip violeta" },
+    { fg: "secondary", bg: "surface", min: 4.5, use: "Texto verde em cartões" },
+    { fg: "secondary-fg", bg: "secondary", min: 4.5, use: "Botão secundário" },
+    { fg: "secondary-fg", bg: "secondary-hover", min: 4.5, use: "Botão secundário (hover)" },
+    { fg: "secondary-soft-fg", bg: "secondary-soft", min: 4.5, use: "Badge verde" },
+    { fg: "accent-fg", bg: "accent", min: 4.5, use: "Botão de destaque (âmbar)" },
+    { fg: "accent-fg", bg: "accent-hover", min: 4.5, use: "Botão de destaque (hover)" },
+    { fg: "accent-soft-fg", bg: "accent-soft", min: 4.5, use: "Badge âmbar" },
+    { fg: "accent-strong", bg: "surface", min: 3, use: "Ícone de estrela em cartões" },
+    { fg: "accent-strong", bg: "bg", min: 3, use: "Ícone de estrela no fundo" },
+    { fg: "success", bg: "surface", min: 4.5, use: "Texto de sucesso" },
+    { fg: "success-fg", bg: "success", min: 4.5, use: "Sucesso sólido" },
+    { fg: "success-soft-fg", bg: "success-soft", min: 4.5, use: "Alerta de sucesso" },
+    { fg: "warning", bg: "surface", min: 4.5, use: "Texto de atenção" },
+    { fg: "warning-fg", bg: "warning", min: 4.5, use: "Atenção sólida" },
+    { fg: "warning-soft-fg", bg: "warning-soft", min: 4.5, use: "Alerta de atenção" },
+    { fg: "danger", bg: "surface", min: 4.5, use: "Mensagem de erro em cartões" },
+    { fg: "danger", bg: "bg", min: 4.5, use: "Mensagem de erro no fundo" },
+    { fg: "danger-fg", bg: "danger", min: 4.5, use: "Botão de perigo" },
+    { fg: "danger-fg", bg: "danger-hover", min: 4.5, use: "Botão de perigo (hover)" },
+    { fg: "danger-soft-fg", bg: "danger-soft", min: 4.5, use: "Alerta de erro" },
+    { fg: "info", bg: "surface", min: 4.5, use: "Texto informativo" },
+    { fg: "info-fg", bg: "info", min: 4.5, use: "Informação sólida" },
+    { fg: "info-soft-fg", bg: "info-soft", min: 4.5, use: "Alerta informativo" },
+    { fg: "focus", bg: "bg", min: 3, use: "Anel de foco no fundo" },
+    { fg: "focus", bg: "surface", min: 3, use: "Anel de foco em cartões" },
+  ];
 
 /* ------------------------------------------------------------------ */
 /* Contraste WCAG 2.x                                                  */

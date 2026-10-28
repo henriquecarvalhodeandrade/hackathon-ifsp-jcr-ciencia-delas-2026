@@ -35,10 +35,13 @@ export function PaperCardExample() {
             Biomarcadores salivares para diagnóstico precoce de diabetes gestacional
           </CardLink>
         </h3>
-        <p className="truncate text-sm text-fg-muted">Ana Souza, Beatriz Lima, Carolina Duarte · Revista Demo · 2026</p>
+        <p className="truncate text-sm text-fg-muted">
+          Ana Souza, Beatriz Lima, Carolina Duarte · Revista Demo · 2026
+        </p>
         <p className="line-clamp-2 text-[0.9375rem] text-fg-muted">
           <span className="font-semibold text-fg">Em linguagem simples: </span>
-          um teste de saliva pode indicar o risco de diabetes na gravidez semanas antes do exame de sangue tradicional.
+          um teste de saliva pode indicar o risco de diabetes na gravidez semanas antes do exame de
+          sangue tradicional.
         </p>
         <div className="flex items-center gap-4 text-sm text-fg-subtle">
           <span className="inline-flex items-center gap-1">
@@ -57,7 +60,9 @@ export function MentorMatchExample() {
       <div className="flex items-start gap-4">
         <Avatar name="Beatriz Lima" size="lg" />
         <div className="grid min-w-0 flex-1 gap-0.5">
-          <h3 className="font-display text-lg leading-snug font-semibold text-fg">Dra. Beatriz Lima</h3>
+          <h3 className="font-display text-lg leading-snug font-semibold text-fg">
+            Dra. Beatriz Lima
+          </h3>
           <p className="text-sm text-fg-muted">Bioinformática · Unicamp, SP</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Badge variant="primary">Mentora</Badge>
@@ -71,8 +76,8 @@ export function MentorMatchExample() {
           <Sparkles aria-hidden="true" className="size-3.5" />
           Por que ela? · sugestão da IA
         </p>
-        Vocês duas trabalham com genômica do câncer e ela já orientou bolsistas de doutorado sanduíche — um dos seus
-        objetivos.
+        Vocês duas trabalham com genômica do câncer e ela já orientou bolsistas de doutorado
+        sanduíche — um dos seus objetivos.
       </div>
       <div className="flex flex-wrap gap-1.5">
         <Chip size="sm">genômica</Chip>
@@ -93,8 +98,20 @@ export function ThreadRowExample() {
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
       {[
-        { title: "Como conciliar maternidade e prazos do doutorado?", replies: 23, solved: false, pinned: true, anon: true },
-        { title: "Alguém já fez sanduíche pela CAPES em 2026?", replies: 8, solved: true, pinned: false, anon: false },
+        {
+          title: "Como conciliar maternidade e prazos do doutorado?",
+          replies: 23,
+          solved: false,
+          pinned: true,
+          anon: true,
+        },
+        {
+          title: "Alguém já fez sanduíche pela CAPES em 2026?",
+          replies: 8,
+          solved: true,
+          pinned: false,
+          anon: false,
+        },
       ].map((t) => (
         <li key={t.title} className="relative flex gap-4 p-4 transition-colors hover:bg-surface-2">
           {t.anon ? (
@@ -142,7 +159,7 @@ export function NewsletterHeaderExample() {
       <ConstellationPattern
         density="medium"
         align="end"
-        className="absolute inset-0 -z-10 size-full text-violeta-300/60 [mask-image:linear-gradient(100deg,transparent_35%,black_80%)]"
+        className="absolute inset-0 -z-10 size-full [mask-image:linear-gradient(100deg,transparent_35%,black_80%)] text-violeta-300/60"
       />
       <p className="eyebrow text-violeta-200">Newsletter · Semana 44 de 2026</p>
       <p className="mt-2 max-w-md font-serif text-3xl leading-tight font-semibold">

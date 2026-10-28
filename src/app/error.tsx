@@ -24,8 +24,8 @@ export default function ErrorPage({ error, retry }: { error: unknown; retry: () 
         title={<span className="text-2xl sm:text-3xl">Algo saiu da órbita</span>}
         description={
           <>
-            Tivemos um problema ao carregar esta parte da página. Tente de novo — se continuar acontecendo, avise a
-            equipe e conte o que você estava fazendo.
+            Tivemos um problema ao carregar esta parte da página. Tente de novo — se continuar
+            acontecendo, avise a equipe e conte o que você estava fazendo.
             {digest && (
               <span className="mt-3 block text-sm text-fg-subtle">
                 Código do erro: <code className="font-mono">{digest}</code>

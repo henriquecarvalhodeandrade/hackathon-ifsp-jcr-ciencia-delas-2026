@@ -12,7 +12,10 @@ export default function NotificationsLoading() {
         <Skeleton className="h-5 w-full max-w-md" />
         <Skeleton className="mt-4 h-11 w-64" />
       </div>
-      <div aria-hidden="true" className="divide-y divide-border rounded-card border border-border bg-surface shadow-card">
+      <div
+        aria-hidden="true"
+        className="divide-y divide-border rounded-card border border-border bg-surface shadow-card"
+      >
         {Array.from({ length: 5 }, (_, i) => (
           <div key={i} className="flex gap-4 p-5">
             <Skeleton className="size-10 shrink-0 rounded-full" />

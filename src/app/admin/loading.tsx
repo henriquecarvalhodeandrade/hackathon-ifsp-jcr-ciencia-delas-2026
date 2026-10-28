@@ -15,7 +15,10 @@ export default function AdminLoading() {
       <div aria-hidden="true" className="grid gap-4 xl:grid-cols-[1fr_18rem]">
         <div className="grid gap-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="grid gap-4 rounded-card border border-border bg-surface p-6 shadow-card">
+            <div
+              key={i}
+              className="grid gap-4 rounded-card border border-border bg-surface p-6 shadow-card"
+            >
               <div className="flex gap-2">
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-6 w-28" />

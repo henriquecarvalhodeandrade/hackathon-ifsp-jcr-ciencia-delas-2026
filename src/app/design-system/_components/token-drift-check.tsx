@@ -42,7 +42,8 @@ export function TokenDriftCheck() {
       for (const [step, expected] of Object.entries(steps)) {
         checked++;
         const actual = expandHex(root.getPropertyValue(`--color-${family}-${step}`));
-        if (actual !== expected) mismatches.push(`--color-${family}-${step}: CSS ${actual || "(vazio)"} ≠ ${expected}`);
+        if (actual !== expected)
+          mismatches.push(`--color-${family}-${step}: CSS ${actual || "(vazio)"} ≠ ${expected}`);
       }
     }
 
@@ -59,7 +60,10 @@ export function TokenDriftCheck() {
         island.removeChild(probe);
         const expected = semanticValue(token, theme);
         if (actual) resolved[theme][token] = actual;
-        if (actual !== expected) mismatches.push(`${token} (${theme === "light" ? "claro" : "escuro"}): CSS ${actual} ≠ ${expected}`);
+        if (actual !== expected)
+          mismatches.push(
+            `${token} (${theme === "light" ? "claro" : "escuro"}): CSS ${actual} ≠ ${expected}`,
+          );
       }
     }
 
@@ -86,14 +90,25 @@ export function TokenDriftCheck() {
       data-drift-count={result ? result.mismatches.length : undefined}
       data-contrast-failures={result ? result.failing.length : undefined}
     >
-      <div ref={lightRef} data-theme="light" aria-hidden="true" className="pointer-events-none absolute size-0 overflow-hidden opacity-0" />
-      <div ref={darkRef} data-theme="dark" aria-hidden="true" className="pointer-events-none absolute size-0 overflow-hidden opacity-0" />
+      <div
+        ref={lightRef}
+        data-theme="light"
+        aria-hidden="true"
+        className="pointer-events-none absolute size-0 overflow-hidden opacity-0"
+      />
+      <div
+        ref={darkRef}
+        data-theme="dark"
+        aria-hidden="true"
+        className="pointer-events-none absolute size-0 overflow-hidden opacity-0"
+      />
       {!result ? (
         <Alert variant="info" title="Conferindo tokens no navegador…" />
       ) : ok ? (
         <Alert variant="success" title="Verificado ao vivo no seu navegador">
-          {formatNumber(result.checked)} tokens do CSS batem com a documentação e os {formatNumber(result.pairs)}{" "}
-          pares de contraste (claro + escuro) passam no WCAG AA com as cores realmente renderizadas.
+          {formatNumber(result.checked)} tokens do CSS batem com a documentação e os{" "}
+          {formatNumber(result.pairs)} pares de contraste (claro + escuro) passam no WCAG AA com as
+          cores realmente renderizadas.
         </Alert>
       ) : (
         <Alert variant="danger" title="Divergência entre o CSS e a documentação">

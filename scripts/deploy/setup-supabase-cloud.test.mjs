@@ -51,6 +51,7 @@ import {
   describeSupabaseError,
   missingPermissions,
   resolveLocalSupabaseCli,
+  repoNameFromRemoteUrl,
 } from "./setup-supabase-cloud.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -1331,13 +1332,22 @@ describe("revisão", () => {
       }),
     });
     assert.equal(await main([`--site-url=${SITE}`, "--write-env"], t.deps), 1);
-    assert.match(t.output(), /chaves da API: sem permissão \(403\)\. Faltam no token: secrets:read/);
+    assert.match(
+      t.output(),
+      /chaves da API: sem permissão \(403\)\. Faltam no token: secrets:read/,
+    );
     assert.equal(t.writes.length, 0);
     assertNoSecrets(t.output());
   });
 
   test("buildCliInvocation: CLI do projeto via node, sem shell, em qualquer sistema", () => {
-    const entry = path.join("C:\\Users\\Maria Silva\\app", "node_modules", "supabase", "dist", "supabase.js");
+    const entry = path.join(
+      "C:\\Users\\Maria Silva\\app",
+      "node_modules",
+      "supabase",
+      "dist",
+      "supabase.js",
+    );
     for (const platform of ["linux", "darwin", "win32"]) {
       const inv = buildCliInvocation(["db", "query", "--file", "C:\\Users\\Maria Silva\\q.sql"], {
         platform,
@@ -1356,9 +1366,12 @@ describe("revisão", () => {
       args: ["supabase", "link", "--project-ref", REF],
       shell: false,
     });
-    const win = buildCliInvocation(["db", "query", "--linked", "--file", "C:\\Users\\Maria Silva\\q.sql"], {
-      platform: "win32",
-    });
+    const win = buildCliInvocation(
+      ["db", "query", "--linked", "--file", "C:\\Users\\Maria Silva\\q.sql"],
+      {
+        platform: "win32",
+      },
+    );
     assert.equal(win.shell, true);
     assert.deepEqual(win.args, []);
     assert.equal(
@@ -1402,7 +1415,10 @@ describe("revisão", () => {
   test("o script roda quando chamado direto, inclusive por um caminho com symlink", () => {
     const script = fileURLToPath(new URL("./setup-supabase-cloud.mjs", import.meta.url));
     const run = (file) =>
-      spawnSync(process.execPath, [file, "--help"], { encoding: "utf8", env: { PATH: process.env.PATH } });
+      spawnSync(process.execPath, [file, "--help"], {
+        encoding: "utf8",
+        env: { PATH: process.env.PATH },
+      });
     const direct = run(script);
     assert.equal(direct.status, 0, direct.stderr);
     assert.match(direct.stdout, /--site-url/);
@@ -1417,5 +1433,42 @@ describe("revisão", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("repoNameFromRemoteUrl entende https e ssh", () => {
+    assert.equal(
+      repoNameFromRemoteUrl("https://github.com/dona/Hackathon-Repo.git\n"),
+      "hackathon-repo",
+    );
+    assert.equal(repoNameFromRemoteUrl("git@github.com:dona/repo.git"), "repo");
+    assert.equal(repoNameFromRemoteUrl("https://github.com/dona/repo/"), "repo");
+    assert.equal(repoNameFromRemoteUrl(""), null);
+  });
+
+  test("Vercel sem VERCEL_PROJECT: tenta o nome do package.json e depois o do repositório", async () => {
+    const t = makeDeps({
+      env: fullEnv({ VERCEL_TOKEN }),
+      routes: {
+        ...supabaseRoutes(),
+        "GET api.vercel.com/v9/projects/artemis": json(404, { error: { message: "not found" } }),
+        "GET api.vercel.com/v9/projects/meu-repo": json(200, { id: "prj_9", name: "meu-repo" }),
+        "POST api.vercel.com/v10/projects/meu-repo/env": ({ body }) =>
+          json(201, { created: body, failed: [] }),
+      },
+    });
+    t.deps.gitRepoName = () => "meu-repo";
+    assert.equal(await main([`--site-url=${SITE}`, "--vercel"], t.deps), 0, t.output());
+    assert.ok(t.calls.some((c) => c.method === "POST" && c.path === "/v10/projects/meu-repo/env"));
+
+    const explicit = makeDeps({
+      env: fullEnv({ VERCEL_TOKEN, VERCEL_PROJECT: "artemis" }),
+      routes: {
+        ...supabaseRoutes(),
+        "GET api.vercel.com/v9/projects/artemis": json(404, { error: { message: "not found" } }),
+      },
+    });
+    explicit.deps.gitRepoName = () => "meu-repo";
+    assert.equal(await main([`--site-url=${SITE}`, "--vercel"], explicit.deps), 1);
+    assert.match(explicit.output(), /tentei: artemis\)/);
   });
 });

@@ -20,12 +20,22 @@ export function DsSection({
   className?: string;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-titulo`} className={cn("scroll-mt-24 border-t border-border py-14 first:border-t-0 first:pt-4", className)}>
+    <section
+      id={id}
+      aria-labelledby={`${id}-titulo`}
+      className={cn(
+        "scroll-mt-24 border-t border-border py-14 first:border-t-0 first:pt-4",
+        className,
+      )}
+    >
       <header className="mb-8 grid max-w-3xl gap-2">
-        <p className="eyebrow tabular text-primary">
+        <p className="eyebrow text-primary tabular">
           {number} · {group}
         </p>
-        <h2 id={`${id}-titulo`} className="font-display text-3xl font-semibold tracking-[-0.025em] text-fg sm:text-4xl">
+        <h2
+          id={`${id}-titulo`}
+          className="font-display text-3xl font-semibold tracking-[-0.025em] text-fg sm:text-4xl"
+        >
           {title}
         </h2>
         {description && <div className="text-lg text-fg-muted">{description}</div>}
@@ -36,7 +46,15 @@ export function DsSection({
 }
 
 /** Subtítulo dentro de uma seção. */
-export function DsSubheading({ id, children, description }: { id?: string; children: React.ReactNode; description?: React.ReactNode }) {
+export function DsSubheading({
+  id,
+  children,
+  description,
+}: {
+  id?: string;
+  children: React.ReactNode;
+  description?: React.ReactNode;
+}) {
   return (
     <div className="mt-12 mb-5 grid max-w-3xl gap-1 first:mt-0">
       <h3 id={id} className="scroll-mt-24 font-display text-xl font-semibold text-fg">
@@ -62,7 +80,12 @@ export function Specimen({
   contentClassName?: string;
 }) {
   return (
-    <figure className={cn("flex flex-col overflow-hidden rounded-card border border-border bg-surface", className)}>
+    <figure
+      className={cn(
+        "flex flex-col overflow-hidden rounded-card border border-border bg-surface",
+        className,
+      )}
+    >
       {label && (
         <figcaption className="border-b border-border bg-surface-2 px-4 py-2 font-mono text-xs font-semibold text-fg-muted">
           {label}

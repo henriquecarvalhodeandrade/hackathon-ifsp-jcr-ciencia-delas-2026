@@ -10,17 +10,17 @@ Tudo usa planos gratuitos (Supabase Free e Vercel Hobby). Node 22+, sem dependê
 
 ## 1. O que você precisa
 
-| O quê                                                                      | Onde conseguir                                                          | Variável                         |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------- |
-| Projeto no Supabase (região **South America (São Paulo)**)                 | https://supabase.com/dashboard → _New project_                          | —                                |
-| **Personal Access Token** do Supabase                                      | https://supabase.com/dashboard/account/tokens → _Generate new token_    | `SUPABASE_ACCESS_TOKEN`          |
-| **Project ref** (20 letras; também aparece em `https://<ref>.supabase.co`) | _Project Settings → General → Project ID_                               | `SUPABASE_PROJECT_REF`           |
-| **Senha do banco** (a que você definiu ao criar o projeto)                 | se esqueceu: _Project Settings → Database → Reset database password_    | `SUPABASE_DB_PASSWORD`           |
-| URL pública do site                                                        | ex.: `https://seu-app.vercel.app` (pode ser a URL que a Vercel vai dar) | flag `--site-url`                |
-| (Opcional) Token da Vercel                                                 | https://vercel.com/account/tokens                                       | `VERCEL_TOKEN`                   |
-| (Opcional) Time da Vercel                                                  | _Team Settings → General → Team ID_ (`team_...`) ou o slug do time      | `VERCEL_TEAM_ID`                 |
-| (Opcional) Projeto da Vercel                                               | nome ou id do projeto já importado (padrão: o `name` do `package.json`) | `VERCEL_PROJECT`                 |
-| (Opcional) Chaves de IA                                                    | https://aistudio.google.com/apikey · https://console.groq.com/keys      | `GEMINI_API_KEY`, `GROQ_API_KEY` |
+| O quê                                                                      | Onde conseguir                                                                                                             | Variável                         |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Projeto no Supabase (região **South America (São Paulo)**)                 | https://supabase.com/dashboard → _New project_                                                                             | —                                |
+| **Personal Access Token** do Supabase                                      | https://supabase.com/dashboard/account/tokens → _Generate new token_                                                       | `SUPABASE_ACCESS_TOKEN`          |
+| **Project ref** (20 letras; também aparece em `https://<ref>.supabase.co`) | _Project Settings → General → Project ID_                                                                                  | `SUPABASE_PROJECT_REF`           |
+| **Senha do banco** (a que você definiu ao criar o projeto)                 | se esqueceu: _Project Settings → Database → Reset database password_                                                       | `SUPABASE_DB_PASSWORD`           |
+| URL pública do site                                                        | ex.: `https://seu-app.vercel.app` (pode ser a URL que a Vercel vai dar)                                                    | flag `--site-url`                |
+| (Opcional) Token da Vercel                                                 | https://vercel.com/account/tokens                                                                                          | `VERCEL_TOKEN`                   |
+| (Opcional) Time da Vercel                                                  | _Team Settings → General → Team ID_ (`team_...`) ou o slug do time                                                         | `VERCEL_TEAM_ID`                 |
+| (Opcional) Projeto da Vercel                                               | nome ou id do projeto já importado (padrão: o `name` do `package.json` e, se não existir, o nome do repositório no GitHub) | `VERCEL_PROJECT`                 |
+| (Opcional) Chaves de IA                                                    | https://aistudio.google.com/apikey · https://console.groq.com/keys                                                         | `GEMINI_API_KEY`, `GROQ_API_KEY` |
 
 > Não cole o token em chats nem em issues; guarde num arquivo `.env*` (ignorado pelo git) ou nos segredos do
 > ambiente e revogue depois de usar, se quiser.
@@ -31,16 +31,16 @@ Desde outubro de 2026, os tokens criados em _Account → Access Tokens_ são **e
 permissões (Read / Read-write) e validade, e não dá para mudar depois (só apagar e criar outro). Para este script,
 crie o token **só para o projeto do app**, com:
 
-| Permissão no painel  | Nível      | Para quê                                                                       |
-| -------------------- | ---------- | ------------------------------------------------------------------------------ |
-| Project Settings     | Read-write | conferir o projeto; o `PATCH` do Auth exige Project Settings + Auth Config     |
-| Auth Config          | Read-write | `site_url`, Redirect URLs, confirmação de e-mail, modelos, SMTP                |
-| Database             | Read-write | migrations por HTTPS, dados de referência, bucket (SQL pela API)               |
-| Storage              | Read       | conferir o bucket `avatars`                                                    |
-| API Keys             | Read-write | listar e, se faltar, criar as chaves publishable/secret                        |
-| API Key Secrets      | Read       | revelar as chaves para gravar no `.env` e na Vercel                            |
-| Connection Pooling   | Read       | `supabase link`/`db push` (só sem `--migrations-via-api`)                      |
-| Production Branches  | Read       | `supabase link` pode pedir (só sem `--migrations-via-api`)                     |
+| Permissão no painel | Nível      | Para quê                                                                   |
+| ------------------- | ---------- | -------------------------------------------------------------------------- |
+| Project Settings    | Read-write | conferir o projeto; o `PATCH` do Auth exige Project Settings + Auth Config |
+| Auth Config         | Read-write | `site_url`, Redirect URLs, confirmação de e-mail, modelos, SMTP            |
+| Database            | Read-write | migrations por HTTPS, dados de referência, bucket (SQL pela API)           |
+| Storage             | Read       | conferir o bucket `avatars`                                                |
+| API Keys            | Read-write | listar e, se faltar, criar as chaves publishable/secret                    |
+| API Key Secrets     | Read       | revelar as chaves para gravar no `.env` e na Vercel                        |
+| Connection Pooling  | Read       | `supabase link`/`db push` (só sem `--migrations-via-api`)                  |
+| Production Branches | Read       | `supabase link` pode pedir (só sem `--migrations-via-api`)                 |
 
 Se faltar alguma, a API responde **403** e o script mostra as permissões que faltam (campo `missing_permissions`).
 Alternativa mais simples (e mais ampla): _Create legacy token_, que tem o acesso total da sua conta.

@@ -14,7 +14,8 @@ try {
   // sem .env.local: usa o ambiente atual
 }
 
-const [email, password = "ciencia-delas-demo", baseUrl = "http://localhost:3000"] = process.argv.slice(2);
+const [email, password = "ciencia-delas-demo", baseUrl = "http://localhost:3000"] =
+  process.argv.slice(2);
 if (!email) {
   console.error("Uso: node scripts/e2e/auth-cookies.mjs <email> [senha] [baseUrl]");
   process.exit(1);
@@ -27,7 +28,8 @@ const supabase = createServerClient(
   {
     cookies: {
       getAll: () => [...jar.entries()].map(([name, value]) => ({ name, value })),
-      setAll: (cookies) => cookies.forEach(({ name, value }) => (value ? jar.set(name, value) : jar.delete(name))),
+      setAll: (cookies) =>
+        cookies.forEach(({ name, value }) => (value ? jar.set(name, value) : jar.delete(name))),
     },
   },
 );
