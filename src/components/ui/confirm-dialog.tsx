@@ -51,7 +51,7 @@ export interface ConfirmDialogProps<S extends ConfirmResult = ConfirmResult> {
    * Alternativa a `action` para Server Actions no formato do `useActionState`:
    * `(estadoAnterior, formData) => Promise<estado>`. O estado anterior é `null` a cada abertura.
    */
-  stateAction?: (prev: S | null, formData: FormData) => Promise<S>;
+  stateAction?: (prev: S | null, formData: FormData) => Promise<S | null>;
   /** Campos ocultos enviados com a action, ex.: { id: thread.id }. */
   hiddenFields?: Record<string, string>;
   /** Alternativa sem formulário (uso só no cliente). Mesmo contrato de retorno da `action`. */
