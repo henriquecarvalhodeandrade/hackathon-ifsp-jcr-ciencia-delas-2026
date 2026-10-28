@@ -203,8 +203,3 @@ export function fallbackIntro(content: NewsletterContent): string {
     parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}`;
   return `Nesta semana, a comunidade ${list}. Confira os destaques abaixo e compartilhe com quem também faz ciência.`;
 }
-
-/** Ids de papers citados na edição (para descobrir as áreas no envio). */
-export function editionPaperIds(content: NewsletterContent): string[] {
-  return content.papers.map((p) => p.id);
-}

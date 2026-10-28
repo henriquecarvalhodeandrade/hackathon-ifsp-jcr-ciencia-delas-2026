@@ -47,24 +47,6 @@ export interface ProfileFormValues {
 export type ProfileFieldName = keyof ProfileFormValues;
 export type ProfileFieldErrors = Partial<Record<ProfileFieldName, string[]>>;
 
-/** Campos de cada seção (a mesma divisão das etapas do onboarding e dos cartões do /perfil). */
-export const SECTION_FIELDS: Record<ProfileSection, readonly ProfileFieldName[]> = {
-  sobre: ["full_name", "pronouns", "headline", "institution", "city", "state", "career_stage"],
-  pesquisa: ["area_ids", "keywords", "bio", "lattes_url", "orcid", "linkedin_url", "website_url"],
-  mentoria: [
-    "seeks_mentorship",
-    "is_mentor",
-    "mentoring_goals",
-    "mentoring_offer",
-    "mentor_capacity",
-    "mentor_available",
-    "mentorship_topics",
-    "meeting_formats",
-    "languages",
-  ],
-  privacidade: ["ai_consent"],
-};
-
 export const EMPTY_PROFILE_VALUES: ProfileFormValues = {
   full_name: "",
   pronouns: "",

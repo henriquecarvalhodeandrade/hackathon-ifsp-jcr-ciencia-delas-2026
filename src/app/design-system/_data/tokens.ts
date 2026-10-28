@@ -4,20 +4,6 @@
  * e acusa qualquer divergência — então mantenha os dois em sincronia.
  */
 
-export const SCALE_STEPS = [
-  "50",
-  "100",
-  "200",
-  "300",
-  "400",
-  "500",
-  "600",
-  "700",
-  "800",
-  "900",
-  "950",
-] as const;
-
 export const PALETTE = {
   violeta: {
     "50": "#f8f3ff",
