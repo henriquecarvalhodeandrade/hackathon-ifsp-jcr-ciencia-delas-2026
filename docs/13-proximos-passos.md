@@ -33,9 +33,9 @@
 - **CI no GitHub Actions** (`.github/workflows/ci.yml`): a cada push e pull request roda formatação, lint, tipos,
   testes unitários, testes do script de deploy, build e pgTAP e, depois, a **jornada E2E** num build de produção
   contra um Supabase local completo no próprio runner (se falhar, as capturas ficam como artefato) —
-  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions). Os jobs App e Banco já rodaram de verdade
-  no GitHub e passaram; o job da jornada E2E foi acrescentado depois e roda pela primeira vez no próximo push
-  (localmente, contra um build de produção, passa em todas as etapas).
+  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions). Os três jobs (App, Banco e Jornada E2E) já
+  rodaram de verdade no GitHub e passaram — a jornada leva cerca de 4 minutos no runner. Na primeira execução,
+  a jornada pegou uma quebra de 7 px no `/design-system` no celular, já corrigida.
 - Documentação em `docs/` e decisões em `docs/adr/`.
 
 ## O que falta (precisa de vocês)
