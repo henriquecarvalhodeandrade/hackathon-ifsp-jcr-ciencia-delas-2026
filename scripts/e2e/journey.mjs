@@ -17,7 +17,9 @@
  *      larissa@ destaca e o paper aparece no ranking.
  *   8. Varredura: capturas claro/escuro × 1440/390 px das páginas principais (visitante, membra,
  *      mentora, admin), erros de console, avisos de hidratação, respostas ≥ 400, rolagem
- *      horizontal, links internos quebrados (como visitante e como membra) e foco visível.
+ *      horizontal, contraste de texto (AA, telas de 1440 px), links internos quebrados (cada
+ *      papel confere os links que vê, com a própria sessão), foco visível pelo teclado e o menu
+ *      do celular (abre, prende o foco, fecha com Esc e devolve o foco).
  * Tudo o que o script cria é apagado no fim (e sobras de execuções anteriores, no começo).
  *
  * Pré-requisitos

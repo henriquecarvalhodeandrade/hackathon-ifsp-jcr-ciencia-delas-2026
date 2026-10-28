@@ -72,6 +72,14 @@ A lista completa está em [`03-banco-de-dados.md` §15](03-banco-de-dados.md#15-
 Para testar o fluxo completo de **cadastro**, crie uma conta nova em `/cadastro`: o e-mail de confirmação chega
 no Mailpit; clique no link e você cai no onboarding.
 
+> **App em outra porta?** O Supabase Auth local só aceita destinos em `http://localhost:3000` e
+> `http://127.0.0.1:3000` (`additional_redirect_urls` no `supabase/config.toml`). Com o app em outra porta
+> (por exemplo, `next start -p 3400`), os links de confirmação e de acesso apontam para a porta 3000: troque
+> a porta no endereço do link antes de abrir. Se precisar disso sempre, inclua a porta em
+> `additional_redirect_urls` e reinicie o Supabase (`npx supabase stop && npx supabase start`, sem apagar
+> os dados). Não use curingas de porta: a lista de destinos permitidos também protege contra
+> redirecionamentos para fora do site.
+
 ### Comandos do dia a dia
 
 | Comando                             | O que faz                                                    |
