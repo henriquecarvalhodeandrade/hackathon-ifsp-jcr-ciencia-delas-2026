@@ -1,7 +1,8 @@
 # Próximos passos — publicar a Artemis
 
 > Documento de passagem (handoff). Tudo o que dependia só do código está pronto e testado contra um Supabase
-> local. O que falta depende de **contas da equipe** (Supabase, Vercel e a chave de IA), que só vocês podem criar.
+> local, inclusive a IA com a chave do Gemini da equipe. O que falta depende de **contas da equipe** (Supabase e
+> Vercel), que só vocês podem criar.
 
 ## O que já está pronto
 
@@ -52,6 +53,12 @@
   [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions). Os três jobs (App, Banco e Jornada E2E) já
   rodaram de verdade no GitHub e passaram — a jornada leva cerca de 4 minutos no runner. Na primeira execução,
   a jornada pegou uma quebra de 7 px no `/design-system` no celular, já corrigida.
+- **IA validada com a API real** (28/10/2026, chave da equipe, só dados fictícios do seed): embeddings
+  (`gemini-embedding-2`, 768 dimensões) dos perfis com consentimento, sugestões de mentoras explicadas pelo
+  `gemini-3.5-flash-lite` (cerca de 4 s), resumo acessível da Vitrine e abertura do Boletim (cerca de 1 s),
+  revogação do consentimento e as falhas (chave inválida, tempo esgotado, cota) caindo nas regras com aviso.
+  A validação achou e corrigiu respostas sem acentos, a voz das autoras no resumo e a faixa de similaridade, que
+  foi calibrada — [04 §4.1 e §15](04-mentoria-com-ia.md#15-validação-com-a-api-real-28102026).
 - Documentação em `docs/` e decisões em `docs/adr/`.
 
 ## O que falta (precisa de vocês)
@@ -94,10 +101,17 @@ O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto
 
 ### 2. Chave de IA (grátis)
 
-1. Criar a chave em https://aistudio.google.com/apikey (conta Google, sem cartão).
-2. Cadastrar como `GEMINI_API_KEY` no ambiente da sessão (para eu testar o caminho com IA de verdade e gerar os
-   embeddings dos perfis) **e** na Vercel (para o site publicado).
-3. Opcional, reserva: `GROQ_API_KEY` (https://console.groq.com/keys).
+A equipe já forneceu uma chave do Gemini (plano gratuito), usada **só localmente**, no `.env.local` (fora do
+git), para validar a IA com os dados fictícios do seed. Falta:
+
+1. **Trocar a chave antes de publicar.** Ela foi colada no chat da sessão, então trate-a como exposta: em
+   https://aistudio.google.com/apikey, crie uma chave nova e apague a antiga. Não cole a nova no chat:
+   cadastre-a direto nas configurações (ambiente da sessão e Vercel).
+2. Cadastrar a chave (a nova) como `GEMINI_API_KEY` na **Vercel** (para o site publicado) e, se quiserem que eu
+   continue testando, no ambiente da sessão.
+3. Depois de criar o banco na nuvem, gerar os embeddings dos perfis: `npm run ai:backfill` (com as variáveis
+   da nuvem; ver [04 §10](04-mentoria-com-ia.md#10-backfill-de-embeddings)).
+4. Opcional, reserva: `GROQ_API_KEY` (https://console.groq.com/keys).
 
 > Plano gratuito do Gemini: o Google pode usar os dados enviados para melhorar produtos e exige 18+.
 > O app já pede consentimento e não envia nome, e-mail nem links.
@@ -168,5 +182,8 @@ verdade, gero os embeddings dos perfis (`npm run ai:backfill`) e confiro o site 
 
 - **Supabase:** nenhuma. Todo o desenvolvimento usou o Supabase **local** (Docker, `npx supabase start`), com as
   chaves padrão de desenvolvimento que o CLI gera.
-- **IA:** nenhuma chave. O código de IA foi testado com respostas simuladas; o app rodou no modo por afinidade.
+- **IA:** a chave do Gemini (plano gratuito) fornecida pela equipe em 28/10/2026, usada **só localmente** (no
+  `.env.local`, fora do git e de qualquer arquivo versionado) e **só com os dados fictícios do seed**, para validar
+  o caminho real da IA e calibrar o matching ([04 §15](04-mentoria-com-ia.md#15-validação-com-a-api-real-28102026)).
+  Ela ainda **não** está na Vercel. Como foi colada no chat, recomendamos trocá-la antes de publicar (seção 2).
 - **GitHub:** só a integração da sessão, para enviar commits a este branch.

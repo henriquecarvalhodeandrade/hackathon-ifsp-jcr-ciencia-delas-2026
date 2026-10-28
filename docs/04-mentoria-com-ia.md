@@ -29,6 +29,7 @@ Decisão de arquitetura: [ADR 0003 — IA gratuita com cadeia de fallback e modo
 2. [Jornada da usuária](#2-jornada-da-usuária)
 3. [Arquitetura](#3-arquitetura)
 4. [Fórmula da pontuação](#4-fórmula-da-pontuação)
+   - [4.1 Calibração com embeddings reais](#41-calibração-com-embeddings-reais)
 5. [Prompts](#5-prompts)
 6. [Privacidade, pseudonimização e LGPD](#6-privacidade-pseudonimização-e-lgpd)
 7. [Provedores gratuitos](#7-provedores-gratuitos)
@@ -39,6 +40,7 @@ Decisão de arquitetura: [ADR 0003 — IA gratuita com cadeia de fallback e modo
 12. [Testes](#12-testes)
 13. [Solução de problemas](#13-solução-de-problemas)
 14. [Ideias para evoluir](#14-ideias-para-evoluir)
+15. [Validação com a API real (28/10/2026)](#15-validação-com-a-api-real-28102026)
 
 ---
 
@@ -175,6 +177,9 @@ A RPC `get_mentor_candidates` é `SECURITY DEFINER`. Ela calcula a similaridade 
 - Os vetores são normalizados (norma L2 = 1) por precaução. Se o modelo devolver mais de 768
   dimensões, o vetor é truncado (os modelos Gemini são treinados com Matryoshka). Se devolver menos,
   é erro.
+- **Conferido com a API real** ([seção 15](#15-validação-com-a-api-real-28102026)): o
+  `gemini-embedding-2` respeita o `output_dimensionality: 768` (o campo em snake_case é aceito) e já
+  devolve vetores com norma 1; um lote de 12 textos leva cerca de 0,5 s.
 
 Exemplo do texto de pesquisa de uma mentoranda (repare que não há nome, e-mail nem instituição):
 
@@ -197,7 +202,7 @@ mesma ordem. Cada componente vale de 0 a 1. A nota é a soma ponderada × 100, a
 | Componente                  | Peso    | Como é calculado                                                                                                                                                                                                                |
 | --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Áreas em comum**          | **35%** | `√(áreas em comum ÷ min(áreas da mentoranda, 3))`. A primeira área compartilhada já pesa bastante. Sem área em comum, mas na mesma grande área do CNPq: 0,3.                                                                    |
-| **Similaridade semântica**  | **30%** | Cosseno entre os embeddings, reescalado: `(sim − 0,5) ÷ (0,9 − 0,5)`, limitado a 0..1. **Sem embedding de uma das duas → `null`** e o peso é redistribuído.                                                                     |
+| **Similaridade semântica**  | **30%** | Cosseno entre os embeddings, reescalado: `(sim − 0,78) ÷ (0,87 − 0,78)`, limitado a 0..1 ([4.1](#41-calibração-com-embeddings-reais)). **Sem embedding de uma das duas → `null`** e o peso é redistribuído.                     |
 | **Temas + palavras-chave**  | **15%** | 60% temas (os desejados pela mentoranda, inclusive os inferidos dos objetivos, contra os temas e a oferta da mentora) + 40% palavras-chave (sem acento, também procuradas na oferta e no título da mentora). Satura em 3 itens. |
 | **Senioridade**             | **10%** | Diferença de etapa (tabela abaixo). A mentora precisa estar à frente; o ideal é de 1 a 3 etapas.                                                                                                                                |
 | **Compatibilidade prática** | **10%** | 35% formato de encontro (híbrido combina com qualquer formato) + 35% idioma em comum + 15% mesmo estado + 15% vagas abertas (`min(vagas, 3) ÷ 3`).                                                                              |
@@ -226,7 +231,8 @@ compatibilidade ≈ **14,3%** cada.
 | ≥ 5                              | 0,4  |
 
 **Exemplo completo.** Uma mestranda de Ecologia busca ajuda com "Bolsas e editais". Uma docente de
-Ecologia orienta nesse tema, tem similaridade 0,7, mesmo formato, idioma e estado, e 3 vagas:
+Ecologia orienta nesse tema, tem similaridade 0,825 (meio da faixa calibrada), mesmo formato, idioma e
+estado, e 3 vagas:
 
 ```
 0,35·1 (áreas) + 0,30·0,5 (similaridade) + 0,15·1 (temas) + 0,10·1 (senioridade 5−2=3) + 0,10·1 (compat.)
@@ -246,9 +252,79 @@ por exemplo:
 **Mistura com a IA.** Para as 8 primeiras, a nota final é
 `round(0,5 × nota_IA + 0,5 × nota_heurística)`, com a nota da IA limitada a 0..100.
 
-**Calibração.** `SIMILARITY_FLOOR = 0.5` e `SIMILARITY_CEIL = 0.9` (em `rank.ts`) são estimativas
-iniciais. Os textos de perfil seguem o mesmo modelo, o que eleva o cosseno de todo mundo. Com dados
-reais, olhe a distribuição da `similarity` devolvida pela RPC e ajuste esses dois valores.
+**Calibração.** `SIMILARITY_FLOOR = 0.78` e `SIMILARITY_CEIL = 0.87` (em `rank.ts`), calibrados com
+embeddings reais — método e números na seção 4.1. O modo só por regras não usa esses valores (sem
+embedding, a similaridade é `null` e o peso é redistribuído).
+
+### 4.1 Calibração com embeddings reais
+
+**Feita em 28/10/2026**, com a chave da equipe e só os perfis fictícios do seed (nenhum dado pessoal; os
+números abaixo são agregados).
+
+**Por que precisava.** Os textos de perfil seguem o mesmo molde ("Etapa da carreira: … Áreas de
+pesquisa: …"), o que eleva o cosseno de todos os pares. Com o `gemini-embedding-2` (768 dim., prefixos de
+consulta e documento), **todos** os pares mentoranda × mentora ficaram entre **0,75 e 0,90**. Com a faixa
+antiga (0,5–0,9), um par sem relação nenhuma (mediana 0,79) valia 0,72 no componente semântico, quase o
+mesmo que um par da mesma área (0,85 → 0,87): os 30% da similaridade quase não separavam ninguém.
+
+**Método.**
+
+1. `npm run ai:backfill` gerou os embeddings dos 19 perfis com consentimento (12 mentoras como documento,
+   7 perfis sem mentoria como consulta).
+2. Pares rotulados pela relação de áreas: **mesma área** (dividem ao menos uma área), **mesma grande área**
+   (só a grande área do CNPq) e **áreas diferentes**.
+3. Como 7 × 12 = 84 pares é pouco, a amostra foi aumentada com as 12 mentoras escritas **como consulta**
+   (texto de mentoranda, prefixo de busca) contra as outras 11 mentoras: mais 132 pares com relação
+   conhecida, **216 no total**. Esses vetores extras só existiram no script de calibração (não vão para o
+   banco).
+4. Os limites saem de **percentis**, não do mínimo/máximo, para não ajustar demais a 19 perfis fictícios:
+   - `FLOOR` ≈ **mediana dos pares de áreas diferentes** (0,789 → **0,78**): o par sem relação típico
+     vale ~0,1;
+   - `CEIL` ≈ **3º quartil dos pares da mesma área** (0,865 → **0,87**): um par claramente relacionado
+     vale de ~0,7 (mediana) a 1.
+
+**Números** (cosseno; 216 pares, com prefixo — a configuração do app):
+
+| Relação           | Pares | p10   | p25   | Mediana | p75   | p90   | Componente na mediana (antes → agora) |
+| ----------------- | ----- | ----- | ----- | ------- | ----- | ----- | ------------------------------------- |
+| Mesma área        | 18    | 0,821 | 0,829 | 0,844   | 0,865 | 0,890 | 0,86 → **0,71**                       |
+| Mesma grande área | 86    | 0,784 | 0,798 | 0,811   | 0,824 | 0,835 | 0,78 → **0,34**                       |
+| Áreas diferentes  | 112   | 0,766 | 0,777 | 0,789   | 0,809 | 0,820 | 0,72 → **0,10**                       |
+
+Na nota final (peso de 30%), a diferença entre um par típico da mesma área e um sem relação subiu de
+cerca de 4 para cerca de 18 pontos. As frases da heurística acompanham: "muito próximos" a partir de 0,75
+no componente (cosseno ≥ 0,848) e "se aproximam" a partir de 0,45 (≥ 0,82).
+
+**Prefixos conferidos.** A mesma conta sem os prefixos (`title: none | text:` e
+`task: search result | query:`) desloca todos os cossenos cerca de 0,05 para cima e separa os grupos de
+forma parecida (AUC mesma área × áreas diferentes: 0,989 com prefixo e 0,994 sem, nos 84 pares reais —
+diferença dentro do ruído de 8 pares positivos). Mantivemos os prefixos, que são o uso recomendado do
+modelo; **trocar o prefixo exige recalibrar**, porque a faixa muda.
+
+**Limites desta calibração.** São 19 perfis fictícios escritos pela equipe, com textos curtos e
+parecidos. Os percentis deixam a escolha robusta a um ou dois perfis fora da curva, mas não substituem
+dados reais. **Recalibre** quando: (a) houver algumas dezenas de perfis reais com consentimento; (b) o
+modelo de embeddings, a dimensão, os prefixos ou o formato de `buildProfileText` mudarem. Consulta para
+ver a distribuição atual (SQL Editor, como `postgres`; só agrega, não mostra perfis):
+
+```sql
+with pares as (
+  select 1 - (q.embedding operator(extensions.<=>) d.embedding) as sim,
+         exists (select 1 from profile_research_areas a
+                 join profile_research_areas b on b.area_id = a.area_id
+                 where a.profile_id = qp.id and b.profile_id = dp.id) as mesma_area
+  from profiles qp join profile_embeddings q on q.profile_id = qp.id
+  cross join profiles dp join profile_embeddings d on d.profile_id = dp.id
+  where qp.seeks_mentorship and not qp.is_mentor and dp.is_mentor and qp.id <> dp.id
+)
+select mesma_area, count(*),
+       percentile_cont(array[0.25, 0.5, 0.75]) within group (order by sim) as p25_p50_p75
+from pares group by mesma_area;
+```
+
+Regra para os novos valores: `FLOOR` ≈ mediana dos pares sem área em comum; `CEIL` ≈ 3º quartil dos
+pares com área em comum. Atualize as constantes em `rank.ts` e o teste "calibração com embeddings reais"
+em `rank.test.ts`.
 
 ---
 
@@ -267,7 +343,13 @@ Os prompts ficam no código, em pt-BR, com três defesas:
 - **Sistema:** `EXPLAIN_SYSTEM`. Pede para avaliar cada candidata e devolver `id` (exatamente o
   código recebido), `score` (0 a 100), `reason` (1 ou 2 frases calorosas, dirigidas a "você", com a
   mentora como "ela") e `starters` (2 ou 3 perguntas). Proíbe inventar experiências, instituições ou
-  publicações, e também proíbe mencionar códigos, notas, emojis e markdown.
+  publicações, e também proíbe mencionar códigos, notas, emojis e markdown. Desde a validação com a
+  API real, também pede **acentuação correta**, reserva "seu/sua" para a mentoranda ("a área dela",
+  nunca "sua área" para a mentora) e pede delicadeza quando o encaixe é parcial.
+- **Formato com acentos.** A última linha do pedido traz um modelo do JSON **com palavras acentuadas**
+  (em vez de `"reason": "..."`). Sem ele, o `gemini-3.5-flash-lite` devolveu o texto inteiro sem acentos
+  ("voce", "nao", "polinizacao") em 3 de 5 respostas para o mesmo perfil; com ele, 0 de 5
+  ([seção 15](#15-validação-com-a-api-real-28102026)).
 - **Usuária:** JSON compacto entre `<dados>`. Exemplo do que realmente é enviado:
 
 ```json
@@ -304,6 +386,11 @@ Os prompts ficam no código, em pt-BR, com três defesas:
 `palavras_chave`, `apresentacao` e `como_ajuda` só aparecem para mentoras **com** consentimento de IA.
 
 - **Resposta esperada:** `{"ranking": [{"id": "c1", "score": 90, "reason": "...", "starters": ["...", "..."]}]}`
+- **Revisão de qualidade:** `validate` reprova a resposta com 2 ou mais palavras que só existem com
+  acento ("voce", "tambem", "-cao", "-coes"…), sem contar as que já vieram assim na entrada (a usuária pode
+  ter digitado "polinizacao"). Reprovada, a IA tenta **uma** vez de novo, sem esperar; se falhar outra
+  vez, passa para o próximo provedor e, no fim, para a heurística (`rejectUnaccentedText` em
+  `src/lib/ai/text.ts`).
 - **Pós-processamento:** ids desconhecidos ou repetidos são descartados. O id aceita maiúsculas e
   espaços. Notas são limitadas a 0..100. Códigos citados no texto viram "esta mentora" (só os
   códigos enviados, então "plantas C4" fica intacto). Motivos têm até 320 caracteres e perguntas
@@ -315,16 +402,19 @@ Os prompts ficam no código, em pt-BR, com três defesas:
 `generatePlainSummary({ title, abstract, area })` produz um resumo para estudantes do ensino médio.
 O prompt pede de 3 a 5 frases e até 700 caracteres, usando **só** o que está no título e no resumo.
 Ele proíbe inventar resultados, números ou conclusões, proíbe sensacionalismo ("revolucionário",
-"cura") e nomes de pessoas, e pede para explicar termos técnicos com comparações simples. A saída
-é limpa e cortada em **900 caracteres**, no fim de uma frase. Se a IA estiver desligada ou falhar,
-devolve `null`.
+"cura") e nomes de pessoas, e pede para explicar termos técnicos com comparações simples. Pede também
+acentuação correta e **terceira pessoa** ("o estudo avaliou", "as pesquisadoras mostraram"): com a API
+real, o modelo copiava a voz do abstract ("Nossa equipe avaliou", "Descobrimos"). A saída passa pela
+mesma revisão de acentos, é limpa e cortada em **900 caracteres**, no fim de uma frase. Se a IA estiver
+desligada ou falhar, devolve `null`.
 
 ### 5.3 Abertura da newsletter
 
 `generateEditionIntro(content)` recebe o `content` da edição (CONTRACT §9) e envia **só** títulos
 de papers e discussões, contagens de votos e respostas e os números da semana. Não envia nomes de
 autoras nem de mentoras. A saída tem de 2 a 4 frases calorosas, linguagem no feminino, sem emojis,
-cortada em **600 caracteres**. Se a IA falhar, devolve `null` e a newsletter usa um texto padrão.
+com acentuação correta (mesma revisão), cortada em **600 caracteres**. Se a IA falhar, devolve `null` e a
+newsletter usa um texto padrão.
 
 ---
 
@@ -452,7 +542,9 @@ Cadeia de texto: **provedor principal** (`AI_PROVIDER`, ou a primeira chave na o
 | `429` com `retry-after` ≤ 10 s, `5xx`, erro de rede                     | Espera (o `retry-after`, ou 1 s) e tenta **uma** vez de novo no mesmo provedor. Se falhar de novo, passa para o próximo. |
 | `429` com `retry-after` longo (cota do dia)                             | Passa direto para o próximo provedor.                                                                                    |
 | Timeout (15 s por requisição)                                           | Tenta mais uma vez, sem esperar, e depois passa para o próximo.                                                          |
+| Resposta reprovada pela revisão (`validate`, ex.: texto sem acentos)    | Tenta **uma** vez de novo no mesmo provedor, sem esperar. Se falhar de novo, passa para o próximo.                       |
 | JSON inválido ou fora do esquema, resposta bloqueada, `400/401/403/404` | Passa direto para o próximo (sem nova tentativa no mesmo).                                                               |
+| Chave inválida no Gemini (HTTP **400** com `API_KEY_INVALID`)           | Registrada como `auth` (não `bad_request`), sem nova tentativa: passa para o próximo.                                    |
 | Orçamento total de 45 s estourado                                       | Para e lança `AiError("budget_exceeded")`.                                                                               |
 | Todos falharam                                                          | `AiError("all_providers_failed")` com o resumo das tentativas.                                                           |
 | Nenhuma chave ou `AI_PROVIDER=none`                                     | `AiUnavailableError`.                                                                                                    |
@@ -598,34 +690,37 @@ npx vitest run                    # todos os testes unitários
 npx vitest run src/lib/matching   # só o matching
 ```
 
-| Arquivo                         | O que garante                                                                                                                                                                                                                    |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `matching/rank.test.ts`         | Pesos, nota exata (85), redistribuição sem similaridade, senioridade, híbrido, palavras-chave sem acento, determinismo e desempate por id, motivos sem dados pessoais.                                                           |
-| `matching/profile-text.test.ts` | Texto sem nome, e-mail, telefone, links ou ORCID; prefixos de documento e consulta; SHA-256; hash muda com texto, tipo ou modelo.                                                                                                |
-| `matching/pseudonymize.test.ts` | `c1..cN`, limite de 8, prompt sem nomes ou ids reais, consentimento das mentoras, descarte de ids inventados, notas limitadas e misturadas, limpeza de códigos.                                                                  |
-| `matching/ai-explain.test.ts`   | Caminho com IA, sem IA, falha da IA e resposta só com ids inventados (sempre cai na heurística, sem lançar erro).                                                                                                                |
-| `ai/engine.test.ts`             | Requisições de Gemini, Groq e OpenRouter; `429` com `retry-after`, `5xx`, timeout, JSON inválido, `401`, bloqueio, orçamento de tempo, chaves fora dos logs; embeddings (prefixos, `taskType`, normalização, Matryoshka, lotes). |
-| `ai/json-schema.test.ts`        | Esquemas compatíveis com o modo estrito (tudo em `required`, `additionalProperties: false`, sem palavras-chave proibidas), recusa de records e `z.any`, parse tolerante.                                                         |
-| `ai/config.test.ts`             | Ordem da cadeia de provedores, `AI_PROVIDER=none`, provedor pedido sem chave.                                                                                                                                                    |
-| `ranking/*.test.ts`             | `hotScore` idêntico ao SQL, janelas fixas de 7, 30 e 365 dias (iguais às da RPC), pontos 10/2/5/15/1.                                                                                                                            |
+| Arquivo                           | O que garante                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `matching/rank.test.ts`           | Pesos, nota exata (85), redistribuição sem similaridade, senioridade, híbrido, palavras-chave sem acento, determinismo e desempate por id, motivos sem dados pessoais; calibração (percentis reais da seção 4.1).                                                                                                                                                         |
+| `matching/profile-text.test.ts`   | Texto sem nome, e-mail, telefone, links ou ORCID; prefixos de documento e consulta; SHA-256; hash muda com texto, tipo ou modelo.                                                                                                                                                                                                                                         |
+| `matching/pseudonymize.test.ts`   | `c1..cN`, limite de 8, prompt sem nomes ou ids reais, consentimento das mentoras, descarte de ids inventados, notas limitadas e misturadas, limpeza de códigos.                                                                                                                                                                                                           |
+| `matching/ai-explain.test.ts`     | Caminho com IA, sem IA, falha da IA e resposta só com ids inventados (sempre cai na heurística, sem lançar erro).                                                                                                                                                                                                                                                         |
+| `ai/engine.test.ts`               | Requisições de Gemini, Groq e OpenRouter; `429` com `retry-after`, `5xx`, timeout, JSON inválido, `401`, bloqueio, orçamento de tempo, chaves fora dos logs; embeddings (prefixos, `taskType`, normalização, Matryoshka, lotes). Com respostas **reais** gravadas: resposta sem acentos reprovada e repetida, campo opcional em `null`, chave inválida (400) como `auth`. |
+| `ai/text.test.ts`                 | Remoção de dados pessoais e limpeza; detector de texto sem acentos com as respostas reais (reprova as achatadas, aceita pt-BR correto sem acento e palavras que vieram assim na entrada).                                                                                                                                                                                 |
+| `ai/fixtures/gemini-responses.ts` | Não é teste: respostas reais da Gemini API gravadas na validação (só dados fictícios; sem cabeçalhos, `responseId` nem assinaturas), usadas pelos testes acima.                                                                                                                                                                                                           |
+| `ai/json-schema.test.ts`          | Esquemas compatíveis com o modo estrito (tudo em `required`, `additionalProperties: false`, sem palavras-chave proibidas), recusa de records e `z.any`, parse tolerante.                                                                                                                                                                                                  |
+| `ai/config.test.ts`               | Ordem da cadeia de provedores, `AI_PROVIDER=none`, provedor pedido sem chave.                                                                                                                                                                                                                                                                                             |
+| `ranking/*.test.ts`               | `hotScore` idêntico ao SQL, janelas fixas de 7, 30 e 365 dias (iguais às da RPC), pontos 10/2/5/15/1.                                                                                                                                                                                                                                                                     |
 
 ---
 
 ## 13. Solução de problemas
 
-| Sintoma                                                         | Causa provável                                                          | O que fazer                                                                                                                                                                   |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sugestões sempre com selo "afinidade" (regras)                  | Sem chave, `AI_PROVIDER=none`, usuária sem consentimento ou IA falhando | Veja `getAiProviderInfo()`, o `ai_consent` do perfil e os logs `[ai]` e `[matching]` no terminal ou na Vercel.                                                                |
-| `[ai] gemini/... falhou (rate_limited 429 ...)`                 | Cota por minuto ou por dia esgotada (os limites são **por projeto**)    | Espere. A cota diária zera à meia-noite do Pacífico (4h ou 5h em Brasília). Configure `GROQ_API_KEY` como reserva e evite cliques repetidos (já existe um intervalo de 60 s). |
-| `HTTP 400 — API key not valid` / `auth 401/403`                 | Chave errada, revogada ou com espaços                                   | Gere outra chave e confira o `.env.local`. Reinicie o `next dev`.                                                                                                             |
-| `HTTP 404` no Gemini                                            | Nome de modelo inexistente ou aposentado                                | Defina `GEMINI_MODEL` com um modelo listado no AI Studio.                                                                                                                     |
-| `HTTP 400` no Groq com `json_schema`                            | Modelo sem suporte a `strict: true`                                     | Use `openai/gpt-oss-120b` ou `openai/gpt-oss-20b`.                                                                                                                            |
-| `404 No endpoints found matching your data policy` (OpenRouter) | Endpoints gratuitos bloqueados na privacidade                           | OpenRouter → Settings → Privacy.                                                                                                                                              |
-| `invalid_json` / `JSON fora do esquema`                         | Modelo gratuito fugiu do formato                                        | O fallback já resolve. Se for frequente, troque `OPENROUTER_MODEL` ou use Groq como principal.                                                                                |
-| `similarity` sempre `null`                                      | Mentoras sem embedding (sem consentimento, sem chave ou sem backfill)   | Rode o backfill (seção 10). O peso de 30% é redistribuído, então o app continua funcionando.                                                                                  |
-| `vetor com N dimensões (esperado 768)`                          | `GEMINI_EMBEDDING_MODEL` devolve menos de 768 dimensões                 | Use `gemini-embedding-2` ou outro modelo com 768 dimensões ou mais. A coluna é `vector(768)`.                                                                                 |
-| `permission denied for table profile_embeddings`                | Upsert tentando gravar colunas sem `GRANT` (ex.: `updated_at`)          | O serviço envia só `profile_id, embedding, content_hash, model`. Mantenha assim.                                                                                              |
-| Notas parecidas demais entre mentoras                           | Similaridade concentrada numa faixa estreita                            | Ajuste `SIMILARITY_FLOOR` e `SIMILARITY_CEIL` (seção 4).                                                                                                                      |
+| Sintoma                                                         | Causa provável                                                                        | O que fazer                                                                                                                                                                   |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sugestões sempre com selo "afinidade" (regras)                  | Sem chave, `AI_PROVIDER=none`, usuária sem consentimento ou IA falhando               | Veja `getAiProviderInfo()`, o `ai_consent` do perfil e os logs `[ai]` e `[matching]` no terminal ou na Vercel.                                                                |
+| `[ai] gemini/... falhou (rate_limited 429 ...)`                 | Cota por minuto ou por dia esgotada (os limites são **por projeto**)                  | Espere. A cota diária zera à meia-noite do Pacífico (4h ou 5h em Brasília). Configure `GROQ_API_KEY` como reserva e evite cliques repetidos (já existe um intervalo de 60 s). |
+| `[ai] gemini/... falhou (auth 400 ...)` / `auth 401/403`        | Chave errada, revogada ou com espaços (o Gemini responde **400** `API key not valid`) | Gere outra chave e confira o `.env.local` (e a Vercel). Reinicie o servidor.                                                                                                  |
+| `falhou (rejected_output ...)` no log                           | O modelo devolveu texto sem acentos (ou reprovado pela revisão)                       | Já há uma nova tentativa automática. Se for frequente, confira se o prompt ainda traz o modelo de JSON com acentos (seção 5.1).                                               |
+| `HTTP 404` no Gemini                                            | Nome de modelo inexistente ou aposentado                                              | Defina `GEMINI_MODEL` com um modelo listado no AI Studio.                                                                                                                     |
+| `HTTP 400` no Groq com `json_schema`                            | Modelo sem suporte a `strict: true`                                                   | Use `openai/gpt-oss-120b` ou `openai/gpt-oss-20b`.                                                                                                                            |
+| `404 No endpoints found matching your data policy` (OpenRouter) | Endpoints gratuitos bloqueados na privacidade                                         | OpenRouter → Settings → Privacy.                                                                                                                                              |
+| `invalid_json` / `JSON fora do esquema`                         | Modelo gratuito fugiu do formato                                                      | O fallback já resolve. Se for frequente, troque `OPENROUTER_MODEL` ou use Groq como principal.                                                                                |
+| `similarity` sempre `null`                                      | Mentoras sem embedding (sem consentimento, sem chave ou sem backfill)                 | Rode o backfill (seção 10). O peso de 30% é redistribuído, então o app continua funcionando.                                                                                  |
+| `vetor com N dimensões (esperado 768)`                          | `GEMINI_EMBEDDING_MODEL` devolve menos de 768 dimensões                               | Use `gemini-embedding-2` ou outro modelo com 768 dimensões ou mais. A coluna é `vector(768)`.                                                                                 |
+| `permission denied for table profile_embeddings`                | Upsert tentando gravar colunas sem `GRANT` (ex.: `updated_at`)                        | O serviço envia só `profile_id, embedding, content_hash, model`. Mantenha assim.                                                                                              |
+| Notas parecidas demais entre mentoras                           | Similaridade concentrada numa faixa estreita                                          | Recalibre `SIMILARITY_FLOOR` e `SIMILARITY_CEIL` com a consulta da seção 4.1.                                                                                                 |
 
 ---
 
