@@ -1,4 +1,11 @@
-import { HeartHandshake, Hourglass, MessageCircle, Orbit, Sparkles } from "lucide-react";
+import {
+  Footprints,
+  HeartHandshake,
+  Hourglass,
+  MessageCircle,
+  Orbit,
+  Sparkles,
+} from "lucide-react";
 import { Avatar, Badge, Button, ButtonLink, Card, Chip, ScoreMeter } from "@/components/ui";
 import { tabHref } from "@/lib/mentorship/presentation";
 import type { MatchCardData } from "@/lib/mentorship/view-models";
@@ -8,8 +15,8 @@ import { personMeta } from "./person-summary";
 
 /**
  * Cartão de sugestão de mentora (padrão "Sugestão de mentoria" do design system):
- * afinidade em órbita, "Por que ela?" sinalizando a origem (IA ou afinidade), interesses em
- * comum, perguntas para puxar conversa e a ação "Pedir mentoria".
+ * afinidade em órbita, "Por que ela?" sinalizando a origem (IA ou afinidade), interesses e
+ * trajetória em comum, perguntas para puxar conversa e a ação "Pedir mentoria".
  */
 export function MatchCard({ match }: { match: MatchCardData }) {
   const headingId = `sugestao-${match.mentorId}`;
@@ -76,6 +83,7 @@ export function MatchCard({ match }: { match: MatchCardData }) {
 
       {(match.sharedAreas.length > 0 ||
         match.sharedTopics.length > 0 ||
+        match.sharedTrajectory.length > 0 ||
         match.otherTopics.length > 0) && (
         <dl className="grid gap-2.5 text-sm">
           {(match.sharedAreas.length > 0 || match.sharedTopics.length > 0) && (
@@ -90,6 +98,21 @@ export function MatchCard({ match }: { match: MatchCardData }) {
                 {match.sharedTopics.map((topic) => (
                   <Chip key={`t-${topic}`} size="sm" variant="secondary">
                     {topic}
+                  </Chip>
+                ))}
+              </dd>
+            </div>
+          )}
+          {match.sharedTrajectory.length > 0 && (
+            <div className="grid gap-1.5">
+              <dt className="flex items-center gap-1.5 font-semibold text-fg">
+                <Footprints aria-hidden="true" className="size-4 text-accent-strong" />
+                Em comum na trajetória
+              </dt>
+              <dd className="flex flex-wrap gap-1.5">
+                {match.sharedTrajectory.map((mark) => (
+                  <Chip key={`j-${mark}`} size="sm" variant="accent">
+                    {mark}
                   </Chip>
                 ))}
               </dd>

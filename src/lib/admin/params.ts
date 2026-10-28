@@ -2,7 +2,7 @@ import type { Enums } from "@/lib/database.types";
 
 /** Leitura segura dos searchParams do painel /admin (valores inválidos caem no padrão). */
 
-export type AdminTab = "denuncias" | "newsletter" | "membros" | "registro";
+export type AdminTab = "denuncias" | "perguntas" | "newsletter" | "membros" | "registro";
 export type ReportStatus = Enums<"report_status">;
 export type UserRole = Enums<"user_role">;
 export type ReportTarget = Enums<"report_target">;
@@ -18,6 +18,7 @@ export function parseAdminTab(
   { canSeeNewsletter }: { canSeeNewsletter: boolean },
 ): AdminTab {
   const v = first(value);
+  if (v === "perguntas") return "perguntas";
   if (v === "membros") return "membros";
   if (v === "registro") return "registro";
   if (v === "newsletter" && canSeeNewsletter) return "newsletter";

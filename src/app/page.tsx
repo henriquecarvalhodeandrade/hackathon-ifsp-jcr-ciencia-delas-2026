@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { unstable_rethrow } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { getLandingData } from "@/components/landing/data";
 import { FeaturedPapers } from "@/components/landing/featured-papers";
 import { firstName } from "@/components/landing/featured";
@@ -20,6 +20,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+/** `?visao=publica`: quem já é membra pode rever a página pública (link no rodapé do /painel). */
+const PUBLIC_VIEW_PARAM = "visao";
+const PUBLIC_VIEW_VALUE = "publica";
+
 async function loadViewer(): Promise<LandingViewer | null> {
   try {
     const profile = await getCurrentProfile();
@@ -36,8 +42,17 @@ async function loadViewer(): Promise<LandingViewer | null> {
   }
 }
 
-export default async function HomePage() {
-  const [viewer, data] = await Promise.all([loadViewer(), getLandingData()]);
+export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const view = params[PUBLIC_VIEW_PARAM];
+  const wantsPublicView = (Array.isArray(view) ? view[0] : view) === PUBLIC_VIEW_VALUE;
+
+  // Membra com perfil completo não precisa ver a apresentação de novo: o início dela é o
+  // /painel. A checagem vem ANTES de carregar os dados da landing (e fora do try/catch).
+  const viewer = await loadViewer();
+  if (viewer?.onboarded && !wantsPublicView) redirect("/painel");
+
+  const data = await getLandingData();
   return (
     <>
       <LandingHero viewer={viewer} />

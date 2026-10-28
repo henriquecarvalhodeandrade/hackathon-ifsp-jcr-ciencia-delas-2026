@@ -315,6 +315,123 @@ export type Database = {
           },
         ];
       };
+      mentorship_declarations: {
+        Row: {
+          code: string;
+          created_at: string;
+          id: string;
+          issued_at: string | null;
+          mentee_consented_at: string | null;
+          mentor_consented_at: string | null;
+          request_id: string;
+          requested_by: string | null;
+          revoke_reason: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          code: string;
+          created_at?: string;
+          id?: string;
+          issued_at?: string | null;
+          mentee_consented_at?: string | null;
+          mentor_consented_at?: string | null;
+          request_id: string;
+          requested_by?: string | null;
+          revoke_reason?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          id?: string;
+          issued_at?: string | null;
+          mentee_consented_at?: string | null;
+          mentor_consented_at?: string | null;
+          request_id?: string;
+          requested_by?: string | null;
+          revoke_reason?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_declarations_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "mentorship_requests";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mentorship_declarations_requested_by_fkey";
+            columns: ["requested_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mentorship_declarations_revoked_by_fkey";
+            columns: ["revoked_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      mentorship_feedback: {
+        Row: {
+          author_id: string;
+          created_at: string;
+          helpfulness: number;
+          id: string;
+          note: string | null;
+          outcomes: string[];
+          request_id: string;
+          role: string;
+          would_recommend: boolean | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          author_id?: string;
+          created_at?: string;
+          helpfulness: number;
+          id?: string;
+          note?: string | null;
+          outcomes?: string[];
+          request_id: string;
+          role: string;
+          would_recommend?: boolean | null;
+        };
+        Update: {
+          author_id?: string;
+          created_at?: string;
+          helpfulness?: number;
+          id?: string;
+          note?: string | null;
+          outcomes?: string[];
+          request_id?: string;
+          role?: string;
+          would_recommend?: boolean | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_feedback_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mentorship_feedback_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "mentorship_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       mentorship_messages: {
         Row: {
           body: string;
@@ -360,6 +477,7 @@ export type Database = {
       };
       mentorship_requests: {
         Row: {
+          completed_at: string | null;
           created_at: string;
           id: string;
           match_reason: string | null;
@@ -374,6 +492,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          completed_at?: string | null;
           created_at?: string;
           id?: string;
           match_reason?: string | null;
@@ -387,6 +506,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          completed_at?: string | null;
           created_at?: string;
           id?: string;
           match_reason?: string | null;
@@ -919,6 +1039,7 @@ export type Database = {
           search_text: string | null;
           seeks_mentorship: boolean;
           state: string | null;
+          trajectory_tags: string[];
           updated_at: string;
           website_url: string | null;
         };
@@ -953,6 +1074,7 @@ export type Database = {
           search_text?: never;
           seeks_mentorship?: boolean;
           state?: string | null;
+          trajectory_tags?: string[];
           updated_at?: string;
           website_url?: string | null;
         };
@@ -986,10 +1108,128 @@ export type Database = {
           search_text?: never;
           seeks_mentorship?: boolean;
           state?: string | null;
+          trajectory_tags?: string[];
           updated_at?: string;
           website_url?: string | null;
         };
         Relationships: [];
+      };
+      public_answers: {
+        Row: {
+          author_id: string;
+          body: string;
+          created_at: string;
+          hidden_at: string | null;
+          hidden_by: string | null;
+          id: string;
+          is_hidden: boolean;
+          question_id: string;
+          show_identity: boolean;
+        };
+        ComputedFields: never;
+        Insert: {
+          author_id?: string;
+          body: string;
+          created_at?: string;
+          hidden_at?: string | null;
+          hidden_by?: string | null;
+          id?: string;
+          is_hidden?: boolean;
+          question_id: string;
+          show_identity?: boolean;
+        };
+        Update: {
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+          hidden_at?: string | null;
+          hidden_by?: string | null;
+          id?: string;
+          is_hidden?: boolean;
+          question_id?: string;
+          show_identity?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "public_answers_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "public_answers_hidden_by_fkey";
+            columns: ["hidden_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "public_answers_question_id_fkey";
+            columns: ["question_id"];
+            isOneToOne: false;
+            referencedRelation: "public_questions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      public_questions: {
+        Row: {
+          area_id: number | null;
+          body: string;
+          created_at: string;
+          id: string;
+          published_at: string | null;
+          reject_reason: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          stage: string | null;
+          status: string;
+          tracking_token_hash: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          area_id?: number | null;
+          body: string;
+          created_at?: string;
+          id?: string;
+          published_at?: string | null;
+          reject_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          stage?: string | null;
+          status?: string;
+          tracking_token_hash: string;
+        };
+        Update: {
+          area_id?: number | null;
+          body?: string;
+          created_at?: string;
+          id?: string;
+          published_at?: string | null;
+          reject_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          stage?: string | null;
+          status?: string;
+          tracking_token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "public_questions_area_id_fkey";
+            columns: ["area_id"];
+            isOneToOne: false;
+            referencedRelation: "research_areas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "public_questions_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       reports: {
         Row: {
@@ -1113,6 +1353,8 @@ export type Database = {
     };
     Functions: {
       claim_ai_matching_slot: { Args: Record<PropertyKey, never>; Returns: boolean };
+      consent_mentorship_declaration: { Args: { p_declaration_id: string }; Returns: string };
+      delete_public_question_by_token: { Args: { p_token: string }; Returns: boolean };
       get_community_leaderboard: {
         Args: { p_limit?: number };
         Returns: {
@@ -1147,6 +1389,7 @@ export type Database = {
           open_slots: number;
           similarity: number | null;
           state: string | null;
+          trajectory_tags: string[];
         }[];
       };
       get_mentor_open_slots: {
@@ -1163,6 +1406,7 @@ export type Database = {
           full_name: string;
         }[];
       };
+      get_mentorship_impact: { Args: Record<PropertyKey, never>; Returns: Json };
       get_paper_ranking: {
         Args: { p_area_slug?: string; p_limit?: number; p_offset?: number; p_period?: string };
         Returns: {
@@ -1195,8 +1439,49 @@ export type Database = {
           threads: number;
         }[];
       };
+      get_public_question_status: {
+        Args: { p_token: string };
+        Returns: {
+          answer_count: number;
+          body: string;
+          created_at: string;
+          question_id: string;
+          reject_reason: string;
+          status: string;
+        }[];
+      };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_moderator: { Args: Record<PropertyKey, never>; Returns: boolean };
+      list_public_answers: {
+        Args: { p_question_id: string };
+        Returns: {
+          author_is_mentor: boolean;
+          author_name: string;
+          author_stage: Database["public"]["Enums"]["career_stage"];
+          body: string;
+          created_at: string;
+          id: string;
+          is_mine: boolean;
+        }[];
+      };
+      list_public_questions: {
+        Args: {
+          p_area_id?: number;
+          p_filter?: string;
+          p_limit?: number;
+          p_offset?: number;
+          p_stage?: string;
+        };
+        Returns: {
+          answer_count: number;
+          area_id: number;
+          body: string;
+          id: string;
+          published_at: string;
+          stage: string;
+          total_count: number;
+        }[];
+      };
       moderate_delete_content: {
         Args: {
           p_reason?: string;
@@ -1227,6 +1512,34 @@ export type Database = {
       reveal_anonymous_author: {
         Args: { p_post_id?: string; p_reason?: string; p_report_id?: string; p_thread_id?: string };
         Returns: string | null;
+      };
+      review_public_question: {
+        Args: { p_decision: string; p_question_id: string; p_reason?: string };
+        Returns: undefined;
+      };
+      revoke_mentorship_declaration: {
+        Args: { p_declaration_id: string; p_reason?: string };
+        Returns: undefined;
+      };
+      set_public_answer_hidden: {
+        Args: { p_answer_id: string; p_hidden: boolean; p_reason?: string };
+        Returns: boolean;
+      };
+      submit_public_question: {
+        Args: { p_area_id?: number; p_body: string; p_stage?: string };
+        Returns: string;
+      };
+      verify_mentorship_declaration: {
+        Args: { p_code: string };
+        Returns: {
+          issued_at: string;
+          mentee_name: string;
+          mentor_name: string;
+          period_end: string;
+          period_start: string;
+          status: string;
+          themes: string[];
+        }[];
       };
     };
     Enums: {

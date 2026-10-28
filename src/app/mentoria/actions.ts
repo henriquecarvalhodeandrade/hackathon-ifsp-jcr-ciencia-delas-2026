@@ -361,7 +361,8 @@ export async function completeMentorshipAction(
   }
 
   revalidatePath(PATH);
-  redirect(`${PATH}?aba=ativas&aviso=concluido`);
+  // Concluir não é um beco sem saída: leva ao retorno privado e à declaração (reconhecimento).
+  redirect(`/mentoria/concluida/${parsed.data.request_id}`);
 }
 
 // ---------------------------------------------------------------------------

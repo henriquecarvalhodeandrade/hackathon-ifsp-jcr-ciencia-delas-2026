@@ -66,6 +66,8 @@ function sources(overrides: Partial<ExportSources> = {}): ExportSources {
     ],
     mentorshipRequests: [],
     messages: [],
+    feedback: [],
+    declarations: [],
     suggestions: [],
     threads: [],
     posts: [],
@@ -304,6 +306,122 @@ describe("buildDataExport", () => {
     expect(json).not.toMatch(
       /marina@x\.dev|conversa alheia|intrusa|search_text|request_id":"de-outras/,
     );
+  });
+
+  it("traz só os retornos que ela escreveu e as declarações das mentorias dela", () => {
+    const requests = [
+      {
+        ...request,
+        status: "completed" as const,
+        id: "m1",
+        created_at: T0,
+        mentee_id: ME,
+        mentor_id: MARINA,
+        mentee: { id: ME, full_name: "Larissa Gomes" },
+        mentor: { id: MARINA, full_name: "Marina Albuquerque" },
+      },
+      {
+        ...request,
+        status: "completed" as const,
+        id: "m2",
+        created_at: T1,
+        mentee_id: BIA,
+        mentor_id: ME,
+        mentee: { id: BIA, full_name: "Bia" },
+        mentor: { id: ME, full_name: "Larissa Gomes" },
+      },
+    ];
+    const feedback = (requestId: string, author: string, note: string, createdAt = T1) => ({
+      request_id: requestId,
+      author_id: author,
+      role: author === ME ? ("mentee" as const) : ("mentor" as const),
+      helpfulness: 5,
+      outcomes: ["menos-sozinha"],
+      would_recommend: true,
+      note,
+      created_at: createdAt,
+    });
+    const declaration = (requestId: string, code: string, extra: object = {}) => ({
+      request_id: requestId,
+      code,
+      mentee_consented_at: T0,
+      mentor_consented_at: null,
+      issued_at: null,
+      revoked_at: null,
+      revoke_reason: null,
+      ...extra,
+    });
+    const data = buildDataExport(
+      sources({
+        mentorshipRequests: requests,
+        feedback: [
+          feedback("m1", ME, "Minha nota", T2),
+          feedback("m2", ME, "Outra nota minha", T1),
+          // O retorno da outra participante NUNCA entra, mesmo se viesse na consulta.
+          feedback("m1", MARINA, "nota privada da Marina"),
+          // De uma mentoria que não é dela.
+          feedback("de-outras", ME, "estranha"),
+          { ...feedback("m1", ME, "repetida", T2), search_text: "interno" } as never,
+        ],
+        declarations: [
+          declaration("m1", "ART-0000-0000-0001", {
+            mentor_consented_at: T1,
+            issued_at: T1,
+            requested_by: MARINA,
+            revoked_by: null,
+          } as object),
+          declaration("m2", "ART-0000-0000-0002", { revoked_at: T2, revoke_reason: "Mudei" }),
+          declaration("m2", "ART-0000-0000-0003", {
+            mentor_consented_at: T1,
+            issued_at: T1,
+            revoked_at: T2,
+          }),
+          declaration("m2", "ART-0000-0000-0004"),
+          declaration("de-outras", "ART-0000-0000-0005"),
+        ],
+      }),
+    );
+    expect(data.retornos_de_mentoria).toEqual([
+      {
+        request_id: "m2",
+        role: "mentee",
+        helpfulness: 5,
+        outcomes: ["menos-sozinha"],
+        would_recommend: true,
+        note: "Outra nota minha",
+        created_at: T1,
+      },
+      {
+        request_id: "m1",
+        role: "mentee",
+        helpfulness: 5,
+        outcomes: ["menos-sozinha"],
+        would_recommend: true,
+        note: "Minha nota",
+        created_at: T2,
+      },
+    ]);
+    expect(JSON.stringify(data.retornos_de_mentoria)).not.toMatch(
+      /Marina|author_id|search_text|estranha|de-outras/,
+    );
+    expect(data.declaracoes_de_mentoria.map((d) => [d.code, d.status])).toEqual([
+      ["ART-0000-0000-0001", "emitida"],
+      ["ART-0000-0000-0002", "cancelada"],
+      ["ART-0000-0000-0003", "revogada"],
+      ["ART-0000-0000-0004", "aguardando_autorizacao"],
+    ]);
+    expect(data.declaracoes_de_mentoria[1]).toEqual({
+      request_id: "m2",
+      code: "ART-0000-0000-0002",
+      mentee_consented_at: T0,
+      mentor_consented_at: null,
+      issued_at: null,
+      revoked_at: T2,
+      revoke_reason: "Mudei",
+      status: "cancelada",
+    });
+    expect(JSON.stringify(data.declaracoes_de_mentoria)).not.toMatch(/requested_by|revoked_by/);
+    expect(data.sobre.observacoes.join(" ")).toContain("O retorno da outra participante");
   });
 
   it("mantém só id e nome da mentora nas sugestões salvas, na ordem do ranking", () => {

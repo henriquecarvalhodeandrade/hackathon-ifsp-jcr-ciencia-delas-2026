@@ -4,6 +4,7 @@ import type { Enums } from "@/lib/database.types";
 import { isSupabaseConfigured } from "@/lib/env";
 import { applySearchText } from "@/lib/search/normalize";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeTrajectoryTags } from "@/lib/trajectory/catalog";
 import { areaIdsForFilter, sortAreas, type ResearchArea } from "./areas";
 import { DIRECTORY_PAGE_SIZE, isUuid, pageRange, type DirectoryFilters } from "./directory";
 
@@ -138,6 +139,8 @@ export interface DirectoryProfile {
   is_mentor: boolean;
   mentor_available: boolean;
   areas: AreaChip[];
+  /** Marcas de trajetória (opcionais; só membras veem — docs/17), na ordem do catálogo. */
+  trajectory_tags: string[];
 }
 
 export interface DirectoryPage {
@@ -163,7 +166,7 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
   }
 
   const columns =
-    "id, full_name, avatar_url, pronouns, headline, institution, city, state, career_stage, is_mentor, mentor_available, research_areas(id, slug, name)";
+    "id, full_name, avatar_url, pronouns, headline, institution, city, state, career_stage, is_mentor, mentor_available, trajectory_tags, research_areas(id, slug, name)";
   const { from, to } = pageRange(filters.page, DIRECTORY_PAGE_SIZE);
 
   let query = areaIds.length
@@ -180,6 +183,8 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
   if (filters.stage) query = query.eq("career_stage", filters.stage);
   if (filters.uf) query = query.eq("state", filters.uf);
   if (filters.mentoras) query = query.eq("is_mentor", true);
+  // trajectory_tags @> '{slug}' (índice GIN). O slug já veio validado contra o catálogo.
+  if (filters.trajetoria) query = query.contains("trajectory_tags", [filters.trajetoria]);
 
   const { data, count, error } = await query
     .order("full_name", { ascending: true })
@@ -207,6 +212,7 @@ export async function getDirectoryPage(filters: DirectoryFilters): Promise<Direc
     is_mentor: row.is_mentor,
     mentor_available: row.mentor_available,
     areas: sortAreas(row.research_areas ?? []),
+    trajectory_tags: normalizeTrajectoryTags(row.trajectory_tags),
   }));
   const totalPages = Math.ceil(total / DIRECTORY_PAGE_SIZE);
   return {
@@ -242,14 +248,18 @@ export const getMemberProfile = cache(async (id: string): Promise<MemberProfile 
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, avatar_url, pronouns, headline, bio, institution, city, state, career_stage, keywords, mentorship_topics, meeting_formats, languages, mentoring_offer, mentor_capacity, is_mentor, mentor_available, lattes_url, orcid, linkedin_url, website_url, created_at, research_areas(id, slug, name, big_area)",
+      "id, full_name, avatar_url, pronouns, headline, bio, institution, city, state, career_stage, keywords, mentorship_topics, meeting_formats, languages, mentoring_offer, mentor_capacity, is_mentor, mentor_available, lattes_url, orcid, linkedin_url, website_url, created_at, trajectory_tags, research_areas(id, slug, name, big_area)",
     )
     .eq("id", id)
     .not("onboarded_at", "is", null)
     .maybeSingle();
   if (error || !data) return null;
-  const { research_areas, ...rest } = data;
-  return { ...rest, areas: sortAreas(research_areas ?? []) };
+  const { research_areas, trajectory_tags, ...rest } = data;
+  return {
+    ...rest,
+    areas: sortAreas(research_areas ?? []),
+    trajectory_tags: normalizeTrajectoryTags(trajectory_tags),
+  };
 });
 
 export interface MemberPaper {

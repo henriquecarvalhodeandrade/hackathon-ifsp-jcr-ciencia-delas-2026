@@ -11,6 +11,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { groupAreas } from "@/lib/profile/areas";
 import {
+  activeFilterChips,
   filtersToSearchParams,
   hasActiveFilters,
   parseDirectoryFilters,
@@ -48,6 +49,10 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
     : undefined;
   const firstPageQuery = new URLSearchParams(filtersToSearchParams(filters)).toString();
   const firstPageHref = firstPageQuery ? `/pesquisadoras?${firstPageQuery}` : "/pesquisadoras";
+  // Sem resultados com o filtro de trajetória: lembra que as marcas são opcionais.
+  const withoutTrajectoryHref = filters.trajetoria
+    ? activeFilterChips(filters).find((chip) => chip.key === "trajetoria")?.href
+    : undefined;
 
   return (
     <Container className="pb-16">
@@ -104,7 +109,17 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
             action={<ButtonLink href={firstPageHref}>Ir para a primeira página</ButtonLink>}
           />
         ) : page.items.length === 0 ? (
-          active ? (
+          withoutTrajectoryHref ? (
+            <EmptyState
+              icon={<SearchX />}
+              headingLevel="h3"
+              title="Ninguém com esses filtros e essa trajetória"
+              description="As marcas de trajetória são opcionais: muitas pesquisadoras preferem não marcar nenhuma. Tente sem este filtro para ver mais gente."
+              action={
+                <ButtonLink href={withoutTrajectoryHref}>Tirar o filtro de trajetória</ButtonLink>
+              }
+            />
+          ) : active ? (
             <EmptyState
               icon={<SearchX />}
               headingLevel="h3"
@@ -130,6 +145,7 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
                 key={profile.id}
                 profile={profile}
                 isSelf={profile.id === me.id}
+                trajectoryFirst={filters.trajetoria || null}
                 openSlots={
                   profile.id === me.id
                     ? ownSlots

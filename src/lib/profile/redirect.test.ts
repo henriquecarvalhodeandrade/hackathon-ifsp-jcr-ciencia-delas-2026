@@ -28,7 +28,7 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/cadastro", "/x")).toBe("/x");
     expect(safeNextPath("/api/cron/newsletter", "/x")).toBe("/x");
     expect(safeNextPath(null, "/x")).toBe("/x");
-    expect(safeNextPath(undefined)).toBe("/forum");
+    expect(safeNextPath(undefined)).toBe("/painel");
     expect(safeNextPath(["/forum"], "/x")).toBe("/x");
     expect(safeNextPath("", "/x")).toBe("/x");
   });
@@ -66,6 +66,13 @@ describe("safeNextPath", () => {
     for (const raw of ["/.//evil.com", "/..//evil.com", "/%2e//evil.com", "/forum", "/./perfil"]) {
       expect(new URL(safeNextPath(raw, "/forum"), origin).origin, raw).toBe(origin);
     }
+  });
+
+  it("usa o /painel como destino padrão (início de quem já é membra)", () => {
+    expect(safeNextPath(null)).toBe("/painel");
+    expect(safeNextPath("//evil.com")).toBe("/painel");
+    expect(safeNextPath("/entrar")).toBe("/painel");
+    expect(safeNextPath("/painel")).toBe("/painel");
   });
 
   it("recusa caminhos muito longos", () => {

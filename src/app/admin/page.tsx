@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
-import { Flag, Newspaper, ScrollText, ShieldCheck, Users } from "lucide-react";
+import {
+  Flag,
+  MessageCircleQuestion,
+  Newspaper,
+  ScrollText,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { AuditLogPanel } from "@/components/admin/audit-log";
 import { AdminFlashRegion } from "@/components/admin/flash";
 import { MembersPanel } from "@/components/admin/members-panel";
 import { NewsletterPanel } from "@/components/admin/newsletter-panel";
 import { ReportsPanel } from "@/components/admin/reports-panel";
+import { PerguntasAdminPanel } from "@/components/pergunte/admin-queue";
 import { Badge, Container, PageHeader, TabNav, type TabNavItem } from "@/components/ui";
 import { requireModerator } from "@/lib/auth";
 import {
@@ -17,6 +25,7 @@ import {
 } from "@/lib/admin/params";
 import { listAuditLog, listEditionsForAdmin, listMembers, listReports } from "@/lib/admin/queries";
 import { getNewsletterOverview, type NewsletterOverview } from "@/lib/newsletter/service";
+import { countPendingQuestions, loadPerguntasAdmin } from "@/lib/pergunte/queries";
 
 export const metadata: Metadata = {
   title: "Moderação",
@@ -73,12 +82,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   const q = parseSearch(params.q);
   const role = parseRoleFilter(params.papel);
 
-  const [reports, members, editions, audit] = await Promise.all([
+  const [reports, members, editions, audit, pendingQuestions, perguntas] = await Promise.all([
     // A contagem de abertas aparece na aba mesmo fora dela.
     listReports(tab === "denuncias" ? reportStatus : "open", tab === "denuncias" ? page : 1),
     tab === "membros" ? listMembers({ q, role, page }) : null,
     tab === "newsletter" ? listEditionsForAdmin() : null,
     tab === "registro" ? listAuditLog(page) : null,
+    // Perguntas de estudantes esperando revisão (contagem na aba, mesmo fora dela).
+    countPendingQuestions(),
+    tab === "perguntas" ? loadPerguntasAdmin() : null,
   ]);
   const newsletterOverview = tab === "newsletter" ? await loadNewsletterOverview() : null;
 
@@ -89,6 +101,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       icon: <Flag aria-hidden="true" />,
       count: reports.counts.open,
       active: tab === "denuncias",
+    },
+    {
+      href: "/admin?aba=perguntas",
+      label: "Perguntas",
+      icon: <MessageCircleQuestion aria-hidden="true" />,
+      count: pendingQuestions,
+      active: tab === "perguntas",
     },
     ...(isAdmin
       ? [
@@ -119,7 +138,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       <PageHeader
         eyebrow="Moderação"
         title="Painel de moderação"
-        description={`${isAdmin ? "Denúncias, Boletim e papéis da comunidade." : "Denúncias e membras da comunidade."} Cada decisão afeta pessoas reais e fica no registro da moderação: aja com cuidado.`}
+        description={`${isAdmin ? "Denúncias, perguntas de estudantes, Boletim e papéis da comunidade." : "Denúncias, perguntas de estudantes e membras da comunidade."} Cada decisão afeta pessoas reais e fica no registro da moderação: aja com cuidado.`}
         actions={
           <Badge variant={isAdmin ? "primary" : "info"} size="md">
             <ShieldCheck aria-hidden="true" />
@@ -138,6 +157,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             page={reports.page}
             isAdmin={isAdmin}
           />
+        </TabSection>
+      )}
+
+      {tab === "perguntas" && perguntas && (
+        <TabSection
+          id="aba-perguntas"
+          title="Perguntas de estudantes"
+          description="Pergunte a uma cientista: nada do que estudantes enviam fica público antes de passar por aqui. Publicar, não publicar e ocultar respostas ficam no registro da moderação."
+        >
+          <PerguntasAdminPanel data={perguntas} />
         </TabSection>
       )}
 

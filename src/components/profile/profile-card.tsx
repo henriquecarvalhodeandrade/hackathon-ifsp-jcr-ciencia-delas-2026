@@ -1,10 +1,11 @@
-import { Building2, MapPin } from "lucide-react";
+import { Building2, Footprints, MapPin } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardLink } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { CAREER_STAGES } from "@/lib/constants";
 import type { DirectoryProfile } from "@/lib/profile/queries";
+import { trajectoryChipLabels, trajectoryMark } from "@/lib/trajectory/catalog";
 import { MentorStatus } from "./mentor-status";
 
 export interface ProfileCardProps {
@@ -12,9 +13,13 @@ export interface ProfileCardProps {
   /** Vagas abertas da mentora (null = sem vagas ou desconhecido). */
   openSlots: number | null;
   isSelf?: boolean;
+  /** Marca de trajetória a mostrar primeiro (o filtro ?trajetoria= do diretório). */
+  trajectoryFirst?: string | null;
 }
 
 const MAX_AREAS = 3;
+/** No cartão, a trajetória é discreta: no máximo 2 marcas (o perfil mostra todas). */
+const MAX_TRAJECTORY = 2;
 
 export function formatPlace(city: string | null, state: string | null): string | null {
   const uf = state?.trim();
@@ -23,9 +28,22 @@ export function formatPlace(city: string | null, state: string | null): string |
 }
 
 /** Cartão do diretório: o cartão inteiro leva ao perfil (link esticado no nome). */
-export function ProfileCard({ profile, openSlots, isSelf = false }: ProfileCardProps) {
+export function ProfileCard({
+  profile,
+  openSlots,
+  isSelf = false,
+  trajectoryFirst = null,
+}: ProfileCardProps) {
   const place = formatPlace(profile.city, profile.state);
   const extraAreas = profile.areas.length - MAX_AREAS;
+  const firstMark =
+    trajectoryFirst && profile.trajectory_tags.includes(trajectoryFirst)
+      ? trajectoryMark(trajectoryFirst)?.chip
+      : undefined;
+  const marks = [
+    ...(firstMark ? [firstMark] : []),
+    ...trajectoryChipLabels(profile.trajectory_tags).filter((label) => label !== firstMark),
+  ].slice(0, MAX_TRAJECTORY);
   return (
     <Card as="li" variant="interactive" padding="md" className="flex flex-col gap-4">
       <div className="flex items-start gap-4">
@@ -76,24 +94,42 @@ export function ProfileCard({ profile, openSlots, isSelf = false }: ProfileCardP
         {isSelf && <Badge variant="primary">Você</Badge>}
       </div>
 
-      {profile.areas.length > 0 && (
-        <ul aria-label="Áreas de pesquisa" className="mt-auto flex flex-wrap gap-1.5">
-          {profile.areas.slice(0, MAX_AREAS).map((area) => (
-            <li key={area.id} className="max-w-full">
-              <Chip size="sm" variant="primary">
-                {area.name}
-              </Chip>
-            </li>
-          ))}
-          {extraAreas > 0 && (
-            <li>
-              <Chip size="sm" variant="neutral">
-                +{extraAreas}
-                <span className="sr-only"> outras áreas</span>
-              </Chip>
-            </li>
+      {(profile.areas.length > 0 || marks.length > 0) && (
+        <div className="mt-auto grid gap-2">
+          {profile.areas.length > 0 && (
+            <ul aria-label="Áreas de pesquisa" className="flex flex-wrap gap-1.5">
+              {profile.areas.slice(0, MAX_AREAS).map((area) => (
+                <li key={area.id} className="max-w-full">
+                  <Chip size="sm" variant="primary">
+                    {area.name}
+                  </Chip>
+                </li>
+              ))}
+              {extraAreas > 0 && (
+                <li>
+                  <Chip size="sm" variant="neutral">
+                    +{extraAreas}
+                    <span className="sr-only"> outras áreas</span>
+                  </Chip>
+                </li>
+              )}
+            </ul>
           )}
-        </ul>
+          {marks.length > 0 && (
+            <div className="flex items-start gap-1.5">
+              <Footprints aria-hidden="true" className="mt-1.5 size-3.5 shrink-0 text-fg-subtle" />
+              <ul aria-label="Trajetória" className="flex min-w-0 flex-wrap gap-1.5">
+                {marks.map((mark) => (
+                  <li key={mark} className="max-w-full">
+                    <Chip size="sm" variant="outline">
+                      {mark}
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </Card>
   );

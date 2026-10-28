@@ -11,7 +11,9 @@ import type { Tables } from "@/lib/database.types";
  *   - de outras pessoas, só `{ id, full_name }` da outra participante da mentoria e da mentora
  *     sugerida — e, nas conversas da mentoria, as mensagens trocadas com ela (o que ela mesma
  *     leu e escreveu);
- *   - tópicos e respostas anônimos dela entram marcados com `is_anonymous: true`.
+ *   - tópicos e respostas anônimos dela entram marcados com `is_anonymous: true`;
+ *   - retornos de mentoria: SÓ os que ela mesma escreveu (o da outra participante nunca entra);
+ *     declarações: as das mentorias dela, com o status derivado (emitida, aguardando, revogada…).
  *
  * Formato: seções com nomes em português; dentro de cada registro, os nomes das colunas do banco
  * (docs/03-banco-de-dados.md), que são estáveis e servem para importar em outro sistema.
@@ -86,6 +88,28 @@ const MESSAGE_FIELDS = [
   "created_at",
   "read_at",
 ] as const satisfies ReadonlyArray<keyof Tables<"mentorship_messages">>;
+
+/** Retornos privados da mentoria (só os dela). */
+const FEEDBACK_FIELDS = [
+  "request_id",
+  "role",
+  "helpfulness",
+  "outcomes",
+  "would_recommend",
+  "note",
+  "created_at",
+] as const satisfies ReadonlyArray<keyof Tables<"mentorship_feedback">>;
+
+/** Declarações de participação das mentorias dela (sem quem pediu/revogou: ids de pessoas). */
+const DECLARATION_FIELDS = [
+  "request_id",
+  "code",
+  "mentee_consented_at",
+  "mentor_consented_at",
+  "issued_at",
+  "revoked_at",
+  "revoke_reason",
+] as const satisfies ReadonlyArray<keyof Tables<"mentorship_declarations">>;
 
 const SUGGESTION_FIELDS = [
   "score",
@@ -226,6 +250,17 @@ export interface ExportConversation {
   outra_participante: PersonRef;
   mensagens: ExportMessage[];
 }
+export type ExportFeedbackSource = Fields<Tables<"mentorship_feedback">, typeof FEEDBACK_FIELDS> &
+  Pick<Tables<"mentorship_feedback">, "author_id">;
+export type ExportFeedback = Fields<Tables<"mentorship_feedback">, typeof FEEDBACK_FIELDS>;
+export type ExportDeclarationSource = Fields<
+  Tables<"mentorship_declarations">,
+  typeof DECLARATION_FIELDS
+>;
+/** Situação da declaração, derivada das datas. */
+export type DeclarationExportStatus =
+  "emitida" | "aguardando_autorizacao" | "revogada" | "cancelada";
+export type ExportDeclaration = ExportDeclarationSource & { status: DeclarationExportStatus };
 export type ExportSuggestionSource = Fields<
   Tables<"mentor_suggestions">,
   typeof SUGGESTION_FIELDS
@@ -266,6 +301,10 @@ export interface ExportSources {
   mentorshipRequests: ExportMentorshipRequestSource[];
   /** Mensagens das conversas das mentorias dela (o RLS só devolve as das participantes). */
   messages: ExportMessageSource[];
+  /** Retornos da mentoria escritos por ela (o RLS só devolve os da autora). */
+  feedback: ExportFeedbackSource[];
+  /** Declarações das mentorias dela (o RLS só devolve às participantes). */
+  declarations: ExportDeclarationSource[];
   suggestions: ExportSuggestionSource[];
   /** Tópicos assinados por ela + os anônimos dela (pode haver repetidos). */
   threads: ExportThreadSource[];
@@ -326,6 +365,9 @@ export interface DataExport {
     >;
     comentarios: ExportComment[];
   };
+  /** Retornos privados que ela deixou ao concluir mentorias (nunca o da outra participante). */
+  retornos_de_mentoria: ExportFeedback[];
+  declaracoes_de_mentoria: ExportDeclaration[];
   notificacoes: ExportNotification[];
   denuncias_feitas: ExportReport[];
   newsletter:
@@ -395,6 +437,13 @@ function buildConversations(
   });
 }
 
+export function declarationExportStatus(
+  row: Pick<ExportDeclarationSource, "issued_at" | "revoked_at">,
+): DeclarationExportStatus {
+  if (row.revoked_at) return row.issued_at ? "revogada" : "cancelada";
+  return row.issued_at ? "emitida" : "aguardando_autorizacao";
+}
+
 export function buildDataExport(sources: ExportSources): DataExport {
   const me = sources.account.id;
   const anonThreads = new Set(
@@ -407,10 +456,12 @@ export function buildDataExport(sources: ExportSources): DataExport {
   const requests = byCreatedAt(
     sources.mentorshipRequests.filter((r) => r.mentee_id === me || r.mentor_id === me),
   );
+  const myRequestIds = new Set(requests.map((r) => r.id));
 
   const observacoes = [
     "Tópicos e respostas que você publicou como anônima aparecem com is_anonymous = true. Este arquivo liga o seu nome a eles: guarde-o em lugar seguro e só compartilhe se quiser.",
     "De outras pessoas, o arquivo traz só o id e o nome de quem participou das suas mentorias e das mentoras sugeridas a você, além das mensagens que vocês trocaram nas conversas da mentoria.",
+    "Retornos de mentoria: só os que você escreveu. O retorno da outra participante é privado dela e não entra no seu arquivo.",
     "Não entram aqui: a representação numérica do perfil usada pela IA (embedding, que pode ser recalculada), as anotações da moderação sobre as suas denúncias e os registros técnicos dos provedores.",
   ];
   if (!sources.newsletter.available) observacoes.push(NEWSLETTER_UNAVAILABLE);
@@ -472,6 +523,16 @@ export function buildDataExport(sources: ExportSources): DataExport {
       })),
       comentarios: byCreatedAt(sources.comments.map((c) => pick(c, COMMENT_FIELDS))),
     },
+    retornos_de_mentoria: byCreatedAt(
+      uniqueBy(
+        sources.feedback.filter((f) => f.author_id === me && myRequestIds.has(f.request_id)),
+        (f) => f.request_id,
+      ).map((f) => pick(f, FEEDBACK_FIELDS)),
+    ),
+    declaracoes_de_mentoria: uniqueBy(
+      sources.declarations.filter((d) => myRequestIds.has(d.request_id)),
+      (d) => d.code,
+    ).map((d) => ({ ...pick(d, DECLARATION_FIELDS), status: declarationExportStatus(d) })),
     notificacoes: byCreatedAt(sources.notifications.map((n) => pick(n, NOTIFICATION_FIELDS))),
     denuncias_feitas: byCreatedAt(sources.reports.map((r) => pick(r, REPORT_FIELDS))),
     newsletter: sources.newsletter.available

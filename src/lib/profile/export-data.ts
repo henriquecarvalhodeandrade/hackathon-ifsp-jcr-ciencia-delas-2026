@@ -97,6 +97,7 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     comments,
     notifications,
     reports,
+    feedback,
     newsletter,
   ] = await Promise.all([
     supabase
@@ -215,6 +216,18 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
         .order("id")
         .range(from, to),
     ),
+    // Retornos da mentoria: só os que ELA escreveu (o RLS também só devolve os da autora).
+    all("retornos_de_mentoria", (from, to) =>
+      supabase
+        .from("mentorship_feedback")
+        .select(
+          "request_id, author_id, role, helpfulness, outcomes, would_recommend, note, created_at",
+        )
+        .eq("author_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
     loadNewsletter(user.email),
   ]);
 
@@ -225,6 +238,23 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
         supabase
           .from("mentorship_messages")
           .select("id, request_id, sender_id, body, created_at, read_at")
+          .in("request_id", ids)
+          .order("created_at")
+          .order("id")
+          .range(from, to),
+      ),
+    ),
+  );
+
+  // Declarações de participação: pelos ids dos pedidos DELA (o RLS só mostra às participantes).
+  const declarationChunks = await Promise.all(
+    chunks(mentorshipRequests.map((r) => r.id)).map((ids) =>
+      all("declaracoes_de_mentoria", (from, to) =>
+        supabase
+          .from("mentorship_declarations")
+          .select(
+            "request_id, code, mentee_consented_at, mentor_consented_at, issued_at, revoked_at, revoke_reason",
+          )
           .in("request_id", ids)
           .order("created_at")
           .order("id")
@@ -272,6 +302,8 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     areas: areaRows.flatMap((row) => (row.area ? [row.area] : [])),
     mentorshipRequests,
     messages: messageChunks.flat(),
+    feedback,
+    declarations: declarationChunks.flat(),
     suggestions,
     threads: [...namedThreads, ...anonThreads.flat()],
     posts: [...namedPosts, ...anonPosts.flat()],

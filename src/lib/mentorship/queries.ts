@@ -1,6 +1,7 @@
 import "server-only";
 import type { MentorshipStatus } from "@/lib/constants";
 import type { createClient } from "@/lib/supabase/server";
+import { withoutTrajectorySentence } from "@/lib/trajectory/catalog";
 import type { CandidateAvailability, CandidatePool } from "./view-models";
 
 /**
@@ -150,7 +151,8 @@ export async function loadMyRequests(
 const CANDIDATE_LIMIT = 100;
 
 /**
- * Mentoras disponíveis agora (com vaga e recebendo pedidos), via RPC SECURITY DEFINER.
+ * Mentoras disponíveis agora (com vaga e recebendo pedidos), via RPC SECURITY DEFINER — com as
+ * marcas de trajetória de cada uma, para o cartão mostrar o que vocês têm em comum.
  * Retorna null se a RPC falhar — a interface deixa o banco decidir no momento do pedido.
  * Se a lista vier cheia (limite atingido), `complete` é false: quem ficou de fora pode ter vaga.
  */
@@ -174,6 +176,7 @@ export async function loadCandidateAvailability(
         {
           open_slots: c.open_slots ?? null,
           existing_request_status: c.existing_request_status ?? null,
+          trajectory_tags: c.trajectory_tags ?? [],
         },
       ]),
     ),
@@ -259,7 +262,10 @@ export async function loadDeepLinkMentor(
   };
 }
 
-/** Nota e motivo da sugestão salva para esta dupla (gravados junto com o pedido). */
+/**
+ * Nota e motivo da sugestão salva para esta dupla (gravados junto com o pedido), sem a frase de
+ * trajetória.
+ */
 export async function loadSuggestionMatch(
   supabase: ServerClient,
   menteeId: string,
@@ -271,8 +277,11 @@ export async function loadSuggestionMatch(
     .eq("mentee_id", menteeId)
     .eq("mentor_id", mentorId)
     .maybeSingle();
+  // A frase de trajetória ("Vocês têm em comum: …") não vai para o pedido: o pedido dura mais
+  // que as marcas (e entra na exportação das duas), e cada uma pode tirar uma marca quando quiser.
+  const reason = data?.reason ? withoutTrajectorySentence(data.reason) : "";
   return {
     score: data?.score ?? null,
-    reason: data?.reason?.trim() ? data.reason.slice(0, 1500) : null,
+    reason: reason.trim() ? reason.slice(0, 1500) : null,
   };
 }

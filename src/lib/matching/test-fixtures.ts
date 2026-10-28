@@ -47,6 +47,8 @@ export function makeCandidate(overrides: Partial<MentorCandidate> = {}): MentorC
     similarity: 0.85,
     open_slots: 2,
     existing_request_status: null,
+    // Sem marcas de trajetória por padrão: os testes antigos valem como estavam.
+    trajectory_tags: null,
     ...overrides,
   };
 }

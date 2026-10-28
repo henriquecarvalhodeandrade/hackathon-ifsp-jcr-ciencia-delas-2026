@@ -45,6 +45,17 @@ export const env = {
   get contactEmail() {
     return clean(process.env.CONTACT_EMAIL) ?? "contato@cienciadelas.dev";
   },
+  /**
+   * Modo demonstração (/demo, docs/14): entrar como pessoa fictícia com um clique. Só liga com
+   * DEMO_MODE=true exatamente. NUNCA ligue numa instância com membras reais.
+   */
+  get demoMode() {
+    return clean(process.env.DEMO_MODE) === "true";
+  },
+  /** Senha das contas fictícias (opcional; plano B do /demo sem a chave secreta). SOMENTE servidor. */
+  get demoPassword() {
+    return clean(process.env.DEMO_PASSWORD);
+  },
 };
 
 export function isSupabaseConfigured(): boolean {

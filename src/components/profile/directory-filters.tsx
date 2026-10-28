@@ -1,13 +1,15 @@
 import Form from "next/form";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChipLink } from "@/components/ui/chip";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { BR_STATES, CAREER_STAGE_OPTIONS } from "@/lib/constants";
 import type { AreaGroup } from "@/lib/profile/areas";
-import type { DirectoryFilters as Filters } from "@/lib/profile/directory";
+import { activeFilterChips, type DirectoryFilters as Filters } from "@/lib/profile/directory";
+import { TRAJECTORY_FILTER_OPTIONS } from "@/lib/trajectory/catalog";
 
 const UF_OPTIONS = Object.entries(BR_STATES).map(([value, label]) => ({
   value,
@@ -22,9 +24,17 @@ export interface DirectoryFiltersProps {
 
 /**
  * Filtros do diretório num formulário GET (funciona sem JavaScript; com JS, o <Form> do Next
- * navega no cliente). Os valores ficam na URL — dá para compartilhar uma busca.
+ * navega no cliente). Os valores ficam na URL — dá para compartilhar uma busca. Os filtros
+ * ativos aparecem como chips; cada um remove só aquele filtro.
  */
 export function DirectoryFilters({ filters, areaGroups, hasActive }: DirectoryFiltersProps) {
+  const areaName = filters.area
+    ? areaGroups
+        .flatMap((group) => (group.general ? [group.general, ...group.areas] : group.areas))
+        .find((area) => area.slug === filters.area)?.name
+    : undefined;
+  const chips = activeFilterChips(filters, { area: areaName });
+
   return (
     <Form
       action="/pesquisadoras"
@@ -62,7 +72,7 @@ export function DirectoryFilters({ filters, areaGroups, hasActive }: DirectoryFi
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] lg:items-end">
         <Field label="Fase da carreira">
           <Select
             name="stage"
@@ -79,7 +89,15 @@ export function DirectoryFilters({ filters, areaGroups, hasActive }: DirectoryFi
             options={UF_OPTIONS}
           />
         </Field>
-        <div className="flex min-h-11 items-center sm:col-span-2 md:col-span-1">
+        <Field label="Trajetória">
+          <Select
+            name="trajetoria"
+            defaultValue={filters.trajetoria}
+            placeholder="Todas as trajetórias"
+            options={TRAJECTORY_FILTER_OPTIONS}
+          />
+        </Field>
+        <div className="flex min-h-11 items-center sm:self-end lg:col-span-1">
           <Checkbox
             name="mentoras"
             value="1"
@@ -88,6 +106,29 @@ export function DirectoryFilters({ filters, areaGroups, hasActive }: DirectoryFi
           />
         </div>
       </div>
+
+      {chips.length > 0 && (
+        // min-w-0: um chip comprido não alarga a coluna do formulário no celular (ele trunca).
+        <div className="grid min-w-0 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <p id="filtros-ativos" className="text-sm font-semibold text-fg-muted">
+            Filtros ativos:
+          </p>
+          <ul aria-labelledby="filtros-ativos" className="flex min-w-0 flex-wrap gap-2">
+            {chips.map((chip) => (
+              <li key={chip.key} className="max-w-full">
+                <ChipLink
+                  href={chip.href}
+                  aria-label={`Remover filtro ${chip.label}`}
+                  icon={<X aria-hidden="true" />}
+                  className="flex-row-reverse"
+                >
+                  {chip.label}
+                </ChipLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
         <Button type="submit">

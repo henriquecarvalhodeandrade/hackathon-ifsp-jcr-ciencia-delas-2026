@@ -36,6 +36,9 @@ export const SESSION_EXPIRED_ERROR =
 export const VALIDATION_ERROR =
   "Alguns campos precisam de atenção. Confira as mensagens abaixo de cada um.";
 
+/** SQLSTATE do banco para marca de trajetória desconhecida (migration 20261028190200). */
+const TRAJECTORY_ERROR_CODE = "CD050";
+
 /** Substitui as áreas do perfil pelas escolhidas (apaga as que saíram, insere as novas). */
 async function replaceProfileAreas(
   supabase: ServerClient,
@@ -106,6 +109,11 @@ export async function saveSectionForCurrentUser(
     .maybeSingle();
   if (error) {
     console.warn(`[perfil] falha ao salvar a seção ${section} (${error.code})`);
+    // CD050 = marca de trajetória fora do catálogo (ex.: página antiga aberta): aponta o grupo.
+    if (error.code === TRAJECTORY_ERROR_CODE) {
+      const message = dbErrorMessage(error);
+      return { ok: false, error: message, fieldErrors: { trajectory_tags: [message] }, values };
+    }
     return { ok: false, error: dbErrorMessage(error), values };
   }
   if (!updated) {

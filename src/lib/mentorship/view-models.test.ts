@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MentorSuggestion } from "@/lib/matching/service";
 import type { MentorshipStatus } from "@/lib/constants";
+import { loadSuggestionMatch } from "./queries";
 import {
   buildMatchCard,
   buildMatchCards,
@@ -248,5 +249,180 @@ describe("lookupCandidate", () => {
     expect(lookupCandidate(pool([entry]), OTHER).kind).toBe("unavailable");
     expect(lookupCandidate(pool([entry], false), OTHER).kind).toBe("unknown");
     expect(lookupCandidate(null, MENTOR).kind).toBe("unknown");
+  });
+});
+
+describe("buildMatchCard — trajetória em comum", () => {
+  const larissa = ["primeira-geracao", "escola-publica", "ensino-tecnico"];
+
+  it("sem o parâmetro (chamada antiga), não mostra nada e o resto não muda", () => {
+    const before = buildMatchCard(suggestion(), ctx());
+    expect(before.sharedTrajectory).toEqual([]);
+    const withPool = buildMatchCard(
+      suggestion(),
+      ctx({
+        candidates: pool([
+          [
+            MENTOR,
+            { open_slots: 2, existing_request_status: null, trajectory_tags: ["escola-publica"] },
+          ],
+        ]),
+      }),
+    );
+    expect(withPool).toEqual(before);
+  });
+
+  it("calcula na hora com as marcas atuais da mentora (RPC), na ordem do catálogo", () => {
+    const card = buildMatchCard(
+      suggestion(),
+      ctx({
+        menteeTrajectory: larissa,
+        candidates: pool([
+          [
+            MENTOR,
+            {
+              open_slots: 2,
+              existing_request_status: null,
+              trajectory_tags: ["escola-publica", "mae-cuidadora", "primeira-geracao"],
+            },
+          ],
+        ]),
+      }),
+    );
+    expect(card.sharedTrajectory).toEqual([
+      "Primeira da família na universidade",
+      "Escola pública",
+    ]);
+  });
+
+  it("vale para sugestões salvas: sem a mentora no conjunto, usa as marcas da sugestão", () => {
+    const saved = suggestion({
+      mentor: { ...suggestion().mentor, trajectory_tags: ["ensino-tecnico"] },
+    });
+    const card = buildMatchCard(saved, ctx({ menteeTrajectory: larissa, candidates: null }));
+    expect(card.sharedTrajectory).toEqual(["Ensino técnico"]);
+  });
+
+  it("vazio quando uma não declarou nada ou os caminhos são diferentes", () => {
+    const pooled = (tags: string[] | null) =>
+      pool([[MENTOR, { open_slots: 2, existing_request_status: null, trajectory_tags: tags }]]);
+    expect(
+      buildMatchCard(suggestion(), ctx({ menteeTrajectory: [], candidates: pooled(larissa) }))
+        .sharedTrajectory,
+    ).toEqual([]);
+    expect(
+      buildMatchCard(suggestion(), ctx({ menteeTrajectory: larissa, candidates: pooled(null) }))
+        .sharedTrajectory,
+    ).toEqual([]);
+    expect(
+      buildMatchCard(
+        suggestion(),
+        ctx({ menteeTrajectory: ["mae-cuidadora"], candidates: pooled(["mudanca-de-area"]) }),
+      ).sharedTrajectory,
+    ).toEqual([]);
+  });
+
+  it("buildMatchCards repassa o contexto a todos os cartões", () => {
+    const cards = buildMatchCards(
+      [
+        suggestion({ rank: 2, mentorId: OTHER, mentor: { ...suggestion().mentor, id: OTHER } }),
+        suggestion({ rank: 1 }),
+      ],
+      ctx({
+        menteeTrajectory: larissa,
+        candidates: pool([
+          [MENTOR, { open_slots: 1, existing_request_status: null, trajectory_tags: larissa }],
+          [OTHER, { open_slots: 1, existing_request_status: null, trajectory_tags: [] }],
+        ]),
+      }),
+    );
+    expect(cards.map((c) => [c.mentorId, c.sharedTrajectory.length])).toEqual([
+      [MENTOR, 3],
+      [OTHER, 0],
+    ]);
+  });
+});
+
+describe("motivo salvo × marcas de agora", () => {
+  const SAVED =
+    "Ela atua na mesma grande área que você (Ciências Exatas e da Terra). Vocês têm em comum: as duas foram as primeiras da família na universidade e estudaram em escola pública.";
+  const withTags = (tags: string[]) =>
+    pool([[MENTOR, { open_slots: 2, existing_request_status: null, trajectory_tags: tags }]]);
+
+  it("refaz a frase quando uma das duas tirou uma marca", () => {
+    const card = buildMatchCard(
+      suggestion({ reason: SAVED }),
+      ctx({ menteeTrajectory: ["escola-publica"], candidates: withTags(["escola-publica"]) }),
+    );
+    expect(card.reason).toBe(
+      "Ela atua na mesma grande área que você (Ciências Exatas e da Terra). Vocês têm em comum: as duas estudaram em escola pública.",
+    );
+  });
+
+  it("tira a frase quando não há mais nada em comum", () => {
+    const card = buildMatchCard(
+      suggestion({ reason: SAVED }),
+      ctx({ menteeTrajectory: ["escola-publica"], candidates: withTags([]) }),
+    );
+    expect(card.reason).toBe(
+      "Ela atua na mesma grande área que você (Ciências Exatas e da Terra).",
+    );
+    expect(card.sharedTrajectory).toEqual([]);
+  });
+
+  it("sem saber as marcas de agora (chamada antiga ou RPC fora do ar), não mexe no texto", () => {
+    expect(buildMatchCard(suggestion({ reason: SAVED }), ctx()).reason).toBe(SAVED);
+    expect(
+      buildMatchCard(suggestion({ reason: SAVED }), ctx({ menteeTrajectory: [], candidates: null }))
+        .reason,
+    ).toBe(SAVED);
+  });
+});
+
+describe("loadSuggestionMatch", () => {
+  function fakeClient(row: { score: number; reason: string } | null) {
+    const query = {
+      select: () => query,
+      eq: () => query,
+      maybeSingle: async () => ({ data: row, error: null }),
+    };
+    return { from: () => query } as unknown as Parameters<typeof loadSuggestionMatch>[0];
+  }
+
+  it("não copia a frase de trajetória para o pedido", async () => {
+    const match = await loadSuggestionMatch(
+      fakeClient({
+        score: 55,
+        reason:
+          "Ela atua na mesma grande área que você. Vocês têm em comum: as duas foram as primeiras da família na universidade.",
+      }),
+      ME,
+      MENTOR,
+    );
+    expect(match).toEqual({ score: 55, reason: "Ela atua na mesma grande área que você." });
+  });
+
+  it("sem frase de trajetória, o motivo vai como estava; vazio vira null", async () => {
+    expect(
+      await loadSuggestionMatch(fakeClient({ score: 80, reason: "Mesma área." }), ME, MENTOR),
+    ).toEqual({ score: 80, reason: "Mesma área." });
+    expect(await loadSuggestionMatch(fakeClient({ score: 1, reason: "  " }), ME, MENTOR)).toEqual({
+      score: 1,
+      reason: null,
+    });
+    expect(
+      await loadSuggestionMatch(
+        fakeClient({
+          score: 40,
+          reason: "Vocês têm em comum: as duas estudaram em escola pública.",
+        }),
+        ME,
+        MENTOR,
+      ),
+    ).toEqual({ score: 40, reason: null });
+    expect(await loadSuggestionMatch(fakeClient(null), ME, MENTOR)).toEqual({
+      score: null,
+      reason: null,
+    });
   });
 });

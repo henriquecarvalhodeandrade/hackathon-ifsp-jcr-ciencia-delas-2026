@@ -9,6 +9,11 @@ import {
   type CareerStage,
   type MentorshipStatus,
 } from "@/lib/constants";
+import {
+  refreshTrajectorySentence,
+  sharedTrajectory,
+  trajectoryChipLabels,
+} from "@/lib/trajectory/catalog";
 import { suggestionSourceLabel, sharedItems } from "./presentation";
 
 export interface MatchCardData {
@@ -27,6 +32,11 @@ export interface MatchCardData {
   sharedTopics: string[];
   /** Outros temas em que ela orienta (rótulos), além dos em comum. */
   otherTopics: string[];
+  /**
+   * Marcas de trajetória que as duas declararam (rótulos curtos, ordem do catálogo) — linha
+   * "Em comum na trajetória". Vazio quando alguma não declarou ou não há marca em comum.
+   */
+  sharedTrajectory: string[];
   starters: string[];
   /** Vagas abertas agora; null quando não foi possível conferir. */
   openSlots: number | null;
@@ -40,6 +50,8 @@ export interface MatchCardData {
 export interface CandidateAvailability {
   open_slots: number | null;
   existing_request_status: string | null;
+  /** Marcas de trajetória da mentora (RPC get_mentor_candidates). */
+  trajectory_tags?: readonly string[] | null;
 }
 
 /** Mentoras disponíveis agora (RPC get_mentor_candidates, que tem limite de linhas). */
@@ -75,6 +87,11 @@ export interface MatchCardContext {
   candidates: CandidatePool | null;
   /** mentor_id → status do pedido em aberto (pending/accepted) da mentoranda. */
   openRequests: ReadonlyMap<string, MentorshipStatus>;
+  /**
+   * Marcas de trajetória de quem vê (opcional). Com elas, o cartão mostra o que as duas têm em
+   * comum — calculado na hora, então vale também para sugestões já salvas.
+   */
+  menteeTrajectory?: readonly string[] | null;
 }
 
 export function topicLabel(slug: string): string {
@@ -107,6 +124,18 @@ export function buildMatchCard(suggestion: MentorSuggestion, ctx: MatchCardConte
     .filter((slug) => !sharedTopicSlugs.includes(slug))
     .map(topicLabel);
 
+  // Marcas da mentora: as atuais (RPC) quando ela está no conjunto; senão, as da sugestão.
+  const mentorTrajectory = candidate?.trajectory_tags ?? mentor.trajectory_tags;
+  const sharedSlugs = sharedTrajectory(ctx.menteeTrajectory, mentorTrajectory);
+  const sharedMarks = trajectoryChipLabels(sharedSlugs);
+  // O motivo salvo pode citar uma marca que alguma das duas já tirou: com as marcas de agora
+  // em mãos, a frase "Vocês têm em comum" é refeita (ou some). Sem elas, o texto fica como está.
+  const reason =
+    ctx.menteeTrajectory != null && mentorTrajectory != null
+      ? refreshTrajectorySentence(suggestion.reason, sharedSlugs) ||
+        "Faz parte da rede de mentoras da Artemis."
+      : suggestion.reason;
+
   const openSlots = candidate ? (candidate.open_slots ?? null) : null;
   const knownUnavailable = lookup.kind === "unavailable";
 
@@ -125,12 +154,13 @@ export function buildMatchCard(suggestion: MentorSuggestion, ctx: MatchCardConte
     state: mentor.state,
     careerStage: careerStageLabel(mentor.career_stage),
     score: Math.max(0, Math.min(100, Math.round(suggestion.score))),
-    reason: suggestion.reason,
+    reason,
     source: suggestion.source,
     sourceLabel: suggestionSourceLabel(suggestion.source, ctx.model),
     sharedAreas,
     sharedTopics: sharedTopicSlugs.map(topicLabel),
     otherTopics,
+    sharedTrajectory: sharedMarks,
     starters: suggestion.conversationStarters.filter((s) => s.trim().length > 0).slice(0, 3),
     openSlots,
     requestStatus,

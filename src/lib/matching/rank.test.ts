@@ -39,15 +39,18 @@ function exactScenario(similarity: number | null) {
 }
 
 describe("pesos", () => {
-  it("somam 100% e seguem a especificação", () => {
+  it("seguem a especificação (pesos relativos; sem trajetória, os cinco somam 100%)", () => {
     expect(MATCH_WEIGHTS).toEqual({
       areas: 0.35,
       similarity: 0.3,
       topics: 0.15,
       seniority: 0.1,
       compatibility: 0.1,
+      trajectory: 0.1,
     });
-    const total = Object.values(MATCH_WEIGHTS).reduce((a, b) => a + b, 0);
+    const { trajectory, ...withoutTrajectory } = MATCH_WEIGHTS;
+    expect(trajectory).toBe(0.1);
+    const total = Object.values(withoutTrajectory).reduce((a, b) => a + b, 0);
     expect(total).toBeCloseTo(1, 10);
   });
 
@@ -60,6 +63,7 @@ describe("pesos", () => {
       topics: 1,
       seniority: 1,
       compatibility: expect.closeTo(1, 10),
+      trajectory: null,
     });
     // 0.35·1 + 0.30·0.5 + 0.15·1 + 0.10·1 + 0.10·1 = 0.85
     expect(r.breakdown.rawScore).toBeCloseTo(85, 8);

@@ -5,6 +5,7 @@
  * Módulo puro.
  */
 import type { Tables } from "@/lib/database.types";
+import { normalizeTrajectoryTags } from "@/lib/trajectory/catalog";
 
 export const PROFILE_SECTIONS = ["sobre", "pesquisa", "mentoria", "privacidade"] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
@@ -22,6 +23,8 @@ export interface ProfileFormValues {
   city: string;
   state: string;
   career_stage: string;
+  /** Marcas de trajetória (opcionais, docs/17) — no fim de "Sobre você". */
+  trajectory_tags: string[];
   // 2) Sua pesquisa
   area_ids: string[];
   keywords: string[];
@@ -55,6 +58,7 @@ export const EMPTY_PROFILE_VALUES: ProfileFormValues = {
   city: "",
   state: "",
   career_stage: "",
+  trajectory_tags: [],
   area_ids: [],
   keywords: [],
   bio: "",
@@ -103,7 +107,7 @@ type ProfileRow = Pick<
 
 /** Valores iniciais do formulário a partir do perfil salvo. */
 export function profileToFormValues(
-  profile: ProfileRow,
+  profile: ProfileRow & { trajectory_tags?: readonly string[] | null },
   areaIds: readonly number[],
 ): ProfileFormValues {
   return {
@@ -114,6 +118,7 @@ export function profileToFormValues(
     city: profile.city ?? "",
     state: profile.state?.trim() ?? "",
     career_stage: profile.career_stage ?? "",
+    trajectory_tags: normalizeTrajectoryTags(profile.trajectory_tags),
     area_ids: areaIds.map(String),
     keywords: [...(profile.keywords ?? [])],
     bio: profile.bio ?? "",
@@ -159,6 +164,12 @@ export function updateToFormValues(
 /** Marca enviada pelo /perfil junto do campo "disponível para novos pedidos". */
 export const AVAILABILITY_MARKER = "_has_availability";
 
+/**
+ * Marca enviada junto das opções de trajetória. Sem ela, o servidor não mexe nas marcas salvas:
+ * um formulário "Sobre você" que não mostre o grupo nunca apaga o que a pessoa escolheu.
+ */
+export const TRAJECTORY_MARKER = "_has_trajectory";
+
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value : "";
@@ -178,8 +189,8 @@ export function readSectionValues(
   formData: FormData,
 ): Partial<ProfileFormValues> {
   switch (section) {
-    case "sobre":
-      return {
+    case "sobre": {
+      const values: Partial<ProfileFormValues> = {
         full_name: text(formData, "full_name"),
         pronouns: text(formData, "pronouns"),
         headline: text(formData, "headline"),
@@ -188,6 +199,11 @@ export function readSectionValues(
         state: text(formData, "state"),
         career_stage: text(formData, "career_stage"),
       };
+      // Nenhuma opção marcada também é uma resposta ("tirar todas"), por isso a marca.
+      if (formData.has(TRAJECTORY_MARKER))
+        values.trajectory_tags = list(formData, "trajectory_tags");
+      return values;
+    }
     case "pesquisa":
       return {
         area_ids: list(formData, "area_ids"),

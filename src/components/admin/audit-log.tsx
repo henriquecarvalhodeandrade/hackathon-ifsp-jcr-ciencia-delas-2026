@@ -98,7 +98,7 @@ export function AuditLogPanel({ data }: { data: AuditPage }) {
       <EmptyState
         icon={<ScrollText />}
         title="Nenhuma ação registrada ainda"
-        description="Revelações de autoria, exclusões, ocultações, trocas de papel e denúncias concluídas aparecem aqui."
+        description="Revelações de autoria, exclusões, ocultações, trocas de papel, denúncias concluídas e revisões de perguntas de estudantes aparecem aqui."
       />
     );
   }

@@ -202,6 +202,13 @@ export const NOTICE_KEYS = [
   "recusado",
   "concluido",
   "consentimento",
+  // Reconhecimento da mentoria (src/lib/recognition/actions.ts)
+  "retorno-enviado",
+  "retorno-apagado",
+  "declaracao-pedida",
+  "declaracao-emitida",
+  "declaracao-revogada",
+  "declaracao-cancelada",
 ] as const;
 export type NoticeKey = (typeof NOTICE_KEYS)[number];
 
@@ -246,6 +253,36 @@ const NOTICES: Record<NoticeKey, Notice> = {
     variant: "success",
     title: "Sugestões com IA ativadas",
     body: "Na próxima vez que você buscar mentoras, usamos também a análise semântica e as explicações por IA (quando a IA estiver disponível). Você pode retirar a autorização quando quiser no seu perfil.",
+  },
+  "retorno-enviado": {
+    variant: "success",
+    title: "Obrigada por contar como foi!",
+    body: "Só você vê as suas respostas. Elas entram apenas nos números gerais da plataforma, e só a partir de 5 retornos.",
+  },
+  "retorno-apagado": {
+    variant: "info",
+    title: "Retorno apagado",
+    body: "Suas respostas foram apagadas. Se quiser, você pode contar como foi de novo.",
+  },
+  "declaracao-pedida": {
+    variant: "success",
+    title: "Declaração pedida",
+    body: "A sua autorização já está registrada. A declaração é emitida assim que a outra participante autorizar o nome dela.",
+  },
+  "declaracao-emitida": {
+    variant: "success",
+    title: "Declaração emitida!",
+    body: "Ela já pode ser conferida pelo código na página pública de verificação. Abra a declaração para imprimir ou salvar em PDF.",
+  },
+  "declaracao-revogada": {
+    variant: "info",
+    title: "Declaração revogada",
+    body: "Na página de verificação, o código agora aparece como revogado, sem nomes. Se quiserem, vocês podem pedir uma nova.",
+  },
+  "declaracao-cancelada": {
+    variant: "info",
+    title: "Pedido de declaração cancelado",
+    body: "Nenhum nome foi publicado. Se quiserem, vocês podem pedir a declaração de novo.",
   },
 };
 

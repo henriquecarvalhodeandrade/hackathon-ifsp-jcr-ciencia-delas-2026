@@ -104,6 +104,8 @@ describe("loadMyDataExport", () => {
       paper_comments: ["eq", ["author_id", ME]],
       notifications: ["eq", ["user_id", ME]],
       reports: ["eq", ["reporter_id", ME]],
+      // Retornos: só os que ELA escreveu (nunca o da outra participante).
+      mentorship_feedback: ["eq", ["author_id", ME]],
     };
     const session = mocks.calls.filter((c) => c.client === "session");
     for (const [table, filter] of Object.entries(expected)) {
@@ -141,9 +143,30 @@ describe("loadMyDataExport", () => {
     expect(columns).toBe("id, request_id, sender_id, body, created_at, read_at");
   });
 
-  it("sem pedidos de mentoria, não consulta mensagens", async () => {
+  it("sem pedidos de mentoria, não consulta mensagens nem declarações", async () => {
     await loadMyDataExport(user);
     expect(mocks.calls.filter((c) => c.table === "mentorship_messages")).toEqual([]);
+    expect(mocks.calls.filter((c) => c.table === "mentorship_declarations")).toEqual([]);
+  });
+
+  it("busca as declarações só pelos ids dos pedidos dela, sem quem pediu ou revogou", async () => {
+    mocks.rows.mentorship_requests = [
+      { id: "m1", mentee_id: ME, mentor_id: "outra", created_at: "2026-10-01T00:00:00Z" },
+    ];
+    await loadMyDataExport(user);
+    const calls = mocks.calls.filter((c) => c.table === "mentorship_declarations");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.client).toBe("session");
+    expect(filters(calls[0]!)).toEqual([["in", ["request_id", ["m1"]]]]);
+    const columns = String(calls[0]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(columns).not.toMatch(/requested_by|revoked_by/);
+  });
+
+  it("lê os retornos da mentoria com o filtro da autora", async () => {
+    await loadMyDataExport(user);
+    const calls = mocks.calls.filter((c) => c.table === "mentorship_feedback");
+    expect(calls).toHaveLength(1);
+    expect(filters(calls[0]!)).toEqual([["eq", ["author_id", ME]]]);
   });
 
   it("lê a newsletter com o cliente admin só pelo e-mail da própria conta, sem tokens", async () => {

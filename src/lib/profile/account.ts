@@ -1,5 +1,6 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/auth";
+import { DEMO_DELETE_REFUSED, isProtectedDemoAccount } from "@/lib/demo/guard";
 import { env, isAdminConfigured, isSupabaseConfigured } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -86,6 +87,8 @@ export async function deleteCurrentUserAccount(
   if (!isSupabaseConfigured()) return { ok: false, error: NOT_CONFIGURED_ERROR };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
+  // Modo demonstração: várias pessoas da banca usam as mesmas contas fictícias (docs/14).
+  if (isProtectedDemoAccount(user.email)) return { ok: false, error: DEMO_DELETE_REFUSED };
 
   const typed =
     typeof confirmation === "string" ? confirmation.trim().toLocaleUpperCase("pt-BR") : "";

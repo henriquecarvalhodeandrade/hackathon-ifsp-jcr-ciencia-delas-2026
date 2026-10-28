@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { LANGUAGES, MEETING_FORMATS } from "@/lib/constants";
 import { cleanModelText, redactPersonalData, truncateAtSentence } from "@/lib/ai/text";
-import { compareRanked } from "./rank";
+import { compareRanked, scoreWithoutTrajectory } from "./rank";
 import { careerStageLabel, topicLabel } from "./profile-text";
 import { buildHeuristicStarters } from "./starters";
 import type {
@@ -18,7 +18,9 @@ import type {
  *  - nada de nome, e-mail, instituição, cidade, links ou foto;
  *  - textos livres passam por redactPersonalData (remove contatos e o próprio nome);
  *  - mentoras que NÃO deram consentimento de IA entram só com dados de taxonomia
- *    (etapa, áreas, temas, formatos, idiomas, vagas) — nenhum texto escrito por elas.
+ *    (etapa, áreas, temas, formatos, idiomas, vagas) — nenhum texto escrito por elas;
+ *  - marcas de trajetória (docs/17) NUNCA entram: nem as marcas, nem as frases, nem a nota
+ *    com o bônus — `nota_heuristica` é calculada sem a afinidade de trajetória.
  * Módulo puro: a chamada ao modelo fica em ai-explain.ts.
  */
 
@@ -122,7 +124,8 @@ export function pseudonymizeCandidates(
       idiomas: languageLabels(c.languages),
       mesmo_estado: r.breakdown.sameState,
       vagas_abertas: c.open_slots ?? null,
-      nota_heuristica: r.score,
+      // Sem o bônus de trajetória: nada derivado das marcas sai do servidor.
+      nota_heuristica: Math.round(scoreWithoutTrajectory(r.breakdown)),
     };
     if (!consented) return base;
     return {

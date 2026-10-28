@@ -2,6 +2,7 @@ import "server-only";
 import { embedTexts, isAiEnabled } from "@/lib/ai";
 import { getEmbeddingConfig, isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeTrajectoryTags } from "@/lib/trajectory/catalog";
 import { explainMatchesWithAi } from "./ai-explain";
 import { buildProfileText, embeddingKindFor, profileEmbeddingHash } from "./profile-text";
 import { heuristicExplanation } from "./pseudonymize";
@@ -69,7 +70,7 @@ export const CANDIDATE_POOL_SIZE = 30;
 export const MAX_SUGGESTIONS = 10;
 
 const PROFILE_COLUMNS =
-  "id, full_name, headline, career_stage, keywords, mentorship_topics, mentoring_goals, mentoring_offer, is_mentor, meeting_formats, languages, state, ai_consent, onboarded_at";
+  "id, full_name, headline, career_stage, keywords, mentorship_topics, mentoring_goals, mentoring_offer, is_mentor, meeting_formats, languages, state, ai_consent, onboarded_at, trajectory_tags";
 
 interface MatchingProfileRow {
   id: string;
@@ -86,6 +87,8 @@ interface MatchingProfileRow {
   state: string | null;
   ai_consent: boolean;
   onboarded_at: string | null;
+  /** Marcas de trajetória (docs/17): só para o bônus heurístico, nunca para a IA. */
+  trajectory_tags?: string[] | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +148,7 @@ function toMentee(profile: MatchingProfileRow, areaIds: number[]): MenteeForMatc
     meeting_formats: profile.meeting_formats,
     languages: profile.languages,
     state: profile.state,
+    trajectory_tags: normalizeTrajectoryTags(profile.trajectory_tags),
   };
 }
 
@@ -261,6 +265,8 @@ export interface SuggestedMentor {
   languages: string[];
   open_slots: number | null;
   existing_request_status: string | null;
+  /** Marcas de trajetória da mentora (para os chips "Em comum na trajetória"). */
+  trajectory_tags?: string[];
 }
 
 export interface MentorSuggestion {
@@ -305,6 +311,8 @@ interface CandidateRow {
   similarity: number | null;
   open_slots: number | null;
   existing_request_status: string | null;
+  /** Última coluna da RPC (migration 20261028190200); ausente em bancos sem ela. */
+  trajectory_tags?: string[] | null;
 }
 
 export function normalizeCandidateRow(row: CandidateRow): MentorCandidate {
@@ -328,6 +336,7 @@ export function normalizeCandidateRow(row: CandidateRow): MentorCandidate {
     open_slots:
       row.open_slots === null || row.open_slots === undefined ? null : Number(row.open_slots),
     existing_request_status: row.existing_request_status ?? null,
+    trajectory_tags: normalizeTrajectoryTags(row.trajectory_tags),
   };
 }
 
@@ -354,6 +363,7 @@ function toSuggestedMentor(c: MentorCandidate, areas: AreaLookup): SuggestedMent
     languages: c.languages ?? [],
     open_slots: c.open_slots,
     existing_request_status: c.existing_request_status,
+    trajectory_tags: normalizeTrajectoryTags(c.trajectory_tags),
   };
 }
 
@@ -603,7 +613,7 @@ export async function getMySavedSuggestions(
     supabase
       .from("profiles")
       .select(
-        "id, full_name, avatar_url, headline, institution, state, career_stage, keywords, mentorship_topics, meeting_formats, languages",
+        "id, full_name, avatar_url, headline, institution, state, career_stage, keywords, mentorship_topics, meeting_formats, languages, trajectory_tags",
       )
       .in("id", mentorIds),
     supabase
@@ -657,6 +667,7 @@ export async function getMySavedSuggestions(
         languages: m.languages ?? [],
         open_slots: null,
         existing_request_status: null,
+        trajectory_tags: normalizeTrajectoryTags(m.trajectory_tags),
       },
     });
   }

@@ -101,6 +101,8 @@ export async function SuggestionsTab({
         model: saved.model,
         candidates,
         openRequests,
+        // Marcas de trajetória dela: o cartão mostra o que as duas têm em comum (docs/17).
+        menteeTrajectory: profile.trajectory_tags,
       })
     : [];
 

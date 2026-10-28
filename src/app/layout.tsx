@@ -5,6 +5,7 @@ import {
   Bricolage_Grotesque,
   Newsreader,
 } from "next/font/google";
+import { DemoBanner } from "@/components/demo/demo-banner";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
@@ -108,6 +109,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="flex min-h-dvh flex-col">
         <SkipLink />
+        {/* Só com DEMO_MODE=true e uma conta fictícia logada (docs/14). */}
+        <DemoBanner />
         <SiteHeader />
         <SupabaseSetupNotice />
         <main id="conteudo" tabIndex={-1} className="flex-1 outline-none">

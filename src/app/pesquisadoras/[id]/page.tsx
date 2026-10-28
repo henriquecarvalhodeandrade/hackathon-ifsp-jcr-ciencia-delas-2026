@@ -6,6 +6,8 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  Check,
+  Footprints,
   HeartHandshake,
   Languages,
   MapPin,
@@ -42,6 +44,12 @@ import {
   getOpenRequestBetween,
   getOwnOpenSlots,
 } from "@/lib/profile/queries";
+import {
+  normalizeTrajectoryTags,
+  sharedTrajectory,
+  sharedTrajectorySentence,
+  trajectoryMark,
+} from "@/lib/trajectory/catalog";
 import { formatDate, formatNumber, formatRelativeTime, pluralize, toIsoString } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
@@ -111,6 +119,10 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
     : null;
   const place = formatPlace(profile.city, profile.state);
   const firstName = profile.full_name.split(/\s+/)[0] || "Ela";
+  // Trajetória (docs/17): só membras chegam aqui (requireOnboardedProfile + RLS).
+  const marks = normalizeTrajectoryTags(profile.trajectory_tags);
+  const sharedMarks = isSelf ? [] : sharedTrajectory(me.trajectory_tags, marks);
+  const sharedSentence = sharedTrajectorySentence(sharedMarks, 2);
 
   return (
     <Container className="pb-16">
@@ -249,6 +261,50 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
               </div>
             )}
           </ProfileSection>
+
+          {marks.length > 0 && (
+            <ProfileSection id="trajetoria-titulo" title="Trajetória" icon={<Footprints />}>
+              <div className="grid gap-4">
+                {sharedSentence && (
+                  <p className="flex items-start gap-2.5 rounded-control bg-accent-soft p-3.5 font-semibold text-accent-soft-fg">
+                    <HeartHandshake aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                    <span>{sharedSentence}</span>
+                  </p>
+                )}
+                <ul aria-labelledby="trajetoria-titulo" className="flex flex-wrap gap-2">
+                  {marks.map((slug) => {
+                    const shared = sharedMarks.includes(slug);
+                    return (
+                      <li key={slug} className="max-w-full">
+                        <Chip
+                          variant={shared ? "accent" : "neutral"}
+                          icon={shared ? <Check aria-hidden="true" /> : undefined}
+                        >
+                          {trajectoryMark(slug)?.chip ?? slug}
+                          {shared && <span className="sr-only"> (em comum com você)</span>}
+                        </Chip>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-sm text-fg-subtle">
+                  {isSelf ? (
+                    <>
+                      Opcional e visível só para membras da Artemis.{" "}
+                      <Link
+                        href="/perfil#sobre"
+                        className="font-semibold text-primary underline underline-offset-2"
+                      >
+                        Mudar minhas marcas
+                      </Link>
+                    </>
+                  ) : (
+                    `Caminhos que ${firstName} escolheu contar à comunidade. Só membras veem.`
+                  )}
+                </p>
+              </div>
+            </ProfileSection>
+          )}
 
           {profile.is_mentor && (
             <ProfileSection

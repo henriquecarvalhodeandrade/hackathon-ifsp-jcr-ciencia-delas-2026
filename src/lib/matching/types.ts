@@ -25,6 +25,11 @@ export interface MenteeForMatching {
   meeting_formats: string[] | null;
   languages: string[] | null;
   state: string | null;
+  /**
+   * Marcas de trajetória autodeclaradas (src/lib/trajectory/catalog.ts). Opcional: quem não
+   * declarou nada fica exatamente com a mesma nota. NUNCA vão para a IA.
+   */
+  trajectory_tags?: string[] | null;
 }
 
 /** Linha devolvida pela RPC `get_mentor_candidates` (CONTRACT §4). */
@@ -46,12 +51,19 @@ export interface MentorCandidate {
   similarity: number | null;
   open_slots: number | null;
   existing_request_status: string | null;
+  /** Marcas de trajetória da mentora (última coluna da RPC). NUNCA vão para a IA. */
+  trajectory_tags: string[] | null;
 }
 
-export type MatchComponent = "areas" | "similarity" | "topics" | "seniority" | "compatibility";
+export type MatchComponent =
+  "areas" | "similarity" | "topics" | "seniority" | "compatibility" | "trajectory";
 
 export interface MatchBreakdown {
-  /** Nota de cada componente, 0..1. null = não se aplica (peso redistribuído). */
+  /**
+   * Nota de cada componente, 0..1. null = não se aplica (peso redistribuído).
+   * `trajectory` só existe (= 1) quando as duas têm marca em comum; o quanto compartilham
+   * entra no PESO do componente (ver rank.ts), para ele só poder somar.
+   */
   components: Record<MatchComponent, number | null>;
   /** Pesos efetivos usados (somam 1 entre os componentes aplicáveis). */
   weights: Record<MatchComponent, number>;
@@ -67,6 +79,8 @@ export interface MatchBreakdown {
   languageOverlap: string[];
   sameState: boolean;
   similarity: number | null;
+  /** Marcas de trajetória em comum (slugs, na ordem do catálogo). Vazio = componente null. */
+  sharedTrajectory: string[];
 }
 
 export interface RankedMentor<C extends MentorCandidate = MentorCandidate> {

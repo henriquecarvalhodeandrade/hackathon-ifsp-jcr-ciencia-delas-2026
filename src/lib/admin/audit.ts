@@ -2,7 +2,8 @@
  * Registro de auditoria da moderação (`public.moderation_audit_log`) — rótulos e regras puras.
  *
  * O registro é gravado pelo banco nas RPCs de moderação (revelar autoria, fixar/trancar,
- * ocultar paper) e ao resolver/arquivar denúncias (trigger), e pelo painel ao excluir
+ * ocultar paper, publicar/recusar perguntas e ocultar/reexibir respostas do Pergunte a uma
+ * cientista) e ao resolver/arquivar denúncias (trigger), e pelo painel ao excluir
  * conteúdo e trocar papéis. Só moderadoras e admins leem; ninguém edita nem apaga pela API.
  * Ele substitui as antigas linhas "[Auditoria] …" em `reports.resolution_note`, que é uma
  * nota VISÍVEL para quem denunciou.
@@ -20,6 +21,11 @@ export const AUDIT_ACTIONS = [
   "resolve_report",
   "dismiss_report",
   "change_role",
+  // Pergunte a uma cientista (migration 20261028190100_public_questions.sql)
+  "publish_question",
+  "reject_question",
+  "hide_answer",
+  "unhide_answer",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -31,6 +37,8 @@ export const AUDIT_TARGET_TYPES = [
   "paper_comment",
   "profile",
   "report",
+  "public_question",
+  "public_answer",
 ] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
@@ -48,6 +56,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   resolve_report: "resolveu a denúncia",
   dismiss_report: "arquivou a denúncia",
   change_role: "alterou o papel",
+  publish_question: "publicou a pergunta",
+  reject_question: "não publicou a pergunta",
+  hide_answer: "ocultou a resposta",
+  unhide_answer: "reexibiu a resposta",
 };
 
 export const AUDIT_TARGET_LABELS: Record<AuditTargetType, string> = {
@@ -57,6 +69,8 @@ export const AUDIT_TARGET_LABELS: Record<AuditTargetType, string> = {
   paper_comment: "Comentário em paper",
   profile: "Perfil",
   report: "Denúncia",
+  public_question: "Pergunta pública",
+  public_answer: "Resposta pública",
 };
 
 /** Ações que merecem destaque visual (afetam a privacidade ou o papel de alguém). */
@@ -75,7 +89,9 @@ export function isAuditTargetType(value: unknown): value is AuditTargetType {
 
 /**
  * Link para o alvo (quando existe uma página dele). Respostas e comentários não têm página
- * própria sem o id do tópico/paper, então ficam sem link.
+ * própria sem o id do tópico/paper, então ficam sem link. Uma pergunta pública leva à página dela
+ * (404 se ainda não foi publicada ou se quem perguntou a apagou); uma resposta pública leva à fila
+ * da moderação, onde aparece com a autora.
  */
 export function auditTargetHref(type: AuditTargetType | null, id: string | null): string | null {
   if (!type || !id) return null;
@@ -86,6 +102,10 @@ export function auditTargetHref(type: AuditTargetType | null, id: string | null)
       return `/papers/${id}`;
     case "profile":
       return `/pesquisadoras/${id}`;
+    case "public_question":
+      return `/pergunte/${id}`;
+    case "public_answer":
+      return "/admin?aba=perguntas";
     default:
       return null;
   }

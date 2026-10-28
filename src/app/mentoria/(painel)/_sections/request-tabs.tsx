@@ -5,6 +5,7 @@ import { AvailabilityForm } from "@/components/mentorship/availability-form";
 import { FirstMeetingChecklist } from "@/components/mentorship/first-meeting-checklist";
 import {
   ActiveMentorshipCard,
+  CompletedMentorshipCard,
   HistoryRow,
   ReceivedRequestCard,
   SentRequestCard,
@@ -12,6 +13,7 @@ import {
 import type { Profile } from "@/lib/auth";
 import { capacitySummary, tabHref } from "@/lib/mentorship/presentation";
 import { loadContacts, type RequestItem, type ServerClient } from "@/lib/mentorship/queries";
+import { loadRecognitionStates } from "@/lib/recognition/queries";
 import { pluralize } from "@/lib/utils";
 
 function SectionTitle({
@@ -237,10 +239,17 @@ export async function ActiveTab({
 }) {
   const active = requests.filter((r) => r.status === "accepted");
   const completed = requests.filter((r) => r.status === "completed").slice(0, 20);
-  const contacts = await loadContacts(
-    supabase,
-    active.map((r) => r.id),
-  );
+  // Contatos (ativas) e reconhecimento (concluídas: retorno + declaração) em lote, em paralelo.
+  const [contacts, recognition] = await Promise.all([
+    loadContacts(
+      supabase,
+      active.map((r) => r.id),
+    ),
+    loadRecognitionStates(
+      supabase,
+      completed.map((r) => ({ id: r.id, role: r.role, otherId: r.other.id })),
+    ),
+  ]);
 
   return (
     <div className="grid gap-10">
@@ -285,12 +294,23 @@ export async function ActiveTab({
 
       {completed.length > 0 && (
         <section aria-labelledby="ativas-concluidas" className="grid gap-4">
-          <SectionTitle id="ativas-concluidas" count={completed.length}>
-            Mentorias concluídas
-          </SectionTitle>
-          <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
+          <div className="grid gap-1">
+            <SectionTitle id="ativas-concluidas" count={completed.length}>
+              Mentorias concluídas
+            </SectionTitle>
+            <p className="text-sm text-fg-muted">
+              Conte como foi (é privado) e peçam juntas a declaração de participação, com código de
+              verificação.
+            </p>
+          </div>
+          <ul className="grid gap-4">
             {completed.map((r) => (
-              <HistoryRow key={r.id} request={r} unread={unread.get(r.id) ?? 0} />
+              <CompletedMentorshipCard
+                key={r.id}
+                request={r}
+                recognition={recognition?.get(r.id) ?? null}
+                unread={unread.get(r.id) ?? 0}
+              />
             ))}
           </ul>
         </section>

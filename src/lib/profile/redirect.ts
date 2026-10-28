@@ -24,8 +24,10 @@ function hasBlockedPrefix(pathname: string): boolean {
  *   safeNextPath("/forum/t/123?x=1") → "/forum/t/123?x=1"
  *   safeNextPath("//evil.com")       → fallback
  *   safeNextPath("https://evil.com") → fallback
+ *
+ * O destino padrão é o /painel: o "início" de quem já faz parte da rede.
  */
-export function safeNextPath(raw: unknown, fallback = "/forum"): string {
+export function safeNextPath(raw: unknown, fallback = "/painel"): string {
   if (typeof raw !== "string") return fallback;
   const value = raw.trim();
   if (!value || value.length > 512) return fallback;

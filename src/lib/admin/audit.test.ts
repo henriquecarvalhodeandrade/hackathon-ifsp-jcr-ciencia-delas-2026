@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   AUDIT_ACTION_LABELS,
   AUDIT_ACTIONS,
+  AUDIT_TARGET_LABELS,
+  AUDIT_TARGET_TYPES,
   appendToResolutionNote,
   auditTargetHref,
   cleanAuditReason,
@@ -12,7 +16,39 @@ import {
 describe("ações do registro de auditoria", () => {
   it("tem rótulo pt-BR para todas as ações aceitas pelo banco", () => {
     for (const action of AUDIT_ACTIONS) expect(AUDIT_ACTION_LABELS[action]).toMatch(/\S/);
-    expect(AUDIT_ACTIONS).toHaveLength(11);
+    expect(AUDIT_ACTIONS).toHaveLength(15);
+    for (const type of AUDIT_TARGET_TYPES) expect(AUDIT_TARGET_LABELS[type]).toMatch(/\S/);
+  });
+
+  it("inclui as ações e os alvos do Pergunte a uma cientista", () => {
+    expect(AUDIT_ACTION_LABELS.publish_question).toBe("publicou a pergunta");
+    expect(AUDIT_ACTION_LABELS.reject_question).toBe("não publicou a pergunta");
+    expect(AUDIT_ACTION_LABELS.hide_answer).toBe("ocultou a resposta");
+    expect(AUDIT_ACTION_LABELS.unhide_answer).toBe("reexibiu a resposta");
+    expect(AUDIT_TARGET_LABELS.public_question).toBe("Pergunta pública");
+    expect(AUDIT_TARGET_LABELS.public_answer).toBe("Resposta pública");
+    expect(isAuditAction("publish_question")).toBe(true);
+    expect(isAuditTargetType("public_answer")).toBe(true);
+  });
+
+  it("acompanha os CHECKs do banco (a última migration que repete as listas)", () => {
+    const sql = readFileSync(
+      fileURLToPath(
+        new URL(
+          "../../../supabase/migrations/20261028190100_public_questions.sql",
+          import.meta.url,
+        ),
+      ),
+      "utf8",
+    );
+    const list = (constraint: string) => {
+      const match = new RegExp(`add constraint ${constraint} check \\(\\w+ in \\(([^)]*)\\)`).exec(
+        sql,
+      );
+      return [...(match?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    };
+    expect(list("moderation_audit_log_action_check")).toEqual([...AUDIT_ACTIONS]);
+    expect(list("moderation_audit_log_target_type_check")).toEqual([...AUDIT_TARGET_TYPES]);
   });
 
   it("reconhece só ações e alvos conhecidos", () => {
@@ -29,6 +65,8 @@ describe("auditTargetHref", () => {
     expect(auditTargetHref("thread", "t1")).toBe("/forum/t/t1");
     expect(auditTargetHref("paper", "p1")).toBe("/papers/p1");
     expect(auditTargetHref("profile", "u1")).toBe("/pesquisadoras/u1");
+    expect(auditTargetHref("public_question", "q1")).toBe("/pergunte/q1");
+    expect(auditTargetHref("public_answer", "a1")).toBe("/admin?aba=perguntas");
   });
 
   it("sem link para respostas, comentários, denúncias ou alvo ausente", () => {

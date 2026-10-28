@@ -4,6 +4,7 @@ import { Select } from "@/components/ui/select";
 import { BR_STATES, CAREER_STAGE_OPTIONS } from "@/lib/constants";
 import type { ProfileFieldErrors, ProfileFormValues } from "@/lib/profile/form-values";
 import { PROFILE_LIMITS } from "@/lib/profile/schemas";
+import { TrajectoryFields } from "./trajectory-fields";
 
 const UF_OPTIONS = Object.entries(BR_STATES).map(([value, label]) => ({
   value,
@@ -15,7 +16,10 @@ export interface SectionFieldsProps {
   errors?: ProfileFieldErrors;
 }
 
-/** Seção 1 — Sobre você (nome, pronomes, título, fase da carreira, instituição e local). */
+/**
+ * Seção 1 — Sobre você (nome, pronomes, título, fase da carreira, instituição e local) e, no
+ * fim, as marcas opcionais de trajetória (docs/17).
+ */
 export function AboutFields({ values, errors }: SectionFieldsProps) {
   return (
     <div className="grid gap-5">
@@ -96,6 +100,8 @@ export function AboutFields({ values, errors }: SectionFieldsProps) {
           />
         </Field>
       </div>
+
+      <TrajectoryFields defaultValue={values.trajectory_tags} error={errors?.trajectory_tags} />
     </div>
   );
 }

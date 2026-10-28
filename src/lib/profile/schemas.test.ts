@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AVAILABILITY_MARKER,
   EMPTY_PROFILE_VALUES,
+  TRAJECTORY_MARKER,
   profileToFormValues,
   readSectionValues,
   updateToFormValues,
@@ -353,3 +354,108 @@ describe("updateToFormValues", () => {
     });
   });
 });
+
+describe("trajetória (opcional, em “Sobre você”)", () => {
+  const about = { ...EMPTY_PROFILE_VALUES, full_name: "Ana Souza", career_stage: "phd" };
+
+  it("aceita qualquer subconjunto do catálogo, sem repetição e na ordem do catálogo", () => {
+    const result = parseProfileSection("sobre", {
+      ...about,
+      trajectory_tags: ["fora-das-capitais", "primeira-geracao", "primeira-geracao"],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.update.trajectory_tags).toEqual(["primeira-geracao", "fora-das-capitais"]);
+    }
+    const none = parseProfileSection("sobre", { ...about, trajectory_tags: [] });
+    expect(none.success && none.update.trajectory_tags).toEqual([]);
+  });
+
+  it("recusa marca fora do catálogo com erro no campo", () => {
+    const result = parseProfileSection("sobre", {
+      ...about,
+      trajectory_tags: ["primeira-geracao", "raca"],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors.trajectory_tags?.[0]).toMatch(/não existe mais/);
+      expect(result.fieldErrors.full_name).toBeUndefined();
+    }
+  });
+
+  it("é opcional: sem o grupo no formulário, o update não mexe nas marcas", () => {
+    const { trajectory_tags: _omit, ...withoutTags } = about;
+    void _omit;
+    const result = parseProfileSection("sobre", withoutTags);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.update).not.toHaveProperty("trajectory_tags");
+  });
+
+  it("lê do FormData só quando o grupo foi enviado (marca oculta)", () => {
+    const shown = readSectionValues(
+      "sobre",
+      form([
+        ["full_name", "Ana"],
+        [TRAJECTORY_MARKER, "1"],
+        ["trajectory_tags", "escola-publica"],
+        ["trajectory_tags", "mae-cuidadora"],
+      ]),
+    );
+    expect(shown.trajectory_tags).toEqual(["escola-publica", "mae-cuidadora"]);
+    // Grupo enviado sem nenhuma marcada = tirar todas.
+    expect(readSectionValues("sobre", form([[TRAJECTORY_MARKER, "1"]])).trajectory_tags).toEqual(
+      [],
+    );
+    // Sem a marca, o campo nem aparece (outras seções/telas nunca apagam as marcas).
+    expect(
+      readSectionValues("sobre", form([["trajectory_tags", "escola-publica"]])),
+    ).not.toHaveProperty("trajectory_tags");
+  });
+
+  it("vai e volta entre perfil, formulário e update", () => {
+    const values = profileToFormValues(
+      {
+        ...EMPTY_ROW,
+        trajectory_tags: ["mudanca-de-area", "escola-publica", "inventada"],
+      },
+      [],
+    );
+    expect(values.trajectory_tags).toEqual(["escola-publica", "mudanca-de-area"]);
+    expect(profileToFormValues(EMPTY_ROW, []).trajectory_tags).toEqual([]);
+    const parsed = parseProfileSection("sobre", {
+      ...about,
+      trajectory_tags: values.trajectory_tags,
+    });
+    if (!parsed.success) throw new Error("esperava sucesso");
+    expect(updateToFormValues(parsed.update).trajectory_tags).toEqual([
+      "escola-publica",
+      "mudanca-de-area",
+    ]);
+  });
+});
+
+const EMPTY_ROW = {
+  full_name: "Ana",
+  pronouns: null,
+  headline: null,
+  institution: null,
+  city: null,
+  state: null,
+  career_stage: null,
+  keywords: [],
+  bio: null,
+  lattes_url: null,
+  orcid: null,
+  linkedin_url: null,
+  website_url: null,
+  seeks_mentorship: false,
+  is_mentor: false,
+  mentoring_goals: null,
+  mentoring_offer: null,
+  mentor_capacity: 2,
+  mentor_available: true,
+  mentorship_topics: [],
+  meeting_formats: [],
+  languages: [],
+  ai_consent: false,
+};

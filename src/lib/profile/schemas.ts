@@ -17,6 +17,12 @@ import {
   type MeetingFormat,
   type MentorshipTopic,
 } from "@/lib/constants";
+import {
+  TRAJECTORY_MAX,
+  TRAJECTORY_SLUGS,
+  normalizeTrajectoryTags,
+  type TrajectorySlug,
+} from "@/lib/trajectory/catalog";
 import type { ProfileFieldErrors, ProfileFormValues, ProfileSection } from "./form-values";
 import { normalizeOrcid, normalizeProfileUrl, type ProfileLinkKind } from "./links";
 
@@ -43,6 +49,7 @@ const states = Object.keys(BR_STATES) as [BrState, ...BrState[]];
 const topics = Object.keys(MENTORSHIP_TOPICS) as [MentorshipTopic, ...MentorshipTopic[]];
 const formats = Object.keys(MEETING_FORMATS) as [MeetingFormat, ...MeetingFormat[]];
 const languages = Object.keys(LANGUAGES) as [LanguageCode, ...LanguageCode[]];
+const trajectorySlugs = TRAJECTORY_SLUGS as [TrajectorySlug, ...TrajectorySlug[]];
 
 /** Colunas que a própria usuária pode alterar (o banco recusa id, role, created_at, updated_at). */
 export type ProfileUpdate = Omit<
@@ -120,6 +127,17 @@ const aboutSchema = z.object({
     .union([z.literal(""), z.enum(states)], { error: "Escolha um estado da lista." })
     .transform((value) => (value === "" ? null : value)),
   career_stage: z.enum(careerStages, { error: "Escolha em que fase da carreira você está." }),
+  // Opcional: ausente = o formulário não mostrou o grupo (as marcas salvas ficam como estão).
+  trajectory_tags: z
+    .array(
+      z.enum(trajectorySlugs, {
+        error:
+          "Uma das opções de trajetória não existe mais. Recarregue a página e escolha de novo.",
+      }),
+    )
+    .max(TRAJECTORY_MAX, { error: `Escolha no máximo ${TRAJECTORY_MAX} opções.` })
+    .transform((items) => normalizeTrajectoryTags(items))
+    .optional(),
 });
 
 const researchSchema = z.object({
@@ -250,7 +268,11 @@ export function parseProfileSection(
     case "sobre": {
       const parsed = aboutSchema.safeParse(values);
       if (!parsed.success) return { success: false, fieldErrors: fieldErrorsOf(parsed.error) };
-      return { success: true, update: parsed.data };
+      const { trajectory_tags, ...update } = parsed.data;
+      return {
+        success: true,
+        update: trajectory_tags === undefined ? update : { ...update, trajectory_tags },
+      };
     }
     case "pesquisa": {
       const parsed = researchSchema.safeParse(values);

@@ -1,10 +1,12 @@
-import { Ban, CalendarCheck, CircleCheck, Quote } from "lucide-react";
+import { ArrowRight, Ban, CalendarCheck, CircleCheck, Quote } from "lucide-react";
 import { Badge, ButtonLink, Card, Chip } from "@/components/ui";
 import { cancelRequestAction, completeMentorshipAction } from "@/app/mentoria/actions";
+import { completionHref, RecognitionPanel } from "@/components/recognition/recognition-panel";
 import { hasConversation } from "@/lib/mentorship/conversation";
 import type { Contact, RequestItem } from "@/lib/mentorship/queries";
 import { firstName, tabHref } from "@/lib/mentorship/presentation";
 import { topicLabel } from "@/lib/mentorship/view-models";
+import type { RecognitionState } from "@/lib/recognition/state";
 import { formatDate, formatRelativeTime, toIsoString } from "@/lib/utils";
 import { MentorshipActionDialog } from "./action-dialog";
 import { ContactCard } from "./contact-card";
@@ -297,6 +299,76 @@ export function ActiveMentorshipCard({
           />
         )}
       </div>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mentorias concluídas: reconhecimento (retorno privado + declaração)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cartão de uma mentoria concluída com o painel de reconhecimento (retorno privado e declaração
+ * de participação). `recognition` vem de UMA leitura em lote para todos os cartões (null = não
+ * deu para carregar). O id do cartão é o destino dos avisos depois de cada ação.
+ */
+export function CompletedMentorshipCard({
+  request,
+  recognition,
+  unread = 0,
+}: {
+  request: RequestItem;
+  recognition: RecognitionState | null;
+  /** Mensagens da outra participante ainda não lidas. */
+  unread?: number;
+}) {
+  const otherName = firstName(request.other.full_name) || request.other.full_name;
+  const headingId = `concluida-${request.id}`;
+  const isMentee = request.role === "mentee";
+  const completedAt = recognition?.completedAt ?? null;
+
+  return (
+    <Card
+      as="li"
+      id={`reconhecimento-${request.id}`}
+      aria-labelledby={headingId}
+      className="grid scroll-mt-24 gap-4 p-5 sm:p-6"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <PersonSummary person={request.other} headingId={headingId}>
+          <Badge variant={isMentee ? "primary" : "secondary"}>
+            {isMentee ? "Sua mentora" : "Sua mentoranda"}
+          </Badge>
+        </PersonSummary>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <MentorshipStatusBadge status={request.status} />
+            {completedAt && (
+              <p className="text-sm text-fg-subtle">
+                Concluída em{" "}
+                <time dateTime={toIsoString(completedAt)}>{formatDate(completedAt)}</time>
+              </p>
+            )}
+          </div>
+          {hasConversation(request) && (
+            <ConversationLink
+              requestId={request.id}
+              otherName={otherName}
+              unread={unread}
+              readOnly
+              variant="outline"
+            />
+          )}
+        </div>
+      </div>
+
+      <RecognitionPanel requestId={request.id} otherFirstName={otherName} state={recognition} />
+
+      <ButtonLink href={completionHref(request.id)} variant="link" size="sm" className="w-fit">
+        Abrir a página desta mentoria
+        <ArrowRight aria-hidden="true" />
+        <span className="sr-only"> com {otherName}</span>
+      </ButtonLink>
     </Card>
   );
 }

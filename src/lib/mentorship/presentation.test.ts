@@ -6,6 +6,7 @@ import {
   defaultRequestMessage,
   firstName,
   isOpenStatus,
+  NOTICE_KEYS,
   parseNotice,
   parseTab,
   resolveTab,
@@ -162,5 +163,21 @@ describe("parseNotice", () => {
     expect(parseNotice("mentoria-cancelada")?.title).toBe("Mentoria cancelada");
     expect(parseNotice("<script>")).toBeNull();
     expect(parseNotice(undefined)).toBeNull();
+  });
+  it("tem os avisos do reconhecimento (retorno e declaração), sem prometer o que não acontece", () => {
+    expect(parseNotice("retorno-enviado")).toMatchObject({ variant: "success" });
+    expect(parseNotice("retorno-enviado")?.body).toContain("Só você vê");
+    expect(parseNotice("retorno-apagado")?.variant).toBe("info");
+    expect(parseNotice("declaracao-pedida")?.body).toContain("outra participante");
+    expect(parseNotice("declaracao-emitida")?.title).toBe("Declaração emitida!");
+    expect(parseNotice("declaracao-revogada")?.body).toContain("sem nomes");
+    expect(parseNotice("declaracao-cancelada")?.body).toContain("Nenhum nome foi publicado");
+  });
+  it("cada chave conhecida tem um aviso com título e texto", () => {
+    for (const key of NOTICE_KEYS) {
+      const notice = parseNotice(key);
+      expect(notice?.title, key).toBeTruthy();
+      expect(notice?.body, key).toBeTruthy();
+    }
   });
 });

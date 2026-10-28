@@ -1,4 +1,4 @@
-import { Bell, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { Bell, LayoutDashboard, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { DropdownMenu, type DropdownItem } from "@/components/ui/dropdown-menu";
 import { formatNumber } from "@/lib/utils";
@@ -13,7 +13,7 @@ export interface UserMenuProps {
   isModerator: boolean;
 }
 
-/** Menu da conta (avatar → Meu perfil, Notificações, Moderação, Sair). */
+/** Menu da conta (avatar → Meu painel, Meu perfil, Notificações, Moderação, Sair). */
 export function UserMenu({
   name,
   avatarUrl,
@@ -23,6 +23,7 @@ export function UserMenu({
   isModerator,
 }: UserMenuProps) {
   const items: DropdownItem[] = [
+    { href: "/painel", label: "Meu painel", icon: <LayoutDashboard aria-hidden="true" /> },
     { href: "/perfil", label: "Meu perfil", icon: <UserRound aria-hidden="true" /> },
     {
       href: "/notificacoes",

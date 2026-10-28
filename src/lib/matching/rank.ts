@@ -5,6 +5,11 @@ import {
   MEETING_FORMATS,
   type CareerStage,
 } from "@/lib/constants";
+import {
+  normalizeTrajectoryTags,
+  sharedTrajectory,
+  sharedTrajectorySentence,
+} from "@/lib/trajectory/catalog";
 import { careerStageLabel, topicLabel } from "./profile-text";
 import type {
   AreaLookup,
@@ -16,16 +21,24 @@ import type {
 } from "./types";
 
 /**
- * Ranking HEURÍSTICO de mentoras (puro e determinístico). Pontuação 0..100:
+ * Ranking HEURÍSTICO de mentoras (puro e determinístico). Pontuação 0..100 = média ponderada
+ * dos componentes que se aplicam, com estes PESOS RELATIVOS:
  *
- *   35%  áreas de pesquisa em comum
- *   30%  similaridade semântica dos perfis (embeddings; se ausente, o peso é redistribuído)
- *   15%  temas de mentoria + palavras-chave em comum
- *   10%  diferença de senioridade adequada (mentora mais sênior; ideal de 1 a 3 etapas)
- *   10%  compatibilidade prática (formato, idioma, mesmo estado, vagas abertas)
+ *   0,35  áreas de pesquisa em comum
+ *   0,30  similaridade semântica dos perfis (embeddings; se ausente, o peso é redistribuído)
+ *   0,15  temas de mentoria + palavras-chave em comum
+ *   0,10  diferença de senioridade adequada (mentora mais sênior; ideal de 1 a 3 etapas)
+ *   0,10  compatibilidade prática (formato, idioma, mesmo estado, vagas abertas)
+ *   0,10  afinidade de trajetória — SÓ quando as duas declararam marcas e têm alguma em comum
  *
- * Componentes que não se aplicam (ex.: sem embedding, mentoranda sem temas) valem `null` e
- * seus pesos são redistribuídos proporcionalmente entre os demais.
+ * Componentes que não se aplicam (ex.: sem embedding, mentoranda sem temas, nenhuma marca de
+ * trajetória em comum) valem `null` e seus pesos são redistribuídos proporcionalmente entre os
+ * demais — sem marcas, a conta é exatamente a de antes (os cinco primeiros pesos somam 1).
+ *
+ * Trajetória (docs/17): o componente vale 1 e o peso é 0,10 × cobertura, com
+ * cobertura = min(1, marcas em comum ÷ min(marcas da mentoranda, 2)). Somar um componente
+ * que vale 1 a uma média nunca a diminui: a afinidade só pode SUBIR a nota, e quem não
+ * declarou nada (ou declarou outras marcas) fica exatamente com a nota que teria sem ela.
  * Empates: pontuação exata desc e depois `mentor_id` asc.
  */
 
@@ -35,7 +48,11 @@ export const MATCH_WEIGHTS: Readonly<Record<MatchComponent, number>> = {
   topics: 0.15,
   seniority: 0.1,
   compatibility: 0.1,
+  trajectory: 0.1,
 };
+
+/** Marcas em comum que já valem o peso inteiro da afinidade de trajetória. */
+export const TRAJECTORY_SATURATION = 2;
 
 /** Faixa típica de cosseno entre perfis no gemini-embedding-2 (ajuste com dados reais). */
 export const SIMILARITY_FLOOR = 0.5;
@@ -274,17 +291,62 @@ function scoreCompatibility(
   return { score: clamp01(score), formatOverlap, languageOverlap, sameState };
 }
 
-/** Redistribui proporcionalmente os pesos dos componentes `null` entre os aplicáveis. */
+/**
+ * Afinidade de trajetória: marcas que as DUAS declararam. Sem marca em comum (inclusive quando
+ * uma delas não declarou nada) → `coverage` 0 e o componente fica null: ninguém é penalizada
+ * por não declarar, nem por ter um caminho diferente.
+ */
+export function scoreTrajectory(
+  menteeTags: readonly string[] | null | undefined,
+  mentorTags: readonly string[] | null | undefined,
+): { shared: string[]; coverage: number } {
+  const shared = sharedTrajectory(menteeTags, mentorTags);
+  if (shared.length === 0) return { shared, coverage: 0 };
+  const declared = normalizeTrajectoryTags(menteeTags).length;
+  return {
+    shared,
+    coverage: clamp01(shared.length / Math.min(declared, TRAJECTORY_SATURATION)),
+  };
+}
+
+function isApplicable(value: number | null | undefined): value is number {
+  return value !== null && value !== undefined;
+}
+
+/**
+ * Redistribui proporcionalmente os pesos dos componentes `null` (ou ausentes) entre os
+ * aplicáveis. O resultado soma 1 entre os componentes aplicáveis.
+ */
 export function effectiveWeights(
-  components: Record<MatchComponent, number | null>,
+  components: Readonly<Partial<Record<MatchComponent, number | null>>>,
   base: Readonly<Record<MatchComponent, number>> = MATCH_WEIGHTS,
 ): Record<MatchComponent, number> {
   const keys = Object.keys(base) as MatchComponent[];
-  const applicable = keys.filter((k) => components[k] !== null);
+  const applicable = keys.filter((k) => isApplicable(components[k]));
   const total = applicable.reduce((sum, k) => sum + base[k], 0);
   const out = {} as Record<MatchComponent, number>;
-  for (const k of keys) out[k] = total > 0 && components[k] !== null ? base[k] / total : 0;
+  for (const k of keys) out[k] = total > 0 && isApplicable(components[k]) ? base[k] / total : 0;
   return out;
+}
+
+function weightedScore(
+  components: Readonly<Record<MatchComponent, number | null>>,
+  weights: Readonly<Record<MatchComponent, number>>,
+): number {
+  const raw = (Object.keys(weights) as MatchComponent[]).reduce(
+    (sum, k) => sum + weights[k] * (components[k] ?? 0),
+    0,
+  );
+  return Math.min(100, Math.max(0, raw * 100));
+}
+
+/**
+ * Nota exata (0..100) SEM a afinidade de trajetória — é a que vai para a IA
+ * (pseudonymize.ts), para que nada derivado das marcas saia do servidor.
+ */
+export function scoreWithoutTrajectory(breakdown: Pick<MatchBreakdown, "components">): number {
+  const components = { ...breakdown.components, trajectory: null };
+  return weightedScore(components, effectiveWeights(components));
 }
 
 // ---------------------------------------------------------------------------
@@ -345,6 +407,10 @@ function topicsReason(breakdown: MatchBreakdown): string | null {
     return `Palavras-chave em comum: ${joinPt(breakdown.sharedKeywords.slice(0, 3))}.`;
   }
   return null;
+}
+
+function trajectoryReason(breakdown: MatchBreakdown): string | null {
+  return sharedTrajectorySentence(breakdown.sharedTrajectory, 2);
 }
 
 function seniorityReason(
@@ -411,6 +477,8 @@ function buildReasons(
     { text: areaReason(breakdown, areas, mentee), weight: contribution("areas") },
     { text: similarityReason(components.similarity), weight: contribution("similarity") },
     { text: topicsReason(breakdown), weight: contribution("topics") },
+    // Antes da senioridade: em empate de contribuição, a trajetória em comum vem primeiro.
+    { text: trajectoryReason(breakdown), weight: contribution("trajectory") },
     {
       text: seniorityReason(breakdown.seniorityGap, mentee, candidate),
       weight: contribution("seniority"),
@@ -456,6 +524,7 @@ export function scoreMentorCandidate<C extends MentorCandidate>(
   const gap =
     menteeSeniority === null || mentorSeniority === null ? null : mentorSeniority - menteeSeniority;
   const compat = scoreCompatibility(mentee, candidate);
+  const trajectory = scoreTrajectory(mentee.trajectory_tags, candidate.trajectory_tags);
 
   const components: Record<MatchComponent, number | null> = {
     areas: area.score,
@@ -463,13 +532,15 @@ export function scoreMentorCandidate<C extends MentorCandidate>(
     topics: topics.score,
     seniority: scoreSeniorityGap(gap),
     compatibility: compat.score,
+    trajectory: trajectory.shared.length > 0 ? 1 : null,
   };
-  const weights = effectiveWeights(components);
-  const raw = (Object.keys(weights) as MatchComponent[]).reduce(
-    (sum, k) => sum + weights[k] * (components[k] ?? 0),
-    0,
-  );
-  const rawScore = Math.min(100, Math.max(0, raw * 100));
+  // A cobertura da trajetória entra no peso (componente = 1): assim ela só pode somar.
+  const base =
+    trajectory.coverage > 0 && trajectory.coverage < 1
+      ? { ...MATCH_WEIGHTS, trajectory: MATCH_WEIGHTS.trajectory * trajectory.coverage }
+      : MATCH_WEIGHTS;
+  const weights = effectiveWeights(components, base);
+  const rawScore = weightedScore(components, weights);
 
   const breakdown: MatchBreakdown = {
     components,
@@ -484,6 +555,7 @@ export function scoreMentorCandidate<C extends MentorCandidate>(
     languageOverlap: compat.languageOverlap,
     sameState: compat.sameState,
     similarity: candidate.similarity ?? null,
+    sharedTrajectory: trajectory.shared,
   };
 
   return {
