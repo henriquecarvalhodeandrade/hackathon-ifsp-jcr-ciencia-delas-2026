@@ -412,7 +412,16 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      /**
+       * NOTA: função criada na migration 005. Se os tipos forem regenerados
+       * (`supabase gen types typescript`), esta assinatura precisa ser
+       * mantida/adicionada de volta — o generator não inclui funções criadas
+       * depois, e o perfil usa supabase.rpc("connection_count", ...).
+       */
+      connection_count: {
+        Args: { p_user_id: string };
+        Returns: number;
+      };
     };
     Enums: {
       account_type: AccountType;

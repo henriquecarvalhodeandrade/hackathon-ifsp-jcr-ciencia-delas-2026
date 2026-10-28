@@ -23,18 +23,30 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 interface NavbarProps {
   profile: Profile | null;
+  /** Pedidos de conexão aguardando resposta do usuário atual (pin na aba Rede). */
+  pendingConnectionCount?: number;
 }
 
-export function Navbar({ profile }: NavbarProps) {
+export function Navbar({ profile, pendingConnectionCount = 0 }: NavbarProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const navLinks = [
-    { href: "/feed", label: "Feed", icon: Rss },
-    { href: "/explore", label: "Explorar IC", icon: Compass },
-    { href: "/network", label: "Rede", icon: Users },
-    { href: "/messages", label: "Mensagens", icon: MessageSquare },
+    { href: "/feed", label: "Feed", icon: Rss, badge: 0 },
+    { href: "/explore", label: "Explorar IC", icon: Compass, badge: 0 },
+    { href: "/network", label: "Rede", icon: Users, badge: pendingConnectionCount },
+    { href: "/messages", label: "Mensagens", icon: MessageSquare, badge: 0 },
   ];
+
+  const Badge = ({ count }: { count: number }) =>
+    count > 0 ? (
+      <span
+        aria-label={`${count} convite${count > 1 ? "s" : ""} de conexão pendente${count > 1 ? "s" : ""}`}
+        className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-secondary text-secondary-foreground text-[10px] font-bold ring-2 ring-background"
+      >
+        {count > 9 ? "9+" : count}
+      </span>
+    ) : null;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/90 backdrop-blur-md">
@@ -68,6 +80,7 @@ export function Navbar({ profile }: NavbarProps) {
                 >
                   <Icon className="w-4 h-4" />
                   {link.label}
+                  <Badge count={link.badge} />
                 </Link>
               );
             })}
@@ -189,6 +202,7 @@ export function Navbar({ profile }: NavbarProps) {
               >
                 <Icon className="w-4 h-4" />
                 {link.label}
+                <Badge count={link.badge} />
               </Link>
             );
           })}

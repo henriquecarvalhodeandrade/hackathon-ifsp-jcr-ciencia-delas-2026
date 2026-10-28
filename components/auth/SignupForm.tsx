@@ -47,6 +47,10 @@ export function SignupForm() {
       if (!res.ok) {
         setError(res.error);
         setLoading(false);
+      } else if (res.needsEmailConfirmation) {
+        // Conta criada, mas aguardando confirmação de e-mail: não há session.
+        router.push("/login?confirmacao=1");
+        router.refresh();
       } else {
         router.push("/feed");
         router.refresh();

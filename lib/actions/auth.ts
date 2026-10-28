@@ -35,7 +35,7 @@ const SignInSchema = z.object({
 });
 
 export type ActionResponse =
-  | { ok: true; error?: never }
+  | { ok: true; error?: never; needsEmailConfirmation?: boolean }
   | { ok: false; error: string };
 
 export async function signUp(
@@ -102,11 +102,27 @@ export async function signUp(
     return { ok: false, error: authError.message };
   }
 
-  // Fallback caso a trigger do Postgres demore ou não esteja ativa ainda:
-  // Garante que a linha de profile exista imediatamente
-  if (authData.user) {
-    const { error: profileError } = await supabase.from("profiles").upsert(
-      {
+  // Com confirmação de e-mail ativa, e-mails já existentes retornam um usuário
+  // "falso" sem identidades (evita enumeração). Detecta para não fingir sucesso.
+  if (authData.user && (authData.user.identities?.length ?? 0) === 0) {
+    return {
+      ok: false,
+      error: "Este e-mail já está cadastrado. Fa login ou use outro e-mail.",
+    };
+  }
+
+  // Fallback defensivo: a trigger handle_new_user cria o profile. Só insere
+  // diretamente se faltar linha E houver session (insert policy exige
+  // authenticated; sem session a trigger já deu conta).
+  if (authData.session && authData.user) {
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      const { error: profileError } = await supabase.from("profiles").insert({
         id: authData.user.id,
         email: parsed.data.email.trim(),
         username: normalizedUsername,
@@ -115,17 +131,16 @@ export async function signUp(
         course_or_area: parsed.data.courseOrArea,
         is_self_declared_woman: parsed.data.isSelfDeclaredWoman,
         conduct_accepted_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+      });
 
-    if (profileError) {
-      console.error("Erro ao persistir perfil de fallback:", profileError);
+      if (profileError) {
+        console.error("Erro ao persistir perfil de fallback:", profileError);
+      }
     }
   }
 
   revalidatePath("/", "layout");
-  return { ok: true };
+  return { ok: true, needsEmailConfirmation: !authData.session };
 }
 
 export async function signIn(
@@ -151,6 +166,18 @@ export async function signIn(
   });
 
   if (error) {
+    // Mascarar tudo como "senha incorreta" esconde o motivo real (ex.:
+    // e-mail não confirmado), que é o caso mais comum logo após o cadastro.
+    if (
+      error.code === "email_not_confirmed" ||
+      error.message.includes("Email not confirmed")
+    ) {
+      return {
+        ok: false,
+        error:
+          "E-mail ainda não confirmado. Abra o link enviado para a sua caixa de entrada (confira também o spam) e tente entrar novamente.",
+      };
+    }
     return { ok: false, error: "E-mail ou senha incorretos." };
   }
 

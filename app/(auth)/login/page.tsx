@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { MailCheck } from "lucide-react";
 
-export default function LoginPage() {
+interface LoginPageProps {
+  searchParams: Promise<{ confirmacao?: string }>;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { confirmacao } = await searchParams;
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-background text-foreground">
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8">
@@ -28,6 +34,16 @@ export default function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
         <div className="bg-card py-8 px-6 shadow-sm border border-border rounded-2xl sm:px-10">
+          {confirmacao && (
+            <div className="mb-5 p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm flex items-start gap-2.5">
+              <MailCheck className="w-5 h-5 shrink-0 mt-0.5" />
+              <span>
+                Conta criada com sucesso! Confirme seu e-mail acessando o link
+                que enviamos para a sua caixa de entrada (confira o spam) e
+                depois entre com seus dados.
+              </span>
+            </div>
+          )}
           <LoginForm />
         </div>
       </div>
