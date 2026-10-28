@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+import { displayableAvatarSrc } from "@/lib/profile/avatar";
 import { cn, formatNumber, hashString, initials } from "@/lib/utils";
 
 const sizes = {
@@ -44,6 +46,9 @@ export interface AvatarProps extends Omit<React.ComponentProps<"span">, "childre
  */
 export function Avatar({ name, src, size = "md", alt, seed, className, ...props }: AvatarProps) {
   const label = alt ?? "";
+  // Só fotos do Storage deste projeto (ou do Google): endereços de terceiros revelariam o IP de
+  // quem vê o avatar. Fora da lista, ficam as iniciais.
+  const safeSrc = displayableAvatarSrc(src, env.supabaseUrl);
   return (
     <span
       role={label ? "img" : undefined}
@@ -64,10 +69,10 @@ export function Avatar({ name, src, size = "md", alt, seed, className, ...props 
         data-initials={initials(name)}
         className="before:content-[attr(data-initials)]"
       />
-      {src && (
+      {safeSrc && (
         // eslint-disable-next-line @next/next/no-img-element -- avatares vêm de domínios variados (Storage, Google); <img> evita erro de host não configurado
         <img
-          src={src}
+          src={safeSrc}
           alt=""
           loading="lazy"
           decoding="async"

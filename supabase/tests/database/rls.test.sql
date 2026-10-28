@@ -540,15 +540,22 @@ begin
     'CD013', 'não responde em nome de outra');
   perform cdtest.logout();
 
-  -- Moderação vê a autoria
+  -- Moderação NÃO lê a autoria direto (auditoria da segurança): só pela RPC, com motivo + registro.
   perform cdtest.login('f0000000-0000-4000-8000-000000000005');
   perform cdtest.check(
-    (select user_id from public.forum_anonymous_authorship where thread_id = v_thread) = 'f0000000-0000-4000-8000-000000000001',
-    'moderadora vê a autoria anônima');
+    (select count(*) from public.forum_anonymous_authorship where thread_id = v_thread) = 0,
+    'moderadora não lê forum_anonymous_authorship direto (sem contornar a auditoria)');
+  perform cdtest.check((select count(*) from public.forum_anonymous_authorship) = 0,
+    'moderadora sem autoria anônima própria não vê nenhuma linha');
   perform cdtest.check(
     public.reveal_anonymous_author(p_thread_id => v_thread,
       p_reason => 'Ameaça explícita a outra membra no tópico (teste).') = 'f0000000-0000-4000-8000-000000000001',
     'reveal_anonymous_author devolve a autora');
+  perform cdtest.check(
+    (select count(*) from public.moderation_audit_log
+     where action = 'reveal_author' and target_id = v_thread
+       and actor_id = 'f0000000-0000-4000-8000-000000000005') = 1,
+    'a revelação pela RPC fica no registro de auditoria');
   perform cdtest.throws('select public.reveal_anonymous_author()', '22023', 'reveal exige exatamente um alvo');
   perform cdtest.throws(format('select public.reveal_anonymous_author(%L)', v_thread),
     'CD016', 'reveal exige motivo');
@@ -1485,6 +1492,163 @@ begin
 end
 $$;
 select pass('get_mentor_open_slots: vagas das mentoras para membros');
+
+-- -----------------------------------------------------------------------------
+-- Auditoria de segurança (migration 20261028150000_security_audit.sql)
+-- -----------------------------------------------------------------------------
+
+-- Denúncias: sem repetição, sem alvo inexistente, sem rajadas (mesmo pela API).
+do $$
+declare
+  v_posts uuid[];
+  v_prior bigint;
+  i int;
+begin
+  -- Alvos distintos para a rajada (criados como postgres, contexto confiável).
+  with ins as (
+    insert into public.forum_posts (thread_id, author_id, body)
+    select cdtest.get('normal_thread'), 'f0000000-0000-4000-8000-000000000004', 'Resposta de teste nº ' || g
+    from generate_series(1, 25) as g
+    returning id
+  )
+  select array_agg(id) into v_posts from ins;
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000002');
+  insert into public.reports (target_type, target_id, reason)
+  values ('profile', 'f0000000-0000-4000-8000-000000000003', 'other');
+  perform cdtest.throws($q$insert into public.reports (target_type, target_id, reason)
+      values ('profile', 'f0000000-0000-4000-8000-000000000003', 'spam')$q$,
+    'CD018', 'denúncia repetida (mesmo alvo, ainda aberta) é recusada');
+  perform cdtest.throws(format($q$insert into public.reports (target_type, target_id, reason)
+      values ('profile', %L, 'spam')$q$, gen_random_uuid()),
+    'CD015', 'denúncia de perfil inexistente é recusada');
+  perform cdtest.throws(format($q$insert into public.reports (target_type, target_id, reason)
+      values ('thread', %L, 'spam')$q$, gen_random_uuid()),
+    'CD015', 'denúncia de tópico inexistente é recusada');
+
+  select count(*) into v_prior from public.reports
+  where reporter_id = 'f0000000-0000-4000-8000-000000000002' and created_at > now() - interval '1 hour';
+  for i in 1 .. (20 - v_prior) loop
+    insert into public.reports (target_type, target_id, reason) values ('post', v_posts[i], 'spam');
+  end loop;
+  perform cdtest.throws(format($q$insert into public.reports (target_type, target_id, reason)
+      values ('post', %L, 'spam')$q$, v_posts[25]),
+    'CD019', 'a 21ª denúncia na mesma hora é recusada');
+  perform cdtest.logout();
+
+  -- Contexto confiável (seed/service role) não sofre os limites.
+  insert into public.reports (reporter_id, target_type, target_id, reason)
+  values ('f0000000-0000-4000-8000-000000000002', 'post', v_posts[25], 'spam');
+end
+$$;
+select pass('reports: banco recusa denúncia repetida, alvo inexistente e mais de 20 por hora');
+
+-- Pedidos de mentoria: no máximo 3 por mentora a cada 7 dias e 10 a cada 24 h.
+do $$
+declare
+  v_mentor uuid;
+  v_id uuid;
+  v_count bigint;
+  v_msg text;
+begin
+  update public.profiles
+  set is_mentor = true, mentor_available = true, mentor_capacity = 5, onboarded_at = coalesce(onboarded_at, now())
+  where id in ('f0000000-0000-4000-8000-000000000003', 'f0000000-0000-4000-8000-000000000004',
+               'f0000000-0000-4000-8000-000000000005', 'f0000000-0000-4000-8000-000000000006');
+  update public.mentorship_requests set status = 'cancelled'
+  where mentee_id = 'f0000000-0000-4000-8000-000000000002' and status in ('pending', 'accepted');
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000002');
+  -- Pedir e cancelar em laço para a mesma mentora: o 4º pedido em 7 dias é recusado.
+  for i in 1 .. 3 loop
+    insert into public.mentorship_requests (mentor_id, message)
+    values ('f0000000-0000-4000-8000-000000000004', 'Pedido de teste para o limite por mentora.')
+    returning id into v_id;
+    update public.mentorship_requests set status = 'cancelled' where id = v_id;
+  end loop;
+  begin
+    insert into public.mentorship_requests (mentor_id, message)
+    values ('f0000000-0000-4000-8000-000000000004', 'Quarto pedido para a mesma mentora na semana.');
+    raise exception 'FALHOU: o 4º pedido para a mesma mentora em 7 dias foi aceito';
+  exception when sqlstate 'CD020' then
+    v_msg := sqlerrm;
+  end;
+  perform cdtest.check(v_msg like '%7 dias%', 'limite por mentora explica a espera de 7 dias');
+
+  -- Limite diário: completa 10 pedidos em 24 h com outras mentoras; o 11º é recusado.
+  select count(*) into v_count from public.mentorship_requests
+  where mentee_id = 'f0000000-0000-4000-8000-000000000002' and created_at > now() - interval '24 hours';
+  foreach v_mentor in array array['f0000000-0000-4000-8000-000000000003', 'f0000000-0000-4000-8000-000000000005',
+                                  'f0000000-0000-4000-8000-000000000006']::uuid[] loop
+    for i in 1 .. 3 loop
+      -- A última mentora guarda uma vaga (< 3) para o 11º pedido bater no limite diário.
+      exit when v_count >= 10
+        or (select count(*) from public.mentorship_requests
+            where mentee_id = 'f0000000-0000-4000-8000-000000000002' and mentor_id = v_mentor)
+           >= case when v_mentor = 'f0000000-0000-4000-8000-000000000006' then 2 else 3 end;
+      insert into public.mentorship_requests (mentor_id, message)
+      values (v_mentor, 'Pedido de teste para o limite diário de pedidos.')
+      returning id into v_id;
+      update public.mentorship_requests set status = 'cancelled' where id = v_id;
+      v_count := v_count + 1;
+    end loop;
+  end loop;
+  perform cdtest.check(v_count = 10, format('preparou 10 pedidos em 24 h (veio %s)', v_count));
+  v_msg := null;
+  begin
+    insert into public.mentorship_requests (mentor_id, message)
+    values ('f0000000-0000-4000-8000-000000000006', 'Décimo primeiro pedido do dia, deve ser recusado.');
+    raise exception 'FALHOU: o 11º pedido em 24 h foi aceito';
+  exception when sqlstate 'CD020' then
+    v_msg := sqlerrm;
+  end;
+  perform cdtest.check(v_msg like '%24 horas%', 'limite diário explica a espera de 24 horas');
+  perform cdtest.logout();
+end
+$$;
+select pass('mentorship_requests: pedir e cancelar em laço tem limite (3 por mentora/7 dias, 10/24 h)');
+
+-- Cota do matching com IA: guardada no banco, fora do alcance da usuária.
+do $$
+begin
+  perform cdtest.login_anon();
+  perform cdtest.throws('select public.claim_ai_matching_slot()', '42501', 'anon não reserva cota de IA');
+  perform cdtest.logout();
+
+  perform cdtest.login('f0000000-0000-4000-8000-000000000004');
+  perform cdtest.check(public.claim_ai_matching_slot(), 'primeira geração com IA é liberada');
+  perform cdtest.check(not public.claim_ai_matching_slot(), 'segunda geração em menos de 60 s é negada');
+  perform cdtest.throws('select count(*) from private.ai_matching_usage', '42501', 'usuária não lê a tabela de cota');
+  perform cdtest.throws('delete from private.ai_matching_usage', '42501', 'usuária não zera a própria cota');
+  -- Apagar as próprias sugestões (o que zerava a espera antiga) não muda nada.
+  delete from public.mentor_suggestions where mentee_id = 'f0000000-0000-4000-8000-000000000004';
+  perform cdtest.check(not public.claim_ai_matching_slot(), 'apagar as sugestões não libera outra geração');
+  perform cdtest.logout();
+
+  update private.ai_matching_usage set last_claimed_at = now() - interval '61 seconds'
+  where profile_id = 'f0000000-0000-4000-8000-000000000004';
+  perform cdtest.login('f0000000-0000-4000-8000-000000000004');
+  perform cdtest.check(public.claim_ai_matching_slot(), 'depois de 60 s a geração volta a ser liberada');
+  perform cdtest.logout();
+
+  update private.ai_matching_usage set last_claimed_at = now() - interval '61 seconds', window_count = 20
+  where profile_id = 'f0000000-0000-4000-8000-000000000004';
+  perform cdtest.login('f0000000-0000-4000-8000-000000000004');
+  perform cdtest.check(not public.claim_ai_matching_slot(), '20 gerações em 24 h esgotam a cota diária');
+  perform cdtest.logout();
+
+  update private.ai_matching_usage
+  set last_claimed_at = now() - interval '61 seconds', window_started_at = now() - interval '25 hours'
+  where profile_id = 'f0000000-0000-4000-8000-000000000004';
+  perform cdtest.login('f0000000-0000-4000-8000-000000000004');
+  perform cdtest.check(public.claim_ai_matching_slot(), 'a cota diária renova depois de 24 h');
+  perform cdtest.logout();
+  perform cdtest.check(
+    (select window_count from private.ai_matching_usage where profile_id = 'f0000000-0000-4000-8000-000000000004') = 1,
+    'nova janela começa a contar do zero');
+end
+$$;
+select pass('claim_ai_matching_slot: 60 s entre gerações e 20 por dia, sem como zerar pela API');
 
 -- -----------------------------------------------------------------------------
 -- 11. LGPD: excluir a conta apaga também o conteúdo anônimo

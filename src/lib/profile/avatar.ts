@@ -51,6 +51,49 @@ export function ownAvatarFileName(url: string, supabaseUrl: string, userId: stri
   return FILE_NAME.test(rest) ? rest : null;
 }
 
+/** Origens de fotos do login social aceitas para exibição (Google). */
+const SOCIAL_AVATAR_ORIGINS: readonly string[] = ["https://lh3.googleusercontent.com"];
+
+/**
+ * `src` que pode ir para o <img> do avatar, ou null (mostra as iniciais).
+ *
+ * Só aceita o bucket público de avatares DESTE projeto Supabase e a foto do Google. A coluna
+ * `profiles.avatar_url` aceita qualquer http(s) pela API (PATCH direto em /rest/v1/profiles ou
+ * metadados do cadastro), e um endereço de terceiros seria carregado no navegador de cada
+ * pessoa que vê o avatar — inclusive da autora de um tópico anônimo que abre o próprio tópico —
+ * entregando IP e horário de leitura a quem controla o servidor (auditoria de segurança).
+ */
+export function displayableAvatarSrc(
+  src: string | null | undefined,
+  supabaseUrl: string | null | undefined,
+): string | null {
+  if (typeof src !== "string" || !src.trim()) return null;
+  const value = src.trim();
+  // Arquivo estático do próprio site (ex.: "/brand/avatar-exemplo.svg" no guia vivo). O banco só
+  // aceita http(s) em avatar_url, então isto nunca vem de uma usuária.
+  if (/^\/(?![/\\])[^\s\\]*$/.test(value)) return value;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+
+  if (supabaseUrl) {
+    try {
+      const base = new URL(`${supabaseUrl.replace(/\/+$/, "")}/`);
+      const prefix = new URL(`storage/v1/object/public/${AVATAR_BUCKET}/`, base).href;
+      if (url.href.startsWith(prefix) && url.href.length > prefix.length) return url.href;
+    } catch {
+      // NEXT_PUBLIC_SUPABASE_URL inválida: nenhum avatar do Storage é exibido.
+    }
+  }
+  if (url.protocol === "https:" && SOCIAL_AVATAR_ORIGINS.includes(url.origin)) return url.href;
+  return null;
+}
+
 /** Mensagem de erro (pt-BR) para um arquivo escolhido, ou null se ele pode seguir. */
 export function avatarFileProblem(file: { type: string; size: number }): string | null {
   if (!isAvatarMimeType(file.type)) return "Use uma imagem PNG, JPG ou WebP.";

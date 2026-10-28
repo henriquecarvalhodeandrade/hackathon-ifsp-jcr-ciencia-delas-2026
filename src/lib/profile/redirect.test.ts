@@ -42,6 +42,32 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/forum/../perfil", "/x")).toBe("/perfil");
   });
 
+  it("recusa segmentos com ponto que normalizam para //outro-dominio (open redirect)", () => {
+    // Auditoria de segurança: "/.//evil.com" normalizava para "//evil.com" e o proxy/auth
+    // redirecionavam para http://evil.com/ (inclusive a partir de um link mágico legítimo).
+    for (const raw of [
+      "/.//evil.com",
+      "/..//evil.com",
+      "/%2e//evil.com",
+      "/%2E%2E//evil.com",
+      "/forum/..//evil.com",
+      "/forum/../..//evil.com/caminho?x=1",
+      "/././/evil.com",
+    ]) {
+      expect(safeNextPath(raw, "/x"), raw).toBe("/x");
+    }
+    // Nenhum destino aceito pode começar com "//".
+    expect(safeNextPath("/./forum", "/x")).toBe("/forum");
+    expect(safeNextPath("/forum/./t/1", "/x")).toBe("/forum/t/1");
+  });
+
+  it("o destino aceito continua no mesmo site quando resolvido contra a origem", () => {
+    const origin = "https://artemis.example";
+    for (const raw of ["/.//evil.com", "/..//evil.com", "/%2e//evil.com", "/forum", "/./perfil"]) {
+      expect(new URL(safeNextPath(raw, "/forum"), origin).origin, raw).toBe(origin);
+    }
+  });
+
   it("recusa caminhos muito longos", () => {
     expect(safeNextPath(`/${"a".repeat(600)}`, "/x")).toBe("/x");
   });

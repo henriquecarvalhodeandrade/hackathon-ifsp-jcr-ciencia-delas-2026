@@ -41,6 +41,7 @@
  *   MAILPIT_URL=<url>      API do Mailpit (padrão http://127.0.0.1:54324)
  *   DEMO_PASSWORD=<senha>  senha das contas demo (padrão ciencia-delas-demo)
  *   SKIP_SWEEP=1           só a jornada (sem capturas, links e foco)
+ *   ONLY_SWEEP=1           só a varredura (sem a jornada)
  *   KEEP_DATA=1            não apaga os dados criados (para investigar; rode de novo para limpar)
  *   HEADED=1               mostra o navegador
  * Sai com código 1 se alguma etapa ou verificação falhar (o resumo lista cada problema).
@@ -88,6 +89,7 @@ const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 const KEEP_DATA = process.env.KEEP_DATA === "1";
 const SKIP_SWEEP = process.env.SKIP_SWEEP === "1";
+const ONLY_SWEEP = process.env.ONLY_SWEEP === "1";
 
 /** Tudo o que o teste cria carrega esta marca (e-mails, textos), para achar e apagar depois. */
 const TAG_PREFIX = "e2e-jornada";
@@ -298,13 +300,20 @@ async function open(page, url) {
   return response;
 }
 
-/** Marca um checkbox/radio que pode estar visualmente escondido (componente customizado). */
+/**
+ * Marca um checkbox/radio/switch. Nos chips e switches do design system o input é `sr-only`
+ * e o rótulo recebe o clique (como faz uma pessoa): nesse caso clicamos no <label>.
+ */
 async function check(locator) {
+  if (await locator.isChecked()) return;
   try {
-    await locator.check({ timeout: 5_000 });
+    await locator.check({ timeout: 3_000 });
   } catch {
-    await locator.check({ force: true });
+    const label = locator.locator("xpath=ancestor::label[1]");
+    if ((await label.count()) > 0) await label.click();
+    else await locator.check({ force: true });
   }
+  await poll(() => locator.isChecked(), "opção marcada", { timeout: 5_000 });
 }
 
 async function visible(locator, what, timeout = 20_000) {
@@ -432,7 +441,10 @@ async function cleanup() {
       "tópicos",
     );
     threads.forEach((row) => threadIds.add(row.id));
-    const posts = await q(db.from("forum_posts").select("id").in("author_id", userIds), "respostas");
+    const posts = await q(
+      db.from("forum_posts").select("id").in("author_id", userIds),
+      "respostas",
+    );
     posts.forEach((row) => postIds.add(row.id));
     const papers = await q(db.from("papers").select("id").in("submitted_by", userIds), "papers");
     papers.forEach((row) => paperIds.add(row.id));
@@ -509,10 +521,7 @@ async function cleanup() {
   summary.papers = paperIds.size;
 
   if (created.editionIds.length > 0) {
-    await q(
-      db.from("newsletter_editions").delete().in("id", created.editionIds),
-      "apagar edições",
-    );
+    await q(db.from("newsletter_editions").delete().in("id", created.editionIds), "apagar edições");
   }
   summary.editions = created.editionIds.length;
 
@@ -552,7 +561,10 @@ async function journey() {
     await vp.waitForURL(new RegExp(`/papers/${SEED.paper}`));
     await visible(vp.getByRole("heading", { level: 1 }), "título do paper");
     await open(vp, "/ranking");
-    await visible(vp.getByRole("heading", { name: "Destaques da comunidade" }), "título do ranking");
+    await visible(
+      vp.getByRole("heading", { name: "Destaques da comunidade" }),
+      "título do ranking",
+    );
     return "landing → /papers → paper → /ranking";
   });
 
@@ -701,10 +713,7 @@ async function journey() {
       const card = np.locator("article", { hasText: "Marina Albuquerque" }).first();
       await visible(card, "Marina entre as sugestões");
       const suggestions = await q(
-        db
-          .from("mentor_suggestions")
-          .select("mentor_id, source")
-          .eq("mentee_id", ctx.newUserId),
+        db.from("mentor_suggestions").select("mentor_id, source").eq("mentee_id", ctx.newUserId),
         "sugestões",
       );
       assert(suggestions.length > 0, "nenhuma sugestão gravada");
@@ -744,10 +753,10 @@ async function journey() {
       const marina = await newContext({ cookies: await sessionCookies(demo("marina")) });
       const mp = await newPage(marina);
       await open(mp, "/mentoria?aba=recebidas");
-      const card = mp.locator("article", { hasText: NEW_NAME }).first();
+      const card = mp.getByRole("listitem", { name: NEW_NAME });
       await visible(card, "pedido da nova conta em “recebidas”");
       await card
-        .getByLabel(`Resposta para ${NEW_NAME}`)
+        .getByRole("textbox", { name: /^Resposta para/ })
         .fill("Que bom te conhecer! Vamos marcar uma conversa na próxima semana.");
       await card.getByRole("button", { name: "Aceitar mentoria" }).click();
       await poll(async () => {
@@ -828,8 +837,10 @@ async function journey() {
     async () => {
       ctx.anonTitle = `Relato de teste automatizado (${TAG})`;
       await open(np, "/forum/novo");
-      await np.getByLabel("Categoria").selectOption({ label: /Rede de apoio/ });
-      await check(np.getByRole("checkbox", { name: /Publicar anonimamente/ }));
+      await np
+        .getByLabel("Categoria")
+        .selectOption({ label: "Rede de apoio — assédio e desafios (aceita anonimato)" });
+      await check(np.getByRole("switch", { name: /^Publicar anonimamente/ }));
       await np.getByLabel("Título").fill(ctx.anonTitle);
       await np
         .getByRole("textbox", { name: "Texto" })
@@ -1035,9 +1046,11 @@ async function journey() {
         );
       }
       const area = np.getByLabel("Área");
-      const options = await area.locator("option").evaluateAll((items) =>
-        items.map((item) => ({ value: item.value, label: item.textContent?.trim() })),
-      );
+      const options = await area
+        .locator("option")
+        .evaluateAll((items) =>
+          items.map((item) => ({ value: item.value, label: item.textContent?.trim() })),
+        );
       const choice =
         options.find((option) => option.label === "Genética") ?? options.find((o) => o.value);
       await area.selectOption(choice.value);
@@ -1047,7 +1060,8 @@ async function journey() {
         .getByLabel(/Resumo em linguagem simples/)
         .fill(`Mostra como cortar o DNA em pontos escolhidos, base da edição genética. (${TAG})`);
       await np.getByRole("button", { name: "Publicar na Vitrine" }).click();
-      await np.waitForURL(/\/papers\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+      await np.waitForURL(/\/papers\/[0-9a-f-]{36}(\?|$)/, { timeout: 30_000 });
+      await visible(np.getByText("Paper publicado na Vitrine!"), "confirmação da publicação");
       ctx.paperId = np.url().match(/\/papers\/([0-9a-f-]{36})/)[1];
       created.paperIds.push(ctx.paperId);
       ctx.paperTitle = (await np.getByRole("heading", { level: 1 }).innerText()).trim();
@@ -1066,7 +1080,11 @@ async function journey() {
       await vote.click();
       await poll(async () => (await vote.getAttribute("aria-pressed")) === "true", "voto marcado");
       await poll(async () => {
-        const { data } = await db.from("papers").select("vote_count").eq("id", ctx.paperId).single();
+        const { data } = await db
+          .from("papers")
+          .select("vote_count")
+          .eq("id", ctx.paperId)
+          .single();
         return data?.vote_count === 1;
       }, "vote_count = 1");
       await lp.close();
@@ -1087,14 +1105,20 @@ async function journey() {
   await step(
     "Boletim: admin@ gera e envia a edição da semana (Mailpit)",
     async () => {
-      const page = ctx.adminPage ?? (await newPage(await newContext({ cookies: await sessionCookies(demo("admin")) })));
+      const page =
+        ctx.adminPage ??
+        (await newPage(await newContext({ cookies: await sessionCookies(demo("admin")) })));
       ctx.adminPage = page;
       const before = new Set(
         (await q(db.from("newsletter_editions").select("id"), "edições")).map((row) => row.id),
       );
       await open(page, "/admin?aba=newsletter");
       await page.getByRole("button", { name: "Gerar edição da semana" }).click();
-      await visible(page.getByText(/gerada e publicada|já existia/), "resultado da geração", 60_000);
+      await visible(
+        page.getByText(/gerada e publicada|já existia/),
+        "resultado da geração",
+        60_000,
+      );
       // A edição nova (ou, se ela já existia antes do teste, a mais recente).
       const rows = await q(
         db
@@ -1114,7 +1138,10 @@ async function journey() {
       await open(page, "/admin?aba=newsletter");
       const item = page.getByRole("listitem").filter({ hasText: edition.slug }).first();
       await visible(item, `edição ${edition.slug} na lista`);
-      await item.getByRole("button", { name: /Preparar envio|Enviar/ }).first().click();
+      await item
+        .getByRole("button", { name: /Preparar envio|Enviar/ })
+        .first()
+        .click();
       await visible(item.getByText(/receberá|receberão/), "prévia do envio");
       await item.getByRole("button", { name: "Confirmar envio" }).click();
       await visible(item.getByText("Envio processado"), "“Envio processado”", 60_000);
@@ -1150,7 +1177,8 @@ const VARIANTS = [
   { theme: "dark", width: 390, height: 844 },
 ];
 const shots = [];
-const linkSources = { visitor: new Map(), member: new Map() };
+/** Links internos encontrados por papel (cada papel confere com a própria sessão). */
+const linkSources = new Map();
 
 async function overflowReport(page) {
   return page.evaluate(() => {
@@ -1175,11 +1203,99 @@ async function overflowReport(page) {
       }
       if (clipped) continue;
       const id = el.id ? `#${el.id}` : "";
-      const cls = typeof el.className === "string" ? `.${el.className.split(/\s+/).slice(0, 3).join(".")}` : "";
+      const cls =
+        typeof el.className === "string"
+          ? `.${el.className.split(/\s+/).slice(0, 3).join(".")}`
+          : "";
       offenders.push(`${el.tagName.toLowerCase()}${id}${cls} (right=${Math.round(rect.right)})`);
       if (offenders.length >= 4) break;
     }
     return { extra, offenders };
+  });
+}
+
+/**
+ * Contraste de texto (WCAG AA: 4,5:1; 3:1 para texto grande). Lê as cores renderizadas
+ * (via canvas, funciona com oklch) e compõe os fundos semitransparentes até achar um opaco.
+ * Pula texto sobre imagem/gradiente, oculto, desabilitado ou só para leitor de tela.
+ */
+async function contrastReport(page) {
+  return page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const g = canvas.getContext("2d", { willReadFrequently: true });
+    const rgba = (color) => {
+      g.clearRect(0, 0, 1, 1);
+      g.fillStyle = "#000";
+      g.fillStyle = color;
+      g.fillRect(0, 0, 1, 1);
+      const [r, gr, b, a] = g.getImageData(0, 0, 1, 1).data;
+      return { r, g: gr, b, a: a / 255 };
+    };
+    const over = (top, bottom) => ({
+      r: top.r * top.a + bottom.r * (1 - top.a),
+      g: top.g * top.a + bottom.g * (1 - top.a),
+      b: top.b * top.a + bottom.b * (1 - top.a),
+      a: 1,
+    });
+    const lum = ({ r, g: gg, b }) => {
+      const f = (v) => {
+        const c = v / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(r) + 0.7152 * f(gg) + 0.0722 * f(b);
+    };
+    const backgroundOf = (el) => {
+      const layers = [];
+      for (let node = el; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.backgroundImage !== "none") return null;
+        const color = rgba(style.backgroundColor);
+        if (color.a > 0) layers.push(color);
+        if (color.a >= 1) break;
+      }
+      let result = { r: 255, g: 255, b: 255, a: 1 };
+      for (const layer of layers.reverse()) result = over(layer, result);
+      return result;
+    };
+    const out = [];
+    const seen = new Set();
+    for (const el of document.querySelectorAll("body *")) {
+      const hasText = [...el.childNodes].some(
+        (node) => node.nodeType === 3 && node.textContent.trim().length > 1,
+      );
+      if (!hasText) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) continue;
+      if (
+        el.closest(
+          "[aria-hidden='true'], [disabled], [aria-disabled='true'], fieldset:disabled, .sr-only, svg",
+        )
+      )
+        continue;
+      const style = getComputedStyle(el);
+      if (style.visibility !== "visible") continue;
+      let opacity = 1;
+      for (let node = el; node; node = node.parentElement)
+        opacity *= Number(getComputedStyle(node).opacity);
+      if (opacity < 0.99) continue;
+      const bg = backgroundOf(el);
+      if (!bg) continue;
+      const fg = over(rgba(style.color), bg);
+      const [l1, l2] = [lum(fg), lum(bg)].sort((a, b) => b - a);
+      const ratio = (l1 + 0.05) / (l2 + 0.05);
+      const size = parseFloat(style.fontSize);
+      const large = size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700);
+      const min = large ? 3 : 4.5;
+      if (ratio >= min - 0.02) continue;
+      const text = el.textContent.replace(/\s+/g, " ").trim().slice(0, 40);
+      const key = `${text}|${ratio.toFixed(2)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(`${ratio.toFixed(2)}:1 (mín. ${min}) “${text}” <${el.tagName.toLowerCase()}>`);
+      if (out.length >= 6) break;
+    }
+    return out;
   });
 }
 
@@ -1226,12 +1342,21 @@ async function sweepRole(role, paths, cookies, { collectLinks: collect = true } 
         );
         await page.screenshot({ path: file, fullPage: true });
         shots.push({ role, url, ...variant, file });
+        if (variant.width === 1440) {
+          for (const item of await contrastReport(page)) {
+            issue("contrast", `${role} ${variant.theme} ${url}`, item);
+          }
+        }
         if (collect && variant.theme === "light" && variant.width === 1440) {
-          const bucket = role === "visitante" ? linkSources.visitor : linkSources.member;
-          await collectLinks(page, bucket);
+          if (!linkSources.has(role)) linkSources.set(role, { cookies, links: new Map() });
+          await collectLinks(page, linkSources.get(role).links);
         }
       } catch (error) {
-        issue("sweep", label, error instanceof Error ? error.message.split("\n")[0] : String(error));
+        issue(
+          "sweep",
+          label,
+          error instanceof Error ? error.message.split("\n")[0] : String(error),
+        );
       }
     }
     await context.close();
@@ -1269,13 +1394,13 @@ async function focusAudit(cookies, url, who, maxTabs = 40) {
     const info = await page.evaluate(() => {
       const el = document.activeElement;
       if (!el || el === document.body) return null;
-      const hasRing = (node) => {
-        if (!node || !(node instanceof Element)) return false;
-        const style = getComputedStyle(node);
-        const outline = style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0;
-        const shadow = style.boxShadow && style.boxShadow !== "none";
-        return outline || shadow;
-      };
+      const ringIn = (style) =>
+        (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) ||
+        (style.boxShadow && style.boxShadow !== "none");
+      // O anel pode estar no próprio elemento ou num pseudo-elemento (ex.: CardLink usa ::after).
+      const hasRing = (node) =>
+        node instanceof Element &&
+        [null, "::after", "::before"].some((pseudo) => ringIn(getComputedStyle(node, pseudo)));
       const candidates = [
         el,
         el.parentElement,
@@ -1300,7 +1425,8 @@ async function focusAudit(cookies, url, who, maxTabs = 40) {
     if (!info.ring) missing.push(`${info.tag} “${info.name}”`);
   }
   await context.close();
-  for (const item of [...new Set(missing)]) issue("focus", `${who} ${url}`, `sem indicador de foco: ${item}`);
+  for (const item of [...new Set(missing)])
+    issue("focus", `${who} ${url}`, `sem indicador de foco: ${item}`);
   return seen;
 }
 
@@ -1370,10 +1496,12 @@ async function sweep() {
     );
     return "12 capturas da mentora + 16 da admin";
   });
-  await step("Links internos: visitante e membra (< 400)", async () => {
-    const a = await checkLinks(undefined, linkSources.visitor, "visitante");
-    const b = await checkLinks(member, linkSources.member, "membra");
-    return `${a} links como visitante, ${b} como membra`;
+  await step("Links internos de cada papel (< 400)", async () => {
+    const counts = [];
+    for (const [role, source] of linkSources) {
+      counts.push(`${await checkLinks(source.cookies, source.links, role)} (${role})`);
+    }
+    return `links conferidos: ${counts.join(", ")}`;
   });
   await step("Foco visível pelo teclado", async () => {
     let total = 0;
@@ -1385,6 +1513,40 @@ async function sweep() {
     }
     total += await focusAudit(adminCookies, "/admin", "admin");
     return `${total} paradas de Tab conferidas`;
+  });
+  await step("Menu do celular (390 px): abre, prende o foco e fecha com Esc", async () => {
+    const context = await newContext({ cookies: member, width: 390, height: 844 });
+    const page = await newPage(context);
+    await open(page, "/forum");
+    const trigger = page.getByRole("button", { name: "Abrir menu" });
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    const menu = page.getByRole("dialog", { name: "Menu principal" });
+    await visible(menu, "menu aberto");
+    assert(
+      (await trigger.getAttribute("aria-expanded")) === "true",
+      "aria-expanded não virou true",
+    );
+    for (const name of ["Fórum", "Mentoria", "Pesquisadoras", "Papers"]) {
+      await visible(menu.getByRole("link", { name, exact: true }), `link “${name}” no menu`);
+    }
+    for (let i = 0; i < 15; i += 1) {
+      await page.keyboard.press("Tab");
+      // <dialog> modal nativo: o resto da página fica inerte. Depois do último item o foco
+      // pode ir para a interface do navegador (activeElement = body), nunca para a página.
+      const inside = await page.evaluate(() => {
+        const el = document.activeElement;
+        return !el || el === document.body || el.closest("dialog[open]") !== null;
+      });
+      assert(inside, "o foco saiu do menu aberto (Tab)");
+    }
+    await page.keyboard.press("Escape");
+    await poll(async () => !(await menu.isVisible()), "menu fechado");
+    assert((await trigger.getAttribute("aria-expanded")) === "false", "aria-expanded não voltou");
+    const back = await page.evaluate(() => document.activeElement?.textContent?.trim());
+    assert(back === "Abrir menu", `o foco não voltou ao botão (está em “${back}”)`);
+    await context.close();
+    return "aria-expanded, foco preso e devolvido";
   });
   writeGallery();
 }
@@ -1416,7 +1578,7 @@ async function main() {
   browser = await chromium.launch({ headless: process.env.HEADED !== "1" });
   let exitCode = 0;
   try {
-    await journey();
+    if (!ONLY_SWEEP) await journey();
     if (!SKIP_SWEEP) await sweep();
   } finally {
     for (const context of contexts) await context.close().catch(() => {});
@@ -1438,7 +1600,8 @@ async function main() {
 
   console.log("\n=== Resumo ===");
   console.log(`Etapas: ${steps.length - failed.length}/${steps.length} ok`);
-  for (const item of failed) console.log(`  ${item.status.toUpperCase()} ${item.name}: ${item.detail}`);
+  for (const item of failed)
+    console.log(`  ${item.status.toUpperCase()} ${item.name}: ${item.detail}`);
   console.log(`Capturas: ${shots.length} (galeria: ${path.join(OUT, "index.html")})`);
   if (issues.length === 0) {
     console.log("Verificações: nenhum problema (console, hidratação, HTTP, rolagem, links, foco).");

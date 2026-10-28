@@ -20,10 +20,13 @@ function createFakeSupabase(
   options: {
     userId: string | null;
     rpc?: { data?: Row[]; error?: { code: string; message: string } };
+    /** Resposta de claim_ai_matching_slot (cota de IA no banco). Padrão: liberada. */
+    aiSlot?: boolean | { error: { code: string; message: string } };
   },
 ) {
   const ops: Op[] = [];
   const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+  let claimCalls = 0;
 
   class Query implements PromiseLike<{ data: unknown; error: unknown }> {
     private filters: Array<[string, string, unknown]> = [];
@@ -116,11 +119,26 @@ function createFakeSupabase(
     },
     from: (table: string) => new Query(table),
     rpc: async (fn: string, args: unknown) => {
+      if (fn === "claim_ai_matching_slot") {
+        claimCalls += 1;
+        const slot = options.aiSlot ?? true;
+        return typeof slot === "boolean"
+          ? { data: slot, error: null }
+          : { data: null, error: slot.error };
+      }
       rpcCalls.push({ fn, args });
       return { data: options.rpc?.data ?? [], error: options.rpc?.error ?? null };
     },
   };
-  return { client, ops, rpcCalls, tables };
+  return {
+    client,
+    ops,
+    rpcCalls,
+    tables,
+    get claimCalls() {
+      return claimCalls;
+    },
+  };
 }
 
 const mocks = vi.hoisted(() => ({
@@ -138,6 +156,7 @@ vi.mock("@/lib/ai", () => ({
 }));
 
 import {
+  AI_QUOTA_WARNING,
   MatchingError,
   findMentorsForCurrentUser,
   getMySavedSuggestions,
@@ -383,6 +402,70 @@ describe("findMentorsForCurrentUser", () => {
     expect(res.source).toBe("heuristic");
     expect(res.suggestions).toHaveLength(2);
     expect(res.warnings.join(" ")).toMatch(/IA está indisponível/);
+  });
+
+  it("cota de IA do banco negada → só heurística, sem embedding nem IA, com aviso", async () => {
+    // Auditoria de segurança: apagar as próprias sugestões zerava a espera de 60 s e liberava
+    // chamadas de IA sem limite. A reserva no banco (claim_ai_matching_slot) decide agora.
+    const fake = createFakeSupabase(baseTables(), {
+      userId: ME,
+      rpc: { data: candidates },
+      aiSlot: false,
+    });
+    mocks.client = fake.client;
+    const res = await findMentorsForCurrentUser();
+    expect(fake.claimCalls).toBe(1);
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
+    expect(mocks.generateJson).not.toHaveBeenCalled();
+    expect(res.source).toBe("heuristic");
+    expect(res.suggestions.length).toBeGreaterThan(0);
+    expect(res.warnings).toContain(AI_QUOTA_WARNING);
+  });
+
+  it("erro ao reservar a cota de IA falha fechado (sem chamar a IA)", async () => {
+    const fake = createFakeSupabase(baseTables(), {
+      userId: ME,
+      rpc: { data: candidates },
+      aiSlot: { error: { code: "PGRST202", message: "function not found" } },
+    });
+    mocks.client = fake.client;
+    const res = await findMentorsForCurrentUser();
+    expect(mocks.generateJson).not.toHaveBeenCalled();
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
+    expect(res.source).toBe("heuristic");
+  });
+
+  it("apagar as sugestões salvas não libera outra chamada de IA quando a cota negou", async () => {
+    const tables = baseTables();
+    const first = createFakeSupabase(tables, { userId: ME, rpc: { data: candidates } });
+    mocks.client = first.client;
+    mocks.generateJson.mockRejectedValue(new Error("sem IA neste teste"));
+    await findMentorsForCurrentUser();
+    expect(first.claimCalls).toBe(1);
+    tables.mentor_suggestions = []; // a usuária apaga as próprias sugestões pela API
+    const second = createFakeSupabase(tables, {
+      userId: ME,
+      rpc: { data: candidates },
+      aiSlot: false,
+    });
+    mocks.client = second.client;
+    mocks.generateJson.mockClear();
+    mocks.embedTexts.mockClear();
+    const res = await findMentorsForCurrentUser();
+    expect(second.claimCalls).toBe(1);
+    expect(mocks.generateJson).not.toHaveBeenCalled();
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
+    expect(res.warnings).toContain(AI_QUOTA_WARNING);
+  });
+
+  it("sem consentimento a cota de IA nem é consultada", async () => {
+    const fake = createFakeSupabase(baseTables({ consent: false }), {
+      userId: ME,
+      rpc: { data: candidates },
+    });
+    mocks.client = fake.client;
+    await findMentorsForCurrentUser();
+    expect(fake.claimCalls).toBe(0);
   });
 
   it("erro na RPC vira MatchingError(db_error)", async () => {

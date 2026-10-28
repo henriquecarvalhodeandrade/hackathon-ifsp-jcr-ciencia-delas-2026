@@ -1060,6 +1060,7 @@ export type Database = {
       };
     };
     Functions: {
+      claim_ai_matching_slot: { Args: Record<PropertyKey, never>; Returns: boolean };
       get_community_leaderboard: {
         Args: { p_limit?: number };
         Returns: {

@@ -470,6 +470,13 @@ Embeddings: em caso de falha, a similaridade fica `null` e o peso de 30% é redi
 (`SUGGESTION_COOLDOWN_SECONDS`), sem chamar a IA. Exceção: se as salvas vieram só da heurística e
 ela acabou de autorizar a IA (com IA configurada), a nova geração roda na hora.
 
+Essa espera é só conforto de interface: ela olha as sugestões salvas, que a própria usuária pode
+apagar pela API. O limite de verdade é a RPC `claim_ai_matching_slot()` (docs/03 §7): antes de
+qualquer chamada de embedding ou LLM, `findMentorsForCurrentUser()` reserva uma geração na tabela
+`private.ai_matching_usage` — no máximo uma a cada 60 s e 20 a cada 24 h por pessoa, de forma
+atômica (pedidos em paralelo não passam juntos). Sem reserva (ou com erro na RPC), a geração usa
+só a heurística e mostra o aviso `AI_QUOTA_WARNING`.
+
 ---
 
 ## 9. Como conseguir as chaves gratuitas

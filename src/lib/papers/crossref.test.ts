@@ -21,6 +21,18 @@ describe("decodeEntities / stripMarkup", () => {
       "Efeito Hall quântico em 2D",
     );
   });
+
+  it("não deixa espaço antes de pontuação quando o JATS vem indentado", () => {
+    const jats =
+      'Jinek\n  <jats:italic>et al.</jats:italic>\n  (p.\n  <jats:related-article page="816">816</jats:related-article>\n' +
+      "  , published online; see the Perspective by\n  <jats:related-article>Brouns</jats:related-article>\n  ) found [\n 1 ]\n  .";
+    expect(stripMarkup(jats)).toBe(
+      "Jinek et al. (p. 816, published online; see the Perspective by Brouns) found [1].",
+    );
+    expect(stripMarkup("Apps em <i>.NET</i> e arquivos .csv , com 0 .5 s")).toBe(
+      "Apps em .NET e arquivos .csv, com 0 .5 s",
+    );
+  });
 });
 
 describe("cleanAbstract", () => {

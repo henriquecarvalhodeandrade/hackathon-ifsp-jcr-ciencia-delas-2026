@@ -57,10 +57,17 @@ export function decodeEntities(text: string): string {
 const INLINE_TAG =
   /<\/?(?:jats:|mml:)?(?:i|b|em|strong|sub|sup|sc|u|span|a|italic|bold|underline|monospace|inline-formula)\b[^>]*>/gi;
 
-/** Remove marcação (HTML, MathML, JATS) e normaliza espaços numa única linha. */
+/**
+ * Remove marcação (HTML, MathML, JATS) e normaliza espaços numa única linha.
+ * O JATS do Crossref costuma vir indentado ("(p.\n  <xref>816</xref>\n  , published"):
+ * o espaço que sobra antes de vírgula, ponto e parêntese/colchete de fechamento (e depois
+ * dos de abertura) é removido.
+ */
 export function stripMarkup(text: string): string {
   return decodeEntities(text.replace(INLINE_TAG, "").replace(/<[^>]*>/g, " "))
     .replace(/\s+/g, " ")
+    .replace(/ ([,.)\]])(?=[\s,.;:)\]]|$)/g, "$1")
+    .replace(/([([]) /g, "$1")
     .trim();
 }
 

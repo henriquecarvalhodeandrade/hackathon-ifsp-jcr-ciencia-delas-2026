@@ -119,14 +119,11 @@ export function DocSection({
 /** Link externo em texto corrido: nova aba + aviso para leitores de tela. */
 export function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-baseline gap-0.5"
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {/* Inline (e não inline-flex): num parágrafo, o link quebra junto com o texto em vez de
+          virar um bloco na largura toda no celular. */}
       {children}
-      <ArrowUpRight aria-hidden="true" className="size-3.5 self-center" />
+      <ArrowUpRight aria-hidden="true" className="ml-0.5 inline-block size-3.5 align-[-0.1em]" />
       <span className="sr-only"> (abre em nova aba)</span>
     </a>
   );

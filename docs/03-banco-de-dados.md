@@ -53,7 +53,7 @@ Convenções seguidas em todas as migrations:
 - **Políticas RLS** usam `(select auth.uid())` (avaliado uma vez por consulta, não por
   linha), são escopadas `to authenticated` ou `to anon, authenticated` e toda coluna usada
   em FK ou política tem índice.
-- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD017`) com mensagens em
+- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD020`) com mensagens em
   pt-BR prontas para mostrar na interface (ver [seção 8](#8-erros-que-o-app-pode-mostrar)).
 - **Identificadores em inglês; textos para pessoas em pt-BR.**
 
@@ -206,7 +206,7 @@ stateDiagram-v2
 | `forum_categories`                                            | As 8 categorias (ícone = nome do ícone do lucide em kebab-case). `allow_anonymous` liga o anonimato. | Leitura pública (para a landing).                                                                                                                                                                |
 | `forum_threads`                                               | Tópicos (markdown). `author_id` é `NULL` quando anônimo.                                             | **Só membros** leem. Membros editam apenas `title`, `body`, `tags`, `solution_post_id`. Fixar/trancar só via RPC `moderate_thread`. `reply_count` e `last_activity_at` são mantidos por trigger. |
 | `forum_posts`                                                 | Respostas. Mesmo esquema de anonimato.                                                               | Inserção bloqueada em tópico trancado (exceto moderação). Membros editam só `body`.                                                                                                              |
-| `forum_anonymous_authorship`                                  | Quem escreveu cada tópico/resposta anônima.                                                          | Visível **só para a própria autora e moderação**. Nenhuma escrita pela API (só triggers).                                                                                                        |
+| `forum_anonymous_authorship`                                  | Quem escreveu cada tópico/resposta anônima.                                                          | Pela API, cada pessoa lê **só a própria autoria** (nem a moderação lê as outras: revelar só pela RPC `reveal_anonymous_author`, com motivo e auditoria). Nenhuma escrita pela API (só triggers). |
 | `forum_reactions`                                             | Reações `support`/`useful`/`celebrate` em tópico **ou** resposta.                                    | Uma por pessoa, alvo e tipo (constraint `forum_reactions_unique`, serve para upsert).                                                                                                            |
 | `forum_thread_reaction_counts` / `forum_post_reaction_counts` | Views (`security_invoker`) com `(alvo, kind, total)`.                                                | Mesmas permissões das reações (membros).                                                                                                                                                         |
 
@@ -242,27 +242,27 @@ Legenda: **L** ler · **C** criar · **E** editar · **A** apagar · — sem ace
 "Dona" = a própria usuária (autora, quem enviou, participante). `service_role` ignora RLS
 e tem acesso total a tudo (use só no servidor).
 
-| Recurso                                           | Visitante (`anon`)       | Membro               | Dona / participante                                      | Moderação                                | Admin               |
-| ------------------------------------------------- | ------------------------ | -------------------- | -------------------------------------------------------- | ---------------------------------------- | ------------------- |
-| `research_areas`, `forum_categories`              | L                        | L                    | —                                                        | L                                        | L                   |
-| `profiles`                                        | —                        | L (todos)            | E (exceto `id`, `role`, `created_at`, `updated_at`)      | igual a membro                           | igual a membro      |
-| `profile_research_areas`                          | —                        | L                    | C / A                                                    | —                                        | —                   |
-| `profile_embeddings`                              | —                        | —                    | L / C / E / A                                            | —                                        | —                   |
-| `mentor_suggestions`                              | —                        | —                    | mentoranda: L / C / E / A                                | —                                        | —                   |
-| `mentorship_requests`                             | —                        | —                    | L; mentoranda C; ambas E (`status`, `response_message`*) | —                                        | —                   |
-| `forum_threads`                                   | —                        | L                    | C; E (`title`, `body`, `tags`, `solution_post_id`); A    | E / A + `moderate_thread`                | igual à moderação   |
-| `forum_posts`                                     | —                        | L                    | C (tópico aberto); E (`body`); A                         | E / A; responde em tópico trancado       | igual à moderação   |
-| `forum_anonymous_authorship`                      | —                        | —                    | L (a própria)                                            | L + `reveal_anonymous_author`            | igual à moderação   |
-| `forum_reactions` + views                         | —                        | L                    | C / A                                                    | —                                        | —                   |
-| `papers`                                          | L (não ocultos)          | L (não ocultos)      | C; E (campos editoriais); A; L ocultos                   | L ocultos; A; `moderate_paper`           | igual à moderação   |
-| `paper_votes`                                     | L                        | L                    | C (não no próprio paper) / A                             | —                                        | —                   |
-| `paper_comments`                                  | —                        | L                    | C; E (`body`); A                                         | A                                        | A                   |
-| `newsletter_subscribers`, `newsletter_deliveries` | —                        | —                    | —                                                        | —                                        | — (só service role) |
-| `newsletter_editions`                             | L (publicadas)           | L (publicadas)       | —                                                        | L (publicadas)                           | L / C / E / A       |
-| `reports`                                         | —                        | C (como denunciante) | L (as próprias)                                          | L / E (`status`, `resolution_note`, ...) | igual à moderação   |
-| `moderation_audit_log`                            | —                        | —                    | —                                                        | L / C (em nome próprio)                  | igual à moderação   |
-| `notifications`                                   | —                        | —                    | L / E (`read_at`) / A                                    | —                                        | —                   |
-| `storage` bucket `avatars`                        | leitura pela URL pública | —                    | L / C / E / A em `<uid>/...`                             | —                                        | —                   |
+| Recurso                                           | Visitante (`anon`)       | Membro               | Dona / participante                                      | Moderação                                                      | Admin               |
+| ------------------------------------------------- | ------------------------ | -------------------- | -------------------------------------------------------- | -------------------------------------------------------------- | ------------------- |
+| `research_areas`, `forum_categories`              | L                        | L                    | —                                                        | L                                                              | L                   |
+| `profiles`                                        | —                        | L (todos)            | E (exceto `id`, `role`, `created_at`, `updated_at`)      | igual a membro                                                 | igual a membro      |
+| `profile_research_areas`                          | —                        | L                    | C / A                                                    | —                                                              | —                   |
+| `profile_embeddings`                              | —                        | —                    | L / C / E / A                                            | —                                                              | —                   |
+| `mentor_suggestions`                              | —                        | —                    | mentoranda: L / C / E / A                                | —                                                              | —                   |
+| `mentorship_requests`                             | —                        | —                    | L; mentoranda C; ambas E (`status`, `response_message`*) | —                                                              | —                   |
+| `forum_threads`                                   | —                        | L                    | C; E (`title`, `body`, `tags`, `solution_post_id`); A    | E / A + `moderate_thread`                                      | igual à moderação   |
+| `forum_posts`                                     | —                        | L                    | C (tópico aberto); E (`body`); A                         | E / A; responde em tópico trancado                             | igual à moderação   |
+| `forum_anonymous_authorship`                      | —                        | —                    | L (a própria)                                            | L (a própria) + `reveal_anonymous_author` (motivo + auditoria) | igual à moderação   |
+| `forum_reactions` + views                         | —                        | L                    | C / A                                                    | —                                                              | —                   |
+| `papers`                                          | L (não ocultos)          | L (não ocultos)      | C; E (campos editoriais); A; L ocultos                   | L ocultos; A; `moderate_paper`                                 | igual à moderação   |
+| `paper_votes`                                     | L                        | L                    | C (não no próprio paper) / A                             | —                                                              | —                   |
+| `paper_comments`                                  | —                        | L                    | C; E (`body`); A                                         | A                                                              | A                   |
+| `newsletter_subscribers`, `newsletter_deliveries` | —                        | —                    | —                                                        | —                                                              | — (só service role) |
+| `newsletter_editions`                             | L (publicadas)           | L (publicadas)       | —                                                        | L (publicadas)                                                 | L / C / E / A       |
+| `reports`                                         | —                        | C (como denunciante) | L (as próprias)                                          | L / E (`status`, `resolution_note`, ...)                       | igual à moderação   |
+| `moderation_audit_log`                            | —                        | —                    | —                                                        | L / C (em nome próprio)                                        | igual à moderação   |
+| `notifications`                                   | —                        | —                    | L / E (`read_at`) / A                                    | —                                                              | —                   |
+| `storage` bucket `avatars`                        | leitura pela URL pública | —                    | L / C / E / A em `<uid>/...`                             | —                                                              | —                   |
 
 \* `response_message` só pela mentora; transições conforme a máquina de estados.
 
@@ -322,13 +322,14 @@ Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
 - **Categoria certa:** anonimato fora de categoria permitida → `CD010`. Respostas anônimas
   seguem a categoria do tópico.
 - **Visibilidade:** outras membros veem `author_id = NULL` e não conseguem ler
-  `forum_anonymous_authorship` (só a autora e a moderação). O app mostra "Anônima".
+  `forum_anonymous_authorship` (cada pessoa lê só a própria autoria). O app mostra "Anônima".
 - **A autora continua dona:** políticas de UPDATE/DELETE aceitam quem tem a autoria
   registrada; notificações de resposta chegam para ela normalmente.
-- **Moderação:** moderadoras leem a tabela de autoria e podem usar
-  `reveal_anonymous_author()` em casos graves (assédio, ameaça). O motivo (20–300 caracteres) é
-  **obrigatório** e a revelação fica em `moderation_audit_log` na mesma transação (sem o nome
-  revelado). O painel só oferece a ação a admins.
+- **Moderação:** moderadoras **não** leem a tabela de autoria pela API (até a auditoria de
+  segurança de 28/10 liam — um `select` revelava todas as autoras sem motivo nem registro). A
+  única forma é `reveal_anonymous_author()`, em casos graves (assédio, ameaça): o motivo (20–300
+  caracteres) é **obrigatório** e a revelação fica em `moderation_audit_log` na mesma transação
+  (sem o nome revelado). O painel só oferece a ação a admins.
 - **Ranking da comunidade:** conteúdo anônimo **não** conta pontos (senão vazaria autoria).
 - **LGPD — exclusão de conta:** apagar a usuária remove em cascata as linhas de autoria, e um
   trigger AFTER DELETE apaga junto o tópico/resposta anônimo correspondente.
@@ -337,30 +338,30 @@ Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
 
 ## 6. Triggers
 
-| Tabela                                         | Trigger                                    | O que faz                                                                                                                                                                                 |
-| ---------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth.users`                                   | `on_auth_user_created`                     | Cria o perfil com `full_name` (`full_name` ou `name` do `raw_user_meta_data`) e `avatar_url` (`avatar_url` ou `picture`, só se for URL http/https).                                       |
-| `profiles`                                     | `profiles_before_write`                    | Normaliza campos; atualiza `updated_at`; preenche/limpa `ai_consent_at`.                                                                                                                  |
-| `profiles`                                     | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding e as sugestões de mentoras (`mentor_suggestions`) da mentoranda.                                                                                 |
-| `profile_embeddings`, `newsletter_subscribers` | `*_set_updated_at`                         | Atualiza `updated_at`.                                                                                                                                                                    |
-| `mentorship_requests`                          | `mentorship_requests_before_insert`        | Mensagens amigáveis: não é mentora / indisponível (`CD003`), pedido duplicado (`CD004`).                                                                                                  |
-| `mentorship_requests`                          | `mentorship_requests_before_update`        | Máquina de estados (`CD002`), só participantes (`CD003`), só a mentora escreve a resposta, capacidade da mentora ao aceitar (`CD001`, com lock para aceites simultâneos), `responded_at`. |
-| `mentorship_requests`                          | `mentorship_requests_notify_insert/update` | Notifica a mentora (novo pedido) e a outra participante (aceite, recusa, cancelamento, conclusão).                                                                                        |
-| `forum_threads`                                | `forum_threads_before_insert`              | Autoria (`CD013`), anonimato (`CD010`) e registro da autoria anônima.                                                                                                                     |
-| `forum_threads`                                | `forum_threads_before_update`              | Bloqueia troca de autoria/anonimato; valida `solution_post_id` (`CD014`); `edited_at`/`updated_at`.                                                                                       |
-| `forum_threads`                                | `forum_threads_notify_solution`            | Solução marcada → notifica a autora da resposta.                                                                                                                                          |
-| `forum_posts`                                  | `forum_posts_before_insert`                | Autoria, tópico trancado (`CD011`), anonimato.                                                                                                                                            |
-| `forum_posts`                                  | `forum_posts_before_update`                | Bloqueia troca de autoria/anonimato/tópico; `edited_at`.                                                                                                                                  |
-| `forum_posts`                                  | `forum_posts_after_insert/delete`          | Mantém `reply_count` e `last_activity_at`.                                                                                                                                                |
-| `forum_posts`                                  | `forum_posts_notify_reply`                 | Nova resposta → notifica a autora do tópico (inclusive anônima).                                                                                                                          |
-| `forum_anonymous_authorship`                   | `..._after_delete`                         | Apaga o conteúdo anônimo quando a autoria some (LGPD).                                                                                                                                    |
-| `papers`                                       | `papers_before_write`                      | Normaliza DOI/strings/palavras-chave; `updated_at` só muda em edição real (votos não contam).                                                                                             |
-| `paper_votes`                                  | `paper_votes_before_insert`                | Sem voto no próprio paper (`CD012`) nem em paper oculto (`CD015`).                                                                                                                        |
-| `paper_votes`                                  | `paper_votes_after_insert/delete`          | Mantém `vote_count`.                                                                                                                                                                      |
-| `paper_comments`                               | `..._after_insert/delete`, `..._notify`    | Mantém `comment_count`; notifica quem enviou o paper.                                                                                                                                     |
-| `newsletter_editions`                          | `newsletter_editions_before_write`         | Preenche `published_at`/`sent_at` ao mudar o status.                                                                                                                                      |
-| `reports`                                      | `reports_before_write`                     | Força `status = 'open'` na criação; ao resolver preenche `resolved_by`/`resolved_at`.                                                                                                     |
-| `reports`                                      | `reports_after_status_change`              | Aberta → resolvida/arquivada: grava `resolve_report`/`dismiss_report` no registro de auditoria e avisa a denunciante (`report_resolved`, com a nota, sem dizer quem moderou).             |
+| Tabela                                         | Trigger                                    | O que faz                                                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `auth.users`                                   | `on_auth_user_created`                     | Cria o perfil com `full_name` (`full_name` ou `name` do `raw_user_meta_data`) e `avatar_url` (`avatar_url` ou `picture`, só se for URL http/https).                                                          |
+| `profiles`                                     | `profiles_before_write`                    | Normaliza campos; atualiza `updated_at`; preenche/limpa `ai_consent_at`.                                                                                                                                     |
+| `profiles`                                     | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding e as sugestões de mentoras (`mentor_suggestions`) da mentoranda.                                                                                                    |
+| `profile_embeddings`, `newsletter_subscribers` | `*_set_updated_at`                         | Atualiza `updated_at`.                                                                                                                                                                                       |
+| `mentorship_requests`                          | `mentorship_requests_before_insert`        | Mensagens amigáveis: não é mentora / indisponível (`CD003`), pedido duplicado (`CD004`); limites contra pedir-e-cancelar em laço: 3 pedidos para a mesma mentora a cada 7 dias e 10 a cada 24 h (`CD020`).   |
+| `mentorship_requests`                          | `mentorship_requests_before_update`        | Máquina de estados (`CD002`), só participantes (`CD003`), só a mentora escreve a resposta, capacidade da mentora ao aceitar (`CD001`, com lock para aceites simultâneos), `responded_at`.                    |
+| `mentorship_requests`                          | `mentorship_requests_notify_insert/update` | Notifica a mentora (novo pedido) e a outra participante (aceite, recusa, cancelamento, conclusão).                                                                                                           |
+| `forum_threads`                                | `forum_threads_before_insert`              | Autoria (`CD013`), anonimato (`CD010`) e registro da autoria anônima.                                                                                                                                        |
+| `forum_threads`                                | `forum_threads_before_update`              | Bloqueia troca de autoria/anonimato; valida `solution_post_id` (`CD014`); `edited_at`/`updated_at`.                                                                                                          |
+| `forum_threads`                                | `forum_threads_notify_solution`            | Solução marcada → notifica a autora da resposta.                                                                                                                                                             |
+| `forum_posts`                                  | `forum_posts_before_insert`                | Autoria, tópico trancado (`CD011`), anonimato.                                                                                                                                                               |
+| `forum_posts`                                  | `forum_posts_before_update`                | Bloqueia troca de autoria/anonimato/tópico; `edited_at`.                                                                                                                                                     |
+| `forum_posts`                                  | `forum_posts_after_insert/delete`          | Mantém `reply_count` e `last_activity_at`.                                                                                                                                                                   |
+| `forum_posts`                                  | `forum_posts_notify_reply`                 | Nova resposta → notifica a autora do tópico (inclusive anônima).                                                                                                                                             |
+| `forum_anonymous_authorship`                   | `..._after_delete`                         | Apaga o conteúdo anônimo quando a autoria some (LGPD).                                                                                                                                                       |
+| `papers`                                       | `papers_before_write`                      | Normaliza DOI/strings/palavras-chave; `updated_at` só muda em edição real (votos não contam).                                                                                                                |
+| `paper_votes`                                  | `paper_votes_before_insert`                | Sem voto no próprio paper (`CD012`) nem em paper oculto (`CD015`).                                                                                                                                           |
+| `paper_votes`                                  | `paper_votes_after_insert/delete`          | Mantém `vote_count`.                                                                                                                                                                                         |
+| `paper_comments`                               | `..._after_insert/delete`, `..._notify`    | Mantém `comment_count`; notifica quem enviou o paper.                                                                                                                                                        |
+| `newsletter_editions`                          | `newsletter_editions_before_write`         | Preenche `published_at`/`sent_at` ao mudar o status.                                                                                                                                                         |
+| `reports`                                      | `reports_before_write`                     | Força `status = 'open'` na criação; recusa alvo inexistente/invisível (`CD015`), denúncia repetida ainda aberta (`CD018`) e mais de 20 por hora (`CD019`); ao resolver preenche `resolved_by`/`resolved_at`. |
+| `reports`                                      | `reports_after_status_change`              | Aberta → resolvida/arquivada: grava `resolve_report`/`dismiss_report` no registro de auditoria e avisa a denunciante (`report_resolved`, com a nota, sem dizer quem moderou).                                |
 
 Funções auxiliares no schema `private` (não expostas pela API): `is_moderator()`,
 `is_admin()`, `is_anonymous_thread_author()`, `is_anonymous_post_author()` (respondem só
@@ -498,6 +499,19 @@ Reserva atômica de um e-mail de confirmação da newsletter: devolve `ok` (e co
 `confirmation_sent_count`/`confirmation_sent_at`), `address_limit`, `daily_limit` ou `not_found`
 (docs/08 §2).
 
+### `claim_ai_matching_slot()` — cota do matching com IA
+
+Reserva atômica de uma geração de sugestões **com IA** para a usuária logada: devolve `true` (pode
+chamar embeddings/LLM agora) ou `false` (menos de 60 s desde a última reserva ou 20 nas últimas
+24 h). O uso fica em `private.ai_matching_usage` (fora da API): a usuária não lê, não altera nem
+apaga — diferente de `mentor_suggestions.created_at`, que ela pode apagar e por isso não serve de
+limite. `findMentorsForCurrentUser()` só chama a IA com a reserva; sem ela (ou com erro na RPC,
+falha fechada) a geração usa só a heurística, com aviso.
+
+```ts
+const { data: allowed } = await supabase.rpc("claim_ai_matching_slot"); // boolean
+```
+
 ### Escritas comuns (sem RPC)
 
 As colunas de "dona" têm `default auth.uid()` — dá para omiti-las (se enviar, precisa ser o
@@ -553,24 +567,27 @@ await supabase
 
 ## 8. Erros que o app pode mostrar
 
-| `error.code` | Quando acontece                                                                           | Mensagem (resumo)                                                |
-| ------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `CD001`      | Mentora aceitando acima de `mentor_capacity`                                              | "Você já atingiu o limite de N mentoria(s) simultânea(s)…"       |
-| `CD002`      | Transição de status inválida; mentoranda tentando aceitar; alterar dados de denúncia      | "Somente a mentora pode aceitar ou recusar o pedido." etc.       |
-| `CD003`      | Pedido para quem não é mentora / indisponível / para si mesma; não participante alterando | "Esta mentora não está recebendo novos pedidos no momento." etc. |
-| `CD004`      | Já existe pedido aberto ou mentoria ativa com a mesma mentora                             | "Você já tem um pedido em aberto…"                               |
-| `CD010`      | Anonimato em categoria que não permite                                                    | "Esta categoria não permite publicações anônimas."               |
-| `CD011`      | Resposta em tópico trancado                                                               | "Este tópico está trancado e não aceita novas respostas."        |
-| `CD012`      | Voto no próprio paper                                                                     | "Você não pode votar no paper que você mesma enviou."            |
-| `CD013`      | Autoria falsificada; tentativa de trocar autoria/anonimato                                | "Autoria inválida: publique sempre com a sua própria conta."     |
-| `CD014`      | Solução que não é resposta do tópico                                                      | "A resposta escolhida como solução não pertence a este tópico."  |
-| `CD015`      | Categoria/tópico/paper inexistente (ou paper oculto ao votar)                             | "Tópico não encontrado." etc.                                    |
-| `CD016`      | Revelar autoria sem motivo de 20 a 300 caracteres                                         | "Explique o motivo da revelação com 20 a 300 caracteres…"        |
-| `CD017`      | Revelar autoria citando uma denúncia sobre outro conteúdo                                 | "A denúncia informada não é sobre esta publicação."              |
-| `42501`      | Sem GRANT/RLS (inclui RPCs de moderação e RPCs que exigem login)                          | mensagem do Postgres (em inglês) ou pt-BR nas RPCs               |
-| `23505`      | Duplicado (voto, reação, DOI)                                                             | trate como "já existe"                                           |
-| `23514`      | CHECK violado (tamanhos, URL sem http(s), tópico de mentoria inválido...)                 | valide antes com zod                                             |
-| `22023`      | Parâmetro inválido (período do ranking, reveal sem alvo)                                  |                                                                  |
+| `error.code` | Quando acontece                                                                             | Mensagem (resumo)                                                |
+| ------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `CD001`      | Mentora aceitando acima de `mentor_capacity`                                                | "Você já atingiu o limite de N mentoria(s) simultânea(s)…"       |
+| `CD002`      | Transição de status inválida; mentoranda tentando aceitar; alterar dados de denúncia        | "Somente a mentora pode aceitar ou recusar o pedido." etc.       |
+| `CD003`      | Pedido para quem não é mentora / indisponível / para si mesma; não participante alterando   | "Esta mentora não está recebendo novos pedidos no momento." etc. |
+| `CD004`      | Já existe pedido aberto ou mentoria ativa com a mesma mentora                               | "Você já tem um pedido em aberto…"                               |
+| `CD010`      | Anonimato em categoria que não permite                                                      | "Esta categoria não permite publicações anônimas."               |
+| `CD011`      | Resposta em tópico trancado                                                                 | "Este tópico está trancado e não aceita novas respostas."        |
+| `CD012`      | Voto no próprio paper                                                                       | "Você não pode votar no paper que você mesma enviou."            |
+| `CD013`      | Autoria falsificada; tentativa de trocar autoria/anonimato                                  | "Autoria inválida: publique sempre com a sua própria conta."     |
+| `CD014`      | Solução que não é resposta do tópico                                                        | "A resposta escolhida como solução não pertence a este tópico."  |
+| `CD015`      | Categoria/tópico/paper inexistente (ou paper oculto ao votar); denúncia de alvo inexistente | "Tópico não encontrado." etc.                                    |
+| `CD016`      | Revelar autoria sem motivo de 20 a 300 caracteres                                           | "Explique o motivo da revelação com 20 a 300 caracteres…"        |
+| `CD017`      | Revelar autoria citando uma denúncia sobre outro conteúdo                                   | "A denúncia informada não é sobre esta publicação."              |
+| `CD018`      | Denúncia repetida (mesma pessoa, mesmo alvo, ainda aberta)                                  | "Você já denunciou este conteúdo e a moderação está analisando…" |
+| `CD019`      | Mais de 20 denúncias da mesma pessoa em 1 hora                                              | "Você enviou muitas denúncias em pouco tempo…"                   |
+| `CD020`      | Mais de 3 pedidos para a mesma mentora em 7 dias ou mais de 10 pedidos em 24 h              | "Você já fez 3 pedidos para esta mentora nos últimos 7 dias…"    |
+| `42501`      | Sem GRANT/RLS (inclui RPCs de moderação e RPCs que exigem login)                            | mensagem do Postgres (em inglês) ou pt-BR nas RPCs               |
+| `23505`      | Duplicado (voto, reação, DOI)                                                               | trate como "já existe"                                           |
+| `23514`      | CHECK violado (tamanhos, URL sem http(s), tópico de mentoria inválido...)                   | valide antes com zod                                             |
+| `22023`      | Parâmetro inválido (período do ranking, reveal sem alvo)                                    |                                                                  |
 
 Sugestão: mostre `error.message` quando `error.code` começar com `CD`; para os demais,
 use uma mensagem genérica amigável.

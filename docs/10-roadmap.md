@@ -5,13 +5,13 @@ O que ficou de fora do escopo do hackathon e ideias para depois. Prioridades sug
 
 ## Segurança e moderação
 
-| Prioridade | Item                                                                                               | Por quê                                                        |
-| ---------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| P1         | Log de auditoria para `reveal_anonymous_author`, mudanças de papel e ocultação de conteúdo         | Transparência da moderação sobre ações sensíveis               |
-| P1         | Limite de taxa (rate limit) em Server Actions de escrita (fórum, comentários, pedidos de mentoria) | Evitar spam e abuso; hoje só há o cooldown de 60 s do matching |
-| P1         | CAPTCHA (hCaptcha/Turnstile via Supabase Auth) no cadastro                                         | Contas falsas                                                  |
-| P2         | Bloquear/silenciar usuárias; suspensão temporária pela moderação                                   | Proteção contra assédio recorrente                             |
-| P2         | Filtro de linguagem ofensiva com IA antes de publicar (sugestão, não bloqueio)                     | Apoio à moderação                                              |
+| Prioridade | Item                                                                                               | Por quê                                                                                                                                                   |
+| ---------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1         | Log de auditoria para `reveal_anonymous_author`, mudanças de papel e ocultação de conteúdo         | Transparência da moderação sobre ações sensíveis                                                                                                          |
+| P1         | Limite de taxa (rate limit) em Server Actions de escrita (fórum, comentários, pedidos de mentoria) | Evitar spam e abuso; hoje há limites no banco para denúncias (20/h), pedidos de mentoria (3 por mentora/7 dias, 10/24 h) e matching com IA (60 s, 20/dia) |
+| P1         | CAPTCHA (hCaptcha/Turnstile via Supabase Auth) no cadastro                                         | Contas falsas                                                                                                                                             |
+| P2         | Bloquear/silenciar usuárias; suspensão temporária pela moderação                                   | Proteção contra assédio recorrente                                                                                                                        |
+| P2         | Filtro de linguagem ofensiva com IA antes de publicar (sugestão, não bloqueio)                     | Apoio à moderação                                                                                                                                         |
 
 ## Mentoria
 

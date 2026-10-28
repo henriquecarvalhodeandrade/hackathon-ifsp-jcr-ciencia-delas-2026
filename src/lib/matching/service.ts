@@ -45,6 +45,26 @@ export class MatchingError extends Error {
 
 /** Intervalo mínimo entre duas gerações (protege a cota gratuita das APIs). */
 export const SUGGESTION_COOLDOWN_SECONDS = 60;
+
+/** Aviso quando a cota de IA do banco (claim_ai_matching_slot) nega esta geração. */
+export const AI_QUOTA_WARNING =
+  "Você pediu sugestões com IA várias vezes em pouco tempo. Desta vez usamos só as regras da plataforma; a análise com IA volta em instantes (até 20 por dia).";
+
+/**
+ * Reserva uma geração com IA na cota guardada no banco (60 s entre gerações e 20 por dia,
+ * por pessoa). Erro na RPC (ex.: migration ausente) conta como "sem cota": falha fechada,
+ * para nunca chamar a IA sem limite.
+ */
+async function claimAiMatchingSlot(supabase: ServerClient): Promise<boolean> {
+  const { data, error } = await supabase.rpc("claim_ai_matching_slot");
+  if (error) {
+    console.warn(
+      `[matching] cota de IA indisponível — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
+    );
+    return false;
+  }
+  return data === true;
+}
 export const CANDIDATE_POOL_SIZE = 30;
 export const MAX_SUGGESTIONS = 10;
 
@@ -435,7 +455,14 @@ export async function findMentorsForCurrentUser(
     loadProfileAreaIds(supabase, userId),
   ]);
 
-  if (profile.ai_consent) {
+  // Cota de IA guardada no banco (60 s entre gerações, 20 por dia): a espera acima depende das
+  // sugestões salvas, que a própria usuária pode apagar pela API; esta reserva ela não zera, e é
+  // atômica (pedidos em paralelo não passam juntos). Sem reserva, esta geração usa só as regras.
+  const wantsAi = profile.ai_consent && (isAiEnabled() || getEmbeddingConfig() !== null);
+  const aiAllowed = wantsAi && (await claimAiMatchingSlot(supabase));
+  if (wantsAi && !aiAllowed) warnings.push(AI_QUOTA_WARNING);
+
+  if (aiAllowed) {
     try {
       const refreshed = await refreshEmbeddingFor(supabase, profile, areas, areaIds);
       if (
@@ -455,7 +482,7 @@ export async function findMentorsForCurrentUser(
         "Não conseguimos atualizar a análise do seu perfil agora; usamos os dados disponíveis.",
       );
     }
-  } else {
+  } else if (!profile.ai_consent) {
     warnings.push(
       "Estas sugestões foram calculadas só com as regras da plataforma: nenhum dado seu foi enviado a serviços de IA. Se quiser a análise semântica e as explicações por IA, ative as sugestões com IA.",
     );
@@ -486,7 +513,7 @@ export async function findMentorsForCurrentUser(
   let provider: string | null = null;
   let model: string | null = null;
 
-  if (profile.ai_consent && isAiEnabled() && ranked.length > 0) {
+  if (aiAllowed && isAiEnabled() && ranked.length > 0) {
     const consentByMentorId = await loadConsentMap(
       supabase,
       ranked.slice(0, 8).map((r) => r.mentorId),

@@ -3,6 +3,7 @@ import {
   avatarFileProblem,
   avatarObjectPath,
   avatarPublicPrefix,
+  displayableAvatarSrc,
   ownAvatarFileName,
 } from "./avatar";
 
@@ -67,5 +68,49 @@ describe("avatarFileProblem", () => {
     expect(avatarFileProblem({ type: "image/svg+xml", size: 100 })).toMatch(/PNG, JPG ou WebP/);
     expect(avatarFileProblem({ type: "image/gif", size: 100 })).toMatch(/PNG, JPG ou WebP/);
     expect(avatarFileProblem({ type: "image/png", size: 15 * 1024 * 1024 + 1 })).toMatch(/15 MB/);
+  });
+});
+
+describe("displayableAvatarSrc", () => {
+  it("exibe avatares do Storage deste projeto (qualquer membra) e fotos do Google", () => {
+    expect(displayableAvatarSrc(`${prefix}avatar-1730000000000.webp`, SUPABASE)).toBe(
+      `${prefix}avatar-1730000000000.webp`,
+    );
+    const other = `${avatarPublicPrefix(SUPABASE, OTHER)}avatar-1730000000000.png`;
+    expect(displayableAvatarSrc(other, `${SUPABASE}/`)).toBe(other);
+    expect(
+      displayableAvatarSrc("https://lh3.googleusercontent.com/a/ACg8ocK=s96-c", SUPABASE),
+    ).toBe("https://lh3.googleusercontent.com/a/ACg8ocK=s96-c");
+    expect(displayableAvatarSrc("/brand/avatar-exemplo.svg", SUPABASE)).toBe(
+      "/brand/avatar-exemplo.svg",
+    );
+  });
+
+  it("não carrega endereços de terceiros (rastreio de IP de quem vê o avatar)", () => {
+    // Auditoria de segurança: avatar_url gravado direto pela API apontando para um servidor alheio.
+    for (const src of [
+      "http://127.0.0.1:3499/a.gif?t=thread",
+      "https://evil.example/pixel.png",
+      `https://evil.example/storage/v1/object/public/avatars/${ME}/avatar-1.png`,
+      `${SUPABASE}.evil.example/storage/v1/object/public/avatars/${ME}/avatar-1.png`,
+      `http://user@127.0.0.1:54321/storage/v1/object/public/avatars/${ME}/avatar-1.png`,
+      `${SUPABASE}/storage/v1/object/public/outro-bucket/${ME}/a.png`,
+      `${SUPABASE}/storage/v1/object/public/avatars/`,
+      "http://lh3.googleusercontent.com/a/x",
+      "//evil.example/a.png",
+      "/\\evil.example/a.png",
+      "javascript:alert(1)",
+      "data:image/png;base64,AAAA",
+      "",
+      null,
+      undefined,
+    ]) {
+      expect(displayableAvatarSrc(src, SUPABASE), String(src)).toBeNull();
+    }
+  });
+
+  it("sem a URL do Supabase configurada, só mostra fotos do Google", () => {
+    expect(displayableAvatarSrc(`${prefix}avatar-1730000000000.webp`, undefined)).toBeNull();
+    expect(displayableAvatarSrc(`${prefix}avatar-1730000000000.webp`, "não é url")).toBeNull();
   });
 });

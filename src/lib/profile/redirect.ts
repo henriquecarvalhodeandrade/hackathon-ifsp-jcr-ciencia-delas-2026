@@ -40,6 +40,9 @@ export function safeNextPath(raw: unknown, fallback = "/forum"): string {
     return fallback;
   }
   if (url.origin !== PLACEHOLDER_ORIGIN) return fallback;
+  // A normalização resolve segmentos de ponto: "/.//evil.com", "/..//evil.com" e "/%2e//evil.com"
+  // viram o caminho "//evil.com" — que, devolvido como destino, o navegador lê como OUTRO domínio.
+  if (url.pathname.startsWith("//")) return fallback;
   if (hasBlockedPrefix(url.pathname)) return fallback;
   return `${url.pathname}${url.search}${url.hash}`;
 }

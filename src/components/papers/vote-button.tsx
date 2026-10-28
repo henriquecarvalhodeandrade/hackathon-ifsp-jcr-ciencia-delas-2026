@@ -104,7 +104,7 @@ export function VoteButton({
           aria-describedby={countId}
           className={cn(
             baseButton,
-            "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:bg-accent-soft hover:text-accent-strong",
+            "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:bg-accent-soft hover:text-accent-soft-fg",
             size,
           )}
         >
@@ -170,8 +170,8 @@ export function VoteButton({
         className={cn(
           baseButton,
           active
-            ? "border-accent-strong bg-accent-soft text-accent-strong hover:bg-accent-soft"
-            : "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:bg-accent-soft hover:text-accent-strong",
+            ? "border-accent-strong bg-accent-soft text-accent-soft-fg hover:bg-accent-soft [&_svg]:text-accent-strong"
+            : "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:bg-accent-soft hover:text-accent-soft-fg",
           size,
         )}
       >

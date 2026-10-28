@@ -67,6 +67,12 @@ O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto
    `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET` e `GEMINI_API_KEY`.
 3. Opcional: para eu fazer o deploy, `VERCEL_TOKEN` (https://vercel.com/account/tokens) no ambiente da sessão.
 
+### 3b. Limpeza no GitHub
+
+- Apagar o branch `claude/ci-permission-probe` (criado só para testar se esta sessão podia enviar workflows do
+  GitHub Actions; contém um workflow vazio acionado só manualmente). A sessão não tem permissão para apagar
+  branches remotos: em GitHub → Branches → lixeira ao lado do nome.
+
 ### 4. Antes da apresentação
 
 - [ ] Preencher contato da controladora/encarregada de dados em `/privacidade` e a equipe em `/sobre`.

@@ -19,7 +19,9 @@ export function Stat({ label, value, trend, icon, compact, className, ...props }
       : value;
   const up = trend && trend.value >= 0;
   return (
-    <div className={cn("grid content-start gap-1", className)} {...props}>
+    // grid-rows-[1fr_auto]: quando o rótulo quebra em duas linhas numa coluna, ele absorve a
+    // sobra e os números da mesma linha do StatGroup ficam alinhados.
+    <div className={cn("grid grid-rows-[1fr_auto] gap-1", className)} {...props}>
       <p className="flex items-center gap-2 text-sm font-medium text-fg-muted [&_svg]:size-4 [&_svg]:text-primary">
         {icon}
         {label}

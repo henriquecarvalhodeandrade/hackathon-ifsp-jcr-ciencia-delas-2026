@@ -22,8 +22,8 @@ import { FORUM_PAGE_SIZE, markdownToPlainText, pageRange } from "./text";
  *
  * Anonimato: tópicos/respostas anônimos chegam com author_id = NULL. Para mostrar o
  * selo "você" na PRÓPRIA autoria anônima, lemos forum_anonymous_authorship filtrando
- * explicitamente user_id = viewer (moderadoras enxergam todas as linhas pelo RLS — sem o
- * filtro elas veriam "você" em conteúdo alheio).
+ * explicitamente user_id = viewer. O RLS já só devolve as linhas da própria usuária (nem a
+ * moderação lê as outras: revelar só pela RPC auditada); o filtro fica como defesa em profundidade.
  */
 
 const THREAD_LIST_SELECT =

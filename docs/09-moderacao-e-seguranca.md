@@ -253,6 +253,10 @@ Como promover alguém pela primeira vez (não há admin ainda): no SQL Editor do
 
 - Outras membras nunca veem quem publicou de forma anônima; o painel mostra “Anônima” mesmo para a
   moderação.
+- **Nem a moderação lê a autoria direto pela API**: `forum_anonymous_authorship` só devolve a
+  própria autoria de quem consulta (migration `20261028150000_security_audit.sql`). Antes, um
+  `select` com a sessão de uma moderadora listava todas as autoras sem motivo nem registro,
+  contornando a auditoria abaixo.
 - A revelação só existe no painel, para **admins**, e exige: uma denúncia sobre **aquele**
   conteúdo, um motivo de 20 a 300 caracteres e a confirmação “Entendo que este é um caso grave…”.
 - Ordem das operações em `revealAnonymousAuthor`: confere a denúncia → chama a RPC
@@ -311,6 +315,10 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
       só para trocar papéis e para a newsletter, depois da checagem de admin.
 - [x] Entradas validadas com zod no servidor (uuids, enums, tamanhos).
 - [x] Redirecionamento de notificações só para caminhos internos (sem open redirect).
+- [x] `?next=` seguro também contra segmentos de ponto (`/.//site.com`, `/..//site.com`,
+      `/%2e//site.com`), que a normalização transformava em `//site.com` (`safeNextPath`).
+- [x] Avatares só do Storage do projeto (ou do Google): `avatar_url` de terceiros gravado pela API
+      não é carregado (evita rastrear IP/horário de quem vê, inclusive de autoras anônimas).
 - [x] Erros do banco nunca são mostrados crus; códigos `CD…` têm mensagens pt-BR próprias.
 - [x] `/admin` e `/notificacoes` com `noindex` e bloqueados no `robots.txt`.
 - [x] Revelação de autoria: só admin no painel, motivo obrigatório no banco, ligada a uma denúncia e
@@ -319,7 +327,12 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 - [x] Nota da denúncia visível para quem denunciou sem dados internos; aviso ao concluir a denúncia.
 - [x] Logs sem dados pessoais (só ids e códigos de erro).
 - [x] Limites de e-mails de confirmação da newsletter (3 por endereço/dia + teto diário global).
-- [ ] Rate limit para denúncias e ações em massa (sugestão: Vercel Firewall ou contador no banco).
+- [x] Denúncias limitadas no banco: sem repetir denúncia aberta do mesmo alvo (`CD018`), sem alvo
+      inexistente (`CD015`) e no máximo 20 por hora por pessoa (`CD019`).
+- [x] Pedidos de mentoria limitados no banco: 3 por mentora a cada 7 dias e 10 a cada 24 h (`CD020`).
+- [x] Cota do matching com IA no banco (`claim_ai_matching_slot`: 60 s entre gerações, 20 por dia),
+      que a usuária não zera apagando as próprias sugestões.
+- [ ] Rate limit por IP para as telas públicas (cadastro, newsletter) — sugestão: Vercel Firewall.
 
 ## 11. LGPD na prática
 

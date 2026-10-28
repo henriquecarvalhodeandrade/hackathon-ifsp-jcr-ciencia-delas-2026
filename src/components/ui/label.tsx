@@ -16,7 +16,13 @@ export function Label({ className, required, optional, children, ...props }: Lab
           *
         </span>
       )}
-      {optional && <span className="ml-1 font-normal text-fg-subtle">(opcional)</span>}
+      {/* Espaço como texto (e não só margem): o nome acessível fica "DOI (opcional)", não "DOI(opcional)". */}
+      {optional && (
+        <>
+          {" "}
+          <span className="font-normal text-fg-subtle">(opcional)</span>
+        </>
+      )}
     </label>
   );
 }
