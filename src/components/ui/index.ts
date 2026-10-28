@@ -60,7 +60,12 @@ export { Dialog, type DialogProps } from "./dialog"; // (cliente)
 export { DropdownMenu, type DropdownItem, type DropdownMenuProps } from "./dropdown-menu"; // (cliente)
 export { EmptyState, type EmptyStateProps } from "./empty-state";
 export { Field, type FieldError, type FieldProps } from "./field";
-export { FormMessage, type FormMessageProps, type FormMessageTone } from "./form-message";
+export {
+  FormMessage,
+  revealFormMessage,
+  type FormMessageProps,
+  type FormMessageTone,
+} from "./form-message";
 export { Input, controlClasses, type InputProps } from "./input";
 export { KeywordInput, type KeywordInputProps } from "./keyword-input"; // (cliente)
 export { Kbd } from "./kbd";

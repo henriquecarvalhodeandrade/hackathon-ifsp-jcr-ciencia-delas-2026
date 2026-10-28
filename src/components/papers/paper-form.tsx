@@ -13,6 +13,7 @@ import {
   Input,
   KeywordInput,
   RadioGroup,
+  revealFormMessage,
   SubmitButton,
   Textarea,
   type FormMessageTone,
@@ -89,6 +90,7 @@ export function PaperForm({
   orcidImport,
 }: PaperFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
   const [state, formAction] = useActionState<PaperFormState, FormData>(savePaper, null);
   const [lastState, setLastState] = useState<PaperFormState>(null);
   const [source, setSource] = useState({ values: initialValues, version: 0 });
@@ -108,11 +110,15 @@ export function PaperForm({
     }
   }
 
-  // Depois de um envio com erros, leva o foco ao primeiro campo inválido.
+  // Depois de um envio com erros, leva o foco ao primeiro campo inválido. Erro do formulário
+  // inteiro (ex.: limite de papers, CD024) aparece no topo, longe do botão: rola até a mensagem.
   useEffect(() => {
-    if (!state?.fieldErrors) return;
-    const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
-    invalid?.focus();
+    if (!state) return;
+    const invalid = state.fieldErrors
+      ? formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      : null;
+    if (invalid) invalid.focus();
+    else revealFormMessage(messageRef.current);
   }, [state]);
 
   // Depois de importar do ORCID, leva a pessoa ao passo 1, onde está o resultado da importação.
@@ -244,7 +250,9 @@ export function PaperForm({
       {paperId && <input type="hidden" name="paper_id" value={paperId} />}
       <input type="hidden" name="plain_summary_source" value={summarySource} />
 
-      <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
+      <FormMessage ref={messageRef} tone="error">
+        {state && !state.ok ? state.error : null}
+      </FormMessage>
 
       {/* 1. Onde encontrar */}
       <section

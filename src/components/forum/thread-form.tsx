@@ -10,6 +10,7 @@ import {
   FormMessage,
   Input,
   KeywordInput,
+  revealFormMessage,
   Select,
   SubmitButton,
   Switch,
@@ -58,11 +59,15 @@ export function ThreadForm(props: ThreadFormProps) {
     null,
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
 
-  // Depois de um erro de validação, leva o foco ao primeiro campo com problema.
+  // Depois de um erro de validação, leva o foco ao primeiro campo com problema. Erro do formulário
+  // inteiro (ex.: limite anti-spam, CD021) aparece no topo, longe do botão: rola até a mensagem.
   useEffect(() => {
     if (!state || state.ok) return;
-    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (invalid) invalid.focus();
+    else revealFormMessage(messageRef.current);
   }, [state]);
 
   const initialValues: ThreadFormValues =
@@ -80,7 +85,9 @@ export function ThreadForm(props: ThreadFormProps) {
 
   return (
     <form ref={formRef} action={formAction} noValidate className="grid gap-6">
-      <FormMessage tone="error">{state?.error}</FormMessage>
+      <FormMessage ref={messageRef} tone="error">
+        {state?.error}
+      </FormMessage>
       {props.mode === "edit" && <input type="hidden" name="threadId" value={props.threadId} />}
 
       <ThreadFields key={state?.nonce ?? "inicial"} props={props} values={values} errors={errors} />

@@ -8,8 +8,23 @@
 - App completo (Next.js 16 + Supabase): autenticação, onboarding, perfis, diretório, fórum com anonimato,
   mentoria com IA (com modo por afinidade quando a IA não está disponível), Vitrine Delas, ranking, Boletim
   Delas, notificações, moderação com auditoria, design system.
+- **Busca sem acento** e sem diferença de maiúsculas no fórum, na Vitrine e no diretório ("Jacarei" encontra
+  "Jacareí"; cada palavra precisa aparecer em algum campo) — [03](03-banco-de-dados.md#busca-sem-acento-search_text).
+- **Importar do ORCID** em `/papers/novo`: lista as publicações públicas do ORCID iD (o do perfil já vem
+  preenchido) e preenche o formulário, pelo Crossref quando há DOI. API pública, sem chave —
+  [05](05-papers-e-ranking.md#12-importar-do-orcid).
+- **Baixar meus dados** (LGPD, portabilidade) em `/perfil#dados`: um JSON com tudo o que é da membra, inclusive
+  as publicações anônimas — [11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade).
+- **Instalável no celular (PWA):** manifesto e ícones; sem modo offline (README, "Instalar no celular").
+- Segurança: **limites anti-spam no banco** por pessoa (tópicos, respostas, comentários, papers, destaques,
+  denúncias e pedidos de mentoria — valem também pela API); **auditoria** de toda ação da moderação, inclusive
+  exclusões feitas em qualquer tela; avatares só do Storage do projeto; **cabeçalhos de segurança HTTP**
+  (anti-clickjacking, `nosniff`, HSTS…) — [09](09-moderacao-e-seguranca.md#10-checklist-de-segurança).
 - Banco: migrations com RLS e GRANTs explícitos, seed de demonstração, testes pgTAP.
 - Testes: unitários (Vitest), banco (pgTAP), jornada completa no navegador (`scripts/e2e/journey.mjs`).
+- **CI no GitHub Actions** (`.github/workflows/ci.yml`): a cada push e pull request roda formatação, lint, tipos,
+  testes unitários, testes do script de deploy, build e pgTAP; a jornada E2E ainda não roda no CI —
+  [07 §7](07-setup-e-deploy.md#7-integração-contínua-github-actions).
 - Documentação em `docs/` e decisões em `docs/adr/`.
 
 ## O que falta (precisa de vocês)
@@ -80,6 +95,8 @@ O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto
 - [ ] Opcional: domínio verificado no Resend para o Boletim chegar a todas as inscritas
       (sem isso, o Boletim fica publicado no site).
 - [ ] Revisar os textos de `/conduta` com a equipe.
+- [ ] Conferir a primeira execução do CI em GitHub → **Actions** (o workflow ainda não rodou no GitHub; o selo
+      do README só mostra resultado depois que o workflow chegar ao `main`).
 
 ## Contas usadas até aqui
 

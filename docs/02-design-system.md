@@ -700,6 +700,8 @@ Meta: **WCAG 2.2 AA**. Revise antes de cada PR:
 - Um único `h1` por página (`PageHeader`); níveis de título em ordem.
 - Todo campo tem rótulo visível (`Field`/`Label`); placeholder não é rótulo.
 - Erros junto do campo (`aria-invalid` + `aria-describedby`, feito pelo `Field`) **e** resumo no topo (`FormMessage`).
+  Em formulários longos, um erro sem campo inválido (ex.: limite anti-spam) fica fora da tela: no efeito
+  pós-envio, foque o primeiro campo inválido ou chame `revealFormMessage(ref)` para rolar até a mensagem.
 - Foco visível em tudo (outline 2px `--color-focus`, regra global em `:focus-visible`). Não remova.
 - Tudo funciona com teclado: Tab/Shift+Tab, Enter, Espaço, Esc, setas em menus e abas.
 - Botão só com ícone tem `aria-label`; ícone decorativo tem `aria-hidden`.

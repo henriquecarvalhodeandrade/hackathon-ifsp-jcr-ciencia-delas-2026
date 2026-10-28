@@ -46,3 +46,14 @@ export function FormMessage({ tone = "error", children, className, ...props }: F
     </div>
   );
 }
+
+/**
+ * Rola a página até a mensagem quando ela está fora da tela (respeita "reduzir movimento"). Para
+ * formulários longos: o erro geral aparece no topo, longe do botão de enviar, e sem isso a pessoa
+ * só via o botão voltar ao normal. Chame num efeito, depois de um envio sem campo inválido.
+ */
+export function revealFormMessage(element: HTMLElement | null) {
+  if (!element) return;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  element.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+}
