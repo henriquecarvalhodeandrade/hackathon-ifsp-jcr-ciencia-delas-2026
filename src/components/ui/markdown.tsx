@@ -81,8 +81,16 @@ function buildComponents(headingOffset: number, allowImages: boolean): Component
           </a>
         );
       }
-      // eslint-disable-next-line @next/next/no-img-element -- conteúdo de terceiros, dimensões desconhecidas
-      return <img src={url} alt={alt ?? ""} loading="lazy" decoding="async" referrerPolicy="no-referrer" />;
+      return (
+        // eslint-disable-next-line @next/next/no-img-element -- conteúdo de terceiros, dimensões desconhecidas
+        <img
+          src={url}
+          alt={alt ?? ""}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+        />
+      );
     },
     table(props) {
       return (
@@ -120,8 +128,14 @@ export function Markdown({
 }: MarkdownProps) {
   if (!children) return null;
   return (
-    <div className={cn("prose-delas", variant === "editorial" && "prose-delas-editorial", className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={buildComponents(headingOffset, allowImages)}>
+    <div
+      className={cn("prose-delas", variant === "editorial" && "prose-delas-editorial", className)}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+        components={buildComponents(headingOffset, allowImages)}
+      >
         {children}
       </ReactMarkdown>
     </div>

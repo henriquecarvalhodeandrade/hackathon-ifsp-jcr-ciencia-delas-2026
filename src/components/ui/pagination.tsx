@@ -48,20 +48,37 @@ const base =
   "inline-flex h-10 min-w-10 items-center justify-center gap-1 rounded-control px-3 text-[0.9375rem] font-semibold transition-colors [&_svg]:size-4";
 
 /** Paginação por links (?pagina=N), acessível e compatível com Server Components. */
-export function Pagination({ page, totalPages, basePath, searchParams = {}, param = "pagina", className }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  basePath,
+  searchParams = {},
+  param = "pagina",
+  className,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
   const current = Math.min(Math.max(1, page), totalPages);
   const link = (p: number) => hrefFor(basePath, searchParams, param, p);
 
   return (
-    <nav aria-label="Paginação" className={cn("flex items-center justify-between gap-2 sm:justify-center", className)}>
+    <nav
+      aria-label="Paginação"
+      className={cn("flex items-center justify-between gap-2 sm:justify-center", className)}
+    >
       {current > 1 ? (
-        <Link href={link(current - 1)} rel="prev" className={cn(base, "text-fg hover:bg-surface-2")}>
+        <Link
+          href={link(current - 1)}
+          rel="prev"
+          className={cn(base, "text-fg hover:bg-surface-2")}
+        >
           <ChevronLeft aria-hidden="true" />
           <span>Anterior</span>
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(base, "cursor-not-allowed text-fg-subtle opacity-60")}>
+        <span
+          aria-disabled="true"
+          className={cn(base, "cursor-not-allowed text-fg-subtle opacity-60")}
+        >
           <ChevronLeft aria-hidden="true" />
           <span>Anterior</span>
         </span>
@@ -81,8 +98,10 @@ export function Pagination({ page, totalPages, basePath, searchParams = {}, para
                 aria-label={`Página ${p}`}
                 className={cn(
                   base,
-                  "tabular px-2",
-                  p === current ? "bg-primary text-primary-fg hover:bg-primary-hover" : "text-fg hover:bg-surface-2",
+                  "px-2 tabular",
+                  p === current
+                    ? "bg-primary text-primary-fg hover:bg-primary-hover"
+                    : "text-fg hover:bg-surface-2",
                 )}
               >
                 {formatNumber(p)}
@@ -96,12 +115,19 @@ export function Pagination({ page, totalPages, basePath, searchParams = {}, para
       </p>
 
       {current < totalPages ? (
-        <Link href={link(current + 1)} rel="next" className={cn(base, "text-fg hover:bg-surface-2")}>
+        <Link
+          href={link(current + 1)}
+          rel="next"
+          className={cn(base, "text-fg hover:bg-surface-2")}
+        >
           <span>Próxima</span>
           <ChevronRight aria-hidden="true" />
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(base, "cursor-not-allowed text-fg-subtle opacity-60")}>
+        <span
+          aria-disabled="true"
+          className={cn(base, "cursor-not-allowed text-fg-subtle opacity-60")}
+        >
           <span>Próxima</span>
           <ChevronRight aria-hidden="true" />
         </span>

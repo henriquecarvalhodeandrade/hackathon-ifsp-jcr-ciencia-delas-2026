@@ -27,7 +27,10 @@ const LIMIT = 100;
  * Notificações da usuária logada (RLS: só as próprias). Não lidas primeiro.
  * `userId` vem da sessão (nunca do cliente) e é usado só para deixar a consulta explícita.
  */
-export async function listMyNotifications(userId: string, filter: NotificationFilter): Promise<NotificationsPage> {
+export async function listMyNotifications(
+  userId: string,
+  filter: NotificationFilter,
+): Promise<NotificationsPage> {
   const supabase = await createClient();
 
   let query = supabase
@@ -40,8 +43,15 @@ export async function listMyNotifications(userId: string, filter: NotificationFi
 
   const [list, unreadCount, totalCount] = await Promise.all([
     query,
-    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).is("read_at", null),
-    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("read_at", null),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
   ]);
 
   if (list.error) {

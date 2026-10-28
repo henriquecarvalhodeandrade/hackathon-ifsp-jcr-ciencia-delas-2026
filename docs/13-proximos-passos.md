@@ -31,10 +31,23 @@
      | `SUPABASE_PROJECT_REF`  | o Project ref           |
      | `SUPABASE_DB_PASSWORD`  | a senha do banco        |
 
-     Depois é só pedir: "configure o Supabase Cloud com o script de deploy".
+     O token precisa das permissões listadas em [`scripts/deploy/README.md`](../scripts/deploy/README.md) §1
+     (tokens escopados viraram padrão no painel). Depois é só pedir: "configure o Supabase Cloud com o script de
+     deploy". Na sessão na nuvem o comando é
+     `NODE_USE_ENV_PROXY=1 node scripts/deploy/setup-supabase-cloud.mjs --site-url=https://<app>.vercel.app --migrations-via-api --write-env`
+     (o sandbox não abre conexão direta com o Postgres, por isso as migrations vão por HTTPS).
 
    - **Vocês configuram:** seguir [`07-setup-e-deploy.md`](07-setup-e-deploy.md) §4.1 ou rodar o script
      `scripts/deploy/setup-supabase-cloud.mjs` (instruções no topo do arquivo).
+
+### 1b. Decisão: e-mails de cadastro
+
+O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto** (cerca de 2 por hora). Escolham:
+
+- **Demo do hackathon, sem domínio:** rodar o script com `--auto-confirm-email` — qualquer pessoa cria conta sem
+  confirmar o e-mail (link mágico e recuperação de senha ainda precisam de e-mail).
+- **Site aberto ao público:** domínio verificado no Resend (grátis) usado como SMTP (`SMTP_*`, ver
+  `scripts/deploy/README.md` §4) — confirmação de e-mail continua ligada.
 
 ### 2. Chave de IA (grátis)
 

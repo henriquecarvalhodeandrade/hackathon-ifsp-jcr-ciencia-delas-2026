@@ -19,12 +19,22 @@ const ICONS: Record<NotificationType, { Icon: typeof HeartHandshake; tone: strin
 };
 
 /** Ícone do tipo de notificação (decorativo — o tipo também aparece em texto). */
-export function NotificationIcon({ type, className }: { type: NotificationType; className?: string }) {
+export function NotificationIcon({
+  type,
+  className,
+}: {
+  type: NotificationType;
+  className?: string;
+}) {
   const { Icon, tone } = ICONS[type] ?? ICONS.thread_reply;
   return (
     <span
       aria-hidden="true"
-      className={cn("inline-flex size-10 shrink-0 items-center justify-center rounded-full [&_svg]:size-5", tone, className)}
+      className={cn(
+        "inline-flex size-10 shrink-0 items-center justify-center rounded-full [&_svg]:size-5",
+        tone,
+        className,
+      )}
     >
       <Icon />
     </span>

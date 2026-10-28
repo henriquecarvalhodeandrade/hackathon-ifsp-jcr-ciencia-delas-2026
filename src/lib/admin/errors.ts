@@ -12,7 +12,10 @@ export interface DbErrorLike {
 
 export const GENERIC_ERROR = "Não conseguimos concluir a ação. Tente de novo em instantes.";
 
-export function friendlyDbError(error: DbErrorLike | null | undefined, fallback: string = GENERIC_ERROR): string {
+export function friendlyDbError(
+  error: DbErrorLike | null | undefined,
+  fallback: string = GENERIC_ERROR,
+): string {
   if (!error) return fallback;
   const code = error.code ?? "";
   const message = error.message?.trim();

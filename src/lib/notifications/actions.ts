@@ -20,12 +20,16 @@ function revalidateNotifications() {
   revalidatePath("/", "layout");
 }
 
-export async function markNotificationRead(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function markNotificationRead(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const user = await getCurrentUser();
   if (!user) return actionError(SESSION_EXPIRED);
 
   const parsed = idSchema.safeParse(formData.get("id"));
-  if (!parsed.success) return actionError("Notificação inválida. Recarregue a página e tente de novo.");
+  if (!parsed.success)
+    return actionError("Notificação inválida. Recarregue a página e tente de novo.");
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -34,7 +38,8 @@ export async function markNotificationRead(_prev: ActionState, formData: FormDat
     .eq("id", parsed.data)
     .eq("user_id", user.id)
     .is("read_at", null);
-  if (error) return actionError(friendlyDbError(error, "Não conseguimos marcar como lida. Tente de novo."));
+  if (error)
+    return actionError(friendlyDbError(error, "Não conseguimos marcar como lida. Tente de novo."));
 
   revalidateNotifications();
   return { ok: true, message: "Notificação marcada como lida." };
@@ -50,12 +55,17 @@ export async function markAllNotificationsRead(): Promise<ActionState> {
     .update({ read_at: new Date().toISOString() }, { count: "exact" })
     .eq("user_id", user.id)
     .is("read_at", null);
-  if (error) return actionError(friendlyDbError(error, "Não conseguimos marcar as notificações como lidas."));
+  if (error)
+    return actionError(
+      friendlyDbError(error, "Não conseguimos marcar as notificações como lidas."),
+    );
 
   revalidateNotifications();
   return {
     ok: true,
-    message: count ? "Pronto! Todas as notificações foram marcadas como lidas." : "Você já estava em dia.",
+    message: count
+      ? "Pronto! Todas as notificações foram marcadas como lidas."
+      : "Você já estava em dia.",
   };
 }
 
@@ -69,11 +79,14 @@ export async function deleteReadNotifications(): Promise<ActionState> {
     .delete({ count: "exact" })
     .eq("user_id", user.id)
     .not("read_at", "is", null);
-  if (error) return actionError(friendlyDbError(error, "Não conseguimos apagar as notificações lidas."));
+  if (error)
+    return actionError(friendlyDbError(error, "Não conseguimos apagar as notificações lidas."));
 
   revalidateNotifications();
   return {
     ok: true,
-    message: count ? `${count === 1 ? "1 notificação lida apagada" : `${count} notificações lidas apagadas`}.` : "Não havia notificações lidas para apagar.",
+    message: count
+      ? `${count === 1 ? "1 notificação lida apagada" : `${count} notificações lidas apagadas`}.`
+      : "Não havia notificações lidas para apagar.",
   };
 }

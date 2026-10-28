@@ -32,7 +32,7 @@ function TocList({ toc }: { toc: readonly DocTocItem[] }) {
             href={`#${item.id}`}
             className="flex gap-2 rounded-control px-2 py-1.5 text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
           >
-            <span aria-hidden="true" className="tabular w-5 shrink-0 text-right text-fg-subtle">
+            <span aria-hidden="true" className="w-5 shrink-0 text-right text-fg-subtle tabular">
               {i + 1}.
             </span>
             {item.label}
@@ -43,7 +43,14 @@ function TocList({ toc }: { toc: readonly DocTocItem[] }) {
   );
 }
 
-export function DocLayout({ eyebrow, title, description, toc, updatedAt, children }: DocLayoutProps) {
+export function DocLayout({
+  eyebrow,
+  title,
+  description,
+  toc,
+  updatedAt,
+  children,
+}: DocLayoutProps) {
   return (
     <Container size="wide" className="pb-16">
       <PageHeader eyebrow={eyebrow} title={title} description={description}>
@@ -62,7 +69,10 @@ export function DocLayout({ eyebrow, title, description, toc, updatedAt, childre
             <summary className="flex cursor-pointer list-none items-center gap-2 rounded-control px-2 py-1.5 font-semibold text-fg [&::-webkit-details-marker]:hidden">
               <ListTree aria-hidden="true" className="size-4 text-primary" />
               Nesta página
-              <span aria-hidden="true" className="ml-auto text-fg-subtle transition-transform group-open:rotate-90">
+              <span
+                aria-hidden="true"
+                className="ml-auto text-fg-subtle transition-transform group-open:rotate-90"
+              >
                 ›
               </span>
             </summary>
@@ -71,7 +81,7 @@ export function DocLayout({ eyebrow, title, description, toc, updatedAt, childre
             </div>
           </details>
           <div className="hidden lg:block">
-            <p className="eyebrow mb-3 px-2 text-fg-subtle">Nesta página</p>
+            <p className="mb-3 px-2 eyebrow text-fg-subtle">Nesta página</p>
             <TocList toc={toc} />
           </div>
         </nav>
@@ -89,7 +99,15 @@ export function DocLayout({ eyebrow, title, description, toc, updatedAt, childre
   );
 }
 
-export function DocSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+export function DocSection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section aria-labelledby={id}>
       <h2 id={id}>{title}</h2>
@@ -101,7 +119,12 @@ export function DocSection({ id, title, children }: { id: string; title: string;
 /** Link externo em texto corrido: nova aba + aviso para leitores de tela. */
 export function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-baseline gap-0.5">
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-baseline gap-0.5"
+    >
       {children}
       <ArrowUpRight aria-hidden="true" className="size-3.5 self-center" />
       <span className="sr-only"> (abre em nova aba)</span>

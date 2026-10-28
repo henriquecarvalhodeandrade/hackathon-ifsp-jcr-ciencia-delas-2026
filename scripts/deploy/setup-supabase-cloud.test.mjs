@@ -462,6 +462,19 @@ describe("Auth", () => {
     assert.equal("smtp_host" in p, false);
   });
 
+  test("--auto-confirm-email liga mailer_autoconfirm, avisa e recusa valor", () => {
+    const a = parseArgs([`--site-url=${SITE}`, "--auto-confirm-email"]);
+    assert.deepEqual(a.errors, []);
+    assert.equal(a.autoConfirmEmail, true);
+    const { config, warnings } = buildConfig(a, {});
+    assert.equal(config.autoConfirmEmail, true);
+    assert.ok(warnings.some((w) => w.includes("--auto-confirm-email")));
+    const p = buildAuthConfigPayload({ siteUrl: SITE, templates, autoConfirmEmail: true });
+    assert.equal(p.mailer_autoconfirm, true);
+    assert.equal(parseArgs([`--site-url=${SITE}`]).autoConfirmEmail, false);
+    assert.equal(parseArgs(["--auto-confirm-email=false"]).errors.length, 1);
+  });
+
   test("buildAuthConfigPayload com SMTP próprio; resumo mascara a senha", () => {
     const p = buildAuthConfigPayload({
       siteUrl: SITE,

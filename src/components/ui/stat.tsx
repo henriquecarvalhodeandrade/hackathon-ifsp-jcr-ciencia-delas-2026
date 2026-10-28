@@ -24,10 +24,21 @@ export function Stat({ label, value, trend, icon, compact, className, ...props }
         {icon}
         {label}
       </p>
-      <p className="tabular font-display text-4xl leading-none font-semibold tracking-[-0.03em] text-fg">{display}</p>
+      <p className="font-display text-4xl leading-none font-semibold tracking-[-0.03em] text-fg tabular">
+        {display}
+      </p>
       {trend && (
-        <p className={cn("flex items-center gap-1 text-sm font-semibold", up ? "text-success" : "text-danger")}>
-          {up ? <TrendingUp aria-hidden="true" className="size-4" /> : <TrendingDown aria-hidden="true" className="size-4" />}
+        <p
+          className={cn(
+            "flex items-center gap-1 text-sm font-semibold",
+            up ? "text-success" : "text-danger",
+          )}
+        >
+          {up ? (
+            <TrendingUp aria-hidden="true" className="size-4" />
+          ) : (
+            <TrendingDown aria-hidden="true" className="size-4" />
+          )}
           <span>
             {up ? "+" : "−"}
             {formatNumber(Math.abs(trend.value))}

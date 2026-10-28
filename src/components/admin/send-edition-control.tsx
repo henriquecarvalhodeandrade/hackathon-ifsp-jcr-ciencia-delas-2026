@@ -44,12 +44,23 @@ function plural(n: number, one: string, many: string) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-function SendFlow({ editionId, label, onReset }: { editionId: string; label: string; onReset: () => void }) {
-  const [state, formAction] = useActionState<ActionState<SendSummary>, FormData>(async (prev, formData) => {
-    const result = await sendEditionAction(prev, formData);
-    if (result?.ok && !result.data.dryRun) announce(result.message);
-    return result;
-  }, null);
+function SendFlow({
+  editionId,
+  label,
+  onReset,
+}: {
+  editionId: string;
+  label: string;
+  onReset: () => void;
+}) {
+  const [state, formAction] = useActionState<ActionState<SendSummary>, FormData>(
+    async (prev, formData) => {
+      const result = await sendEditionAction(prev, formData);
+      if (result?.ok && !result.data.dryRun) announce(result.message);
+      return result;
+    },
+    null,
+  );
 
   const preview = state?.ok && state.data.dryRun ? state.data : null;
   const done = state?.ok && !state.data.dryRun ? state.data : null;
@@ -91,8 +102,8 @@ function SendFlow({ editionId, label, onReset }: { editionId: string; label: str
         >
           {preview.skipped > 0 && (
             <p>
-              {plural(preview.skipped, "inscrita será pulada", "inscritas serão puladas")} (por exemplo, quem já recebeu
-              esta edição).
+              {plural(preview.skipped, "inscrita será pulada", "inscritas serão puladas")} (por
+              exemplo, quem já recebeu esta edição).
             </p>
           )}
           {preview.reason && <p>{preview.reason}</p>}
@@ -102,8 +113,8 @@ function SendFlow({ editionId, label, onReset }: { editionId: string; label: str
       {done && (
         <Alert variant={done.failed > 0 ? "warning" : "success"} title="Envio processado" live>
           <p>
-            {plural(done.sent, "enviado", "enviados")} · {plural(done.skipped, "pulado", "pulados")} ·{" "}
-            {plural(done.failed, "falha", "falhas")}
+            {plural(done.sent, "enviado", "enviados")} · {plural(done.skipped, "pulado", "pulados")}{" "}
+            · {plural(done.failed, "falha", "falhas")}
           </p>
           {done.reason && <p>{done.reason}</p>}
         </Alert>
@@ -117,5 +128,12 @@ function SendFlow({ editionId, label, onReset }: { editionId: string; label: str
 /** Envio de uma edição em dois passos: prévia (dry-run) e confirmação. */
 export function SendEditionControl({ editionId, label }: { editionId: string; label: string }) {
   const [round, setRound] = useState(0);
-  return <SendFlow key={round} editionId={editionId} label={label} onReset={() => setRound((r) => r + 1)} />;
+  return (
+    <SendFlow
+      key={round}
+      editionId={editionId}
+      label={label}
+      onReset={() => setRound((r) => r + 1)}
+    />
+  );
 }

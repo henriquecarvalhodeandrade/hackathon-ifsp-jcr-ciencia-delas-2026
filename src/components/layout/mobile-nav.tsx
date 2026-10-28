@@ -24,7 +24,10 @@ import { NavLink } from "./nav-link";
 import type { NavItem } from "./nav-items";
 import { ThemeToggle } from "./theme-toggle";
 
-const ICONS: Record<string, React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
+const ICONS: Record<
+  string,
+  React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
+> = {
   "/forum": MessagesSquare,
   "/mentoria": HeartHandshake,
   "/pesquisadoras": Users,
@@ -46,7 +49,8 @@ export interface MobileNavProps {
 
 const linkClasses =
   "flex h-12 items-center gap-3 rounded-control px-3 text-base font-semibold text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg [&_svg]:size-5 [&_svg]:text-fg-subtle";
-const activeClasses = "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft [&_svg]:text-primary-soft-fg";
+const activeClasses =
+  "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft [&_svg]:text-primary-soft-fg";
 
 /** Gaveta de navegação para telas pequenas (<dialog> nativo: foco preso, Esc fecha). */
 export function MobileNav({ items, account }: MobileNavProps) {
@@ -127,10 +131,15 @@ export function MobileNav({ items, account }: MobileNavProps) {
 
               {account && (
                 <>
-                  <p className="eyebrow mt-6 mb-2 px-3 text-fg-subtle">Sua conta</p>
+                  <p className="mt-6 mb-2 px-3 eyebrow text-fg-subtle">Sua conta</p>
                   <ul className="grid gap-1">
                     <li>
-                      <NavLink href="/perfil" className={linkClasses} activeClassName={activeClasses} onClick={() => setOpen(false)}>
+                      <NavLink
+                        href="/perfil"
+                        className={linkClasses}
+                        activeClassName={activeClasses}
+                        onClick={() => setOpen(false)}
+                      >
                         <UserRound aria-hidden="true" />
                         Meu perfil
                       </NavLink>
@@ -145,7 +154,7 @@ export function MobileNav({ items, account }: MobileNavProps) {
                         <Bell aria-hidden="true" />
                         <span className="flex-1">Notificações</span>
                         {account.unread > 0 && (
-                          <span className="tabular rounded-pill bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">
+                          <span className="rounded-pill bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg tabular">
                             {formatNumber(account.unread)}
                             <span className="sr-only"> não lidas</span>
                           </span>
@@ -154,7 +163,12 @@ export function MobileNav({ items, account }: MobileNavProps) {
                     </li>
                     {account.isModerator && (
                       <li>
-                        <NavLink href="/admin" className={linkClasses} activeClassName={activeClasses} onClick={() => setOpen(false)}>
+                        <NavLink
+                          href="/admin"
+                          className={linkClasses}
+                          activeClassName={activeClasses}
+                          onClick={() => setOpen(false)}
+                        >
                           <ShieldCheck aria-hidden="true" />
                           Moderação
                         </NavLink>
@@ -169,7 +183,10 @@ export function MobileNav({ items, account }: MobileNavProps) {
               <ThemeToggle showLabel className="justify-start" />
               {account ? (
                 <form action="/auth/sair" method="post">
-                  <button type="submit" className={cn(linkClasses, "w-full text-danger [&_svg]:text-danger")}>
+                  <button
+                    type="submit"
+                    className={cn(linkClasses, "w-full text-danger [&_svg]:text-danger")}
+                  >
                     <LogOut aria-hidden="true" />
                     Sair
                   </button>

@@ -14,7 +14,14 @@ export interface UserMenuProps {
 }
 
 /** Menu da conta (avatar → Meu perfil, Notificações, Moderação, Sair). */
-export function UserMenu({ name, avatarUrl, profileId, headline, unread, isModerator }: UserMenuProps) {
+export function UserMenu({
+  name,
+  avatarUrl,
+  profileId,
+  headline,
+  unread,
+  isModerator,
+}: UserMenuProps) {
   const items: DropdownItem[] = [
     { href: "/perfil", label: "Meu perfil", icon: <UserRound aria-hidden="true" /> },
     {
@@ -23,17 +30,30 @@ export function UserMenu({ name, avatarUrl, profileId, headline, unread, isModer
       icon: <Bell aria-hidden="true" />,
       end:
         unread > 0 ? (
-          <span className="tabular rounded-pill bg-accent px-1.5 py-px text-xs font-bold text-accent-fg">
+          <span className="rounded-pill bg-accent px-1.5 py-px text-xs font-bold text-accent-fg tabular">
             {formatNumber(unread)}
             <span className="sr-only"> não lidas</span>
           </span>
         ) : undefined,
     },
     ...(isModerator
-      ? [{ href: "/admin", label: "Moderação", icon: <ShieldCheck aria-hidden="true" /> } satisfies DropdownItem]
+      ? [
+          {
+            href: "/admin",
+            label: "Moderação",
+            icon: <ShieldCheck aria-hidden="true" />,
+          } satisfies DropdownItem,
+        ]
       : []),
     { type: "separator" },
-    { type: "form", action: "/auth/sair", method: "post", label: "Sair", icon: <LogOut aria-hidden="true" />, tone: "danger" },
+    {
+      type: "form",
+      action: "/auth/sair",
+      method: "post",
+      label: "Sair",
+      icon: <LogOut aria-hidden="true" />,
+      tone: "danger",
+    },
   ];
 
   return (

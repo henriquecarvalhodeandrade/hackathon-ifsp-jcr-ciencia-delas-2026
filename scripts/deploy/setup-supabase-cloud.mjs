@@ -109,6 +109,7 @@ export function parseArgs(argv) {
     vercel: false,
     redirectUrls: [],
     migrationsViaApi: false,
+    autoConfirmEmail: false,
     help: false,
     errors: [],
   };
@@ -121,6 +122,7 @@ export function parseArgs(argv) {
     "--with-demo-seed",
     "--vercel",
     "--migrations-via-api",
+    "--auto-confirm-email",
   ]);
   for (let i = 0; i < argv.length; i++) {
     const raw = argv[i];
@@ -157,6 +159,9 @@ export function parseArgs(argv) {
         break;
       case "--migrations-via-api":
         args.migrationsViaApi = true;
+        break;
+      case "--auto-confirm-email":
+        args.autoConfirmEmail = true;
         break;
       case "--site-url":
         if (!value)
@@ -346,6 +351,11 @@ export function buildConfig(args, env, { packageName } = {}) {
   const { smtp, errors: smtpErrors } = readSmtpConfig(env);
   errors.push(...smtpErrors);
 
+  if (args.autoConfirmEmail) {
+    warnings.push(
+      "--auto-confirm-email: contas novas entram sem confirmar o e-mail. Útil para a demo sem SMTP próprio; para o site aberto ao público, prefira configurar SMTP (SMTP_*) e rodar de novo sem esta flag.",
+    );
+  }
   if (args.withDemoSeed) {
     warnings.push(
       "--with-demo-seed: o seed.sql INTEIRO será aplicado, com contas FICTÍCIAS e senha PÚBLICA. Use só num projeto de demonstração, nunca em produção real.",
@@ -372,6 +382,7 @@ export function buildConfig(args, env, { packageName } = {}) {
       siteUrl,
       redirectUrls,
       withDemoSeed: args.withDemoSeed,
+      autoConfirmEmail: args.autoConfirmEmail,
       migrationsViaApi: args.migrationsViaApi,
       writeEnv: args.writeEnv,
       vercel: args.vercel,
@@ -742,12 +753,14 @@ export function buildAuthConfigPayload({
   templates,
   passwordMinLength = MIN_PASSWORD_LENGTH,
   smtp = null,
+  autoConfirmEmail = false,
 }) {
   const payload = {
     site_url: siteUrl,
     uri_allow_list: mergeAllowList(currentAllowList, [`${siteUrl}/**`, ...extraRedirectUrls]),
     external_email_enabled: true,
-    mailer_autoconfirm: false,
+    // true só com --auto-confirm-email (demo sem SMTP próprio): a conta entra sem confirmar o e-mail.
+    mailer_autoconfirm: Boolean(autoConfirmEmail),
     password_min_length: Math.max(MIN_PASSWORD_LENGTH, passwordMinLength),
   };
   for (const type of EMAIL_TEMPLATE_TYPES) {
@@ -1277,7 +1290,9 @@ Uso:
 Variáveis obrigatórias (exceto na simulação):
   SUPABASE_ACCESS_TOKEN   Personal Access Token (${LINKS.supabaseTokens})
   SUPABASE_PROJECT_REF    ref do projeto (20 letras; Project Settings > General)
-  SUPABASE_DB_PASSWORD    senha do banco definida ao criar o projeto
+  SUPABASE_DB_PASSWORD    senha do banco definida ao criar o projeto (dispensável com --migrations-via-api)
+
+O token precisa das permissões listadas em scripts/deploy/README.md (tokens escopados).
 
 Opções:
   --site-url=<https://...>  URL pública do site (obrigatória)
@@ -1288,6 +1303,8 @@ Opções:
   --migrations-via-api      aplica as migrations por HTTPS em vez de "supabase db push" (rede sem acesso
                             TCP ao Postgres, ex.: sessão na nuvem atrás de proxy)
   --with-demo-seed          aplica o seed.sql inteiro (contas fictícias, senha pública) — nunca em produção
+  --auto-confirm-email      contas novas entram sem confirmar o e-mail (demo sem SMTP próprio: o SMTP
+                            padrão do Supabase só entrega para o time do projeto)
   --help                    esta ajuda
 
 Guia completo: scripts/deploy/README.md`;
@@ -1661,6 +1678,7 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
       templates: local.templates,
       passwordMinLength: local.passwordMinLength,
       smtp: config.smtp,
+      autoConfirmEmail: config.autoConfirmEmail,
     });
     out(
       `  PATCH /v1/projects/{ref}/config/auth${config.dryRun ? " (simulação, não enviado)" : ""}:`,

@@ -24,7 +24,7 @@ export function Checkbox({ label, description, className, id, ...props }: Checkb
           className={cn(
             "peer size-5 cursor-pointer appearance-none rounded-[0.3125rem] border-[1.5px] border-border-strong bg-surface",
             "transition-colors duration-150 checked:border-primary checked:bg-primary hover:border-fg-subtle checked:hover:border-primary-hover checked:hover:bg-primary-hover",
-            "aria-invalid:border-danger disabled:cursor-not-allowed",
+            "disabled:cursor-not-allowed aria-invalid:border-danger",
             "forced-colors:appearance-auto",
           )}
           {...props}

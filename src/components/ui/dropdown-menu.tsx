@@ -175,7 +175,10 @@ export function DropdownMenu({
             setOpen(true);
           }
         }}
-        className={cn("inline-flex items-center rounded-full transition-opacity hover:opacity-90", triggerClassName)}
+        className={cn(
+          "inline-flex items-center rounded-full transition-opacity hover:opacity-90",
+          triggerClassName,
+        )}
       >
         {trigger}
       </button>
@@ -189,26 +192,42 @@ export function DropdownMenu({
           onKeyDown={onMenuKeyDown}
           className="fixed inset-auto z-50 m-0 w-64 max-w-[calc(100vw-1rem)] animate-pop-in overflow-visible rounded-card border border-border bg-surface p-1.5 text-fg shadow-overlay"
         >
-          {header && <div className="mb-1.5 border-b border-border px-2.5 pt-1.5 pb-2.5">{header}</div>}
+          {header && (
+            <div className="mb-1.5 border-b border-border px-2.5 pt-1.5 pb-2.5">{header}</div>
+          )}
           {items.map((item, index) => {
             if (item.type === "separator") {
-              return <div key={`sep-${index}`} role="separator" className="my-1.5 h-px bg-border" />;
+              return (
+                <div key={`sep-${index}`} role="separator" className="my-1.5 h-px bg-border" />
+              );
             }
             if (item.type === "label") {
               return (
-                <div key={`label-${index}`} role="presentation" className="eyebrow px-2.5 pt-2 pb-1 text-fg-subtle">
+                <div
+                  key={`label-${index}`}
+                  role="presentation"
+                  className="px-2.5 pt-2 pb-1 eyebrow text-fg-subtle"
+                >
                   {item.label}
                 </div>
               );
             }
             if (item.type === "form") {
               return (
-                <form key={`form-${index}`} action={item.action} method={item.method ?? "post"} role="none">
+                <form
+                  key={`form-${index}`}
+                  action={item.action}
+                  method={item.method ?? "post"}
+                  role="none"
+                >
                   <button
                     type="submit"
                     role="menuitem"
                     tabIndex={-1}
-                    className={cn(itemClasses, item.tone === "danger" && "text-danger [&_svg]:text-danger")}
+                    className={cn(
+                      itemClasses,
+                      item.tone === "danger" && "text-danger [&_svg]:text-danger",
+                    )}
                   >
                     {item.icon}
                     {item.label}

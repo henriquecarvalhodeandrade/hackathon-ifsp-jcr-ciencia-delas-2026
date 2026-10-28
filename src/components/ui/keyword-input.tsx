@@ -62,13 +62,17 @@ export function KeywordInput({
   }
 
   function addMany(raw: string) {
-    const candidates = raw.split(/[,;\n]/).map(normalize).filter(Boolean);
+    const candidates = raw
+      .split(/[,;\n]/)
+      .map(normalize)
+      .filter(Boolean);
     if (candidates.length === 0) return;
     const next = [...tags];
     const added: string[] = [];
     for (const candidate of candidates) {
       if (next.length >= max) break;
-      if (next.some((t) => t.toLocaleLowerCase("pt-BR") === candidate.toLocaleLowerCase("pt-BR"))) continue;
+      if (next.some((t) => t.toLocaleLowerCase("pt-BR") === candidate.toLocaleLowerCase("pt-BR")))
+        continue;
       next.push(candidate);
       added.push(candidate);
     }
@@ -177,7 +181,7 @@ export function KeywordInput({
       </div>
       <p id={statusId} className="flex justify-between gap-3 text-xs text-fg-subtle">
         <span>Enter ou vírgula para adicionar · Backspace remove a última</span>
-        <span className="tabular shrink-0">
+        <span className="shrink-0 tabular">
           {formatNumber(tags.length)}/{formatNumber(max)}
         </span>
       </p>

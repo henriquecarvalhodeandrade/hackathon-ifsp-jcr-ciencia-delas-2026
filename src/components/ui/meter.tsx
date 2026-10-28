@@ -43,7 +43,7 @@ export function ProgressMeter({
         <span id={labelId} className="font-medium text-fg">
           {label}
         </span>
-        <span className="tabular font-semibold text-fg-muted">{text}</span>
+        <span className="font-semibold text-fg-muted tabular">{text}</span>
       </div>
       <div
         role="meter"
@@ -52,10 +52,16 @@ export function ProgressMeter({
         aria-valuemax={100}
         aria-valuenow={v}
         aria-valuetext={text}
-        className={cn("overflow-hidden rounded-pill bg-surface-2 ring-1 ring-border ring-inset", size === "sm" ? "h-1.5" : "h-2.5")}
+        className={cn(
+          "overflow-hidden rounded-pill bg-surface-2 ring-1 ring-border ring-inset",
+          size === "sm" ? "h-1.5" : "h-2.5",
+        )}
       >
         <div
-          className={cn("h-full rounded-pill transition-[width] duration-500 ease-out-soft", barTone[tone])}
+          className={cn(
+            "h-full rounded-pill transition-[width] duration-500 ease-out-soft",
+            barTone[tone],
+          )}
           style={{ width: `${v}%` }}
         />
       </div>
@@ -121,7 +127,14 @@ export function ScoreMeter({
         style={{ width: px, height: px }}
       >
         <svg viewBox="0 0 100 100" className="size-full -rotate-0" aria-hidden="true">
-          <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth={stroke} />
+          <circle
+            cx="50"
+            cy="50"
+            r={r}
+            fill="none"
+            stroke="var(--color-surface-2)"
+            strokeWidth={stroke}
+          />
           <circle
             cx="50"
             cy="50"
@@ -143,12 +156,24 @@ export function ScoreMeter({
             strokeDasharray={`${(v / 100) * circumference} ${circumference}`}
             transform="rotate(-90 50 50)"
           />
-          {v > 0 && <circle cx={starX} cy={starY} r={stroke * 0.9} fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth="2" />}
+          {v > 0 && (
+            <circle
+              cx={starX}
+              cy={starY}
+              r={stroke * 0.9}
+              fill="var(--color-accent)"
+              stroke="var(--color-surface)"
+              strokeWidth="2"
+            />
+          )}
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center"
+          aria-hidden="true"
+        >
           <span
             className={cn(
-              "tabular font-display leading-none font-semibold tracking-[-0.03em] text-fg",
+              "font-display leading-none font-semibold tracking-[-0.03em] text-fg tabular",
               size === "sm" ? "text-base" : size === "md" ? "text-xl" : "text-3xl",
             )}
           >
@@ -156,7 +181,9 @@ export function ScoreMeter({
             <span className="text-[0.6em] text-fg-muted">%</span>
           </span>
           {size === "lg" && (
-            <span className="mt-1 text-[0.625rem] font-semibold tracking-wide text-fg-subtle uppercase">{caption}</span>
+            <span className="mt-1 text-[0.625rem] font-semibold tracking-wide text-fg-subtle uppercase">
+              {caption}
+            </span>
           )}
         </div>
       </div>

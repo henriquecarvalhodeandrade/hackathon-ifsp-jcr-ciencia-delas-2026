@@ -11,7 +11,13 @@ export interface RadioProps extends Omit<React.ComponentProps<"input">, "type"> 
 }
 
 /** Botão de opção nativo com visual da marca. Use dentro de <RadioGroup> ou com o mesmo `name`. */
-export function Radio({ label, description, variant = "default", className, ...props }: RadioProps) {
+export function Radio({
+  label,
+  description,
+  variant = "default",
+  className,
+  ...props
+}: RadioProps) {
   return (
     <label
       className={cn(
@@ -27,7 +33,7 @@ export function Radio({ label, description, variant = "default", className, ...p
           className={cn(
             "peer size-5 cursor-pointer appearance-none rounded-full border-[1.5px] border-border-strong bg-surface",
             "transition-colors duration-150 checked:border-primary hover:border-fg-subtle checked:hover:border-primary-hover",
-            "aria-invalid:border-danger disabled:cursor-not-allowed forced-colors:appearance-auto",
+            "disabled:cursor-not-allowed aria-invalid:border-danger forced-colors:appearance-auto",
             variant === "card" && "focus-visible:outline-none",
           )}
           {...props}
@@ -105,7 +111,9 @@ export function RadioGroup({
         className={cn(
           "grid gap-2.5",
           orientation === "horizontal" && "sm:flex sm:flex-wrap sm:gap-x-6",
-          variant === "card" && orientation === "horizontal" && "sm:grid sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] sm:gap-3",
+          variant === "card" &&
+            orientation === "horizontal" &&
+            "sm:grid sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] sm:gap-3",
         )}
       >
         {options.map((option) => (

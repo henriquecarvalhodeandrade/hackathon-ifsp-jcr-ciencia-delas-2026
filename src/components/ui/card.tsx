@@ -44,7 +44,12 @@ export interface CardTitleProps extends React.ComponentProps<"h3"> {
 }
 
 export function CardTitle({ className, as: Comp = "h3", ...props }: CardTitleProps) {
-  return <Comp className={cn("font-display text-lg leading-snug font-semibold text-fg", className)} {...props} />;
+  return (
+    <Comp
+      className={cn("font-display text-lg leading-snug font-semibold text-fg", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
@@ -58,7 +63,10 @@ export function CardContent({ className, ...props }: React.ComponentProps<"div">
 export function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-wrap items-center gap-3 border-t border-border px-5 py-3.5 sm:px-6", className)}
+      className={cn(
+        "flex flex-wrap items-center gap-3 border-t border-border px-5 py-3.5 sm:px-6",
+        className,
+      )}
       {...props}
     />
   );

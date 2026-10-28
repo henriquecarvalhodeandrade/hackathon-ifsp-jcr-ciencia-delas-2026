@@ -17,11 +17,23 @@ export interface SelectProps extends Omit<React.ComponentProps<"select">, "size"
 }
 
 /** Select nativo estilizado — acessível e ótimo no celular. */
-export function Select({ className, size = "md", options, placeholder, children, ...props }: SelectProps) {
+export function Select({
+  className,
+  size = "md",
+  options,
+  placeholder,
+  children,
+  ...props
+}: SelectProps) {
   return (
     <div className="relative">
       <select
-        className={cn(controlClasses, controlSizes[size], "cursor-pointer appearance-none pr-10", className)}
+        className={cn(
+          controlClasses,
+          controlSizes[size],
+          "cursor-pointer appearance-none pr-10",
+          className,
+        )}
         {...props}
       >
         {placeholder !== undefined && <option value="">{placeholder}</option>}

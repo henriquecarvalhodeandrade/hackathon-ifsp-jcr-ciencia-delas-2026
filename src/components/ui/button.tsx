@@ -16,7 +16,8 @@ export const buttonVariants = cva(
         primary: "bg-primary text-primary-fg hover:bg-primary-hover",
         secondary: "bg-secondary text-secondary-fg hover:bg-secondary-hover",
         accent: "bg-accent text-accent-fg hover:bg-accent-hover",
-        outline: "border border-border-strong bg-surface text-fg hover:border-fg-subtle hover:bg-surface-2",
+        outline:
+          "border border-border-strong bg-surface text-fg hover:border-fg-subtle hover:bg-surface-2",
         ghost: "text-fg-muted hover:bg-surface-2 hover:text-fg",
         danger: "bg-danger text-danger-fg hover:bg-danger-hover",
         link: "h-auto px-0 text-primary underline decoration-1 underline-offset-[0.2em] hover:decoration-2 active:translate-y-0",
@@ -32,9 +33,7 @@ export const buttonVariants = cva(
         true: "w-full",
       },
     },
-    compoundVariants: [
-      { variant: "link", size: ["sm", "md", "lg"], class: "h-auto px-0" },
-    ],
+    compoundVariants: [{ variant: "link", size: ["sm", "md", "lg"], class: "h-auto px-0" }],
     defaultVariants: {
       variant: "primary",
       size: "md",
@@ -45,7 +44,8 @@ export const buttonVariants = cva(
 export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
 export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
 
-export interface ButtonProps extends React.ComponentProps<"button">, VariantProps<typeof buttonVariants> {
+export interface ButtonProps
+  extends React.ComponentProps<"button">, VariantProps<typeof buttonVariants> {
   /** Mostra o spinner, desabilita o botão e marca aria-busy. */
   loading?: boolean;
   /** Texto alternativo enquanto carrega (ex.: "Salvando…"). */
@@ -83,7 +83,8 @@ export function Button({
 }
 
 export interface ButtonLinkProps
-  extends Omit<React.ComponentProps<typeof Link>, "className">,
+  extends
+    Omit<React.ComponentProps<typeof Link>, "className">,
     VariantProps<typeof buttonVariants> {
   className?: string;
   /** Abre em nova aba com rel seguro (para URLs externas). */
@@ -91,10 +92,22 @@ export interface ButtonLinkProps
 }
 
 /** Link (next/link) com aparência de botão. */
-export function ButtonLink({ className, variant, size, fullWidth, external, children, ...props }: ButtonLinkProps) {
+export function ButtonLink({
+  className,
+  variant,
+  size,
+  fullWidth,
+  external,
+  children,
+  ...props
+}: ButtonLinkProps) {
   const externalProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
   return (
-    <Link className={cn(buttonVariants({ variant, size, fullWidth }), className)} {...externalProps} {...props}>
+    <Link
+      className={cn(buttonVariants({ variant, size, fullWidth }), className)}
+      {...externalProps}
+      {...props}
+    >
       {children}
       {external && <span className="sr-only"> (abre em nova aba)</span>}
     </Link>

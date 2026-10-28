@@ -9,10 +9,21 @@ import type { ActionState } from "@/lib/admin/action-state";
 import { ROLE_LABELS, type UserRole } from "@/lib/admin/params";
 import { announce } from "./flash";
 
-const OPTIONS = (Object.keys(ROLE_LABELS) as UserRole[]).map((value) => ({ value, label: ROLE_LABELS[value] }));
+const OPTIONS = (Object.keys(ROLE_LABELS) as UserRole[]).map((value) => ({
+  value,
+  label: ROLE_LABELS[value],
+}));
 
 /** Troca de papel (somente admins). O servidor confere de novo se quem pede é admin. */
-export function RoleForm({ profileId, name, role }: { profileId: string; name: string; role: UserRole }) {
+export function RoleForm({
+  profileId,
+  name,
+  role,
+}: {
+  profileId: string;
+  name: string;
+  role: UserRole;
+}) {
   const selectId = useId();
   const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
     const result = await changeMemberRole(prev, formData);
@@ -27,7 +38,15 @@ export function RoleForm({ profileId, name, role }: { profileId: string; name: s
         Papel de {name}
       </label>
       <div className="flex items-center gap-2">
-        <Select key={role} id={selectId} name="role" size="sm" defaultValue={role} options={OPTIONS} className="w-44" />
+        <Select
+          key={role}
+          id={selectId}
+          name="role"
+          size="sm"
+          defaultValue={role}
+          options={OPTIONS}
+          className="w-44"
+        />
         <SubmitButton variant="outline" size="sm" pendingText="Salvando…">
           Salvar
         </SubmitButton>

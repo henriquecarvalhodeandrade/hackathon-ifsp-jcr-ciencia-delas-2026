@@ -23,9 +23,15 @@ const toneIcon = { error: CircleAlert, success: CircleCheck, info: Info } as con
  */
 export function FormMessage({ tone = "error", children, className, ...props }: FormMessageProps) {
   const Icon = toneIcon[tone];
-  const hasContent = children !== undefined && children !== null && children !== false && children !== "";
+  const hasContent =
+    children !== undefined && children !== null && children !== false && children !== "";
   return (
-    <div aria-live={tone === "error" ? "assertive" : "polite"} aria-atomic="true" className={className} {...props}>
+    <div
+      aria-live={tone === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
+      className={className}
+      {...props}
+    >
       {hasContent && (
         <p
           className={cn(

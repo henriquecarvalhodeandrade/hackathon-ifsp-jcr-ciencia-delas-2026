@@ -27,7 +27,15 @@ export interface TabsProps {
  * Abas para painéis na mesma página (padrão ARIA tablist com setas, Home e End).
  * Os painéis inativos ficam no DOM com `hidden` (conteúdo pode ser Server Component).
  */
-export function Tabs({ tabs, label, defaultTab, onTabChange, className, listClassName, panelClassName }: TabsProps) {
+export function Tabs({
+  tabs,
+  label,
+  defaultTab,
+  onTabChange,
+  className,
+  listClassName,
+  panelClassName,
+}: TabsProps) {
   const baseId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const enabled = tabs.filter((t) => !t.disabled);
   const [active, setActive] = useState(defaultTab ?? enabled[0]?.id);
@@ -54,7 +62,7 @@ export function Tabs({ tabs, label, defaultTab, onTabChange, className, listClas
 
   return (
     <div className={className}>
-      <div className="-mx-4 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0">
+      <div className="-mx-4 scrollbar-none overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div
           role="tablist"
           aria-label={label}

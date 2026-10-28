@@ -144,6 +144,10 @@ HTTPS e a senha do banco não é usada.
 
    Enquanto isso, a dona do projeto (membro do time) consegue criar a própria conta normalmente.
 
+   **Sem domínio próprio (demo do hackathon):** rode com `--auto-confirm-email`. As contas novas entram sem
+   confirmar o e-mail, então o cadastro funciona para qualquer pessoa; link mágico e "esqueci a senha" continuam
+   dependendo de e-mail. Quando tiver SMTP, rode de novo sem a flag para voltar a exigir confirmação.
+
 3. **Primeira administradora.** Crie sua conta no site publicado e rode no _SQL Editor_:
 
    ```sql

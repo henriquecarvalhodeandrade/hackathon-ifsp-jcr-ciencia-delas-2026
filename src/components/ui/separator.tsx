@@ -21,7 +21,14 @@ export function Separator({
 
   if (label && orientation === "horizontal") {
     return (
-      <div className={cn("flex items-center gap-3 text-xs font-semibold text-fg-subtle uppercase", className)} {...a11y} {...props}>
+      <div
+        className={cn(
+          "flex items-center gap-3 text-xs font-semibold text-fg-subtle uppercase",
+          className,
+        )}
+        {...a11y}
+        {...props}
+      >
         <span className="h-px flex-1 bg-border" />
         <span>{label}</span>
         <span className="h-px flex-1 bg-border" />
@@ -32,7 +39,11 @@ export function Separator({
   return (
     <div
       {...a11y}
-      className={cn("shrink-0 bg-border", orientation === "horizontal" ? "h-px w-full" : "w-px self-stretch", className)}
+      className={cn(
+        "shrink-0 bg-border",
+        orientation === "horizontal" ? "h-px w-full" : "w-px self-stretch",
+        className,
+      )}
       {...props}
     />
   );

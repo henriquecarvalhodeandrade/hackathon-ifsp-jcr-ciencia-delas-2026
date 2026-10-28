@@ -30,7 +30,8 @@ export function Steps({ steps, current, label = "Etapas", className, ...props }:
       <ol aria-label={label} className="flex items-start">
         {steps.map((step, i) => {
           const status = i < active ? "complete" : i === active ? "current" : "upcoming";
-          const statusText = status === "complete" ? "concluída" : status === "current" ? "etapa atual" : "próxima";
+          const statusText =
+            status === "complete" ? "concluída" : status === "current" ? "etapa atual" : "próxima";
           return (
             <li
               key={`${i}-${step.label}`}
@@ -41,10 +42,12 @@ export function Steps({ steps, current, label = "Etapas", className, ...props }:
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "tabular inline-flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold [&_svg]:size-4",
+                    "inline-flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular [&_svg]:size-4",
                     status === "complete" && "bg-primary text-primary-fg",
-                    status === "current" && "border-2 border-primary bg-primary-soft text-primary-soft-fg",
-                    status === "upcoming" && "border border-border-strong bg-surface text-fg-subtle",
+                    status === "current" &&
+                      "border-2 border-primary bg-primary-soft text-primary-soft-fg",
+                    status === "upcoming" &&
+                      "border border-border-strong bg-surface text-fg-subtle",
                   )}
                 >
                   {status === "complete" ? <Check strokeWidth={3} /> : formatNumber(i + 1)}
@@ -58,7 +61,9 @@ export function Steps({ steps, current, label = "Etapas", className, ...props }:
                   >
                     {step.label}
                   </span>
-                  {step.description && <span className="truncate text-xs text-fg-subtle">{step.description}</span>}
+                  {step.description && (
+                    <span className="truncate text-xs text-fg-subtle">{step.description}</span>
+                  )}
                 </span>
                 <span className="sr-only">
                   Etapa {formatNumber(i + 1)} de {formatNumber(total)}: {step.label} ({statusText})

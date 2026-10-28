@@ -24,11 +24,22 @@ export interface InputProps extends Omit<React.ComponentProps<"input">, "size"> 
 }
 
 /** Campo de texto. Use dentro de <Field> para ganhar rótulo, dica e erro acessíveis. */
-export function Input({ className, size = "md", leadingIcon, type = "text", ...props }: InputProps) {
+export function Input({
+  className,
+  size = "md",
+  leadingIcon,
+  type = "text",
+  ...props
+}: InputProps) {
   const input = (
     <input
       type={type}
-      className={cn(controlClasses, controlSizes[size], leadingIcon ? "pl-10" : undefined, className)}
+      className={cn(
+        controlClasses,
+        controlSizes[size],
+        leadingIcon ? "pl-10" : undefined,
+        className,
+      )}
       {...props}
     />
   );

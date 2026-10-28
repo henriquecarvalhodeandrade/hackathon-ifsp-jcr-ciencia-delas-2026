@@ -16,7 +16,12 @@ export interface ContainerProps extends React.ComponentProps<"div"> {
 
 /** Largura máxima + respiro lateral (16px no celular). Use dentro do <main> do layout. */
 export function Container({ size = "default", className, ...props }: ContainerProps) {
-  return <div className={cn("mx-auto w-full px-4 sm:px-6 lg:px-8", widths[size], className)} {...props} />;
+  return (
+    <div
+      className={cn("mx-auto w-full px-4 sm:px-6 lg:px-8", widths[size], className)}
+      {...props}
+    />
+  );
 }
 
 export interface SectionProps extends Omit<React.ComponentProps<"section">, "title"> {
@@ -47,12 +52,19 @@ export function Section({
   const autoId = useId();
   const headingId = titleId ?? `secao-${autoId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
-    <section aria-labelledby={title ? headingId : undefined} className={cn(spacingClasses[spacing], className)} {...props}>
+    <section
+      aria-labelledby={title ? headingId : undefined}
+      className={cn(spacingClasses[spacing], className)}
+      {...props}
+    >
       {(title || action) && (
         <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="grid max-w-2xl gap-1.5">
             {title && (
-              <h2 id={headingId} className="font-display text-2xl font-semibold text-fg sm:text-3xl">
+              <h2
+                id={headingId}
+                className="font-display text-2xl font-semibold text-fg sm:text-3xl"
+              >
                 {title}
               </h2>
             )}

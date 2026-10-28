@@ -12,7 +12,13 @@ export interface SwitchProps extends Omit<React.ComponentProps<"input">, "type" 
  * (envia "on" quando ligada) e sem JavaScript. Ligada, o botãozinho usa primary-fg (branco no claro,
  * violeta-950 no escuro) para manter ≥ 3:1 contra o trilho nos dois temas.
  */
-export function Switch({ label, description, labelPosition = "end", className, ...props }: SwitchProps) {
+export function Switch({
+  label,
+  description,
+  labelPosition = "end",
+  className,
+  ...props
+}: SwitchProps) {
   const control = (
     <span className="relative inline-flex shrink-0">
       <input type="checkbox" role="switch" className="peer sr-only" {...props} />

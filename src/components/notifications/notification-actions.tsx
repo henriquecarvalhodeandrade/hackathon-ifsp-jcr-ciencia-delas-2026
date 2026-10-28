@@ -7,7 +7,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormMessage } from "@/components/ui/form-message";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { ActionState } from "@/lib/admin/action-state";
-import { deleteReadNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/notifications/actions";
+import {
+  deleteReadNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/lib/notifications/actions";
 
 /** Botão "Marcar como lida" de um item (fica acima do link esticado do cartão). */
 export function MarkReadButton({ id, title }: { id: string; title: string }) {

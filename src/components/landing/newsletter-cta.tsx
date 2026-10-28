@@ -3,7 +3,11 @@ import { ButtonLink } from "@/components/ui/button";
 import { ConstellationPattern } from "@/components/ui/constellation-pattern";
 import { Container } from "@/components/ui/container";
 
-export function NewsletterCta({ latestEdition }: { latestEdition: { slug: string; title: string } | null }) {
+export function NewsletterCta({
+  latestEdition,
+}: {
+  latestEdition: { slug: string; title: string } | null;
+}) {
   return (
     <section aria-labelledby="boletim-titulo" className="py-16 sm:py-20">
       <Container>
@@ -14,19 +18,22 @@ export function NewsletterCta({ latestEdition }: { latestEdition: { slug: string
           <ConstellationPattern
             density="medium"
             align="end"
-            className="absolute inset-0 -z-10 size-full text-violeta-300/55 [mask-image:linear-gradient(100deg,transparent_40%,black_85%)]"
+            className="absolute inset-0 -z-10 size-full [mask-image:linear-gradient(100deg,transparent_40%,black_85%)] text-violeta-300/55"
           />
           <div className="grid max-w-2xl gap-4">
-            <p className="eyebrow flex items-center gap-2 text-violeta-200">
+            <p className="flex items-center gap-2 eyebrow text-violeta-200">
               <Newspaper aria-hidden="true" className="size-4" />
               Boletim Delas · toda segunda-feira
             </p>
-            <h2 id="boletim-titulo" className="font-serif text-3xl leading-tight font-semibold text-white sm:text-4xl">
+            <h2
+              id="boletim-titulo"
+              className="font-serif text-3xl leading-tight font-semibold text-white sm:text-4xl"
+            >
               As estrelas da semana na ciência feita por mulheres, no seu e-mail
             </h2>
             <p className="text-lg text-violeta-100">
-              Papers mais destacados, conversas abertas do fórum e novas mentoras da rede. Gratuito, sem spam, com
-              confirmação por e-mail e descadastro em um clique.
+              Papers mais destacados, conversas abertas do fórum e novas mentoras da rede. Gratuito,
+              sem spam, com confirmação por e-mail e descadastro em um clique.
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
               <ButtonLink href="/newsletter" size="lg">

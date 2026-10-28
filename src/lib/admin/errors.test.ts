@@ -3,7 +3,9 @@ import { friendlyDbError, GENERIC_ERROR } from "./errors";
 
 describe("friendlyDbError", () => {
   it("mostra a mensagem pt-BR dos erros de regra de negócio (CD…)", () => {
-    expect(friendlyDbError({ code: "CD015", message: "Paper não encontrado." })).toBe("Paper não encontrado.");
+    expect(friendlyDbError({ code: "CD015", message: "Paper não encontrado." })).toBe(
+      "Paper não encontrado.",
+    );
   });
 
   it("traduz códigos conhecidos do Postgres/PostgREST", () => {
@@ -15,7 +17,9 @@ describe("friendlyDbError", () => {
   });
 
   it("nunca vaza mensagens cruas desconhecidas", () => {
-    expect(friendlyDbError({ code: "XX000", message: "internal error at line 3" })).toBe(GENERIC_ERROR);
+    expect(friendlyDbError({ code: "XX000", message: "internal error at line 3" })).toBe(
+      GENERIC_ERROR,
+    );
     expect(friendlyDbError({ code: "CD999", message: "  " })).toBe(GENERIC_ERROR);
     expect(friendlyDbError(null, "Falhou.")).toBe("Falhou.");
   });

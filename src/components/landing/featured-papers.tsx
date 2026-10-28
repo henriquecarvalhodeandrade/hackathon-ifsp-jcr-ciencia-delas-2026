@@ -4,9 +4,20 @@ import { pluralize, truncate } from "@/lib/utils";
 import type { LandingPaper } from "./data";
 import type { FeaturedPeriod } from "./featured";
 
-function PaperCard({ paper, rank, period }: { paper: LandingPaper; rank: number; period: FeaturedPeriod }) {
+function PaperCard({
+  paper,
+  rank,
+  period,
+}: {
+  paper: LandingPaper;
+  rank: number;
+  period: FeaturedPeriod;
+}) {
   const meta = [paper.venue, paper.year].filter(Boolean).join(" · ");
-  const authors = paper.authors.length > 3 ? `${paper.authors.slice(0, 3).join(", ")} e outras` : paper.authors.join(", ");
+  const authors =
+    paper.authors.length > 3
+      ? `${paper.authors.slice(0, 3).join(", ")} e outras`
+      : paper.authors.join(", ");
   return (
     <Card as="article" variant="interactive" className="flex h-full flex-col gap-3 p-5 sm:p-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -45,14 +56,26 @@ function PaperCard({ paper, rank, period }: { paper: LandingPaper; rank: number;
   );
 }
 
-export function FeaturedPapers({ papers, period }: { papers: LandingPaper[]; period: FeaturedPeriod | null }) {
+export function FeaturedPapers({
+  papers,
+  period,
+}: {
+  papers: LandingPaper[];
+  period: FeaturedPeriod | null;
+}) {
   return (
-    <section aria-labelledby="destaques-titulo" className="border-t border-border bg-surface py-16 sm:py-20">
+    <section
+      aria-labelledby="destaques-titulo"
+      className="border-t border-border bg-surface py-16 sm:py-20"
+    >
       <Container>
         <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
           <div className="grid max-w-2xl gap-3">
             <p className="eyebrow text-primary">Vitrine Delas</p>
-            <h2 id="destaques-titulo" className="font-display text-3xl font-semibold text-fg sm:text-4xl">
+            <h2
+              id="destaques-titulo"
+              className="font-display text-3xl font-semibold text-fg sm:text-4xl"
+            >
               {period === "hot" ? "Em alta na Vitrine" : "Destaques da semana"}
             </h2>
             <p className="text-fg-muted">

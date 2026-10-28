@@ -17,11 +17,15 @@ export type FlashTone = "success" | "danger";
 
 export function announce(message: string, tone: FlashTone = "success") {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent<{ message: string; tone: FlashTone }>(EVENT, { detail: { message, tone } }));
+  window.dispatchEvent(
+    new CustomEvent<{ message: string; tone: FlashTone }>(EVENT, { detail: { message, tone } }),
+  );
 }
 
 export function AdminFlashRegion() {
-  const [flash, setFlash] = useState<{ message: string; tone: FlashTone; key: number } | null>(null);
+  const [flash, setFlash] = useState<{ message: string; tone: FlashTone; key: number } | null>(
+    null,
+  );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

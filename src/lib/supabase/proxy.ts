@@ -67,7 +67,10 @@ export async function updateSession(request: NextRequest) {
   if (isLoggedIn && matchesPrefix(pathname, AUTH_ROUTES)) {
     // Quem já está logada volta para o destino pedido (?next=), se for um caminho interno seguro.
     const target = safeNextPath(request.nextUrl.searchParams.get("next"), "/forum");
-    return withSessionCookies(NextResponse.redirect(new URL(target, request.url)), supabaseResponse);
+    return withSessionCookies(
+      NextResponse.redirect(new URL(target, request.url)),
+      supabaseResponse,
+    );
   }
 
   return supabaseResponse;

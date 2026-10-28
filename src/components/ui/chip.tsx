@@ -66,7 +66,9 @@ export function ChipLink({ active, icon, count, className, children, ...props }:
       {icon}
       <span className="truncate">{children}</span>
       {count !== undefined && (
-        <span className={cn("tabular text-xs", active ? "text-primary-fg/85" : "text-fg-subtle")}>{count}</span>
+        <span className={cn("text-xs tabular", active ? "text-primary-fg/85" : "text-fg-subtle")}>
+          {count}
+        </span>
       )}
     </Link>
   );

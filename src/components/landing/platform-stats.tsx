@@ -8,12 +8,23 @@ export function LandingStats({ stats }: { stats: PlatformStats | null }) {
   const items = [
     { label: "pesquisadoras na rede", value: stats.members, icon: <Users aria-hidden="true" /> },
     { label: "mentoras", value: stats.mentors, icon: <HeartHandshake aria-hidden="true" /> },
-    { label: "mentorias iniciadas", value: stats.mentorships, icon: <Sparkles aria-hidden="true" /> },
+    {
+      label: "mentorias iniciadas",
+      value: stats.mentorships,
+      icon: <Sparkles aria-hidden="true" />,
+    },
     { label: "papers na Vitrine", value: stats.papers, icon: <BookOpen aria-hidden="true" /> },
-    { label: "conversas no fórum", value: stats.threads, icon: <MessagesSquare aria-hidden="true" /> },
+    {
+      label: "conversas no fórum",
+      value: stats.threads,
+      icon: <MessagesSquare aria-hidden="true" />,
+    },
   ];
   return (
-    <section aria-labelledby="numeros-titulo" className="relative z-10 mx-auto -mt-10 max-w-6xl px-4 sm:px-6 lg:px-8">
+    <section
+      aria-labelledby="numeros-titulo"
+      className="relative z-10 mx-auto -mt-10 max-w-6xl px-4 sm:px-6 lg:px-8"
+    >
       <h2 id="numeros-titulo" className="sr-only">
         A rede em números
       </h2>

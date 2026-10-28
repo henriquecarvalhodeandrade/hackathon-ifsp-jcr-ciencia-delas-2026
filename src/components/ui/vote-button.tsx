@@ -3,7 +3,10 @@ import { Star } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 import { Spinner } from "./spinner";
 
-export interface VoteButtonProps extends Omit<React.ComponentProps<"button">, "children" | "aria-pressed"> {
+export interface VoteButtonProps extends Omit<
+  React.ComponentProps<"button">,
+  "children" | "aria-pressed"
+> {
   /** Você já destacou este paper? Vira `aria-pressed`. */
   pressed: boolean;
   /** Total de destaques (vote_count). */
@@ -21,8 +24,10 @@ export interface VoteButtonProps extends Omit<React.ComponentProps<"button">, "c
 
 const base =
   "inline-flex items-center justify-center border font-semibold transition-colors duration-150 select-none disabled:cursor-not-allowed disabled:opacity-55 aria-busy:cursor-progress [&_svg]:size-5";
-const idle = "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:text-accent-strong";
-const on = "border-accent-strong bg-accent-soft text-accent-soft-fg hover:bg-accent-soft [&_svg]:text-accent-strong";
+const idle =
+  "border-border-strong bg-surface text-fg-muted hover:border-accent-strong hover:text-accent-strong";
+const on =
+  "border-accent-strong bg-accent-soft text-accent-soft-fg hover:bg-accent-soft [&_svg]:text-accent-strong";
 
 /**
  * Botão de destaque (voto) da Vitrine — um toggle com `aria-pressed`. Não é cliente: use dentro de um
@@ -55,7 +60,12 @@ export function VoteButton({
         aria-pressed={pressed}
         aria-busy={pending || undefined}
         disabled={disabled || pending}
-        className={cn(base, "relative z-10 h-9 gap-1.5 rounded-pill px-3 text-sm", pressed ? on : idle, className)}
+        className={cn(
+          base,
+          "relative z-10 h-9 gap-1.5 rounded-pill px-3 text-sm",
+          pressed ? on : idle,
+          className,
+        )}
         {...props}
       >
         {icon}
@@ -67,7 +77,9 @@ export function VoteButton({
   }
 
   return (
-    <span className={cn("relative z-10 inline-flex shrink-0 flex-col items-center gap-1", className)}>
+    <span
+      className={cn("relative z-10 inline-flex shrink-0 flex-col items-center gap-1", className)}
+    >
       <button
         type={type}
         aria-pressed={pressed}
@@ -80,7 +92,7 @@ export function VoteButton({
       >
         {icon}
       </button>
-      <span id={countId} className="tabular text-sm font-bold text-fg">
+      <span id={countId} className="text-sm font-bold text-fg tabular">
         {formatNumber(count)}
         <span className="sr-only"> {unit}</span>
       </span>

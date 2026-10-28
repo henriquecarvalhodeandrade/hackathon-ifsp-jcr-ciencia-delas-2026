@@ -24,7 +24,8 @@ function EmailStatus({ overview }: { overview: NewsletterOverview | null }) {
   if (!overview) {
     return (
       <Alert variant="warning" title="Não conseguimos ler a configuração da newsletter">
-        Confira se a <code className="font-mono">SUPABASE_SECRET_KEY</code> está definida no servidor.
+        Confira se a <code className="font-mono">SUPABASE_SECRET_KEY</code> está definida no
+        servidor.
       </Alert>
     );
   }
@@ -32,14 +33,17 @@ function EmailStatus({ overview }: { overview: NewsletterOverview | null }) {
   const limit = `Cada envio processa até ${formatNumber(maxPerRun)} e-mails; o restante segue na próxima execução.`;
   if (email.transport === "resend") {
     return (
-      <Alert variant={email.usingResendTestSender ? "warning" : "success"} title="Envio por e-mail ativo (Resend)">
+      <Alert
+        variant={email.usingResendTestSender ? "warning" : "success"}
+        title="Envio por e-mail ativo (Resend)"
+      >
         <p>
           Remetente: <span className="font-mono">{email.from}</span>. {limit}
         </p>
         {email.usingResendTestSender && (
           <p>
-            O remetente de teste <span className="font-mono">onboarding@resend.dev</span> só entrega para a dona da
-            conta Resend. Para enviar às inscritas, verifique um domínio e ajuste{" "}
+            O remetente de teste <span className="font-mono">onboarding@resend.dev</span> só entrega
+            para a dona da conta Resend. Para enviar às inscritas, verifique um domínio e ajuste{" "}
             <code className="font-mono">NEWSLETTER_FROM</code>.
           </p>
         )}
@@ -50,20 +54,31 @@ function EmailStatus({ overview }: { overview: NewsletterOverview | null }) {
     return (
       <Alert variant="info" title="Modo de desenvolvimento: e-mails vão para o Mailpit">
         Nada chega a caixas reais. Veja as mensagens em{" "}
-        {email.devInboxUrl ? <span className="font-mono">{email.devInboxUrl}</span> : "o Mailpit local"}. {limit}
+        {email.devInboxUrl ? (
+          <span className="font-mono">{email.devInboxUrl}</span>
+        ) : (
+          "o Mailpit local"
+        )}
+        . {limit}
       </Alert>
     );
   }
   return (
     <Alert variant="warning" title="E-mail ainda não configurado">
-      Sem a variável <code className="font-mono">RESEND_API_KEY</code>, nenhum e-mail sai da plataforma: você pode gerar
-      e publicar edições, e a prévia do envio só conta as inscritas. Veja{" "}
-      <code className="font-mono">docs/08-newsletter.md</code>.
+      Sem a variável <code className="font-mono">RESEND_API_KEY</code>, nenhum e-mail sai da
+      plataforma: você pode gerar e publicar edições, e a prévia do envio só conta as inscritas.
+      Veja <code className="font-mono">docs/08-newsletter.md</code>.
     </Alert>
   );
 }
 
-export function NewsletterPanel({ data, overview }: { data: EditionsList; overview: NewsletterOverview | null }) {
+export function NewsletterPanel({
+  data,
+  overview,
+}: {
+  data: EditionsList;
+  overview: NewsletterOverview | null;
+}) {
   return (
     <div className="grid gap-6">
       <EmailStatus overview={overview} />
@@ -83,9 +98,9 @@ export function NewsletterPanel({ data, overview }: { data: EditionsList; overvi
             Edição da semana
           </h3>
           <p className="text-[0.9375rem] text-fg-muted">
-            Reúne os papers mais destacados, as conversas abertas do fórum e as novas mentoras dos últimos 7 dias, e
-            publica no arquivo. Se a edição desta semana já existir, nada é duplicado. O cron faz isso toda segunda às
-            9h (Brasília).
+            Reúne os papers mais destacados, as conversas abertas do fórum e as novas mentoras dos
+            últimos 7 dias, e publica no arquivo. Se a edição desta semana já existir, nada é
+            duplicado. O cron faz isso toda segunda às 9h (Brasília).
           </p>
         </div>
         <ActionForm action={generateEditionAction}>
@@ -127,7 +142,9 @@ export function NewsletterPanel({ data, overview }: { data: EditionsList; overvi
                           </Badge>
                           <span className="font-mono text-xs text-fg-subtle">{edition.slug}</span>
                         </div>
-                        <p className="font-serif text-lg leading-snug font-semibold text-fg">{edition.title}</p>
+                        <p className="font-serif text-lg leading-snug font-semibold text-fg">
+                          {edition.title}
+                        </p>
                         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
                           {range && (
                             <span className="inline-flex items-center gap-1">
@@ -135,8 +152,12 @@ export function NewsletterPanel({ data, overview }: { data: EditionsList; overvi
                               {range}
                             </span>
                           )}
-                          {edition.published_at && <span>Publicada em {formatDateTime(edition.published_at)}</span>}
-                          {edition.sent_at && <span>Enviada em {formatDateTime(edition.sent_at)}</span>}
+                          {edition.published_at && (
+                            <span>Publicada em {formatDateTime(edition.published_at)}</span>
+                          )}
+                          {edition.sent_at && (
+                            <span>Enviada em {formatDateTime(edition.sent_at)}</span>
+                          )}
                           <span>
                             {formatNumber(edition.recipients_count)}{" "}
                             {edition.recipients_count === 1 ? "destinatária" : "destinatárias"}
@@ -156,18 +177,26 @@ export function NewsletterPanel({ data, overview }: { data: EditionsList; overvi
                     {isPublic ? (
                       <SendEditionControl
                         editionId={edition.id}
-                        label={edition.status === "sent" ? "Enviar para quem ainda não recebeu" : "Preparar envio"}
+                        label={
+                          edition.status === "sent"
+                            ? "Enviar para quem ainda não recebeu"
+                            : "Preparar envio"
+                        }
                       />
                     ) : (
                       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-                        <ActionForm action={publishEditionAction} hiddenFields={{ editionId: edition.id }}>
+                        <ActionForm
+                          action={publishEditionAction}
+                          hiddenFields={{ editionId: edition.id }}
+                        >
                           <SubmitButton variant="outline" size="sm" pendingText="Publicando…">
                             <Globe aria-hidden="true" />
                             Publicar no arquivo
                           </SubmitButton>
                         </ActionForm>
                         <p className="pt-1.5 text-sm text-fg-subtle">
-                          Rascunho: publique antes de enviar. A edição passa a aparecer no arquivo público do Boletim.
+                          Rascunho: publique antes de enviar. A edição passa a aparecer no arquivo
+                          público do Boletim.
                         </p>
                       </div>
                     )}

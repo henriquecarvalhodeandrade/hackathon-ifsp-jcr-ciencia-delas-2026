@@ -21,7 +21,11 @@ export interface TabNavProps extends Omit<React.ComponentProps<"nav">, "children
  */
 export function TabNav({ items, label, className, ...props }: TabNavProps) {
   return (
-    <nav aria-label={label} className={cn("-mx-4 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0", className)} {...props}>
+    <nav
+      aria-label={label}
+      className={cn("-mx-4 scrollbar-none overflow-x-auto px-4 sm:mx-0 sm:px-0", className)}
+      {...props}
+    >
       <ul className="flex min-w-max gap-1 border-b border-border">
         {items.map((item) => (
           <li key={`${item.href}::${item.label}`}>
@@ -40,8 +44,10 @@ export function TabNav({ items, label, className, ...props }: TabNavProps) {
               {item.count !== undefined && (
                 <span
                   className={cn(
-                    "tabular rounded-pill px-1.5 py-px text-xs",
-                    item.active ? "bg-primary-soft text-primary-soft-fg" : "bg-surface-2 text-fg-subtle",
+                    "rounded-pill px-1.5 py-px text-xs tabular",
+                    item.active
+                      ? "bg-primary-soft text-primary-soft-fg"
+                      : "bg-surface-2 text-fg-subtle",
                   )}
                 >
                   {formatNumber(item.count)}

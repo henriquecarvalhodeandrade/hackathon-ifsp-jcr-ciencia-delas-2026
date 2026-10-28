@@ -59,7 +59,11 @@ export function Avatar({ name, src, size = "md", alt, seed, className, ...props 
     >
       {/* Iniciais como conteúdo gerado (CSS), não texto do DOM: são decorativas, e assim botões
           com avatar (menu da conta) não violam "rótulo no nome" (WCAG 2.5.3). */}
-      <span aria-hidden="true" data-initials={initials(name)} className="before:content-[attr(data-initials)]" />
+      <span
+        aria-hidden="true"
+        data-initials={initials(name)}
+        className="before:content-[attr(data-initials)]"
+      />
       {src && (
         // eslint-disable-next-line @next/next/no-img-element -- avatares vêm de domínios variados (Storage, Google); <img> evita erro de host não configurado
         <img
@@ -84,7 +88,14 @@ export interface AvatarGroupProps extends React.ComponentProps<"div"> {
 }
 
 /** Avatares sobrepostos com contador "+N". */
-export function AvatarGroup({ people, max = 4, size = "sm", label, className, ...props }: AvatarGroupProps) {
+export function AvatarGroup({
+  people,
+  max = 4,
+  size = "sm",
+  label,
+  className,
+  ...props
+}: AvatarGroupProps) {
   const visible = people.slice(0, max);
   const rest = people.length - visible.length;
   return (

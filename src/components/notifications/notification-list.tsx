@@ -5,7 +5,13 @@ import { MarkReadButton } from "./notification-actions";
 import { NotificationIcon } from "./notification-icon";
 
 /** Lista de notificações: cada item inteiro é clicável (marca como lida e abre o destino). */
-export function NotificationList({ items, now = new Date() }: { items: NotificationItem[]; now?: Date }) {
+export function NotificationList({
+  items,
+  now = new Date(),
+}: {
+  items: NotificationItem[];
+  now?: Date;
+}) {
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface shadow-card">
       {items.map((item) => {
@@ -28,11 +34,16 @@ export function NotificationList({ items, now = new Date() }: { items: Notificat
               )}
             </div>
             <div className="grid min-w-0 flex-1 gap-1">
-              <p className="eyebrow flex flex-wrap items-center gap-x-2 text-fg-subtle">
+              <p className="flex flex-wrap items-center gap-x-2 eyebrow text-fg-subtle">
                 {NOTIFICATION_TYPE_LABELS[item.type] ?? "Aviso"}
                 {unread && <span className="text-primary">· Nova</span>}
               </p>
-              <h2 className={cn("font-display text-base leading-snug text-fg", unread ? "font-bold" : "font-semibold")}>
+              <h2
+                className={cn(
+                  "font-display text-base leading-snug text-fg",
+                  unread ? "font-bold" : "font-semibold",
+                )}
+              >
                 {/* <a> comum (sem prefetch): o clique marca como lida no servidor e redireciona. */}
                 <a
                   href={`/notificacoes/abrir/${item.id}`}
@@ -41,9 +52,14 @@ export function NotificationList({ items, now = new Date() }: { items: Notificat
                   {item.title}
                 </a>
               </h2>
-              {item.body && <p className="line-clamp-2 text-[0.9375rem] text-fg-muted">{item.body}</p>}
+              {item.body && (
+                <p className="line-clamp-2 text-[0.9375rem] text-fg-muted">{item.body}</p>
+              )}
               <p className="text-sm text-fg-subtle">
-                <time dateTime={toIsoString(item.created_at)} title={formatDateTime(item.created_at)}>
+                <time
+                  dateTime={toIsoString(item.created_at)}
+                  title={formatDateTime(item.created_at)}
+                >
                   {formatRelativeTime(item.created_at, now)}
                 </time>
               </p>

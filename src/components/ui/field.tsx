@@ -42,7 +42,17 @@ function firstError(error: FieldError): string | undefined {
  *   <Input name="institution" />
  * </Field>
  */
-export function Field({ label, children, hint, error, required, optional, id, hideLabel, className }: FieldProps) {
+export function Field({
+  label,
+  children,
+  hint,
+  error,
+  required,
+  optional,
+  id,
+  hideLabel,
+  className,
+}: FieldProps) {
   const autoId = useId();
   const controlId = id ?? children.props.id ?? `campo-${autoId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const hintId = hint ? `${controlId}-dica` : undefined;
@@ -62,7 +72,12 @@ export function Field({ label, children, hint, error, required, optional, id, hi
 
   return (
     <div className={cn("grid gap-1.5", className)}>
-      <Label htmlFor={controlId} required={required} optional={optional} className={hideLabel ? "sr-only" : undefined}>
+      <Label
+        htmlFor={controlId}
+        required={required}
+        optional={optional}
+        className={hideLabel ? "sr-only" : undefined}
+      >
         {label}
       </Label>
       {hint && (

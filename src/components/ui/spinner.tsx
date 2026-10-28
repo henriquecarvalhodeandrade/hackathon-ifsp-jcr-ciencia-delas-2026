@@ -10,7 +10,13 @@ export interface SpinnerProps extends React.ComponentProps<"span"> {
 }
 
 /** Indicador de carregamento — uma órbita girando. Herda a cor do texto. */
-export function Spinner({ size = 16, label = "Carregando", decorative = false, className, ...props }: SpinnerProps) {
+export function Spinner({
+  size = 16,
+  label = "Carregando",
+  decorative = false,
+  className,
+  ...props
+}: SpinnerProps) {
   return (
     <span
       role={decorative ? undefined : "status"}
@@ -26,8 +32,20 @@ export function Spinner({ size = 16, label = "Carregando", decorative = false, c
         className="animate-spin [animation-duration:900ms] motion-reduce:animate-none"
         aria-hidden="true"
       >
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.22" strokeWidth="2.5" />
-        <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          stroke="currentColor"
+          strokeOpacity="0.22"
+          strokeWidth="2.5"
+        />
+        <path
+          d="M21 12a9 9 0 0 0-9-9"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
         <circle cx="21" cy="12" r="1.9" fill="currentColor" />
       </svg>
       {!decorative && <span className="sr-only">{label}</span>}

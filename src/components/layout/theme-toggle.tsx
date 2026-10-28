@@ -55,7 +55,11 @@ export interface ThemeToggleProps {
 
 /** Alterna o tema: automático → claro → escuro. */
 export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) {
-  const preference = useSyncExternalStore<ThemePreference>(subscribe, readPreference, () => "system");
+  const preference = useSyncExternalStore<ThemePreference>(
+    subscribe,
+    readPreference,
+    () => "system",
+  );
   const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length]!;
   const Icon = ICONS[preference];
 

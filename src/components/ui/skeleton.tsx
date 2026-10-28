@@ -5,7 +5,10 @@ export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       aria-hidden="true"
-      className={cn("animate-pulse rounded-control bg-surface-2 motion-reduce:animate-none", className)}
+      className={cn(
+        "animate-pulse rounded-control bg-surface-2 motion-reduce:animate-none",
+        className,
+      )}
       {...props}
     />
   );
@@ -16,7 +19,10 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
   return (
     <div aria-hidden="true" className={cn("grid gap-2", className)}>
       {Array.from({ length: lines }, (_, i) => (
-        <Skeleton key={i} className={cn("h-3.5", i === lines - 1 && lines > 1 ? "w-3/5" : "w-full")} />
+        <Skeleton
+          key={i}
+          className={cn("h-3.5", i === lines - 1 && lines > 1 ? "w-3/5" : "w-full")}
+        />
       ))}
     </div>
   );
@@ -25,7 +31,10 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
 /** Cartão de carregamento genérico (avatar + título + texto). */
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div aria-hidden="true" className={cn("rounded-card border border-border bg-surface p-5 shadow-card", className)}>
+    <div
+      aria-hidden="true"
+      className={cn("rounded-card border border-border bg-surface p-5 shadow-card", className)}
+    >
       <div className="flex items-center gap-3">
         <Skeleton className="size-10 rounded-full" />
         <div className="grid flex-1 gap-2">

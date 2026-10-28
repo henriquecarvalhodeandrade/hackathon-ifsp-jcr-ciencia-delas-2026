@@ -30,8 +30,18 @@ function EmptyIllustration({ icon }: { icon: React.ReactNode }) {
           strokeLinecap="round"
           transform="rotate(-12 80 56)"
         />
-        <path d="M16 30 L34 18 L52 26" stroke="currentColor" strokeOpacity="0.45" strokeLinecap="round" />
-        <path d="M118 94 L134 82 L148 88" stroke="currentColor" strokeOpacity="0.45" strokeLinecap="round" />
+        <path
+          d="M16 30 L34 18 L52 26"
+          stroke="currentColor"
+          strokeOpacity="0.45"
+          strokeLinecap="round"
+        />
+        <path
+          d="M118 94 L134 82 L148 88"
+          stroke="currentColor"
+          strokeOpacity="0.45"
+          strokeLinecap="round"
+        />
         <g fill="currentColor">
           <circle cx="16" cy="30" r="2.5" fillOpacity="0.6" />
           <circle cx="34" cy="18" r="3" fillOpacity="0.75" />
@@ -66,13 +76,17 @@ export function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center justify-center px-6 text-center",
-        variant === "default" ? "rounded-card border border-dashed border-border-strong bg-surface py-12" : "py-8",
+        variant === "default"
+          ? "rounded-card border border-dashed border-border-strong bg-surface py-12"
+          : "py-8",
         className,
       )}
       {...props}
     >
       <EmptyIllustration icon={icon} />
-      <Heading className="mt-4 font-display text-xl font-semibold text-balance text-fg">{title}</Heading>
+      <Heading className="mt-4 font-display text-xl font-semibold text-balance text-fg">
+        {title}
+      </Heading>
       {description && <p className="mt-2 max-w-md text-[0.9375rem] text-fg-muted">{description}</p>}
       {action && <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div>}
     </div>

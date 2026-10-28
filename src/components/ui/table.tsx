@@ -31,13 +31,21 @@ export function Table({ label, containerClassName, className, ...props }: TableP
         containerClassName,
       )}
     >
-      <table className={cn("w-full caption-bottom border-collapse text-sm", className)} {...props} />
+      <table
+        className={cn("w-full caption-bottom border-collapse text-sm", className)}
+        {...props}
+      />
     </div>
   );
 }
 
 export function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead className={cn("bg-surface-2 [&_tr]:border-b [&_tr]:border-border", className)} {...props} />;
+  return (
+    <thead
+      className={cn("bg-surface-2 [&_tr]:border-b [&_tr]:border-border", className)}
+      {...props}
+    />
+  );
 }
 
 export function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
@@ -45,7 +53,12 @@ export function TableBody({ className, ...props }: React.ComponentProps<"tbody">
 }
 
 export function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
-  return <tfoot className={cn("border-t border-border bg-surface-2 font-semibold", className)} {...props} />;
+  return (
+    <tfoot
+      className={cn("border-t border-border bg-surface-2 font-semibold", className)}
+      {...props}
+    />
+  );
 }
 
 /** Linha. Marque a selecionada com `aria-selected` (ou data-state="selected"). */

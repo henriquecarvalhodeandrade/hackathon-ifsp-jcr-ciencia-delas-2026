@@ -11,7 +11,10 @@ export function isActivePath(pathname: string | null, href: string): "page" | "s
   return false;
 }
 
-export interface NavLinkProps extends Omit<React.ComponentProps<typeof Link>, "href" | "className"> {
+export interface NavLinkProps extends Omit<
+  React.ComponentProps<typeof Link>,
+  "href" | "className"
+> {
   href: string;
   className?: string;
   /** Classes extras quando ativo (página ou seção). */

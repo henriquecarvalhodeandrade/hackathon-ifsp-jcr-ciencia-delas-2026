@@ -44,7 +44,11 @@ function isValidDate(d: Date): boolean {
 export function formatDate(value: DateInput, options?: Intl.DateTimeFormatOptions): string {
   const d = toDate(value);
   if (!isValidDate(d)) return "";
-  const opts: Intl.DateTimeFormatOptions = options ?? { day: "numeric", month: "short", year: "numeric" };
+  const opts: Intl.DateTimeFormatOptions = options ?? {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  };
   return new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, ...opts }).format(d);
 }
 
@@ -96,7 +100,19 @@ export function formatCompactNumber(value: number): string {
   return formatNumber(value, { notation: "compact", maximumFractionDigits: 1 });
 }
 
-const NAME_PARTICLES = new Set(["da", "de", "do", "das", "dos", "e", "di", "du", "del", "van", "von"]);
+const NAME_PARTICLES = new Set([
+  "da",
+  "de",
+  "do",
+  "das",
+  "dos",
+  "e",
+  "di",
+  "du",
+  "del",
+  "van",
+  "von",
+]);
 
 /** Iniciais para avatar: "Ana Maria da Silva" → "AS". Ignora partículas (da, de, dos...). */
 export function initials(name: string | null | undefined, max = 2): string {
@@ -105,7 +121,8 @@ export function initials(name: string | null | undefined, max = 2): string {
     .split(/\s+/)
     .filter((p) => p && !NAME_PARTICLES.has(p.toLowerCase()));
   if (parts.length === 0) return "?";
-  const picked = parts.length <= max ? parts : [...parts.slice(0, max - 1), parts[parts.length - 1]];
+  const picked =
+    parts.length <= max ? parts : [...parts.slice(0, max - 1), parts[parts.length - 1]];
   return picked
     .map((p) => p[0]!.toLocaleUpperCase(LOCALE))
     .join("")

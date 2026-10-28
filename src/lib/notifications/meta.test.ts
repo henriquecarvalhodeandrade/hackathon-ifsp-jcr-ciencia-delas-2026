@@ -42,7 +42,9 @@ describe("sortNotifications", () => {
 
 describe("countUnread / parseNotificationFilter", () => {
   it("conta só as não lidas", () => {
-    expect(countUnread([{ read_at: null }, { read_at: "2026-10-27T10:00:00Z" }, { read_at: null }])).toBe(2);
+    expect(
+      countUnread([{ read_at: null }, { read_at: "2026-10-27T10:00:00Z" }, { read_at: null }]),
+    ).toBe(2);
     expect(countUnread([])).toBe(0);
   });
 

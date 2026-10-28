@@ -3,13 +3,18 @@
  * (CONTRACT §10), pronto para `useActionState`.
  */
 export type ActionResult<TData = undefined> =
-  | ({ ok: true; message: string } & (TData extends undefined ? { data?: undefined } : { data: TData }))
+  | ({ ok: true; message: string } & (TData extends undefined
+      ? { data?: undefined }
+      : { data: TData }))
   | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
 
 /** Estado inicial (`null`) + resultado da última execução. */
 export type ActionState<TData = undefined> = ActionResult<TData> | null;
 
-export function actionError(error: string, fieldErrors?: Record<string, string[] | undefined>): {
+export function actionError(
+  error: string,
+  fieldErrors?: Record<string, string[] | undefined>,
+): {
   ok: false;
   error: string;
   fieldErrors?: Record<string, string[] | undefined>;

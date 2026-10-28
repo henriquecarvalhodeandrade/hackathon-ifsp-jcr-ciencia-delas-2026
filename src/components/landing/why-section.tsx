@@ -28,16 +28,22 @@ export function WhySection() {
       <Container className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16">
         <div className="grid gap-5">
           <p className="eyebrow text-primary">Por que existimos</p>
-          <h2 id="por-que-titulo" className="font-display text-3xl font-semibold text-fg sm:text-4xl">
+          <h2
+            id="por-que-titulo"
+            className="font-display text-3xl font-semibold text-fg sm:text-4xl"
+          >
             Mulheres ainda são minoria na pesquisa — e quase sempre começam sem rede
           </h2>
           <figure className="grid gap-3 rounded-card border border-border bg-surface p-6 shadow-card">
-            <p aria-hidden="true" className="font-display text-5xl font-bold tracking-[-0.03em] text-primary">
+            <p
+              aria-hidden="true"
+              className="font-display text-5xl font-bold tracking-[-0.03em] text-primary"
+            >
               &lt;&nbsp;1/3
             </p>
             <p className="text-lg text-fg">
-              Segundo a UNESCO, as mulheres são <strong>menos de um terço</strong> das pessoas que fazem pesquisa no
-              mundo.
+              Segundo a UNESCO, as mulheres são <strong>menos de um terço</strong> das pessoas que
+              fazem pesquisa no mundo.
             </p>
             <figcaption className="text-sm text-fg-subtle">
               Fonte:{" "}
@@ -48,7 +54,10 @@ export function WhySection() {
                 className="font-semibold text-primary underline underline-offset-2"
               >
                 ONU — Dia Internacional das Mulheres e Meninas na Ciência (dados da UNESCO)
-                <ArrowUpRight aria-hidden="true" className="ml-0.5 inline size-3.5 align-[-0.125em]" />
+                <ArrowUpRight
+                  aria-hidden="true"
+                  className="ml-0.5 inline size-3.5 align-[-0.125em]"
+                />
                 <span className="sr-only"> (abre em nova aba, em inglês)</span>
               </a>
             </figcaption>

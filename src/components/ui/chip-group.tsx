@@ -99,7 +99,11 @@ export function ChipGroup({
         })}
       </div>
       {max !== undefined && (
-        <p id={statusId} aria-live="polite" className={cn("text-xs", atLimit ? "font-semibold text-fg-muted" : "text-fg-subtle")}>
+        <p
+          id={statusId}
+          aria-live="polite"
+          className={cn("text-xs", atLimit ? "font-semibold text-fg-muted" : "text-fg-subtle")}
+        >
           {formatNumber(selected.length)} de {formatNumber(max)} selecionadas
           {atLimit && " — limite atingido. Desmarque uma opção para trocar."}
         </p>

@@ -28,7 +28,8 @@ export const badgeVariants = cva(
 
 export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
-export interface BadgeProps extends React.ComponentProps<"span">, VariantProps<typeof badgeVariants> {}
+export interface BadgeProps
+  extends React.ComponentProps<"span">, VariantProps<typeof badgeVariants> {}
 
 /** Rótulo curto de status/categoria. Não é clicável — para filtros use <Chip>. */
 export function Badge({ className, variant, size, ...props }: BadgeProps) {

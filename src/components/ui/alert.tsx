@@ -44,17 +44,29 @@ export function Alert({
 }: AlertProps) {
   const Icon = defaultIcons[variant];
   const styles = variantClasses[variant];
-  const role = live ? (variant === "danger" || variant === "warning" ? "alert" : "status") : undefined;
+  const role = live
+    ? variant === "danger" || variant === "warning"
+      ? "alert"
+      : "status"
+    : undefined;
   return (
-    <div role={role} className={cn("flex gap-3 rounded-card border p-4 text-sm", styles.box, className)} {...props}>
+    <div
+      role={role}
+      className={cn("flex gap-3 rounded-card border p-4 text-sm", styles.box, className)}
+      {...props}
+    >
       {icon !== null && (
         <span aria-hidden="true" className={cn("mt-0.5 shrink-0 [&_svg]:size-5", styles.icon)}>
           {icon ?? <Icon />}
         </span>
       )}
       <div className="grid min-w-0 flex-1 gap-1">
-        {title && <p className="font-semibold leading-snug">{title}</p>}
-        {children && <div className="leading-relaxed [&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-2">{children}</div>}
+        {title && <p className="leading-snug font-semibold">{title}</p>}
+        {children && (
+          <div className="leading-relaxed [&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-2">
+            {children}
+          </div>
+        )}
         {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}
       </div>
     </div>
