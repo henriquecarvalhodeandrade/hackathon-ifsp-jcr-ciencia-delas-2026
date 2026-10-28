@@ -102,10 +102,15 @@ async function loadAreas(supabase: ServerClient): Promise<Map<number, AreaInfo>>
 }
 
 async function loadProfileAreaIds(supabase: ServerClient, profileId: string): Promise<number[]> {
+  // Ordem estável (a mesma do backfill): a ordem das áreas entra no texto do embedding e, com
+  // ele, no content_hash. Sem ORDER BY o banco devolve na ordem física (a da última edição do
+  // perfil), e o app e o backfill gerariam textos diferentes para o mesmo perfil — cada um
+  // recalcularia o embedding que o outro acabou de gravar.
   const { data, error } = await supabase
     .from("profile_research_areas")
     .select("area_id")
-    .eq("profile_id", profileId);
+    .eq("profile_id", profileId)
+    .order("area_id", { ascending: true });
   if (error)
     throw new MatchingError("db_error", "Não foi possível carregar as suas áreas de pesquisa.");
   return (data ?? []).map((r) => Number(r.area_id));

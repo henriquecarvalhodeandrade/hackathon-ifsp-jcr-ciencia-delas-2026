@@ -6,7 +6,10 @@ const aiMock = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/ai", () => aiMock);
 
+import { GEMINI_EXPLAIN_OK, GEMINI_EXPLAIN_UNACCENTED } from "@/lib/ai/fixtures/gemini-responses";
+import { countUnaccentedWords } from "@/lib/ai/text";
 import { explainMatchesWithAi } from "./ai-explain";
+import { heuristicExplanation, type ExplainResponse } from "./pseudonymize";
 import { rankMentorCandidates } from "./rank";
 import { AREAS, makeCandidate, makeMentee } from "./test-fixtures";
 
@@ -100,6 +103,35 @@ describe("explainMatchesWithAi", () => {
     expect(res.source).toBe("heuristic");
     expect(res.matches.map((m) => m.mentorId).sort()).toEqual(["aaaa", "bbbb"]);
     expect(res.warning).toBeDefined();
+  });
+
+  it("pede a revisão de acentos: a resposta real sem acentos é reprovada, a com acentos passa", async () => {
+    aiMock.generateJson.mockResolvedValue({
+      data: { ranking: [] },
+      provider: "gemini",
+      model: "gemini-3.5-flash-lite",
+    });
+    await explainMatchesWithAi(mentee, ranked, { areas: AREAS });
+    const { validate, prompt } = aiMock.generateJson.mock.calls[0][0] as {
+      validate: (d: ExplainResponse) => string | null;
+      prompt: string;
+    };
+    const parse = (body: typeof GEMINI_EXPLAIN_OK) =>
+      JSON.parse(body.candidates[0].content.parts[0].text) as ExplainResponse;
+    expect(validate(parse(GEMINI_EXPLAIN_UNACCENTED))).toMatch(/sem acentos/);
+    expect(validate(parse(GEMINI_EXPLAIN_OK))).toBeNull();
+    // O formato pedido traz um exemplo COM acentos (sem ele, o flash-lite "achatava" o texto).
+    expect(prompt).toMatch(/com os acentos:\n\{"ranking"/);
+    expect(prompt).toContain("você");
+  });
+
+  it("os textos da heurística nunca parecem 'sem acentos'", () => {
+    for (const r of ranked) {
+      const h = heuristicExplanation(mentee, r, AREAS);
+      expect(
+        countUnaccentedWords([h.reason, ...h.reasons, ...h.conversationStarters].join(" ")),
+      ).toBe(0);
+    }
   });
 
   it("lista vazia não chama a IA", async () => {

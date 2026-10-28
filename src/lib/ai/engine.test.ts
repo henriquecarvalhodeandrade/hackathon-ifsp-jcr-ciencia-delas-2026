@@ -2,7 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { AiError, AiUnavailableError } from "./errors";
 import { embedWithConfig, generateJsonWithChain, type EngineDeps } from "./engine";
+import { explainResponseSchema } from "@/lib/matching/pseudonymize";
+import {
+  GEMINI_EXPLAIN_OK,
+  GEMINI_EXPLAIN_UNACCENTED,
+  GEMINI_OPTIONAL_NULL,
+} from "./fixtures/gemini-responses";
 import { parseRetryAfter, type FetchLike } from "./http";
+import { rejectUnaccentedText } from "./text";
 import { GROQ_CHAT_URL, OPENROUTER_CHAT_URL } from "./providers/openai-compatible";
 import type { TextProviderConfig } from "./providers/types";
 
@@ -249,6 +256,77 @@ describe("cadeia de fallback", () => {
     const { fetch } = mockFetch(chatOk('{"resposta":"x"}'), geminiOk('{"answer":"ok"}'));
     const res = await generateJsonWithChain([GROQ, GEMINI], OPTIONS, deps(fetch).deps);
     expect(res.provider).toBe("gemini");
+  });
+
+  it("resposta reprovada por validate: tenta de novo no mesmo provedor, sem esperar", async () => {
+    const { fetch, calls } = mockFetch(
+      geminiOk('{"answer":"voce nao"}'),
+      geminiOk('{"answer":"você não"}'),
+    );
+    const { deps: d, sleep, log } = deps(fetch);
+    const validate = vi.fn((data: { answer: string }) =>
+      data.answer.includes("voce") ? "texto sem acentos" : null,
+    );
+    const res = await generateJsonWithChain([GEMINI, GROQ], { ...OPTIONS, validate }, d);
+    expect(res).toMatchObject({ provider: "gemini", data: { answer: "você não" } });
+    expect(calls).toHaveLength(2);
+    expect(validate).toHaveBeenCalledTimes(2);
+    expect(sleep).not.toHaveBeenCalled();
+    const logged = log.mock.calls.flat().join("\n");
+    expect(logged).toContain("rejected_output");
+    expect(logged).not.toContain("voce"); // o texto do modelo nunca vai para o log
+  });
+
+  it("reprovada duas vezes: passa para o próximo provedor", async () => {
+    const { fetch, calls } = mockFetch(
+      geminiOk('{"answer":"voce"}'),
+      geminiOk('{"answer":"voce"}'),
+      chatOk('{"answer":"você"}'),
+    );
+    const validate = (data: { answer: string }) => (data.answer === "voce" ? "sem acentos" : null);
+    const res = await generateJsonWithChain(
+      [GEMINI, GROQ],
+      { ...OPTIONS, validate },
+      deps(fetch).deps,
+    );
+    expect(res.provider).toBe("groq");
+    expect(calls).toHaveLength(3);
+  });
+
+  it("respostas reais do Gemini: a sem acentos é reprovada e a nova tentativa vale", async () => {
+    const { fetch, calls } = mockFetch(json(GEMINI_EXPLAIN_UNACCENTED), json(GEMINI_EXPLAIN_OK));
+    const res = await generateJsonWithChain(
+      [GEMINI],
+      {
+        system: "Sistema",
+        prompt: "Pergunta",
+        schema: explainResponseSchema,
+        validate: (d) => rejectUnaccentedText(d.ranking.flatMap((r) => [r.reason, ...r.starters])),
+      },
+      deps(fetch).deps,
+    );
+    expect(calls).toHaveLength(2);
+    expect(res.data.ranking.map((r) => r.id)).toEqual(["c1", "c3", "c4"]);
+    expect(res.data.ranking[0].reason).toContain("Vocês compartilham");
+  });
+
+  it("resposta real com campo opcional em null (type [string, null]) vira campo ausente", async () => {
+    const { fetch, calls } = mockFetch(json(GEMINI_OPTIONAL_NULL));
+    const res = await generateJsonWithChain(
+      [GEMINI],
+      {
+        system: "Sistema",
+        prompt: "Pergunta",
+        schema: z.object({ titulo: z.string(), subtitulo: z.string().optional() }),
+      },
+      deps(fetch).deps,
+    );
+    expect(res.data).toEqual({ titulo: "Abelhas Nativas" });
+    const sent = calls[0].body.generationConfig as { responseJsonSchema: Record<string, unknown> };
+    expect(sent.responseJsonSchema).toMatchObject({
+      properties: { subtitulo: { type: ["string", "null"] } },
+      required: ["titulo", "subtitulo"],
+    });
   });
 
   it("timeout: tenta de novo sem esperar e depois cai para o próximo", async () => {

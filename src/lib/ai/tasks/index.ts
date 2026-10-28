@@ -1,5 +1,6 @@
 import "server-only";
 import { generateJson, isAiEnabled } from "../index";
+import { rejectUnaccentedText } from "../text";
 import {
   EDITION_INTRO_SYSTEM,
   PLAIN_SUMMARY_SYSTEM,
@@ -29,13 +30,15 @@ export async function generatePlainSummary(paper: PlainSummaryInput): Promise<st
   if (!isAiEnabled()) return null;
   if (!paper.title?.trim() || !paper.abstract?.trim()) return null;
   try {
+    const prompt = buildPlainSummaryPrompt(paper);
     const { data } = await generateJson({
       system: PLAIN_SUMMARY_SYSTEM,
-      prompt: buildPlainSummaryPrompt(paper),
+      prompt,
       schema: plainSummarySchema,
       schemaName: "resumo_simples",
       temperature: 0.3,
       maxOutputTokens: 1024,
+      validate: (d) => rejectUnaccentedText(d.summary, { allowWordsFrom: prompt }),
     });
     return finalizePlainSummary(data.summary);
   } catch (error) {
@@ -51,13 +54,15 @@ export async function generatePlainSummary(paper: PlainSummaryInput): Promise<st
 export async function generateEditionIntro(content: EditionContent): Promise<string | null> {
   if (!isAiEnabled()) return null;
   try {
+    const prompt = buildEditionIntroPrompt(content);
     const { data } = await generateJson({
       system: EDITION_INTRO_SYSTEM,
-      prompt: buildEditionIntroPrompt(content),
+      prompt,
       schema: editionIntroSchema,
       schemaName: "abertura_newsletter",
       temperature: 0.7,
       maxOutputTokens: 768,
+      validate: (d) => rejectUnaccentedText(d.intro, { allowWordsFrom: prompt }),
     });
     return finalizeEditionIntro(data.intro);
   } catch (error) {

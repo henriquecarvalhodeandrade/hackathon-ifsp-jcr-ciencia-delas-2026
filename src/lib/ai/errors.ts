@@ -18,6 +18,7 @@ export type AiErrorCode =
   | "truncated"
   | "invalid_json"
   | "invalid_response"
+  | "rejected_output"
   | "budget_exceeded"
   | "all_providers_failed";
 
@@ -65,13 +66,18 @@ export class AiError extends Error {
     this.attempts = options.attempts ?? [];
   }
 
-  /** Falhas transitórias: vale tentar de novo no mesmo provedor (uma vez). */
+  /**
+   * Falhas transitórias: vale tentar de novo no mesmo provedor (uma vez). `rejected_output`
+   * (JSON válido, mas reprovado por `validate`, ex.: texto sem acentos) é um acaso da
+   * amostragem do modelo, então também ganha uma nova tentativa.
+   */
   get retryable(): boolean {
     return (
       this.code === "rate_limited" ||
       this.code === "server_error" ||
       this.code === "timeout" ||
-      this.code === "network"
+      this.code === "network" ||
+      this.code === "rejected_output"
     );
   }
 }

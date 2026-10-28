@@ -87,3 +87,97 @@ export function redactPersonalData(text: string, options: { names?: string[] } =
   }
   return out.replace(/\s+/g, " ").trim();
 }
+
+// ---------------------------------------------------------------------------
+// Saída sem acentos
+// ---------------------------------------------------------------------------
+
+/**
+ * Palavras que, em português, só se escrevem COM acento (nenhuma delas é outra palavra válida
+ * sem ele). Escritas sem acento, denunciam uma saída "achatada", sem diacríticos.
+ */
+const ALWAYS_ACCENTED = new Set([
+  "voce",
+  "voces",
+  "tambem",
+  "alem",
+  "ja",
+  "apos",
+  "pos",
+  "area",
+  "areas",
+  "ciencia",
+  "ciencias",
+  "cientifica",
+  "cientifico",
+  "cientificas",
+  "cientificos",
+  "academica",
+  "academico",
+  "academicas",
+  "academicos",
+  "proxima",
+  "proximo",
+  "proximas",
+  "proximos",
+  "trajetoria",
+  "trajetorias",
+  "metodo",
+  "metodos",
+  "tecnica",
+  "tecnico",
+  "tecnicas",
+  "tecnicos",
+  "conteudo",
+  "conteudos",
+  "util",
+  "uteis",
+  "facil",
+  "dificil",
+  "possivel",
+]);
+
+function letterTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^\p{L}]+/u)
+    .filter(Boolean);
+}
+
+/**
+ * Conta palavras distintas que deveriam ter acento e vieram sem ele: as da lista acima e as
+ * terminadas em "-ao" (não → nao, opção → opcao; só "ao" é válida) e em "-oes"
+ * (publicações → publicacoes). Texto normal em pt-BR fica em 0.
+ * `allowWordsFrom`: texto de entrada (o prompt). Palavras que já estavam nele não contam — a
+ * usuária pode ter digitado "polinizacao" sem acento, e o modelo só repetiu.
+ */
+export function countUnaccentedWords(text: string, allowWordsFrom = ""): number {
+  const allowed = new Set(letterTokens(allowWordsFrom));
+  const hits = new Set<string>();
+  for (const word of letterTokens(text)) {
+    if (!/^[a-z]+$/.test(word) || allowed.has(word)) continue;
+    if (
+      ALWAYS_ACCENTED.has(word) ||
+      (word.length >= 3 && word.endsWith("ao")) ||
+      (word.length >= 5 && word.endsWith("oes"))
+    ) {
+      hits.add(word);
+    }
+  }
+  return hits.size;
+}
+
+/**
+ * O gemini-3.5-flash-lite às vezes devolve o português sem acentos em modo JSON ("voce", "nao",
+ * "opcao") — visto em 2 de 6 respostas reais em out/2026. Duas ou mais palavras assim (fora as
+ * que já vieram sem acento na entrada) bastam para reprovar a resposta.
+ * Devolve o motivo da reprovação (para `generateJson({ validate })`) ou null se o texto está ok.
+ */
+export function rejectUnaccentedText(
+  texts: string | readonly string[],
+  options: { allowWordsFrom?: string } = {},
+): string | null {
+  const joined = typeof texts === "string" ? texts : texts.join(" ");
+  const hits = countUnaccentedWords(joined, options.allowWordsFrom);
+  return hits >= 2 ? `texto sem acentos (${hits} palavras)` : null;
+}

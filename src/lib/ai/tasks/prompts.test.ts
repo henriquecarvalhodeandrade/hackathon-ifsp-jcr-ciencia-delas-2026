@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   EDITION_INTRO_MAX_CHARS,
+  EDITION_INTRO_SYSTEM,
   PLAIN_SUMMARY_MAX_CHARS,
+  PLAIN_SUMMARY_SYSTEM,
   buildEditionIntroPrompt,
   buildPlainSummaryPrompt,
   finalizeEditionIntro,
@@ -32,6 +34,15 @@ describe("resumo em linguagem simples", () => {
 
   it("descarta saídas curtas demais", () => {
     expect(finalizePlainSummary("Ok.")).toBeNull();
+  });
+
+  it("pede acentos e terceira pessoa (a API real devolveu 'Voce ja...' e 'Nossa equipe avaliou')", () => {
+    expect(PLAIN_SUMMARY_SYSTEM).toMatch(/acentuação e a cedilha corretas/);
+    expect(PLAIN_SUMMARY_SYSTEM).toMatch(/terceira pessoa/);
+    expect(PLAIN_SUMMARY_SYSTEM).toContain(
+      '{"summary": "Texto do resumo, com os acentos do português."}',
+    );
+    expect(EDITION_INTRO_SYSTEM).toMatch(/acentuação e a cedilha corretas/);
   });
 });
 

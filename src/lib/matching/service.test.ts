@@ -376,6 +376,22 @@ describe("findMentorsForCurrentUser", () => {
     expect(mocks.embedTexts).toHaveBeenCalledTimes(1);
   });
 
+  it("a ordem física das áreas no banco não muda o texto do embedding (mesma ordem do backfill)", async () => {
+    const sorted = baseTables();
+    mocks.client = createFakeSupabase(sorted, { userId: ME }).client;
+    expect(await refreshMyEmbedding()).toMatchObject({ status: "updated" });
+    const firstText = (mocks.embedTexts.mock.calls[0][0] as string[])[0];
+
+    // Mesmo perfil, com as áreas regravadas em outra ordem (ex.: depois de editar o perfil).
+    const shuffled = baseTables();
+    shuffled.profile_research_areas = [...shuffled.profile_research_areas].reverse();
+    shuffled.profile_embeddings = sorted.profile_embeddings;
+    mocks.client = createFakeSupabase(shuffled, { userId: ME }).client;
+    expect(await refreshMyEmbedding()).toMatchObject({ status: "unchanged" });
+    expect(mocks.embedTexts).toHaveBeenCalledTimes(1);
+    expect(firstText).toContain("Áreas de pesquisa: Ecologia; Genética.");
+  });
+
   it("refreshMyEmbedding respeita a falta de consentimento e de chave, sem lançar", async () => {
     mocks.client = createFakeSupabase(baseTables({ consent: false }), { userId: ME }).client;
     expect(await refreshMyEmbedding()).toEqual({ status: "skipped", reason: "no_consent" });

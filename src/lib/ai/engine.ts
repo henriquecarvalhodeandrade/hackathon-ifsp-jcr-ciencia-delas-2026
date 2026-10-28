@@ -37,6 +37,13 @@ export interface GenerateJsonOptions<T> {
   schemaName?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  /**
+   * Revisão de qualidade depois do zod: devolve o motivo para reprovar a resposta (ex.: texto
+   * sem acentos) ou null. Reprovada, a resposta vira `AiError("rejected_output")`: uma nova
+   * tentativa no mesmo provedor e, se falhar de novo, o próximo da cadeia. O motivo vai para o
+   * log; o texto do modelo, nunca.
+   */
+  validate?: (data: T) => string | null | undefined;
 }
 
 export interface GenerateJsonResult<T> {
@@ -94,7 +101,7 @@ function parseResponse(
 async function callProviderOnce<T>(
   config: TextProviderConfig,
   request: JsonGenerationRequest,
-  schema: z.ZodType<T>,
+  options: Pick<GenerateJsonOptions<T>, "schema" | "validate">,
   deps: Required<Pick<EngineDeps, "timeoutMs">> & EngineDeps,
 ): Promise<GenerateJsonResult<T>> {
   const http = buildRequest(config, request, deps.siteUrl);
@@ -103,12 +110,19 @@ async function callProviderOnce<T>(
     timeoutMs: deps.timeoutMs,
   });
   const { text, model } = parseResponse(config, body);
-  const parsed = parseModelJson(text, schema);
+  const parsed = parseModelJson(text, options.schema);
   if (!parsed.ok) {
     throw new AiError(
       `${config.provider}: ${parsed.reason === "invalid_json" ? "JSON inválido" : "JSON fora do esquema"}${parsed.issues ? ` (${parsed.issues})` : ""}`,
       { code: parsed.reason, provider: config.provider },
     );
+  }
+  const problem = options.validate?.(parsed.data);
+  if (problem) {
+    throw new AiError(`${config.provider}: resposta reprovada (${problem.slice(0, 120)})`, {
+      code: "rejected_output",
+      provider: config.provider,
+    });
   }
   // Para o roteador "openrouter/free" o modelo real vem na resposta.
   const reportedModel = config.provider === "openrouter" && model ? model : config.model;
@@ -119,6 +133,7 @@ async function callProviderOnce<T>(
  * Gera JSON validado por zod percorrendo a cadeia de provedores.
  * - 429/5xx/timeout/rede: tenta de novo UMA vez no mesmo provedor (respeitando retry-after
  *   até 10 s); se ainda falhar, passa para o próximo.
+ * - Resposta reprovada por `validate` (ex.: sem acentos): tenta de novo UMA vez, sem esperar.
  * - JSON inválido, bloqueio, 4xx: passa direto para o próximo provedor.
  * - Cadeia vazia → AiUnavailableError. Todos falharam → AiError("all_providers_failed").
  */
@@ -163,7 +178,7 @@ export async function generateJsonWithChain<T>(
         });
       }
       try {
-        return await callProviderOnce(config, request, options.schema, { ...deps, timeoutMs });
+        return await callProviderOnce(config, request, options, { ...deps, timeoutMs });
       } catch (error) {
         const aiError =
           error instanceof AiError
@@ -191,7 +206,10 @@ export async function generateJsonWithChain<T>(
         if (!canRetry) break;
 
         const delay =
-          aiError.retryAfterMs ?? (aiError.code === "timeout" ? 0 : DEFAULT_RETRY_DELAY_MS);
+          aiError.retryAfterMs ??
+          (aiError.code === "timeout" || aiError.code === "rejected_output"
+            ? 0
+            : DEFAULT_RETRY_DELAY_MS);
         if (delay > 0) await sleep(delay);
       }
     }

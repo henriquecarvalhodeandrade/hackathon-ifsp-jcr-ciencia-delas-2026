@@ -1,5 +1,6 @@
 import "server-only";
 import { generateJson, isAiEnabled } from "@/lib/ai";
+import { rejectUnaccentedText } from "@/lib/ai/text";
 import {
   EXPLAIN_SYSTEM,
   MAX_AI_CANDIDATES,
@@ -65,13 +66,20 @@ export async function explainMatchesWithAi<C extends MentorCandidate>(
       consentByMentorId: options.consentByMentorId,
     });
 
+    const prompt = buildExplainPrompt(menteePayload, payload);
     const { data, provider, model } = await generateJson({
       system: EXPLAIN_SYSTEM,
-      prompt: buildExplainPrompt(menteePayload, payload),
+      prompt,
       schema: explainResponseSchema,
       schemaName: "sugestoes_mentoria",
       temperature: 0.4,
       maxOutputTokens: 3072,
+      // O flash-lite às vezes tira os acentos ("voce", "nao"): reprova e tenta de novo.
+      validate: (d) =>
+        rejectUnaccentedText(
+          d.ranking.flatMap((r) => [r.reason, ...r.starters]),
+          { allowWordsFrom: prompt },
+        ),
     });
 
     const matches = mergeAiExplanations(mentee, top, data, idMap, options.areas);
