@@ -63,7 +63,8 @@ export function Textarea({
   }, [counting, controlled]);
 
   const describedBy =
-    [props["aria-describedby"], counting ? counterId : undefined].filter(Boolean).join(" ") || undefined;
+    [props["aria-describedby"], counting ? counterId : undefined].filter(Boolean).join(" ") ||
+    undefined;
 
   return (
     <div className="grid gap-1.5">
@@ -78,14 +79,21 @@ export function Textarea({
           setLength(event.currentTarget.value.length);
           onChange?.(event);
         }}
-        className={cn(controlClasses, "min-h-24 resize-y px-3.5 py-2.5 text-base leading-relaxed", className)}
+        className={cn(
+          controlClasses,
+          "min-h-24 resize-y px-3.5 py-2.5 text-base leading-relaxed",
+          className,
+        )}
         {...props}
         aria-describedby={describedBy}
       />
       {counting && (
         <p
           id={counterId}
-          className={cn("tabular justify-self-end text-xs", nearLimit ? "font-semibold text-warning" : "text-fg-subtle")}
+          className={cn(
+            "justify-self-end text-xs tabular",
+            nearLimit ? "font-semibold text-warning" : "text-fg-subtle",
+          )}
           aria-live={nearLimit ? "polite" : "off"}
         >
           {formatNumber(currentLength)}/{formatNumber(maxLength)}

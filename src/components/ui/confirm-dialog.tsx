@@ -163,7 +163,12 @@ export function ConfirmDialog<S extends ConfirmResult = ConfirmResult>({
               {confirmLabel}
             </SubmitButton>
           ) : (
-            <Button variant={confirmVariant} loading={busy} loadingText={pendingLabel} onClick={handleClientConfirm}>
+            <Button
+              variant={confirmVariant}
+              loading={busy}
+              loadingText={pendingLabel}
+              onClick={handleClientConfirm}
+            >
               {confirmLabel}
             </Button>
           )}
@@ -171,7 +176,9 @@ export function ConfirmDialog<S extends ConfirmResult = ConfirmResult>({
       }
     >
       {hiddenFields &&
-        Object.entries(hiddenFields).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
+        Object.entries(hiddenFields).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       {children}
       <FormMessage tone="error" className={children ? "mt-3" : undefined}>
         {error}

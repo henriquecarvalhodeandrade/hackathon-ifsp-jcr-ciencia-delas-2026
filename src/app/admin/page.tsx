@@ -53,7 +53,10 @@ async function loadNewsletterOverview(): Promise<NewsletterOverview | null> {
   try {
     return await getNewsletterOverview();
   } catch (error) {
-    console.error("[admin] falha ao ler a visão geral da newsletter", error instanceof Error ? error.message : "erro");
+    console.error(
+      "[admin] falha ao ler a visão geral da newsletter",
+      error instanceof Error ? error.message : "erro",
+    );
     return null;
   }
 }
@@ -97,7 +100,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           },
         ]
       : []),
-    { href: "/admin?aba=membros", label: "Membros", icon: <Users aria-hidden="true" />, active: tab === "membros" },
+    {
+      href: "/admin?aba=membros",
+      label: "Membros",
+      icon: <Users aria-hidden="true" />,
+      active: tab === "membros",
+    },
     {
       href: "/admin?aba=registro",
       label: "Registro",
@@ -124,12 +132,21 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
 
       {tab === "denuncias" && (
         <TabSection id="aba-denuncias" title="Denúncias">
-          <ReportsPanel data={reports} status={reportStatus} page={reports.page} isAdmin={isAdmin} />
+          <ReportsPanel
+            data={reports}
+            status={reportStatus}
+            page={reports.page}
+            isAdmin={isAdmin}
+          />
         </TabSection>
       )}
 
       {tab === "newsletter" && editions && (
-        <TabSection id="aba-newsletter" title="Boletim Delas" description="Gere, revise e envie a edição semanal.">
+        <TabSection
+          id="aba-newsletter"
+          title="Boletim Delas"
+          description="Gere, revise e envie a edição semanal."
+        >
           <NewsletterPanel data={editions} overview={newsletterOverview} />
         </TabSection>
       )}

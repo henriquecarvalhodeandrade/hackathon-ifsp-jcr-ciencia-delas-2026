@@ -17,7 +17,9 @@ function AuditItem({ entry, showTarget }: { entry: AuditEntry; showTarget: boole
   return (
     <li className="grid gap-1 border-l-2 border-border-strong py-0.5 pl-3">
       <p className="text-sm text-fg">
-        <span className="font-semibold">{entry.actorName ?? "Conta removida ou tarefa do sistema"}</span>{" "}
+        <span className="font-semibold">
+          {entry.actorName ?? "Conta removida ou tarefa do sistema"}
+        </span>{" "}
         {AUDIT_ACTION_LABELS[entry.action]}
         {sensitive && (
           <Badge variant="warning" className="ml-2 align-middle">
@@ -31,7 +33,10 @@ function AuditItem({ entry, showTarget }: { entry: AuditEntry; showTarget: boole
           <>
             <span aria-hidden="true">·</span>
             {href ? (
-              <Link href={href} className="font-semibold text-primary underline-offset-4 hover:underline">
+              <Link
+                href={href}
+                className="font-semibold text-primary underline-offset-4 hover:underline"
+              >
                 {AUDIT_TARGET_LABELS[entry.targetType]}
               </Link>
             ) : (
@@ -46,13 +51,21 @@ function AuditItem({ entry, showTarget }: { entry: AuditEntry; showTarget: boole
           </>
         )}
       </p>
-      {entry.reason && <p className="text-sm whitespace-pre-line text-fg-muted">Motivo: {entry.reason}</p>}
+      {entry.reason && (
+        <p className="text-sm whitespace-pre-line text-fg-muted">Motivo: {entry.reason}</p>
+      )}
     </li>
   );
 }
 
 /** Histórico de uma denúncia no cartão (só moderação vê o painel). */
-export function ReportAuditTrail({ entries, className }: { entries: AuditEntry[]; className?: string }) {
+export function ReportAuditTrail({
+  entries,
+  className,
+}: {
+  entries: AuditEntry[];
+  className?: string;
+}) {
   if (entries.length === 0) return null;
   return (
     <div className={cn("grid gap-2", className)}>
@@ -91,12 +104,20 @@ export function AuditLogPanel({ data }: { data: AuditPage }) {
   }
   return (
     <div className="grid gap-5">
-      <ol className="grid gap-3 rounded-card border border-border bg-surface p-4 shadow-card sm:p-5" aria-label="Ações da moderação">
+      <ol
+        className="grid gap-3 rounded-card border border-border bg-surface p-4 shadow-card sm:p-5"
+        aria-label="Ações da moderação"
+      >
         {data.entries.map((entry) => (
           <AuditItem key={entry.id} entry={entry} showTarget />
         ))}
       </ol>
-      <Pagination page={data.page} totalPages={data.totalPages} basePath="/admin" searchParams={{ aba: "registro" }} />
+      <Pagination
+        page={data.page}
+        totalPages={data.totalPages}
+        basePath="/admin"
+        searchParams={{ aba: "registro" }}
+      />
     </div>
   );
 }

@@ -33,7 +33,13 @@ const alignClasses = {
  * Escondida, a dica fica com `display: none` (e não só invisível): assim ela não ocupa espaço
  * nem cria rolagem horizontal na página. A largura nunca passa da tela (`100vw - 2rem`).
  */
-export function Tooltip({ content, children, side = "top", align = "center", className }: TooltipProps) {
+export function Tooltip({
+  content,
+  children,
+  side = "top",
+  align = "center",
+  className,
+}: TooltipProps) {
   const id = `dica-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const child = isValidElement(children)
     ? cloneElement(children, {
@@ -52,7 +58,7 @@ export function Tooltip({ content, children, side = "top", align = "center", cla
           // Entra/sai com fade: `display` também transiciona (allow-discrete) e @starting-style dá o ponto de partida.
           "transition-[opacity,display] transition-discrete duration-150 starting:opacity-0",
           "group-focus-within/tooltip:block group-focus-within/tooltip:opacity-100 group-hover/tooltip:block group-hover/tooltip:opacity-100 group-hover/tooltip:delay-300",
-          "group-data-dismissed/tooltip:hidden!",
+          "group-data-dismissed/tooltip:hidden! group-data-dismissed/tooltip:opacity-0! group-data-dismissed/tooltip:delay-0!",
           sideClasses[side],
           alignClasses[align],
         )}

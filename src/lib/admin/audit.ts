@@ -24,7 +24,14 @@ export const AUDIT_ACTIONS = [
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_TARGET_TYPES = ["thread", "post", "paper", "paper_comment", "profile", "report"] as const;
+export const AUDIT_TARGET_TYPES = [
+  "thread",
+  "post",
+  "paper",
+  "paper_comment",
+  "profile",
+  "report",
+] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
@@ -53,7 +60,10 @@ export const AUDIT_TARGET_LABELS: Record<AuditTargetType, string> = {
 };
 
 /** Ações que merecem destaque visual (afetam a privacidade ou o papel de alguém). */
-export const SENSITIVE_AUDIT_ACTIONS: ReadonlySet<AuditAction> = new Set(["reveal_author", "change_role"]);
+export const SENSITIVE_AUDIT_ACTIONS: ReadonlySet<AuditAction> = new Set([
+  "reveal_author",
+  "change_role",
+]);
 
 export function isAuditAction(value: unknown): value is AuditAction {
   return typeof value === "string" && (AUDIT_ACTIONS as readonly string[]).includes(value);
@@ -85,7 +95,10 @@ export function auditTargetHref(type: AuditTargetType | null, id: string | null)
 export const AUDIT_REASON_MAX = 500;
 
 /** Motivo pronto para gravar: espaços normalizados, cortado no limite; vazio → null. */
-export function cleanAuditReason(reason: string | null | undefined, max: number = AUDIT_REASON_MAX): string | null {
+export function cleanAuditReason(
+  reason: string | null | undefined,
+  max: number = AUDIT_REASON_MAX,
+): string | null {
   const text = (reason ?? "").replace(/\s+/g, " ").trim();
   if (!text) return null;
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;

@@ -26,16 +26,16 @@ Sumário
 
 ## 1. Rotas e quem acessa
 
-| Rota                         | Acesso                                       | O que faz                                                                         |
-| ---------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
-| `/`                          | Pública (dinâmica)                           | Landing com números reais, pilares, mentoria em 3 passos, destaques e Boletim     |
-| `/sobre`                     | Pública                                      | Missão, problema, como funciona, tecnologia, equipe (a preencher), links          |
-| `/conduta`                   | Pública                                      | Código de conduta                                                                 |
-| `/privacidade`               | Pública                                      | Política de privacidade (LGPD)                                                    |
-| `/notificacoes`              | Logada (`requireUser`)                       | Lista, filtro “Não lidas”, marcar como lida, marcar todas, limpar lidas           |
-| `/notificacoes/abrir/[id]`   | Logada (route handler GET)                   | Marca como lida e redireciona (303) para o link interno da notificação            |
-| `/admin`                     | Moderadora ou admin (`requireModerator`)     | Abas Denúncias · Newsletter (só admin) · Membros                                  |
-| `/robots.txt`, `/sitemap.xml`| Pública                                      | Gerados por `src/app/robots.ts` e `src/app/sitemap.ts`                            |
+| Rota                          | Acesso                                   | O que faz                                                                     |
+| ----------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| `/`                           | Pública (dinâmica)                       | Landing com números reais, pilares, mentoria em 3 passos, destaques e Boletim |
+| `/sobre`                      | Pública                                  | Missão, problema, como funciona, tecnologia, equipe (a preencher), links      |
+| `/conduta`                    | Pública                                  | Código de conduta                                                             |
+| `/privacidade`                | Pública                                  | Política de privacidade (LGPD)                                                |
+| `/notificacoes`               | Logada (`requireUser`)                   | Lista, filtro “Não lidas”, marcar como lida, marcar todas, limpar lidas       |
+| `/notificacoes/abrir/[id]`    | Logada (route handler GET)               | Marca como lida e redireciona (303) para o link interno da notificação        |
+| `/admin`                      | Moderadora ou admin (`requireModerator`) | Abas Denúncias · Newsletter (só admin) · Membros                              |
+| `/robots.txt`, `/sitemap.xml` | Pública                                  | Gerados por `src/app/robots.ts` e `src/app/sitemap.ts`                        |
 
 - O **proxy** (`src/proxy.ts`) faz só a checagem otimista: visitante em `/notificacoes` ou `/admin`
   vai para `/entrar?next=…`. **Toda** página, Server Action e route handler confere a sessão de
@@ -49,26 +49,26 @@ Sumário
 
 Seções (componentes em `src/components/landing/`):
 
-| Seção                     | Componente             | Dados                                                                                     |
-| ------------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
-| Hero “Ciência também é delas” | `hero.tsx`         | Perfil da sessão (`getCurrentProfile`) para personalizar os botões                        |
-| A rede em números         | `platform-stats.tsx`   | `rpc('get_platform_stats')` — números reais; sem dados a seção some                       |
-| Por que existimos         | `why-section.tsx`      | Texto + **um** dado citado com fonte (veja abaixo)                                        |
-| Três pilares              | `pillars.tsx`          | Estático (Fórum seguro · Mentoria com IA · Vitrine e Boletim)                             |
-| Como funciona a mentoria  | `mentorship-steps.tsx` | Estático, com aviso de consentimento de IA e link para `/privacidade#ia`                  |
-| Destaques da semana       | `featured-papers.tsx`  | `rpc('get_paper_ranking', { p_period: 'week', p_limit: 3 })`; se ninguém destacou nada em 7 dias, usa `hot` e muda o título para “Em alta na Vitrine” (`featured.ts`) |
-| Boletim                   | `newsletter-cta.tsx`   | Edição publicada mais recente (`newsletter_editions`, status `published`/`sent`)          |
-| Crédito do hackathon      | `hackathon-credit.tsx` | Estático                                                                                  |
+| Seção                         | Componente             | Dados                                                                                                                                                                 |
+| ----------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hero “Ciência também é delas” | `hero.tsx`             | Perfil da sessão (`getCurrentProfile`) para personalizar os botões                                                                                                    |
+| A rede em números             | `platform-stats.tsx`   | `rpc('get_platform_stats')` — números reais; sem dados a seção some                                                                                                   |
+| Por que existimos             | `why-section.tsx`      | Texto + **um** dado citado com fonte (veja abaixo)                                                                                                                    |
+| Três pilares                  | `pillars.tsx`          | Estático (Fórum seguro · Mentoria com IA · Vitrine e Boletim)                                                                                                         |
+| Como funciona a mentoria      | `mentorship-steps.tsx` | Estático, com aviso de consentimento de IA e link para `/privacidade#ia`                                                                                              |
+| Destaques da semana           | `featured-papers.tsx`  | `rpc('get_paper_ranking', { p_period: 'week', p_limit: 3 })`; se ninguém destacou nada em 7 dias, usa `hot` e muda o título para “Em alta na Vitrine” (`featured.ts`) |
+| Boletim                       | `newsletter-cta.tsx`   | Edição publicada mais recente (`newsletter_editions`, status `published`/`sent`)                                                                                      |
+| Crédito do hackathon          | `hackathon-credit.tsx` | Estático                                                                                                                                                              |
 
 **Botões personalizados**
 
-| Quem                                  | Botões do hero                                        |
-| ------------------------------------- | ----------------------------------------------------- |
-| Visitante                             | “Criar minha conta” · “Explorar a Vitrine”            |
-| Logada sem onboarding                 | “Completar meu perfil” · “Explorar a Vitrine”         |
-| Mentoranda (`seeks_mentorship`)       | “Ir para o fórum” · “Ver minhas sugestões”            |
-| Mentora (`is_mentor`)                 | “Ir para o fórum” · “Ver pedidos de mentoria” (`/mentoria?aba=recebidas`) |
-| Demais membras                        | “Ir para o fórum” · “Explorar a Vitrine”              |
+| Quem                            | Botões do hero                                                            |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| Visitante                       | “Criar minha conta” · “Explorar a Vitrine”                                |
+| Logada sem onboarding           | “Completar meu perfil” · “Explorar a Vitrine”                             |
+| Mentoranda (`seeks_mentorship`) | “Ir para o fórum” · “Ver minhas sugestões”                                |
+| Mentora (`is_mentor`)           | “Ir para o fórum” · “Ver pedidos de mentoria” (`/mentoria?aba=recebidas`) |
+| Demais membras                  | “Ir para o fórum” · “Explorar a Vitrine”                                  |
 
 **Regras de dados**
 
@@ -153,13 +153,13 @@ O resultado de cada ação aparece num aviso fixo no canto da tela (`AdminFlashR
   por quê).
 - Ações sobre o conteúdo (só em denúncias abertas):
 
-| Alvo              | Ações                                                                                  | Como                                         |
-| ----------------- | -------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Tópico            | Fixar/Desafixar · Trancar/Destrancar · Excluir · Revelar autoria (admin, se anônimo)   | `rpc('moderate_thread')`, `delete` (RLS), `rpc('reveal_anonymous_author')` |
-| Resposta          | Excluir · Revelar autoria (admin, se anônima)                                          | `delete` (RLS), `rpc('reveal_anonymous_author')` |
-| Paper             | Ocultar/Reexibir na Vitrine · Excluir                                                  | `rpc('moderate_paper')`, `delete` (RLS)      |
-| Comentário        | Excluir                                                                                | `delete` (RLS)                               |
-| Perfil            | Abrir o perfil (papéis são trocados na aba Membros)                                    | —                                            |
+| Alvo       | Ações                                                                                | Como                                                                       |
+| ---------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Tópico     | Fixar/Desafixar · Trancar/Destrancar · Excluir · Revelar autoria (admin, se anônimo) | `rpc('moderate_thread')`, `delete` (RLS), `rpc('reveal_anonymous_author')` |
+| Resposta   | Excluir · Revelar autoria (admin, se anônima)                                        | `delete` (RLS), `rpc('reveal_anonymous_author')`                           |
+| Paper      | Ocultar/Reexibir na Vitrine · Excluir                                                | `rpc('moderate_paper')`, `delete` (RLS)                                    |
+| Comentário | Excluir                                                                              | `delete` (RLS)                                                             |
+| Perfil     | Abrir o perfil (papéis são trocados na aba Membros)                                  | —                                                                          |
 
 - As ações de conteúdo enviam o id da denúncia: o registro de auditoria fica ligado a ela.
 - **Excluir** pede confirmação, registra `delete_content` na auditoria e **encerra automaticamente**
@@ -207,17 +207,17 @@ Usa o serviço compartilhado com o cron (`src/lib/newsletter/service.ts`, CONTRA
 
 ### 5.4 Server Actions (`src/lib/admin/actions.ts`)
 
-| Action                     | Quem         | Valida (zod)                                         | Efeito                                                                 |
-| -------------------------- | ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------- |
-| `resolveReport`            | moderação    | `id` uuid, `status` open/resolved/dismissed, `note` ≤ 800 | `update reports` (nota visível para quem denunciou; o trigger audita e avisa) |
-| `moderateThreadAction`     | moderação    | `threadId` uuid, `op` pin/unpin/lock/unlock, `reportId?` | `rpc('moderate_thread', { …, p_report_id })` (a RPC audita)          |
-| `setPaperVisibility`       | moderação    | `paperId` uuid, `hidden` true/false, `reportId?`      | `rpc('moderate_paper', { …, p_report_id })` (a RPC audita)             |
-| `deleteReportedContent`    | moderação    | `targetType` thread/post/paper/paper_comment, `targetId` uuid, `reportId?` | `delete` + auditoria `delete_content` + encerra denúncias abertas do alvo |
-| `revealAnonymousAuthor`    | **admin**    | `reportId`, `targetType` thread/post, `targetId`, `reason` 20–300, `confirm` | `rpc('reveal_anonymous_author', { …, p_reason, p_report_id })` — auditoria na mesma transação |
-| `changeMemberRole`         | **admin**    | `profileId` uuid, `role`                              | `update profiles.role` (service role) + auditoria `change_role`        |
-| `generateEditionAction`    | **admin**    | —                                                    | `generateWeeklyEdition({ publish: true })`                             |
-| `publishEditionAction`     | **admin**    | `editionId` uuid (só rascunhos)                       | `publishEdition(id)`                                                   |
-| `sendEditionAction`        | **admin**    | `editionId` uuid, `mode` preview/send                 | `sendEdition(id, { dryRun })`                                          |
+| Action                  | Quem      | Valida (zod)                                                                 | Efeito                                                                                        |
+| ----------------------- | --------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `resolveReport`         | moderação | `id` uuid, `status` open/resolved/dismissed, `note` ≤ 800                    | `update reports` (nota visível para quem denunciou; o trigger audita e avisa)                 |
+| `moderateThreadAction`  | moderação | `threadId` uuid, `op` pin/unpin/lock/unlock, `reportId?`                     | `rpc('moderate_thread', { …, p_report_id })` (a RPC audita)                                   |
+| `setPaperVisibility`    | moderação | `paperId` uuid, `hidden` true/false, `reportId?`                             | `rpc('moderate_paper', { …, p_report_id })` (a RPC audita)                                    |
+| `deleteReportedContent` | moderação | `targetType` thread/post/paper/paper_comment, `targetId` uuid, `reportId?`   | `delete` + auditoria `delete_content` + encerra denúncias abertas do alvo                     |
+| `revealAnonymousAuthor` | **admin** | `reportId`, `targetType` thread/post, `targetId`, `reason` 20–300, `confirm` | `rpc('reveal_anonymous_author', { …, p_reason, p_report_id })` — auditoria na mesma transação |
+| `changeMemberRole`      | **admin** | `profileId` uuid, `role`                                                     | `update profiles.role` (service role) + auditoria `change_role`                               |
+| `generateEditionAction` | **admin** | —                                                                            | `generateWeeklyEdition({ publish: true })`                                                    |
+| `publishEditionAction`  | **admin** | `editionId` uuid (só rascunhos)                                              | `publishEdition(id)`                                                                          |
+| `sendEditionAction`     | **admin** | `editionId` uuid, `mode` preview/send                                        | `sendEdition(id, { dryRun })`                                                                 |
 
 Todas devolvem `{ ok: true, message } | { ok: false, error, fieldErrors? }`. Erros do banco passam
 por `friendlyDbError` (`src/lib/admin/errors.ts`): códigos `CD…` mostram a mensagem pt-BR do
@@ -227,18 +227,18 @@ genérica (nunca a mensagem crua do Postgres). Depois de cada mutação, `revali
 
 ## 6. Papéis e permissões
 
-| Capacidade                                         | Membra | Moderadora | Admin |
-| -------------------------------------------------- | :----: | :--------: | :---: |
-| Denunciar conteúdo e perfis                         |   ✓    |     ✓      |   ✓   |
-| Ver a fila de denúncias, resolver, arquivar, reabrir |       |     ✓      |   ✓   |
-| Fixar/trancar tópicos, ocultar papers               |        |     ✓      |   ✓   |
-| Excluir tópicos, respostas, papers e comentários de outras pessoas |  |  ✓  |   ✓   |
-| Ver a lista de membras e papéis                     |        |     ✓      |   ✓   |
-| **Revelar autoria anônima** (no painel)             |        |            |   ✓   |
-| **Trocar papéis**                                   |        |            |   ✓   |
-| **Gerar e enviar o Boletim**                        |        |            |   ✓   |
+| Capacidade                                                         | Membra | Moderadora | Admin |
+| ------------------------------------------------------------------ | :----: | :--------: | :---: |
+| Denunciar conteúdo e perfis                                        |   ✓    |     ✓      |   ✓   |
+| Ver a fila de denúncias, resolver, arquivar, reabrir               |        |     ✓      |   ✓   |
+| Fixar/trancar tópicos, ocultar papers                              |        |     ✓      |   ✓   |
+| Excluir tópicos, respostas, papers e comentários de outras pessoas |        |     ✓      |   ✓   |
+| Ver a lista de membras e papéis                                    |        |     ✓      |   ✓   |
+| **Revelar autoria anônima** (no painel)                            |        |            |   ✓   |
+| **Trocar papéis**                                                  |        |            |   ✓   |
+| **Gerar e enviar o Boletim**                                       |        |            |   ✓   |
 
-| Ver o **registro de auditoria** (aba Registro)      |        |     ✓      |   ✓   |
+| Ver o **registro de auditoria** (aba Registro) | | ✓ | ✓ |
 
 No banco, `reveal_anonymous_author` aceita moderadoras (docs/03 §7) e exige o motivo (20–300
 caracteres); o painel é **mais restritivo** e só oferece a ação a administradoras, exigindo
@@ -270,14 +270,14 @@ Tabela `public.moderation_audit_log` (migration `20261028090000_integration.sql`
 `created_at`. **Só moderadoras e admins leem**; incluir só em nome próprio (`actor_id = auth.uid()`);
 **ninguém edita nem apaga** pela API (sem políticas nem GRANT de UPDATE/DELETE — só a service role).
 
-| Ação (`action`)                                   | Quem grava                                                    | Motivo (`reason`)                   |
-| ------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- |
-| `reveal_author`                                   | RPC `reveal_anonymous_author`, na mesma transação             | obrigatório (20–300)                |
-| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)             | opcional (`p_reason`)               |
-| `hide_paper`, `unhide_paper`                      | RPC `moderate_paper` (só quando muda)                         | opcional (`p_reason`)               |
-| `resolve_report`, `dismiss_report`                | trigger `reports_after_status_change` (aberta → resolvida/arquivada) | —                            |
-| `delete_content`                                  | painel (`deleteReportedContent`, sessão da moderadora)        | nota da exclusão                    |
-| `change_role`                                     | painel (`changeMemberRole`, sessão da admin)                  | “Membra → Moderadora”               |
+| Ação (`action`)                                              | Quem grava                                                           | Motivo (`reason`)     |
+| ------------------------------------------------------------ | -------------------------------------------------------------------- | --------------------- |
+| `reveal_author`                                              | RPC `reveal_anonymous_author`, na mesma transação                    | obrigatório (20–300)  |
+| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)                               | opcional (`p_reason`) |
+| `hide_paper`, `unhide_paper`                                 | RPC `moderate_paper` (só quando muda)                                | opcional (`p_reason`) |
+| `resolve_report`, `dismiss_report`                           | trigger `reports_after_status_change` (aberta → resolvida/arquivada) | —                     |
+| `delete_content`                                             | painel (`deleteReportedContent`, sessão da moderadora)               | nota da exclusão      |
+| `change_role`                                                | painel (`changeMemberRole`, sessão da admin)                         | “Membra → Moderadora” |
 
 Onde aparece: em cada cartão de denúncia (“Registro da moderação · interno”) e na aba **Registro**
 (`/admin?aba=registro`, 30 por página, mais recente primeiro, ações sensíveis com selo). Rótulos e
@@ -321,16 +321,16 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 
 ## 11. LGPD na prática
 
-| Direito / obrigação                     | Onde está                                                                          |
-| --------------------------------------- | ---------------------------------------------------------------------------------- |
-| Transparência (art. 9º)                 | `/privacidade` em linguagem simples                                                |
-| Consentimento de IA (art. 7º, I e 8º)   | Caixa desmarcada no onboarding/perfil, com 18+; revogar apaga o embedding e as sugestões de mentoras (trigger) |
-| Consentimento do Boletim                | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla               |
-| Correção e revogação (art. 18)          | `/perfil`; descadastro pelo link de cada edição                                     |
-| Eliminação                              | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro |
-| Minimização                             | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids            |
-| Dados sensíveis (art. 11)               | Anonimato nos temas sensíveis e aviso na política                                  |
-| Menores (art. 14)                       | Seção própria na política; IA e Boletim exigem 18+                                 |
+| Direito / obrigação                   | Onde está                                                                                                      |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                            |
+| Consentimento de IA (art. 7º, I e 8º) | Caixa desmarcada no onboarding/perfil, com 18+; revogar apaga o embedding e as sugestões de mentoras (trigger) |
+| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                          |
+| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                |
+| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro |
+| Minimização                           | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids                                        |
+| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                              |
+| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+                                                             |
 
 ## 12. Arquivos
 
@@ -372,8 +372,8 @@ Roteiro manual com o Supabase local e as contas de demonstração (senha `cienci
    mostra “Ver minhas sugestões”. Em `/admin`, aparece a tela “não encontrada”.
 3. **Notificações** — entre com `renata@demo.cienciadelas.dev` (tem não lidas): marque uma como
    lida, abra outra (vai para o link e fica lida), use “Marcar todas como lidas” e veja o número do
-   sino zerar. “Limpar lidas” pede confirmação. *(Isso altera dados de demonstração; para restaurar:
-   `update notifications set read_at = null where user_id = (select id from auth.users where email = 'renata@demo.cienciadelas.dev');`)*
+   sino zerar. “Limpar lidas” pede confirmação. _(Isso altera dados de demonstração; para restaurar:
+   `update notifications set read_at = null where user_id = (select id from auth.users where email = 'renata@demo.cienciadelas.dev');`)_
 4. **`moderacao@demo.cienciadelas.dev`** — a denúncia de demonstração (spam numa resposta) está na
    fila. Sem aba Newsletter, sem “Revelar autoria”, sem troca de papéis. Teste resolver com nota,
    ver em “Resolvidas” e reabrir.

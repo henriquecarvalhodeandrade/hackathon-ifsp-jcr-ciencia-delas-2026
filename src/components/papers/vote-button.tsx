@@ -36,12 +36,6 @@ const OWN_PAPER_HINT = "Você não pode destacar o próprio paper";
 const baseButton =
   "relative z-10 inline-flex items-center justify-center gap-2 rounded-control border font-semibold transition-[background-color,border-color,color] duration-150 ease-out-soft active:translate-y-px [&_svg]:size-5";
 
-/** Ancora a bolha do <Tooltip> (centralizada por padrão) na borda do botão. */
-const TOOLTIP_ALIGN = {
-  start: "[&>[role=tooltip]]:left-0 [&>[role=tooltip]]:translate-x-0",
-  end: "[&>[role=tooltip]]:right-0 [&>[role=tooltip]]:left-auto [&>[role=tooltip]]:translate-x-0",
-} as const;
-
 /**
  * Botão de destaque (voto) com atualização otimista. Visitantes veem um link para entrar;
  * quem enviou o paper vê o botão indisponível (focável) com a explicação.
@@ -125,11 +119,7 @@ export function VoteButton({
   if (viewer === "owner") {
     return (
       <div className={wrapper}>
-        <Tooltip
-          content={OWN_PAPER_HINT}
-          side={vertical ? "bottom" : "top"}
-          className={TOOLTIP_ALIGN[align]}
-        >
+        <Tooltip content={OWN_PAPER_HINT} side={vertical ? "bottom" : "top"} align={align}>
           <button
             type="button"
             aria-disabled="true"

@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowRight,
   Bell,
   BookOpen,
@@ -81,7 +82,7 @@ import {
 } from "@/components/ui";
 import { SiteHeaderView } from "@/components/layout/site-header-view";
 import { MEETING_FORMATS, MENTORSHIP_TOPIC_OPTIONS } from "@/lib/constants";
-import { demoConfirmAction } from "./actions";
+import { demoConfirmAction, demoConfirmFailure } from "./actions";
 import { DsSection, DsSubheading, Specimen } from "./ds";
 
 const MARKDOWN_SAMPLE = `## Dica para o primeiro edital
@@ -114,14 +115,18 @@ export function ComponentsShowcase() {
       title="Componentes"
       description={
         <>
-          Tudo em <code className="font-mono text-base">@/components/ui</code>. Server Components por padrão; os
-          interativos (diálogo, menu, abas, chips com limite, palavras-chave, contador) são Client Components e
-          funcionam a partir de páginas de servidor com props serializáveis.
+          Tudo em <code className="font-mono text-base">@/components/ui</code>. Server Components
+          por padrão; os interativos (diálogo, menu, abas, chips com limite, palavras-chave,
+          contador) são Client Components e funcionam a partir de páginas de servidor com props
+          serializáveis.
         </>
       }
     >
       {/* ---------------- Botões ---------------- */}
-      <DsSubheading id="c-botoes" description="Um único botão primário por área. Verbos no infinitivo: “Salvar perfil”, “Pedir mentoria”.">
+      <DsSubheading
+        id="c-botoes"
+        description="Um único botão primário por área. Verbos no infinitivo: “Salvar perfil”, “Pedir mentoria”."
+      >
         Botões
       </DsSubheading>
       <div className="grid gap-4">
@@ -156,7 +161,10 @@ export function ComponentsShowcase() {
               </Button>
             </div>
           </Specimen>
-          <Specimen label="estados" code={`<Button loading loadingText="Salvando…">Salvar</Button>`}>
+          <Specimen
+            label="estados"
+            code={`<Button loading loadingText="Salvando…">Salvar</Button>`}
+          >
             <div className="flex flex-wrap items-center gap-3">
               <Button loading loadingText="Salvando…">
                 Salvar
@@ -183,15 +191,18 @@ export function ComponentsShowcase() {
             <VoteButton pressed count={1} layout="horizontal" label="Destacar paper" />
             <VoteButton pressed={false} count={12} pending label="Destacar paper" />
             <p className="max-w-xs text-sm text-fg-muted">
-              Nome fixo (&quot;Destacar&quot;) + <code className="font-mono">aria-pressed</code>: o leitor de tela anuncia
-              &quot;pressionado&quot;. Não troque o texto ao alternar.
+              Nome fixo (&quot;Destacar&quot;) + <code className="font-mono">aria-pressed</code>: o
+              leitor de tela anuncia &quot;pressionado&quot;. Não troque o texto ao alternar.
             </p>
           </div>
         </Specimen>
       </div>
 
       {/* ---------------- Campos ---------------- */}
-      <DsSubheading id="c-campos" description="Todo campo tem rótulo visível. <Field> liga rótulo, dica e erro ao controle (aria-describedby, aria-invalid).">
+      <DsSubheading
+        id="c-campos"
+        description="Todo campo tem rótulo visível. <Field> liga rótulo, dica e erro ao controle (aria-describedby, aria-invalid)."
+      >
         Campos de formulário
       </DsSubheading>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -201,9 +212,18 @@ export function ComponentsShowcase() {
               <Input name="demo_institution" placeholder="Ex.: IFSP campus Jacareí" />
             </Field>
             <Field label="Buscar pesquisadoras" hideLabel>
-              <Input name="demo_search" type="search" placeholder="Buscar por nome ou área…" leadingIcon={<Search />} />
+              <Input
+                name="demo_search"
+                type="search"
+                placeholder="Buscar por nome ou área…"
+                leadingIcon={<Search />}
+              />
             </Field>
-            <Field label="ORCID" required error="O ORCID tem 16 dígitos, no formato 0000-0000-0000-0000.">
+            <Field
+              label="ORCID"
+              required
+              error="O ORCID tem 16 dígitos, no formato 0000-0000-0000-0000."
+            >
               <Input name="demo_orcid" defaultValue="0000-0002-12" />
             </Field>
             <Field label="E-mail (não editável)">
@@ -226,7 +246,10 @@ export function ComponentsShowcase() {
               <Select
                 name="demo_format"
                 placeholder="Selecione…"
-                options={Object.entries(MEETING_FORMATS).map(([value, label]) => ({ value, label }))}
+                options={Object.entries(MEETING_FORMATS).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
                 defaultValue="online"
               />
             </Field>
@@ -237,12 +260,21 @@ export function ComponentsShowcase() {
         </Specimen>
         <Specimen label="Checkbox · Switch">
           <div className="grid gap-4">
-            <Checkbox name="demo_c1" label="Quero ser mentora" description="Você aparece nas sugestões para pesquisadoras iniciantes." defaultChecked />
+            <Checkbox
+              name="demo_c1"
+              label="Quero ser mentora"
+              description="Você aparece nas sugestões para pesquisadoras iniciantes."
+              defaultChecked
+            />
             <Checkbox name="demo_c2" label="Busco mentoria" />
             <Checkbox name="demo_c3" label="Opção indisponível" disabled />
             <Separator className="my-1" />
             <Switch name="demo_s1" label="Disponível para novas mentorias" defaultChecked />
-            <Switch name="demo_s2" label="Receber a newsletter semanal" description="Toda segunda, com os papers mais destacados." />
+            <Switch
+              name="demo_s2"
+              label="Receber a newsletter semanal"
+              description="Toda segunda, com os papers mais destacados."
+            />
             <Switch name="demo_s3" label="Preferência bloqueada" disabled />
           </div>
         </Specimen>
@@ -265,8 +297,16 @@ export function ComponentsShowcase() {
               orientation="horizontal"
               defaultValue="mentee"
               options={[
-                { value: "mentee", label: "Busco mentoria", description: "Receba sugestões de mentoras." },
-                { value: "mentor", label: "Quero mentorar", description: "Apoie quem está começando." },
+                {
+                  value: "mentee",
+                  label: "Busco mentoria",
+                  description: "Receba sugestões de mentoras.",
+                },
+                {
+                  value: "mentor",
+                  label: "Quero mentorar",
+                  description: "Apoie quem está começando.",
+                },
               ]}
             />
           </div>
@@ -274,7 +314,10 @@ export function ComponentsShowcase() {
       </div>
 
       {/* ---------------- Chips & badges ---------------- */}
-      <DsSubheading id="c-chips" description="Badge = status (não clicável). Chip = tag/tópico; ChipLink = filtro por URL; ChipToggle/ChipGroup = escolha em formulário.">
+      <DsSubheading
+        id="c-chips"
+        description="Badge = status (não clicável). Chip = tag/tópico; ChipLink = filtro por URL; ChipToggle/ChipGroup = escolha em formulário."
+      >
         Badges e chips
       </DsSubheading>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -339,13 +382,20 @@ export function ComponentsShowcase() {
         </Specimen>
         <Specimen label="KeywordInput (cliente)">
           <Field label="Palavras-chave" hint="Até 6. As palavras são salvas em minúsculas.">
-            <KeywordInput name="demo_keywords" max={6} defaultValue={["genômica", "câncer de mama", "r"]} />
+            <KeywordInput
+              name="demo_keywords"
+              max={6}
+              defaultValue={["genômica", "câncer de mama", "r"]}
+            />
           </Field>
         </Specimen>
       </div>
 
       {/* ---------------- Cartões ---------------- */}
-      <DsSubheading id="c-cartoes" description="Cartão = superfície de conteúdo. Interativo com CardLink (link “esticado”), sem aninhar links.">
+      <DsSubheading
+        id="c-cartoes"
+        description="Cartão = superfície de conteúdo. Interativo com CardLink (link “esticado”), sem aninhar links."
+      >
         Cartões
       </DsSubheading>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -354,7 +404,9 @@ export function ComponentsShowcase() {
             <CardTitle>default</CardTitle>
             <CardDescription>Borda sutil + shadow-card.</CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-fg-muted">Para agrupar conteúdo relacionado.</CardContent>
+          <CardContent className="text-sm text-fg-muted">
+            Para agrupar conteúdo relacionado.
+          </CardContent>
         </Card>
         <Card variant="interactive">
           <CardHeader>
@@ -383,7 +435,9 @@ export function ComponentsShowcase() {
       <Card className="mt-4 max-w-xl">
         <CardHeader>
           <CardTitle as="h4">Anatomia completa</CardTitle>
-          <CardDescription>CardHeader · CardTitle · CardDescription · CardContent · CardFooter</CardDescription>
+          <CardDescription>
+            CardHeader · CardTitle · CardDescription · CardContent · CardFooter
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-[0.9375rem] text-fg-muted">
@@ -399,7 +453,10 @@ export function ComponentsShowcase() {
       </Card>
 
       {/* ---------------- Avatares ---------------- */}
-      <DsSubheading id="c-avatares" description="Iniciais como fallback (sem JS: se a foto falhar, elas aparecem). Cor determinística pelo nome/id.">
+      <DsSubheading
+        id="c-avatares"
+        description="Iniciais como fallback (sem JS: se a foto falhar, elas aparecem). Cor determinística pelo nome/id."
+      >
         Avatares
       </DsSubheading>
       <Specimen label="Avatar · AvatarGroup">
@@ -426,7 +483,10 @@ export function ComponentsShowcase() {
       </Specimen>
 
       {/* ---------------- Navegação ---------------- */}
-      <DsSubheading id="c-navegacao" description="TabNav = cada aba é uma URL (servidor). Tabs = painéis na mesma página (cliente, setas do teclado).">
+      <DsSubheading
+        id="c-navegacao"
+        description="TabNav = cada aba é uma URL (servidor). Tabs = painéis na mesma página (cliente, setas do teclado)."
+      >
         Navegação
       </DsSubheading>
       <div className="grid gap-4">
@@ -450,13 +510,19 @@ export function ComponentsShowcase() {
                 id: "sobre",
                 label: "Sobre",
                 icon: <UserRound aria-hidden="true" />,
-                content: <p className="text-fg-muted">Pesquisa resistência antimicrobiana em biofilmes hospitalares.</p>,
+                content: (
+                  <p className="text-fg-muted">
+                    Pesquisa resistência antimicrobiana em biofilmes hospitalares.
+                  </p>
+                ),
               },
               {
                 id: "papers",
                 label: "Papers",
                 icon: <BookOpen aria-hidden="true" />,
-                content: <p className="text-fg-muted">3 papers na vitrine, 41 destaques recebidos.</p>,
+                content: (
+                  <p className="text-fg-muted">3 papers na vitrine, 41 destaques recebidos.</p>
+                ),
               },
               {
                 id: "forum",
@@ -467,7 +533,10 @@ export function ComponentsShowcase() {
             ]}
           />
         </Specimen>
-        <Specimen label="Steps (onboarding em etapas)" code={`<Steps label="Etapas do cadastro" current={1} steps={[{ label: "Sobre você" }, …]} />`}>
+        <Specimen
+          label="Steps (onboarding em etapas)"
+          code={`<Steps label="Etapas do cadastro" current={1} steps={[{ label: "Sobre você" }, …]} />`}
+        >
           <Steps
             label="Etapas do cadastro (exemplo)"
             current={1}
@@ -481,7 +550,12 @@ export function ComponentsShowcase() {
         </Specimen>
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <Specimen label="Pagination (?pagina=N)">
-            <Pagination page={3} totalPages={12} basePath="/design-system" searchParams={{ area: "saude" }} />
+            <Pagination
+              page={3}
+              totalPages={12}
+              basePath="/design-system"
+              searchParams={{ area: "saude" }}
+            />
           </Specimen>
           <Specimen label="DropdownMenu · Tooltip">
             <div className="flex flex-wrap items-center gap-4">
@@ -497,11 +571,30 @@ export function ComponentsShowcase() {
                   </div>
                 }
                 items={[
-                  { href: "/design-system#c-navegacao", label: "Meu perfil", icon: <UserRound aria-hidden="true" /> },
-                  { href: "/design-system#c-navegacao", label: "Notificações", icon: <Bell aria-hidden="true" /> },
-                  { href: "/design-system#c-navegacao", label: "Moderação", icon: <ShieldCheck aria-hidden="true" /> },
+                  {
+                    href: "/design-system#c-navegacao",
+                    label: "Meu perfil",
+                    icon: <UserRound aria-hidden="true" />,
+                  },
+                  {
+                    href: "/design-system#c-navegacao",
+                    label: "Notificações",
+                    icon: <Bell aria-hidden="true" />,
+                  },
+                  {
+                    href: "/design-system#c-navegacao",
+                    label: "Moderação",
+                    icon: <ShieldCheck aria-hidden="true" />,
+                  },
                   { type: "separator" },
-                  { type: "form", action: "/design-system", method: "get", label: "Sair", icon: <LogOut aria-hidden="true" />, tone: "danger" },
+                  {
+                    type: "form",
+                    action: "/design-system",
+                    method: "get",
+                    label: "Sair",
+                    icon: <LogOut aria-hidden="true" />,
+                    tone: "danger",
+                  },
                 ]}
               />
               <Tooltip content="Salvar para ler depois">
@@ -515,20 +608,32 @@ export function ComponentsShowcase() {
                   Como funciona?
                 </Button>
               </Tooltip>
+              <Tooltip
+                content="Alinhada pela borda direita: cresce para a esquerda"
+                side="bottom"
+                align="end"
+              >
+                <Button variant="outline" size="sm">
+                  align=&quot;end&quot;
+                </Button>
+              </Tooltip>
             </div>
           </Specimen>
         </div>
       </div>
 
       {/* ---------------- Feedback ---------------- */}
-      <DsSubheading id="c-feedback" description="Alertas explicam o que aconteceu e o que fazer. Mensagens que surgem após uma ação usam live={true}.">
+      <DsSubheading
+        id="c-feedback"
+        description="Alertas explicam o que aconteceu e o que fazer. Mensagens que surgem após uma ação usam live={true}."
+      >
         Feedback
       </DsSubheading>
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="grid content-start gap-3">
           <Alert variant="info" title="Sugestões feitas com IA">
-            As mentoras sugeridas foram ordenadas por afinidade de áreas e temas. Confira o perfil antes de enviar o
-            pedido.
+            As mentoras sugeridas foram ordenadas por afinidade de áreas e temas. Confira o perfil
+            antes de enviar o pedido.
           </Alert>
           <Alert variant="success" title="Pedido de mentoria enviado">
             A Dra. Beatriz recebeu sua mensagem. Você será avisada quando ela responder.
@@ -615,26 +720,57 @@ export function ComponentsShowcase() {
                 action={demoConfirmAction}
                 hiddenFields={{ id: "demo" }}
               />
+              <ConfirmDialog
+                triggerLabel="Arquivar (com erro)"
+                triggerIcon={<Archive aria-hidden="true" />}
+                triggerVariant="ghost"
+                tone="primary"
+                title="Arquivar esta conversa?"
+                description="Demonstração do erro dentro do diálogo: a ação sempre falha e o diálogo continua aberto."
+                confirmLabel="Sim, arquivar"
+                pendingLabel="Arquivando…"
+                cancelLabel="Voltar"
+                stateAction={demoConfirmFailure}
+                hiddenFields={{ id: "demo" }}
+              />
             </div>
           </div>
         </Specimen>
       </div>
 
       {/* ---------------- Dados ---------------- */}
-      <DsSubheading id="c-dados" description="Números em Bricolage com algarismos tabulares. Medidores têm role=meter e valor anunciado.">
+      <DsSubheading
+        id="c-dados"
+        description="Números em Bricolage com algarismos tabulares. Medidores têm role=meter e valor anunciado."
+      >
         Dados e medidores
       </DsSubheading>
       <StatGroup>
-        <Stat label="Pesquisadoras" value={1284} icon={<Users aria-hidden="true" />} trend={{ value: 37, label: "na semana" }} />
+        <Stat
+          label="Pesquisadoras"
+          value={1284}
+          icon={<Users aria-hidden="true" />}
+          trend={{ value: 37, label: "na semana" }}
+        />
         <Stat label="Mentoras disponíveis" value={156} icon={<Star aria-hidden="true" />} />
-        <Stat label="Papers na vitrine" value={412} icon={<BookOpen aria-hidden="true" />} trend={{ value: 12, label: "novos" }} />
+        <Stat
+          label="Papers na vitrine"
+          value={412}
+          icon={<BookOpen aria-hidden="true" />}
+          trend={{ value: 12, label: "novos" }}
+        />
         <Stat label="Destaques dados" value={15320} compact icon={<Trophy aria-hidden="true" />} />
       </StatGroup>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Specimen label="ProgressMeter">
           <div className="grid gap-5">
             <ProgressMeter label="Perfil completo" value={80} />
-            <ProgressMeter label="Vagas de mentoria ocupadas" value={50} valueLabel="1 de 2" tone="secondary" />
+            <ProgressMeter
+              label="Vagas de mentoria ocupadas"
+              value={50}
+              valueLabel="1 de 2"
+              tone="secondary"
+            />
             <ProgressMeter label="Meta de destaques" value={30} tone="accent" size="sm" />
           </div>
         </Specimen>
@@ -663,13 +799,30 @@ export function ComponentsShowcase() {
             </TableHeader>
             <TableBody>
               {[
-                { what: "Resposta em “Bolsas FAPESP 2026”", category: "bolsas-editais", reason: "Spam", when: "há 2 horas", state: "Aberta" },
-                { what: "Tópico em “Rede de apoio”", category: "shield-heart", reason: "Assédio", when: "ontem", state: "Em análise" },
+                {
+                  what: "Resposta em “Bolsas FAPESP 2026”",
+                  category: "bolsas-editais",
+                  reason: "Spam",
+                  when: "há 2 horas",
+                  state: "Aberta",
+                },
+                {
+                  what: "Tópico em “Rede de apoio”",
+                  category: "shield-heart",
+                  reason: "Assédio",
+                  when: "ontem",
+                  state: "Em análise",
+                },
               ].map((row) => (
                 <TableRow key={row.what}>
                   <TableCell className="min-w-56">
                     <span className="inline-flex items-center gap-2 font-medium">
-                      <CategoryIcon name={row.category === "bolsas-editais" ? "badge-dollar-sign" : row.category} className="size-4 text-primary" />
+                      <CategoryIcon
+                        name={
+                          row.category === "bolsas-editais" ? "badge-dollar-sign" : row.category
+                        }
+                        className="size-4 text-primary"
+                      />
                       {row.what}
                     </span>
                   </TableCell>
@@ -687,7 +840,13 @@ export function ComponentsShowcase() {
                         { href: "/design-system#c-dados", label: "Ver conteúdo" },
                         { href: "/design-system#c-dados", label: "Revelar autoria" },
                         { type: "separator" },
-                        { type: "form", action: "/design-system", method: "get", label: "Ocultar conteúdo", tone: "danger" },
+                        {
+                          type: "form",
+                          action: "/design-system",
+                          method: "get",
+                          label: "Ocultar conteúdo",
+                          tone: "danger",
+                        },
                       ]}
                     />
                   </TableCell>
@@ -699,7 +858,10 @@ export function ComponentsShowcase() {
       </div>
 
       {/* ---------------- Conteúdo ---------------- */}
-      <DsSubheading id="c-conteudo" description="Markdown de usuárias: sem HTML cru, links externos com nofollow, imagens viram links (privacidade).">
+      <DsSubheading
+        id="c-conteudo"
+        description="Markdown de usuárias: sem HTML cru, links externos com nofollow, imagens viram links (privacidade)."
+      >
         Conteúdo
       </DsSubheading>
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -709,7 +871,9 @@ export function ComponentsShowcase() {
         <div className="grid content-start gap-4">
           <Specimen label='<Markdown variant="editorial">'>
             <Markdown variant="editorial">
-              {"Nesta semana, **três papers sobre saúde da mulher** lideraram o ranking — e a comunidade abriu uma conversa necessária sobre maternidade na pós-graduação."}
+              {
+                "Nesta semana, **três papers sobre saúde da mulher** lideraram o ranking — e a comunidade abriu uma conversa necessária sobre maternidade na pós-graduação."
+              }
             </Markdown>
           </Specimen>
           <Specimen label="Kbd · Separator · VisuallyHidden">
@@ -731,7 +895,10 @@ export function ComponentsShowcase() {
       </div>
 
       {/* ---------------- Marca ---------------- */}
-      <DsSubheading id="c-marca" description="Logo em linha com o nome; LogoMark sozinho (com title) em espaços pequenos. ConstellationPattern é sempre decorativo.">
+      <DsSubheading
+        id="c-marca"
+        description="Logo em linha com o nome; LogoMark sozinho (com title) em espaços pequenos. ConstellationPattern é sempre decorativo."
+      >
         Marca e padrão
       </DsSubheading>
       <div className="grid gap-4 lg:grid-cols-3">
@@ -744,7 +911,11 @@ export function ComponentsShowcase() {
             </span>
           </div>
         </Specimen>
-        <Specimen label="ConstellationPattern" className="lg:col-span-2" contentClassName="p-0 sm:p-0">
+        <Specimen
+          label="ConstellationPattern"
+          className="lg:col-span-2"
+          contentClassName="p-0 sm:p-0"
+        >
           <div className="relative h-48 overflow-hidden bg-surface-2">
             <ConstellationPattern className="absolute inset-0 size-full text-primary/40" />
           </div>
@@ -752,14 +923,20 @@ export function ComponentsShowcase() {
       </div>
 
       {/* ---------------- Layout ---------------- */}
-      <DsSubheading id="c-layout" description="Toda página: <Container> + <PageHeader> (um h1) + <Section>s. O <main> já vem do layout raiz.">
+      <DsSubheading
+        id="c-layout"
+        description="Toda página: <Container> + <PageHeader> (um h1) + <Section>s. O <main> já vem do layout raiz."
+      >
         Layout de página
       </DsSubheading>
       <div className="mb-4 grid gap-4">
         <Specimen label="SiteHeader — visitante" contentClassName="p-0 sm:p-0">
           <SiteHeaderView account={null} sticky={false} navLabel="Principal (exemplo: visitante)" />
         </Specimen>
-        <Specimen label="SiteHeader — membra logada (moderadora, 3 notificações)" contentClassName="p-0 sm:p-0">
+        <Specimen
+          label="SiteHeader — membra logada (moderadora, 3 notificações)"
+          contentClassName="p-0 sm:p-0"
+        >
           <SiteHeaderView
             sticky={false}
             navLabel="Principal (exemplo: membra)"

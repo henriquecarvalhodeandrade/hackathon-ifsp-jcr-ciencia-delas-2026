@@ -14,16 +14,29 @@ const FILTERS: Array<{ status: ReportStatus; label: string }> = [
 const EMPTY: Record<ReportStatus, { title: string; description: string }> = {
   open: {
     title: "Nenhuma denúncia aberta",
-    description: "A fila está vazia. Obrigada por cuidar da comunidade — novas denúncias aparecem aqui.",
+    description:
+      "A fila está vazia. Obrigada por cuidar da comunidade — novas denúncias aparecem aqui.",
   },
-  resolved: { title: "Nenhuma denúncia resolvida ainda", description: "As denúncias resolvidas ficam guardadas aqui." },
-  dismissed: { title: "Nenhuma denúncia arquivada", description: "Denúncias arquivadas sem ação aparecem aqui." },
+  resolved: {
+    title: "Nenhuma denúncia resolvida ainda",
+    description: "As denúncias resolvidas ficam guardadas aqui.",
+  },
+  dismissed: {
+    title: "Nenhuma denúncia arquivada",
+    description: "Denúncias arquivadas sem ação aparecem aqui.",
+  },
 };
 
 function Guide() {
   return (
-    <aside aria-labelledby="guia-moderacao" className="rounded-card border border-border bg-surface-2 p-5 text-[0.9375rem]">
-      <h3 id="guia-moderacao" className="flex items-center gap-2 font-display text-base font-semibold text-fg">
+    <aside
+      aria-labelledby="guia-moderacao"
+      className="rounded-card border border-border bg-surface-2 p-5 text-[0.9375rem]"
+    >
+      <h3
+        id="guia-moderacao"
+        className="flex items-center gap-2 font-display text-base font-semibold text-fg"
+      >
         <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
         Antes de agir
       </h3>
@@ -31,15 +44,23 @@ function Guide() {
         <li>Abra o conteúdo e leia o contexto completo da conversa.</li>
         <li>Prefira a menor intervenção que resolve: trancar ou ocultar antes de excluir.</li>
         <li>
-          A nota da denúncia é <strong className="font-semibold text-fg">visível para quem denunciou</strong>: escreva
+          A nota da denúncia é{" "}
+          <strong className="font-semibold text-fg">visível para quem denunciou</strong>: escreva
           com cuidado, sem dados pessoais.
         </li>
-        <li>Cada ação (ocultar, trancar, excluir, resolver) entra no registro interno da moderação.</li>
         <li>
-          Revelar autoria anônima é exclusivo de administradoras, só em casos graves, com motivo registrado.
+          Cada ação (ocultar, trancar, excluir, resolver) entra no registro interno da moderação.
         </li>
         <li>
-          Siga o <Link href="/conduta" className="font-semibold text-primary underline underline-offset-4">código de conduta</Link>.
+          Revelar autoria anônima é exclusivo de administradoras, só em casos graves, com motivo
+          registrado.
+        </li>
+        <li>
+          Siga o{" "}
+          <Link href="/conduta" className="font-semibold text-primary underline underline-offset-4">
+            código de conduta
+          </Link>
+          .
         </li>
       </ul>
     </aside>
@@ -61,11 +82,17 @@ export function ReportsPanel({
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_18rem] xl:items-start">
       <div className="grid gap-5">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar denúncias por situação">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Filtrar denúncias por situação"
+        >
           {FILTERS.map((f) => (
             <ChipLink
               key={f.status}
-              href={f.status === "open" ? "/admin" : `/admin?status=${REPORT_STATUS_SLUGS[f.status]}`}
+              href={
+                f.status === "open" ? "/admin" : `/admin?status=${REPORT_STATUS_SLUGS[f.status]}`
+              }
               active={status === f.status}
               count={data.counts[f.status]}
             >
@@ -81,7 +108,11 @@ export function ReportsPanel({
             description="Recarregue a página em instantes. Se continuar, confira os logs do servidor."
           />
         ) : data.reports.length === 0 ? (
-          <EmptyState icon={<ShieldCheck />} title={EMPTY[status].title} description={EMPTY[status].description} />
+          <EmptyState
+            icon={<ShieldCheck />}
+            title={EMPTY[status].title}
+            description={EMPTY[status].description}
+          />
         ) : (
           <>
             <ol className="grid gap-4" aria-label="Denúncias">

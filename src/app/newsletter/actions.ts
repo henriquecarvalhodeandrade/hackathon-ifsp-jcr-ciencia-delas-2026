@@ -124,7 +124,8 @@ export async function subscribeToNewsletter(
   const result = await subscribe({ email, areaIds, profileId });
   if (!result.ok) return { ok: false, error: result.error, values };
   if (result.outcome === "daily_limit") return { ok: false, error: DAILY_LIMIT_MESSAGE, values };
-  if (result.outcome === "address_limit") return { ok: true, message: ADDRESS_LIMIT_MESSAGE, values };
+  if (result.outcome === "address_limit")
+    return { ok: true, message: ADDRESS_LIMIT_MESSAGE, values };
 
   revalidatePath("/newsletter");
   return { ok: true, message: NEUTRAL_SUCCESS, devNotice: devNotice(), values };

@@ -78,10 +78,10 @@ simultâneas tratada pelo `unique` do e-mail.
 Cada e-mail de confirmação gasta a cota do provedor (Resend gratuito: 100/dia) e poderia ser usado para
 encher a caixa de outra pessoa. Por isso, além dos 2 minutos entre envios:
 
-| Limite                   | Valor                                                       | Onde                                                                     |
-| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Por endereço             | **3 e-mails a cada 24 h**                                   | `CONFIRMATIONS_PER_ADDRESS_PER_DAY` (`constants.ts`)                     |
-| Global (todos somados)   | **80 por dia** (ajustável em `NEWSLETTER_CONFIRMATIONS_PER_DAY`; `0` pausa) | `getConfirmationsPerDay()` (`config.ts`)                                 |
+| Limite                 | Valor                                                                       | Onde                                                 |
+| ---------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Por endereço           | **3 e-mails a cada 24 h**                                                   | `CONFIRMATIONS_PER_ADDRESS_PER_DAY` (`constants.ts`) |
+| Global (todos somados) | **80 por dia** (ajustável em `NEWSLETTER_CONFIRMATIONS_PER_DAY`; `0` pausa) | `getConfirmationsPerDay()` (`config.ts`)             |
 
 As colunas `newsletter_subscribers.confirmation_sent_count` (e-mails na janela atual) e
 `confirmation_sent_at` (último envio) guardam a contagem; a janela recomeça quando o último envio tem
@@ -134,21 +134,40 @@ entram dados que já são públicos:
 
 ```json
 {
-  "papers": [{ "id": "…", "title": "…", "authors": ["…"], "votes": 12, "plain_summary": "…", "url": "/papers/<id>", "area_id": 3, "area": "Ecologia" }],
-  "threads": [{ "id": "…", "title": "…", "category": "Carreira acadêmica", "replies": 4, "url": "/forum/t/<id>" }],
+  "papers": [
+    {
+      "id": "…",
+      "title": "…",
+      "authors": ["…"],
+      "votes": 12,
+      "plain_summary": "…",
+      "url": "/papers/<id>",
+      "area_id": 3,
+      "area": "Ecologia"
+    }
+  ],
+  "threads": [
+    {
+      "id": "…",
+      "title": "…",
+      "category": "Carreira acadêmica",
+      "replies": 4,
+      "url": "/forum/t/<id>"
+    }
+  ],
   "mentors": [],
   "mentor_summary": { "total": 2, "areas": ["Ecologia", "Biotecnologia"] },
   "stats": { "new_members": 10, "new_papers": 3, "mentorships": 2 }
 }
 ```
 
-| Seção     | Regra                                                                                                                                                                                                                                                                                                                                                           |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `papers`  | Até 5 papers não ocultos com mais destaques **dados na janela** (desempate igual ao `get_paper_ranking`: total de votos, mais novo). Semana sem votos → até 3 papers indicados na janela.                                                                                                                                                                       |
-| `threads` | Até 4 tópicos com mais atividade na janela (respostas + reações + 1 se o tópico é novo). **Ficam de fora todos os tópicos anônimos, TODAS as categorias que aceitam anonimato** (apoio, maternidade, saúde mental) **e "Apresente-se"** (apresentações são pessoais; lista em `NEWSLETTER_EXCLUDED_CATEGORY_SLUGS`): a newsletter é pública e esses espaços são de acolhimento — nem o título sai do fórum. Tópico sem categoria conhecida também fica de fora. Nunca leva o nome de quem escreveu. |
-| `mentors` | **Sempre `[]`** (mantido por compatibilidade com o formato antigo, que trazia nomes).                                                                                                                                                                                                                                                                           |
-| `mentor_summary` | Agregado das mentoras disponíveis (`is_mentor`, `mentor_available`) que concluíram o cadastro na janela: `total` e os nomes das **áreas** delas (até 8, das mais frequentes). Nada de nomes, headlines ou links de perfil — o diretório é só para membras. Semana sem mentoras novas → `{ "total": 0, "areas": [] }` (a seção some).                                     |
-| `stats`   | `new_members` (onboarding na janela), `new_papers` (papers visíveis criados na janela), `mentorships` (pedidos aceitos na janela, `responded_at`).                                                                                                                                                                                                              |
+| Seção            | Regra                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `papers`         | Até 5 papers não ocultos com mais destaques **dados na janela** (desempate igual ao `get_paper_ranking`: total de votos, mais novo). Semana sem votos → até 3 papers indicados na janela.                                                                                                                                                                                                                                                                                                           |
+| `threads`        | Até 4 tópicos com mais atividade na janela (respostas + reações + 1 se o tópico é novo). **Ficam de fora todos os tópicos anônimos, TODAS as categorias que aceitam anonimato** (apoio, maternidade, saúde mental) **e "Apresente-se"** (apresentações são pessoais; lista em `NEWSLETTER_EXCLUDED_CATEGORY_SLUGS`): a newsletter é pública e esses espaços são de acolhimento — nem o título sai do fórum. Tópico sem categoria conhecida também fica de fora. Nunca leva o nome de quem escreveu. |
+| `mentors`        | **Sempre `[]`** (mantido por compatibilidade com o formato antigo, que trazia nomes).                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `mentor_summary` | Agregado das mentoras disponíveis (`is_mentor`, `mentor_available`) que concluíram o cadastro na janela: `total` e os nomes das **áreas** delas (até 8, das mais frequentes). Nada de nomes, headlines ou links de perfil — o diretório é só para membras. Semana sem mentoras novas → `{ "total": 0, "areas": [] }` (a seção some).                                                                                                                                                                |
+| `stats`          | `new_members` (onboarding na janela), `new_papers` (papers visíveis criados na janela), `mentorships` (pedidos aceitos na janela, `responded_at`).                                                                                                                                                                                                                                                                                                                                                  |
 
 Nada de nomes de mentoras, e-mails, bios ou conteúdo de posts. **Edições antigas** que ainda tragam
 `mentors` com nomes são lidas sem os nomes (`parseEditionContent` devolve `mentors: []` e um
@@ -290,23 +309,25 @@ uuid aleatório enviado por e-mail):
 2. **Mailpit** (somente fora de produção): a caixa falsa do Supabase local
    (<http://127.0.0.1:54324>, `POST /api/v1/send`). É detectada a partir de
    `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`; ajuste com `MAILPIT_URL` ou desligue com
-   `MAILPIT_URL=off`.
+   `MAILPIT_URL=off`. Num **build de produção rodando localmente** (`next build && next start`, ex.:
+   testes E2E), o Mailpit só é usado se `MAILPIT_URL` for informada **e** apontar para
+   `127.0.0.1`/`localhost` — um deploy de verdade nunca manda e-mails de usuárias para ela.
 3. **Nenhum:** em desenvolvimento o link de confirmação é registrado no console do servidor
    (`[newsletter] Link de confirmação para …`) — isso acontece também quando o Mailpit é usado. Em
    produção sem Resend, as inscrições ficam **fechadas** (aviso na página) e o arquivo continua público.
 
 Em desenvolvimento a página e o formulário mostram um aviso "Modo de desenvolvimento".
 
-| Variável                 | Uso                                                               |
-| ------------------------ | ----------------------------------------------------------------- |
-| `SUPABASE_SECRET_KEY`    | Obrigatória: inscrição e envio usam o service role.               |
-| `RESEND_API_KEY`         | Envio real.                                                       |
-| `NEWSLETTER_FROM`        | Remetente, ex.: `Ciência Delas <boletim@seu-dominio.org>`.        |
-| `CRON_SECRET`            | Protege `/api/cron/newsletter` (gere com `openssl rand -hex 32`). |
-| `NEXT_PUBLIC_SITE_URL`   | Base dos links dos e-mails (confirmação, descadastro, papers).    |
-| `NEWSLETTER_MAX_PER_RUN` | Teto de e-mails por execução (padrão 90).                         |
+| Variável                           | Uso                                                                               |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| `SUPABASE_SECRET_KEY`              | Obrigatória: inscrição e envio usam o service role.                               |
+| `RESEND_API_KEY`                   | Envio real.                                                                       |
+| `NEWSLETTER_FROM`                  | Remetente, ex.: `Ciência Delas <boletim@seu-dominio.org>`.                        |
+| `CRON_SECRET`                      | Protege `/api/cron/newsletter` (gere com `openssl rand -hex 32`).                 |
+| `NEXT_PUBLIC_SITE_URL`             | Base dos links dos e-mails (confirmação, descadastro, papers).                    |
+| `NEWSLETTER_MAX_PER_RUN`           | Teto de e-mails por execução (padrão 90).                                         |
 | `NEWSLETTER_CONFIRMATIONS_PER_DAY` | Teto diário de e-mails de confirmação, todos os endereços (padrão 80; `0` pausa). |
-| `MAILPIT_URL`            | Só dev: URL do Mailpit (`off` desliga).                           |
+| `MAILPIT_URL`                      | Só dev: URL do Mailpit (`off` desliga).                                           |
 
 **Resend em produção:** o remetente de testes `onboarding@resend.dev` só entrega para o e-mail da dona
 da conta Resend. Para enviar a qualquer pessoa, verifique um domínio em **Resend → Domains** (registros

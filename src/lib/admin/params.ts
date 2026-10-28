@@ -13,7 +13,10 @@ function first(value: Param): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function parseAdminTab(value: Param, { canSeeNewsletter }: { canSeeNewsletter: boolean }): AdminTab {
+export function parseAdminTab(
+  value: Param,
+  { canSeeNewsletter }: { canSeeNewsletter: boolean },
+): AdminTab {
   const v = first(value);
   if (v === "membros") return "membros";
   if (v === "registro") return "registro";
@@ -29,7 +32,9 @@ export const REPORT_STATUS_SLUGS: Record<ReportStatus, string> = {
 
 export function parseReportStatus(value: Param): ReportStatus {
   const v = first(value);
-  const match = (Object.entries(REPORT_STATUS_SLUGS) as [ReportStatus, string][]).find(([, slug]) => slug === v);
+  const match = (Object.entries(REPORT_STATUS_SLUGS) as [ReportStatus, string][]).find(
+    ([, slug]) => slug === v,
+  );
   return match?.[0] ?? "open";
 }
 

@@ -33,13 +33,15 @@ export interface DialogProps {
 
 const sizeClasses = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" } as const;
 
-const INTERACTIVE = "button, a[href], input, select, textarea, summary, [role='button'], [tabindex]";
+const INTERACTIVE =
+  "button, a[href], input, select, textarea, summary, [role='button'], [tabindex]";
 
 /** O elemento clicável do gatilho, se o clique veio dele e ele está habilitado. */
 function triggerTarget(slot: HTMLElement, target: EventTarget | null): HTMLElement | null | false {
   const element = target instanceof Element ? target.closest<HTMLElement>(INTERACTIVE) : null;
   const control = element && slot.contains(element) ? element : null;
-  if (control && (control.matches(":disabled") || control.getAttribute("aria-disabled") === "true")) return false;
+  if (control && (control.matches(":disabled") || control.getAttribute("aria-disabled") === "true"))
+    return false;
   return control;
 }
 
@@ -93,7 +95,8 @@ export function Dialog({
   // entra pelo DOM, depois da hidratação — servidor e cliente geram o mesmo HTML.
   useEffect(() => {
     const control = slotRef.current?.querySelector<HTMLElement>(INTERACTIVE);
-    if (control && !control.hasAttribute("aria-haspopup")) control.setAttribute("aria-haspopup", "dialog");
+    if (control && !control.hasAttribute("aria-haspopup"))
+      control.setAttribute("aria-haspopup", "dialog");
   }, [trigger]);
 
   const content = (
@@ -110,7 +113,13 @@ export function Dialog({
           )}
         </div>
         {dismissible && (
-          <Button variant="ghost" size="icon-sm" aria-label="Fechar" onClick={() => setOpen(false)} className="-mt-1 -mr-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Fechar"
+            onClick={() => setOpen(false)}
+            className="-mt-1 -mr-2"
+          >
             <X aria-hidden="true" />
           </Button>
         )}
@@ -161,7 +170,7 @@ export function Dialog({
         }}
         className={cn(
           "m-auto w-[calc(100%-2rem)] rounded-dialog border border-border bg-surface p-0 text-fg shadow-overlay",
-          "open:animate-pop-in backdrop:animate-fade-in",
+          "backdrop:animate-fade-in open:animate-pop-in",
           sizeClasses[size],
           className,
         )}

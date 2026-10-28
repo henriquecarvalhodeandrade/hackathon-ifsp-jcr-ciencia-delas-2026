@@ -53,10 +53,14 @@ function TargetPreview({ target }: { target: ReportTargetPreview }) {
     case "thread":
       return (
         <div className="grid gap-1.5">
-          <p className="eyebrow text-fg-subtle">Tópico{target.categoryName ? ` · ${target.categoryName}` : ""}</p>
+          <p className="eyebrow text-fg-subtle">
+            Tópico{target.categoryName ? ` · ${target.categoryName}` : ""}
+          </p>
           <p className="font-display text-lg leading-snug font-semibold text-fg">{target.title}</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-fg-muted">
-            <span>Por {target.isAnonymous ? <Anonymous /> : (target.authorName ?? "perfil removido")}</span>
+            <span>
+              Por {target.isAnonymous ? <Anonymous /> : (target.authorName ?? "perfil removido")}
+            </span>
             {target.isPinned && (
               <Badge variant="primary">
                 <Pin aria-hidden="true" />
@@ -83,7 +87,9 @@ function TargetPreview({ target }: { target: ReportTargetPreview }) {
             {target.excerpt}
           </blockquote>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-fg-muted">
-            <span>Por {target.isAnonymous ? <Anonymous /> : (target.authorName ?? "perfil removido")}</span>
+            <span>
+              Por {target.isAnonymous ? <Anonymous /> : (target.authorName ?? "perfil removido")}
+            </span>
             {open}
           </div>
         </div>
@@ -94,7 +100,9 @@ function TargetPreview({ target }: { target: ReportTargetPreview }) {
           <p className="eyebrow text-fg-subtle">Paper</p>
           <p className="font-serif text-lg leading-snug font-semibold text-fg">{target.title}</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-fg-muted">
-            {target.authors.length > 0 && <span className="line-clamp-1">{target.authors.join(", ")}</span>}
+            {target.authors.length > 0 && (
+              <span className="line-clamp-1">{target.authors.join(", ")}</span>
+            )}
             {target.isHidden && (
               <Badge variant="warning">
                 <EyeOff aria-hidden="true" />
@@ -108,7 +116,9 @@ function TargetPreview({ target }: { target: ReportTargetPreview }) {
     case "paper_comment":
       return (
         <div className="grid gap-1.5">
-          <p className="eyebrow text-fg-subtle">Comentário em “{target.paperTitle ?? "paper removido"}”</p>
+          <p className="eyebrow text-fg-subtle">
+            Comentário em “{target.paperTitle ?? "paper removido"}”
+          </p>
           <blockquote className="border-l-2 border-border-strong pl-3 text-[0.9375rem] whitespace-pre-line text-fg">
             {target.excerpt}
           </blockquote>
@@ -137,7 +147,15 @@ function TargetPreview({ target }: { target: ReportTargetPreview }) {
 }
 
 /** Uma denúncia na fila da moderação: motivo, relato, prévia do alvo e ações. */
-export function ReportCard({ report, isAdmin, now }: { report: ReportView; isAdmin: boolean; now: Date }) {
+export function ReportCard({
+  report,
+  isAdmin,
+  now,
+}: {
+  report: ReportView;
+  isAdmin: boolean;
+  now: Date;
+}) {
   const titleId = `denuncia-${report.id}`;
   return (
     <Card as="article" aria-labelledby={titleId} className="grid gap-4 p-5 sm:p-6">
@@ -160,13 +178,16 @@ export function ReportCard({ report, isAdmin, now }: { report: ReportView; isAdm
           <time dateTime={toIsoString(report.createdAt)} title={formatDateTime(report.createdAt)}>
             {formatRelativeTime(report.createdAt, now)}
           </time>{" "}
-          por <span className="font-semibold text-fg">{report.reporter?.name ?? "conta removida"}</span>
+          por{" "}
+          <span className="font-semibold text-fg">{report.reporter?.name ?? "conta removida"}</span>
         </h3>
       </header>
 
       {report.details && (
         <div className="rounded-control bg-surface-2 p-3.5">
-          <p className="mb-1 text-xs font-bold tracking-wide text-fg-subtle uppercase">Relato da denunciante</p>
+          <p className="mb-1 text-xs font-bold tracking-wide text-fg-subtle uppercase">
+            Relato da denunciante
+          </p>
           <p className="text-[0.9375rem] whitespace-pre-line text-fg">{report.details}</p>
         </div>
       )}
@@ -175,7 +196,9 @@ export function ReportCard({ report, isAdmin, now }: { report: ReportView; isAdm
         <TargetPreview target={report.target} />
       </div>
 
-      {report.status === "open" && <ContentActions target={report.target} reportId={report.id} isAdmin={isAdmin} />}
+      {report.status === "open" && (
+        <ContentActions target={report.target} reportId={report.id} isAdmin={isAdmin} />
+      )}
 
       {report.status !== "open" && (report.resolver || report.resolvedAt) && (
         <p className="text-sm text-fg-muted">
@@ -189,7 +212,10 @@ export function ReportCard({ report, isAdmin, now }: { report: ReportView; isAdm
           {report.resolvedAt ? (
             <>
               {" "}
-              em <time dateTime={toIsoString(report.resolvedAt)}>{formatDateTime(report.resolvedAt)}</time>
+              em{" "}
+              <time dateTime={toIsoString(report.resolvedAt)}>
+                {formatDateTime(report.resolvedAt)}
+              </time>
             </>
           ) : null}
           .

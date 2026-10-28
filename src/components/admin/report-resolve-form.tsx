@@ -36,7 +36,13 @@ function StatusButton({
 }
 
 /** Resolver / arquivar (ou reabrir) uma denúncia, com nota opcional da moderação. */
-export function ReportResolveForm({ reportId, status }: { reportId: string; status: ReportStatus }) {
+export function ReportResolveForm({
+  reportId,
+  status,
+}: {
+  reportId: string;
+  status: ReportStatus;
+}) {
   const [error, setError] = useState<{ message: string; note?: string } | null>(null);
   const noteId = useId();
 
@@ -46,9 +52,15 @@ export function ReportResolveForm({ reportId, status }: { reportId: string; stat
       const result = await resolveReport(null, formData);
       if (!result) return;
       if (result.ok) announce(result.message);
-      else setError({ message: result.fieldErrors?.note?.[0] ?? result.error, note: String(formData.get("note") ?? "") });
+      else
+        setError({
+          message: result.fieldErrors?.note?.[0] ?? result.error,
+          note: String(formData.get("note") ?? ""),
+        });
     } catch {
-      setError({ message: "Não conseguimos falar com o servidor. Verifique sua conexão e tente de novo." });
+      setError({
+        message: "Não conseguimos falar com o servidor. Verifique sua conexão e tente de novo.",
+      });
     }
   }
 
@@ -68,14 +80,17 @@ export function ReportResolveForm({ reportId, status }: { reportId: string; stat
           maxLength={800}
           defaultValue={error?.note}
           placeholder={
-            open ? "Ex.: o conteúdo foi removido. Obrigada por avisar." : "Ex.: a denúncia voltou para uma nova análise."
+            open
+              ? "Ex.: o conteúdo foi removido. Obrigada por avisar."
+              : "Ex.: a denúncia voltou para uma nova análise."
           }
           aria-describedby={`${noteId}-dica`}
         />
         <p id={`${noteId}-dica`} className="text-sm text-fg-subtle">
-          <strong className="font-semibold text-fg-muted">Visível para quem denunciou:</strong> ela recebe um aviso
-          quando a denúncia é resolvida ou arquivada, com esta nota. Escreva só o necessário, sem dados pessoais nem
-          detalhes internos — as ações da moderação já ficam no registro interno.
+          <strong className="font-semibold text-fg-muted">Visível para quem denunciou:</strong> ela
+          recebe um aviso quando a denúncia é resolvida ou arquivada, com esta nota. Escreva só o
+          necessário, sem dados pessoais nem detalhes internos — as ações da moderação já ficam no
+          registro interno.
         </p>
       </div>
       <FormMessage tone="error">{error?.message}</FormMessage>

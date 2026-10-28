@@ -13,8 +13,8 @@ const PERKS = [
   },
   {
     icon: HeartHandshake,
-    title: "Mentoras na rede",
-    text: "Quem chegou para orientar pesquisadoras em início de carreira — e como pedir mentoria.",
+    title: "Novas mentoras",
+    text: "Quantas mentoras chegaram à rede e de quais áreas — e como pedir mentoria. Nomes e perfis ficam só para membras.",
   },
 ] as const;
 

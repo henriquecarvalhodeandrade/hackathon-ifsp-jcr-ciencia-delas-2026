@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseAdminTab, parsePage, parseReportStatus, parseRoleFilter, parseSearch } from "./params";
+import {
+  parseAdminTab,
+  parsePage,
+  parseReportStatus,
+  parseRoleFilter,
+  parseSearch,
+} from "./params";
 
 describe("parâmetros do painel", () => {
   it("aba: newsletter só para quem pode ver; padrão denúncias", () => {

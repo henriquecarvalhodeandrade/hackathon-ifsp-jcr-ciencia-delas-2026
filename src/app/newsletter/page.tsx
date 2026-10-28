@@ -23,7 +23,7 @@ import { canAcceptSubscriptions, getSubscriptionForEmail } from "@/lib/newslette
 export const metadata: Metadata = {
   title: "Newsletter",
   description:
-    "Boletim Delas: toda segunda-feira, os papers de pesquisadoras mais destacados pela comunidade, conversas do fórum e mentoras na rede.",
+    "Boletim Delas: toda segunda-feira, os papers de pesquisadoras mais destacados pela comunidade, conversas do fórum e as novas mentoras da rede.",
 };
 
 function parsePage(value: string | string[] | undefined): number {
@@ -55,7 +55,7 @@ export default async function NewsletterPage({
       <PageHeader
         eyebrow="Newsletter semanal"
         title="Boletim Delas"
-        description="Toda segunda-feira, os papers de pesquisadoras mais destacados pela comunidade, as conversas que movimentaram o fórum e as mentoras na rede — direto no seu e-mail."
+        description="Toda segunda-feira, os papers de pesquisadoras mais destacados pela comunidade, as conversas que movimentaram o fórum e as novas mentoras da rede — direto no seu e-mail."
       />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">

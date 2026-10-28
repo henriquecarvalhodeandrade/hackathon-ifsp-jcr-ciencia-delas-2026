@@ -48,7 +48,14 @@ export type ReportTargetPreview =
       authorName: string | null;
       href: string;
     }
-  | { kind: "profile"; id: string; fullName: string; headline: string | null; role: UserRole; href: string }
+  | {
+      kind: "profile";
+      id: string;
+      fullName: string;
+      headline: string | null;
+      role: UserRole;
+      href: string;
+    }
   | { kind: "missing"; type: ReportTarget };
 
 export interface ReportView {
@@ -100,7 +107,9 @@ async function loadTargets(
   supabase: Awaited<ReturnType<typeof createClient>>,
   rows: Array<{ target_type: ReportTarget; target_id: string }>,
 ): Promise<Map<string, ReportTargetPreview>> {
-  const ids = (type: ReportTarget) => [...new Set(rows.filter((r) => r.target_type === type).map((r) => r.target_id))];
+  const ids = (type: ReportTarget) => [
+    ...new Set(rows.filter((r) => r.target_type === type).map((r) => r.target_id)),
+  ];
   const map = new Map<string, ReportTargetPreview>();
   const key = (type: ReportTarget, id: string) => `${type}:${id}`;
 
@@ -114,7 +123,9 @@ async function loadTargets(
     threadIds.length
       ? supabase
           .from("forum_threads")
-          .select("id, title, is_anonymous, is_locked, is_pinned, author:profiles(full_name), category:forum_categories(name)")
+          .select(
+            "id, title, is_anonymous, is_locked, is_pinned, author:profiles(full_name), category:forum_categories(name)",
+          )
           .in("id", threadIds)
       : null,
     postIds.length
@@ -125,14 +136,18 @@ async function loadTargets(
           )
           .in("id", postIds)
       : null,
-    paperIds.length ? supabase.from("papers").select("id, title, authors, is_hidden").in("id", paperIds) : null,
+    paperIds.length
+      ? supabase.from("papers").select("id, title, authors, is_hidden").in("id", paperIds)
+      : null,
     commentIds.length
       ? supabase
           .from("paper_comments")
           .select("id, paper_id, body, author:profiles(full_name), paper:papers(id, title)")
           .in("id", commentIds)
       : null,
-    profileIds.length ? supabase.from("profiles").select("id, full_name, headline, role").in("id", profileIds) : null,
+    profileIds.length
+      ? supabase.from("profiles").select("id, full_name, headline, role").in("id", profileIds)
+      : null,
   ]);
 
   for (const t of threads?.data ?? []) {
@@ -196,14 +211,18 @@ async function loadTargets(
   }
 
   for (const result of [threads, posts, papers, comments, profiles]) {
-    if (result?.error) console.error("[admin] falha ao carregar alvo de denúncia", result.error.code);
+    if (result?.error)
+      console.error("[admin] falha ao carregar alvo de denúncia", result.error.code);
   }
   return map;
 }
 
 export const REPORTS_PAGE_SIZE = 15;
 
-export async function listReports(status: ReportStatus, requestedPage: number): Promise<ReportsPage> {
+export async function listReports(
+  status: ReportStatus,
+  requestedPage: number,
+): Promise<ReportsPage> {
   const supabase = await createClient();
 
   const countFor = (s: ReportStatus) =>
@@ -220,7 +239,10 @@ export async function listReports(status: ReportStatus, requestedPage: number): 
         )
         .eq("status", status)
         // Fila aberta: as mais antigas primeiro. Histórico: as resolvidas mais recentemente primeiro.
-        .order(status === "open" ? "created_at" : "resolved_at", { ascending: status === "open", nullsFirst: false })
+        .order(status === "open" ? "created_at" : "resolved_at", {
+          ascending: status === "open",
+          nullsFirst: false,
+        })
         .range(from, from + REPORTS_PAGE_SIZE - 1)
     );
   };
@@ -234,7 +256,11 @@ export async function listReports(status: ReportStatus, requestedPage: number): 
   ]);
   let list = firstList;
 
-  const counts = { open: open.count ?? 0, resolved: resolved.count ?? 0, dismissed: dismissed.count ?? 0 };
+  const counts = {
+    open: open.count ?? 0,
+    resolved: resolved.count ?? 0,
+    dismissed: dismissed.count ?? 0,
+  };
   // Página além do fim (ex.: a última denúncia da página 2 acabou de ser resolvida): mostra a última.
   if (list.error?.code === RANGE_NOT_SATISFIABLE) {
     page = lastPage(counts[status], REPORTS_PAGE_SIZE);
@@ -268,13 +294,25 @@ export async function listReports(status: ReportStatus, requestedPage: number): 
       createdAt: r.created_at,
       resolvedAt: r.resolved_at,
       reporter: reporter ? { id: reporter.id, name: reporter.full_name?.trim() || "Membra" } : null,
-      resolver: resolver ? { id: resolver.id, name: resolver.full_name?.trim() || "Moderação" } : null,
-      target: targets.get(`${r.target_type}:${r.target_id}`) ?? { kind: "missing", type: r.target_type },
+      resolver: resolver
+        ? { id: resolver.id, name: resolver.full_name?.trim() || "Moderação" }
+        : null,
+      target: targets.get(`${r.target_type}:${r.target_id}`) ?? {
+        kind: "missing",
+        type: r.target_type,
+      },
     };
   });
 
   const total = list.count ?? reports.length;
-  return { reports, counts, total, totalPages: lastPage(total, REPORTS_PAGE_SIZE), page, error: false };
+  return {
+    reports,
+    counts,
+    total,
+    totalPages: lastPage(total, REPORTS_PAGE_SIZE),
+    page,
+    error: false,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -376,7 +414,9 @@ export async function listAuditLog(requestedPage: number): Promise<AuditPage> {
   let page = requestedPage;
   let list = await pageQuery(page);
   if (list.error?.code === RANGE_NOT_SATISFIABLE) {
-    const { count } = await supabase.from("moderation_audit_log").select("id", { count: "exact", head: true });
+    const { count } = await supabase
+      .from("moderation_audit_log")
+      .select("id", { count: "exact", head: true });
     page = lastPage(count ?? 0, AUDIT_PAGE_SIZE);
     list = await pageQuery(page);
   }
@@ -398,7 +438,15 @@ export async function listAuditLog(requestedPage: number): Promise<AuditPage> {
 
 export type MemberRow = Pick<
   Tables<"profiles">,
-  "id" | "full_name" | "avatar_url" | "role" | "institution" | "career_stage" | "is_mentor" | "onboarded_at" | "created_at"
+  | "id"
+  | "full_name"
+  | "avatar_url"
+  | "role"
+  | "institution"
+  | "career_stage"
+  | "is_mentor"
+  | "onboarded_at"
+  | "created_at"
 >;
 
 export interface MembersPage {
@@ -427,10 +475,13 @@ export async function listMembers({
   const pageQuery = (page: number, head = false) => {
     let query = supabase
       .from("profiles")
-      .select("id, full_name, avatar_url, role, institution, career_stage, is_mentor, onboarded_at, created_at", {
-        count: "exact",
-        head,
-      })
+      .select(
+        "id, full_name, avatar_url, role, institution, career_stage, is_mentor, onboarded_at, created_at",
+        {
+          count: "exact",
+          head,
+        },
+      )
       .order("created_at", { ascending: false });
     if (!head) {
       const from = (page - 1) * MEMBERS_PAGE_SIZE;
@@ -452,7 +503,11 @@ export async function listMembers({
     countRole("admin"),
   ]);
   let list = firstList;
-  const roleCounts = { member: members.count ?? 0, moderator: moderators.count ?? 0, admin: admins.count ?? 0 };
+  const roleCounts = {
+    member: members.count ?? 0,
+    moderator: moderators.count ?? 0,
+    admin: admins.count ?? 0,
+  };
   if (list.error?.code === RANGE_NOT_SATISFIABLE) {
     const { count } = await pageQuery(1, true);
     page = lastPage(count ?? 0, MEMBERS_PAGE_SIZE);
@@ -501,7 +556,9 @@ export async function listEditionsForAdmin(): Promise<EditionsList> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("newsletter_editions")
-    .select("id, slug, title, status, period_start, period_end, published_at, sent_at, recipients_count, created_at")
+    .select(
+      "id, slug, title, status, period_start, period_end, published_at, sent_at, recipients_count, created_at",
+    )
     .order("created_at", { ascending: false })
     .limit(20);
   if (error) console.error("[admin] falha ao listar edições", error.code);

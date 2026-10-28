@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BookOpen, HeartHandshake, Lock, MessagesSquare, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  HeartHandshake,
+  Lock,
+  MessagesSquare,
+  Star,
+} from "lucide-react";
 import {
   Badge,
   Card,
@@ -205,7 +213,9 @@ function MentorsSection({
                 : `${formatNumber(summary.total)} novas mentoras`}
             </p>
             <p className="text-fg-muted">
-              {summary.total === 1 ? "chegou à rede nesta semana." : "chegaram à rede nesta semana."}
+              {summary.total === 1
+                ? "chegou à rede nesta semana."
+                : "chegaram à rede nesta semana."}
             </p>
           </div>
         </div>

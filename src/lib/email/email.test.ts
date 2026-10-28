@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { maskEmail, normalizeEmail, parseAddress, parseRetryAfter } from "./address";
+import { getMailpitUrl } from "./config";
 import { sendBatch, sendEmail } from "./resend";
 import type { EmailMessage } from "./types";
 
@@ -30,6 +31,38 @@ describe("address helpers", () => {
     expect(parseRetryAfter(new Date(10_000).toUTCString(), 4_000)).toBe(6000);
     expect(parseRetryAfter("lixo")).toBeNull();
     expect(parseRetryAfter(null)).toBeNull();
+  });
+});
+
+describe("getMailpitUrl", () => {
+  it("em produção só aceita MAILPIT_URL explícita no próprio computador", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    try {
+      vi.stubEnv("MAILPIT_URL", "");
+      expect(getMailpitUrl()).toBeNull();
+      vi.stubEnv("MAILPIT_URL", "http://127.0.0.1:54324/");
+      expect(getMailpitUrl()).toBe("http://127.0.0.1:54324");
+      vi.stubEnv("MAILPIT_URL", "https://mailpit.exemplo.org");
+      expect(getMailpitUrl()).toBeNull();
+      vi.stubEnv("MAILPIT_URL", "off");
+      expect(getMailpitUrl()).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("fora de produção deduz do Supabase local e respeita MAILPIT_URL=off", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    try {
+      vi.stubEnv("MAILPIT_URL", "");
+      expect(getMailpitUrl()).toBe("http://127.0.0.1:54324");
+      vi.stubEnv("MAILPIT_URL", "off");
+      expect(getMailpitUrl()).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

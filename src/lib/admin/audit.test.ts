@@ -57,8 +57,12 @@ describe("cleanAuditReason", () => {
 describe("appendToResolutionNote", () => {
   it("acrescenta numa linha nova, sem repetir a mesma frase", () => {
     expect(appendToResolutionNote(null, "Conteúdo excluído.")).toBe("Conteúdo excluído.");
-    expect(appendToResolutionNote("Em análise.", "Conteúdo excluído.")).toBe("Em análise.\nConteúdo excluído.");
-    expect(appendToResolutionNote("Conteúdo excluído.", "Conteúdo excluído.")).toBe("Conteúdo excluído.");
+    expect(appendToResolutionNote("Em análise.", "Conteúdo excluído.")).toBe(
+      "Em análise.\nConteúdo excluído.",
+    );
+    expect(appendToResolutionNote("Conteúdo excluído.", "Conteúdo excluído.")).toBe(
+      "Conteúdo excluído.",
+    );
     expect(appendToResolutionNote("  ", "  ")).toBeNull();
   });
 
