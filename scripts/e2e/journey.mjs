@@ -1779,7 +1779,13 @@ async function sweep() {
     }
     await page.keyboard.press("Escape");
     await poll(async () => !(await menu.isVisible()), "menu fechado");
-    assert((await trigger.getAttribute("aria-expanded")) === "false", "aria-expanded não voltou");
+    // O Esc fecha o <dialog> na hora, mas o evento "close" (que atualiza o estado do React) chega
+    // numa tarefa seguinte: espera o atributo em vez de ler uma vez só.
+    await poll(
+      async () => (await trigger.getAttribute("aria-expanded")) === "false",
+      "aria-expanded voltar para false",
+      { timeout: 5_000, interval: 100 },
+    );
     const back = await page.evaluate(() => document.activeElement?.textContent?.trim());
     assert(back === "Abrir menu", `o foco não voltou ao botão (está em “${back}”)`);
     await context.close();
