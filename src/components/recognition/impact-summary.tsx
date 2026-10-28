@@ -7,6 +7,7 @@ import {
   formatAverage,
   missingForResults,
   outcomeValueLabel,
+  pendingForNextBlock,
   type ImpactData,
 } from "@/lib/recognition/impact";
 import { loadImpact } from "@/lib/recognition/queries";
@@ -60,6 +61,7 @@ function ImpactContent({
   compact: boolean;
 }) {
   const missing = missingForResults(data);
+  const pending = pendingForNextBlock(data);
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
@@ -109,7 +111,7 @@ function ImpactContent({
         <div className="grid gap-5 rounded-card border border-border bg-surface p-5 shadow-card sm:p-6">
           <div className="grid gap-1">
             <p className="font-display text-lg font-semibold text-fg">
-              Entre as {data.menteeFeedback} mentorandas que responderam
+              Entre as {data.publishedFeedback} mentorandas que responderam
             </p>
             {data.helpfulnessAvg !== null && (
               <p className="text-sm text-fg-muted">
@@ -118,6 +120,14 @@ function ImpactContent({
                   {formatAverage(data.helpfulnessAvg)} de 5
                 </strong>{" "}
                 para quanto a mentoria ajudou.
+              </p>
+            )}
+            {pending > 0 && (
+              <p className="text-sm text-fg-muted">
+                {pending === 1
+                  ? "O retorno mais recente entra"
+                  : `Os ${pending} retornos mais recentes entram`}{" "}
+                na conta quando o próximo bloco de {data.kMin} se completar.
               </p>
             )}
           </div>
@@ -139,7 +149,7 @@ function ImpactContent({
                   <ProgressMeter
                     value={outcome.percent}
                     label={outcome.label}
-                    valueLabel={outcomeValueLabel(outcome, data.menteeFeedback)}
+                    valueLabel={outcomeValueLabel(outcome, data.publishedFeedback)}
                     tone="secondary"
                     className="[&_.tabular]:whitespace-nowrap"
                   />
@@ -170,6 +180,11 @@ function ImpactContent({
             Nada aparece antes de {data.kMin} retornos, e opções marcadas por menos de {CELL_MIN}{" "}
             pessoas aparecem como “{SUPPRESSED_LABEL}”, para que ninguém possa ser identificada.
             Notas e comentários individuais nunca são publicados.
+          </p>
+          <p>
+            Os resultados são atualizados em blocos de {data.kMin} retornos. Assim, ninguém consegue
+            descobrir a resposta de uma pessoa comparando os números de antes e de depois que ela
+            respondeu.
           </p>
           {data.isDemo && (
             <p>
