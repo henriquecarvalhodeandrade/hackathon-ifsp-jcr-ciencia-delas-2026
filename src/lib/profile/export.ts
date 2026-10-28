@@ -9,7 +9,8 @@ import type { Tables } from "@/lib/database.types";
  *   - cada registro passa por uma lista de campos permitidos (nada de tokens, search_text,
  *     notas da moderação ou quem resolveu a denúncia);
  *   - de outras pessoas, só `{ id, full_name }` da outra participante da mentoria e da mentora
- *     sugerida;
+ *     sugerida — e, nas conversas da mentoria, as mensagens trocadas com ela (o que ela mesma
+ *     leu e escreveu);
  *   - tópicos e respostas anônimos dela entram marcados com `is_anonymous: true`.
  *
  * Formato: seções com nomes em português; dentro de cada registro, os nomes das colunas do banco
@@ -76,6 +77,15 @@ const REQUEST_FIELDS = [
   "updated_at",
   "responded_at",
 ] as const satisfies ReadonlyArray<keyof Tables<"mentorship_requests">>;
+
+/** Mensagens da conversa da mentoria (as dela e as que ela recebeu). */
+const MESSAGE_FIELDS = [
+  "id",
+  "sender_id",
+  "body",
+  "created_at",
+  "read_at",
+] as const satisfies ReadonlyArray<keyof Tables<"mentorship_messages">>;
 
 const SUGGESTION_FIELDS = [
   "score",
@@ -206,6 +216,16 @@ export type ExportMentorshipRequestSource = Fields<
     mentee: PersonRef | null;
     mentor: PersonRef | null;
   };
+export type ExportMessageSource = Fields<Tables<"mentorship_messages">, typeof MESSAGE_FIELDS> &
+  Pick<Tables<"mentorship_messages">, "request_id">;
+export type ExportMessage = Fields<Tables<"mentorship_messages">, typeof MESSAGE_FIELDS>;
+export interface ExportConversation {
+  request_id: string;
+  /** Papel dela nesta mentoria. */
+  papel: "mentoranda" | "mentora";
+  outra_participante: PersonRef;
+  mensagens: ExportMessage[];
+}
 export type ExportSuggestionSource = Fields<
   Tables<"mentor_suggestions">,
   typeof SUGGESTION_FIELDS
@@ -244,6 +264,8 @@ export interface ExportSources {
   profile: ExportProfile | null;
   areas: ExportArea[];
   mentorshipRequests: ExportMentorshipRequestSource[];
+  /** Mensagens das conversas das mentorias dela (o RLS só devolve as das participantes). */
+  messages: ExportMessageSource[];
   suggestions: ExportSuggestionSource[];
   /** Tópicos assinados por ela + os anônimos dela (pode haver repetidos). */
   threads: ExportThreadSource[];
@@ -281,6 +303,8 @@ export interface DataExport {
     sugestoes_salvas: Array<
       Fields<Tables<"mentor_suggestions">, typeof SUGGESTION_FIELDS> & { mentora: PersonRef }
     >;
+    /** Conversas com pelo menos uma mensagem, na ordem dos pedidos. */
+    conversas: ExportConversation[];
   };
   forum: {
     topicos: Array<
@@ -340,6 +364,37 @@ function uniqueBy<T>(rows: T[], key: (row: T) => string): T[] {
   });
 }
 
+/**
+ * Uma conversa por mentoria dela (só as que têm mensagens). Mensagens de pedidos que não são
+ * dela, ou de alguém que não participa do pedido, ficam de fora mesmo se vierem na consulta.
+ */
+function buildConversations(
+  requests: ExportMentorshipRequestSource[],
+  messages: ExportMessageSource[],
+  me: string,
+): ExportConversation[] {
+  const byRequest = new Map<string, ExportMessageSource[]>();
+  for (const message of uniqueBy(messages, (m) => m.id)) {
+    const list = byRequest.get(message.request_id) ?? [];
+    list.push(message);
+    byRequest.set(message.request_id, list);
+  }
+  return requests.flatMap((r) => {
+    const participants = new Set([r.mentee_id, r.mentor_id]);
+    const list = (byRequest.get(r.id) ?? []).filter((m) => participants.has(m.sender_id));
+    if (list.length === 0) return [];
+    const mentee = r.mentee_id === me;
+    return [
+      {
+        request_id: r.id,
+        papel: mentee ? "mentoranda" : "mentora",
+        outra_participante: mentee ? person(r.mentor, r.mentor_id) : person(r.mentee, r.mentee_id),
+        mensagens: byCreatedAt(list).map((m) => pick(m, MESSAGE_FIELDS)),
+      },
+    ];
+  });
+}
+
 export function buildDataExport(sources: ExportSources): DataExport {
   const me = sources.account.id;
   const anonThreads = new Set(
@@ -355,7 +410,7 @@ export function buildDataExport(sources: ExportSources): DataExport {
 
   const observacoes = [
     "Tópicos e respostas que você publicou como anônima aparecem com is_anonymous = true. Este arquivo liga o seu nome a eles: guarde-o em lugar seguro e só compartilhe se quiser.",
-    "De outras pessoas, o arquivo traz só o id e o nome de quem participou das suas mentorias e das mentoras sugeridas a você.",
+    "De outras pessoas, o arquivo traz só o id e o nome de quem participou das suas mentorias e das mentoras sugeridas a você, além das mensagens que vocês trocaram nas conversas da mentoria.",
     "Não entram aqui: a representação numérica do perfil usada pela IA (embedding, que pode ser recalculada), as anotações da moderação sobre as suas denúncias e os registros técnicos dos provedores.",
   ];
   if (!sources.newsletter.available) observacoes.push(NEWSLETTER_UNAVAILABLE);
@@ -392,6 +447,7 @@ export function buildDataExport(sources: ExportSources): DataExport {
       sugestoes_salvas: [...sources.suggestions]
         .sort((a, b) => a.rank - b.rank)
         .map((s) => ({ ...pick(s, SUGGESTION_FIELDS), mentora: person(s.mentor, s.mentor_id) })),
+      conversas: buildConversations(requests, sources.messages, me),
     },
     forum: {
       topicos: byCreatedAt(uniqueBy(sources.threads, (t) => t.id)).map((t) => ({

@@ -32,7 +32,9 @@
  *       MAILPIT_URL=http://127.0.0.1:54324 npx next start -p 3400
  *     Os links dos e-mails (Supabase Auth usa o site_url do config.toml) são reescritos para
  *     BASE_URL, então a porta do app não precisa ser a 3000.
- *   - Playwright + Chromium (global ou no projeto: `npx playwright install chromium`).
+ *   - Playwright: devDependency com versão fixa no package.json (vem com `npm install`/`npm ci`); o
+ *     Chromium dela: `npx playwright install chromium` (no Linux sem as bibliotecas do sistema, use
+ *     `npx playwright install --with-deps chromium`, como no CI).
  *   - Uma execução por vez: o Boletim da semana é gerado e enviado de verdade (para o Mailpit).
  *
  * Uso (na raiz do repositório)
@@ -46,7 +48,13 @@
  *   ONLY_SWEEP=1           só a varredura (sem a jornada)
  *   KEEP_DATA=1            não apaga os dados criados (para investigar; rode de novo para limpar)
  *   HEADED=1               mostra o navegador
- * Sai com código 1 se alguma etapa ou verificação falhar (o resumo lista cada problema).
+ * Sai com código 1 se alguma etapa ou verificação falhar (o resumo lista cada problema) e com 2 se
+ * faltar pré-requisito (variáveis, app, Mailpit ou Playwright).
+ *
+ * No CI (GitHub Actions, job "e2e" de .github/workflows/ci.yml) roda contra `next start -p 3000` com
+ * o Supabase local do runner; lá cada etapa ou problema que falhar vira uma anotação de erro, o resumo
+ * vai para a aba Summary do job e, em caso de falha, a pasta OUT_DIR é enviada como artefato.
+ * Detalhes em docs/07-setup-e-deploy.md §7.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -73,7 +81,7 @@ function loadPlaywright() {
     }
   }
   console.error(
-    "Playwright não encontrado. Instale com `npm i -D playwright && npx playwright install chromium`.",
+    "Playwright não encontrado. Rode `npm install` (ele é devDependency) e `npx playwright install chromium`.",
   );
   process.exit(2);
 }
@@ -1019,13 +1027,24 @@ async function journey() {
       await np.getByLabel(/^DOI/).fill(LOOKUP_DOI);
       await np.getByRole("button", { name: "Buscar dados pelo DOI" }).click();
       const title = np.getByLabel("Título");
-      let viaLookup = true;
+      // A busca termina com o título preenchido ou com o aviso de erro do formulário (Crossref fora
+      // do ar, sem rede no servidor, DOI não encontrado ou já na Vitrine): nos dois casos, segue.
+      const lookupError = np.getByText(
+        /O Crossref não respondeu|Não encontramos esse DOI|O Crossref respondeu num formato|já está na Vitrine/,
+      );
+      let viaLookup = false;
+      let fallback = "";
       try {
-        await poll(async () => (await title.inputValue()).trim().length > 0, "título do Crossref", {
-          timeout: 30_000,
-        });
+        await poll(
+          async () =>
+            (await title.inputValue()).trim().length > 0 || (await lookupError.count()) > 0,
+          "resposta da busca no Crossref",
+          { timeout: 30_000 },
+        );
+        viaLookup = (await title.inputValue()).trim().length > 0;
+        if (!viaLookup) fallback = (await lookupError.first().innerText()).trim();
       } catch {
-        viaLookup = false;
+        fallback = "a busca não respondeu em 30 s";
       }
       const { data: existing } = await db
         .from("papers")
@@ -1034,6 +1053,7 @@ async function journey() {
         .maybeSingle();
       if (!viaLookup || existing) {
         // Caminho alternativo: Crossref fora do ar/lento ou DOI já na Vitrine.
+        if (viaLookup) fallback = "DOI já na Vitrine";
         viaLookup = false;
         await np.getByLabel(/^DOI/).fill(`10.5555/${TAG}`);
         await title.fill(`Paper de teste automatizado (${TAG})`);
@@ -1067,7 +1087,7 @@ async function journey() {
       ctx.paperId = np.url().match(/\/papers\/([0-9a-f-]{36})/)[1];
       created.paperIds.push(ctx.paperId);
       ctx.paperTitle = (await np.getByRole("heading", { level: 1 }).innerText()).trim();
-      return `${viaLookup ? "dados do Crossref" : "preenchido à mão (Crossref indisponível)"} → ${ctx.paperId}`;
+      return `${viaLookup ? "dados do Crossref" : `preenchido à mão (${fallback})`} → ${ctx.paperId}`;
     },
     { needs: ["onboarded"] },
   );
@@ -1554,6 +1574,72 @@ async function sweep() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// GitHub Actions: anotações de erro e resumo do job (só quando GITHUB_ACTIONS=true)
+// ---------------------------------------------------------------------------------------------
+
+/** Mensagem de um comando de workflow (`::error ...::mensagem`): %, \r e \n viram escapes. */
+const ghMessage = (value) =>
+  String(value).replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+/** Valor de propriedade (`title=`): além dos escapes da mensagem, `:` e `,`. */
+const ghProperty = (value) => ghMessage(value).replaceAll(":", "%3A").replaceAll(",", "%2C");
+/** Célula de tabela Markdown numa linha só. */
+const mdCell = (value) =>
+  String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replaceAll("|", "\\|")
+    .replaceAll("<", "&lt;")
+    .slice(0, 300);
+
+function reportToGithub(failed, grouped) {
+  if (process.env.GITHUB_ACTIONS !== "true") return;
+  for (const item of failed) {
+    const level = item.status === "fail" ? "error" : "warning";
+    console.log(
+      `::${level} title=${ghProperty(`Jornada E2E: ${item.name}`)}::${ghMessage(item.detail)}`,
+    );
+  }
+  for (const [kind, list] of Object.entries(grouped)) {
+    const sample = list
+      .slice(0, 5)
+      .map((item) => `${item.where}: ${item.detail}`)
+      .join("\n");
+    const more = list.length > 5 ? `\n… e mais ${list.length - 5} (report.json no artefato)` : "";
+    console.log(
+      `::error title=${ghProperty(`Jornada E2E: ${list.length} problema(s) [${kind}]`)}::${ghMessage(sample + more)}`,
+    );
+  }
+
+  const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryFile) return;
+  const label = { ok: "ok", fail: "falhou", skip: "pulada" };
+  const lines = [
+    "## Jornada E2E",
+    "",
+    `Etapas: **${steps.length - failed.length}/${steps.length} ok** · capturas: ${shots.length} · ` +
+      `problemas nas verificações: **${issues.length}**`,
+    "",
+    "| Situação | Etapa | Detalhe | Tempo |",
+    "| --- | --- | --- | --- |",
+    ...steps.map(
+      (item) =>
+        `| ${label[item.status] ?? item.status} | ${mdCell(item.name)} | ${mdCell(item.detail)} | ` +
+        `${item.ms ? `${(item.ms / 1000).toFixed(1)} s` : ""} |`,
+    ),
+  ];
+  for (const [kind, list] of Object.entries(grouped)) {
+    lines.push("", `### Problemas [${kind}]: ${list.length}`, "");
+    for (const item of list.slice(0, 15))
+      lines.push(`- ${mdCell(item.where)}: ${mdCell(item.detail)}`);
+    if (list.length > 15) lines.push(`- … e mais ${list.length - 15} (report.json no artefato)`);
+  }
+  try {
+    fs.appendFileSync(summaryFile, `${lines.join("\n")}\n`);
+  } catch (error) {
+    console.warn(`Não consegui escrever o resumo do job: ${error.message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Execução
 // ---------------------------------------------------------------------------------------------
 
@@ -1615,6 +1701,7 @@ async function main() {
       if (list.length > 15) console.log(`    … e mais ${list.length - 15} (report.json)`);
     }
   }
+  reportToGithub(failed, grouped);
   if (failed.length > 0 || issues.length > 0) exitCode = 1;
   process.exit(exitCode);
 }

@@ -231,17 +231,67 @@ qualquer branch) e também sob demanda (_Actions → CI → Run workflow_; o bot
 chega ao branch padrão, `main`). Um push novo no mesmo branch (ou PR) cancela a execução anterior. O selo no topo
 do README mostra o resultado da última execução no branch padrão (`main`), não a do seu branch.
 
-| Job               | O que roda (na ordem)                                                                                                                                                              |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22) |
-| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations e seed) → `supabase test db`                                                   |
+| Job               | O que roda (na ordem)                                                                                                                                                                                                                                                                                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22)                                                                                                                                                                                |
+| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations e seed) → `supabase test db`                                                                                                                                                                                                                                  |
+| **Jornada E2E**   | Só depois do App passar: `npm ci` → CLI do Supabase 2.122.0 → `supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor` → `.env.local` gerado de `supabase status -o env` → `npx next build` → `npx next start -p 3000` → `npx playwright install --with-deps chromium` → `BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs` |
 
-- O build roda **sem nenhuma variável do app** de propósito: garante que a Artemis compila sem Supabase, IA ou
-  e-mail configurados (as páginas mostram o aviso de configuração). Nenhum segredo é necessário no GitHub.
+- O build do job App roda **sem nenhuma variável do app** de propósito: garante que a Artemis compila sem
+  Supabase, IA ou e-mail configurados (as páginas mostram o aviso de configuração). Nenhum segredo é necessário no
+  GitHub (nem para a jornada E2E, que usa só as chaves da stack local criada no próprio runner).
 - Para reproduzir antes do push: `npx prettier --check .` (`npm run format` corrige),
   `npx eslint --max-warnings 0` (no CI, um aviso do ESLint já reprova; o `npm run lint` local só falha com erro),
   `npm run typecheck`, `npm test`, `node --test scripts/deploy/*.test.mjs`, `npm run build` e `npm run db:test`
-  (com o Supabase local rodando).
-- Ao atualizar o CLI do Supabase em `package.json`, atualize também `version` no job do banco.
-- Os testes E2E no navegador (`scripts/e2e/journey.mjs`) ainda não rodam no CI: precisam da stack completa do
-  Supabase e do Chromium (ver [`10-roadmap.md`](10-roadmap.md)).
+  (com o Supabase local rodando). A jornada E2E está logo abaixo.
+- Ao atualizar o CLI do Supabase em `package.json`, atualize também `version` nos jobs Banco e Jornada E2E.
+
+### Jornada E2E no CI
+
+O job `e2e` roda a jornada completa de [`scripts/e2e/journey.mjs`](../scripts/e2e/journey.mjs) (visitante,
+cadastro com confirmação por e-mail, onboarding, mentoria, fórum, moderação, Boletim, Vitrine e a varredura de
+telas claro/escuro × 1440/390 px) num build de produção, contra um Supabase local completo no runner. Tem limite
+de 30 minutos.
+
+- **Stack:** `supabase start` sem Studio, imgproxy, Edge Functions, Logflare, Vector, Realtime e Supavisor (o app
+  não usa nenhum deles): ficam Postgres (migrations + seed de demonstração), Auth, API, Storage e Mailpit. A CLI
+  baixa as imagens do registro padrão.
+- **`.env.local` montado no próprio job:**
+
+  | Variável do app                        | Valor                                                                                                                                         |
+  | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `NEXT_PUBLIC_SUPABASE_URL`             | `API_URL` de `supabase status -o env`                                                                                                         |
+  | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `PUBLISHABLE_KEY`                                                                                                                             |
+  | `SUPABASE_SECRET_KEY`                  | `SECRET_KEY`                                                                                                                                  |
+  | `NEXT_PUBLIC_SITE_URL`                 | `http://localhost:3000`, o `site_url` do Auth local (`supabase/config.toml`); por isso o app sobe na porta 3000                               |
+  | `CRON_SECRET`                          | aleatório a cada execução (`openssl rand -hex 32`)                                                                                            |
+  | `MAILPIT_URL`                          | `http://127.0.0.1:54324`: num build de produção, os e-mails do próprio app (Boletim e confirmação da inscrição) só vão para o Mailpit com ela |
+
+  Sem chave de IA nem de e-mail: a mentoria usa o modo por afinidade e o Mailpit faz o papel da caixa de entrada
+  (a jornada lê os e-mails pela API dele e reescreve a origem dos links para `BASE_URL`).
+
+- **Playwright** é devDependency com versão **fixa** (`playwright` em `package.json`, sem `^`); o job baixa o
+  Chromium dessa versão e as bibliotecas do sistema com `npx playwright install --with-deps chromium`. Ao trocar a
+  versão, rode a jornada localmente antes do push (`npx playwright install chromium` baixa o navegador novo).
+- **Rede externa:** a única chamada é a busca do DOI no Crossref. Se ela falhar (rede, lentidão, Crossref fora do
+  ar), a etapa da Vitrine preenche o paper à mão e segue; o resumo diz qual caminho foi usado.
+- **Quando falha:** o script sai com código 1 (2 se faltar pré-requisito); cada etapa ou verificação com problema
+  vira uma anotação de erro na execução, a tabela das etapas (com tempos) e os problemas vão para a aba _Summary_
+  do job, o fim do log do `next start` aparece no passo "Log do servidor" e o artefato
+  `e2e-capturas-<tentativa>` (14 dias, em _Actions → a execução → Artifacts_) traz a pasta de saída da jornada
+  (`falhas/` com captura e árvore de acessibilidade da etapa que quebrou, `capturas/`, galeria `index.html` e
+  `report.json`) e o `next-start.log`.
+- **Reproduzir localmente, igual ao CI** (na raiz; uma execução por vez, porque o Boletim da semana é gerado e
+  enviado de verdade):
+
+  ```bash
+  npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor
+  npx playwright install chromium   # uma vez por versão do Playwright
+  MAILPIT_URL=http://127.0.0.1:54324 npx next build
+  MAILPIT_URL=http://127.0.0.1:54324 npx next start -p 3000   # deixe rodando; o resto em outro terminal
+  BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs
+  ```
+
+  Com a porta 3000 ocupada (por exemplo, pelo `npm run dev`), use outra porta em `next start` e em `BASE_URL`:
+  os links dos e-mails são reescritos para `BASE_URL`. A pasta de saída é `OUT_DIR` (padrão: pasta temporária do
+  sistema); as demais opções (`SKIP_SWEEP=1`, `KEEP_DATA=1`, `HEADED=1`…) estão no topo do script.

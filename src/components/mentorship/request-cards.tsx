@@ -1,12 +1,14 @@
 import { Ban, CalendarCheck, CircleCheck, Quote } from "lucide-react";
 import { Badge, ButtonLink, Card, Chip } from "@/components/ui";
 import { cancelRequestAction, completeMentorshipAction } from "@/app/mentoria/actions";
+import { hasConversation } from "@/lib/mentorship/conversation";
 import type { Contact, RequestItem } from "@/lib/mentorship/queries";
 import { firstName, tabHref } from "@/lib/mentorship/presentation";
 import { topicLabel } from "@/lib/mentorship/view-models";
 import { formatDate, formatRelativeTime, toIsoString } from "@/lib/utils";
 import { MentorshipActionDialog } from "./action-dialog";
 import { ContactCard } from "./contact-card";
+import { ConversationLink } from "./conversation-link";
 import { PersonSummary } from "./person-summary";
 import { RespondForm } from "./respond-form";
 import { MentorshipStatusBadge } from "./status-badge";
@@ -42,7 +44,14 @@ function QuotedMessage({ label, children }: { label: string; children: React.Rea
 // Solicitações enviadas (mentoranda)
 // ---------------------------------------------------------------------------
 
-export function SentRequestCard({ request }: { request: RequestItem }) {
+export function SentRequestCard({
+  request,
+  unread = 0,
+}: {
+  request: RequestItem;
+  /** Mensagens não lidas na conversa (se houver conversa). */
+  unread?: number;
+}) {
   const mentorName = firstName(request.other.full_name) || request.other.full_name;
   const headingId = `enviada-${request.id}`;
   return (
@@ -89,10 +98,21 @@ export function SentRequestCard({ request }: { request: RequestItem }) {
       )}
       {request.status === "accepted" && (
         <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <ConversationLink requestId={request.id} otherName={mentorName} unread={unread} />
           <ButtonLink href={tabHref("ativas")} variant="secondary" size="sm">
             <CalendarCheck aria-hidden="true" />
             Ver mentoria ativa
           </ButtonLink>
+        </div>
+      )}
+      {request.status !== "accepted" && hasConversation(request) && (
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <ConversationLink
+            requestId={request.id}
+            otherName={mentorName}
+            unread={unread}
+            readOnly
+          />
         </div>
       )}
     </Card>
@@ -159,16 +179,31 @@ export function ReceivedRequestCard({ request }: { request: RequestItem }) {
   );
 }
 
-/** Linha compacta do histórico (pedidos já respondidos/encerrados). */
-export function HistoryRow({ request }: { request: RequestItem }) {
+/**
+ * Linha compacta do histórico (pedidos já respondidos/encerrados). Com conversa (mentoria ativa,
+ * concluída ou cancelada depois do aceite), traz o link para ela — só leitura se encerrada.
+ */
+export function HistoryRow({ request, unread = 0 }: { request: RequestItem; unread?: number }) {
   const when = request.responded_at ?? request.updated_at;
   const prefix = request.responded_at ? "Respondido" : "Atualizado";
+  const otherName = firstName(request.other.full_name) || request.other.full_name;
   return (
-    <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
       <PersonSummary person={request.other} />
-      <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-        <MentorshipStatusBadge status={request.status} />
-        <TimeAgo date={when} prefix={prefix} />
+      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+        <div className="flex flex-col items-start gap-1 sm:items-end">
+          <MentorshipStatusBadge status={request.status} />
+          <TimeAgo date={when} prefix={prefix} />
+        </div>
+        {hasConversation(request) && (
+          <ConversationLink
+            requestId={request.id}
+            otherName={otherName}
+            unread={unread}
+            readOnly={request.status !== "accepted"}
+            variant={request.status === "accepted" ? "secondary" : "outline"}
+          />
+        )}
       </div>
     </li>
   );
@@ -181,9 +216,12 @@ export function HistoryRow({ request }: { request: RequestItem }) {
 export function ActiveMentorshipCard({
   request,
   contact,
+  unread = 0,
 }: {
   request: RequestItem;
   contact: Contact | null;
+  /** Mensagens da outra participante ainda não lidas. */
+  unread?: number;
 }) {
   const otherName = firstName(request.other.full_name) || request.other.full_name;
   const headingId = `ativa-${request.id}`;
@@ -230,6 +268,7 @@ export function ActiveMentorshipCard({
       </details>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+        <ConversationLink requestId={request.id} otherName={otherName} unread={unread} />
         <MentorshipActionDialog
           action={completeMentorshipAction}
           hiddenFields={{ request_id: request.id }}

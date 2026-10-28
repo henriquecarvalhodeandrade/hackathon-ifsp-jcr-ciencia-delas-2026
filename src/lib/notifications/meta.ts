@@ -11,6 +11,7 @@ export type NotificationType = Enums<"notification_type">;
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   mentorship_request: "Pedido de mentoria",
   mentorship_response: "Mentoria",
+  mentorship_message: "Mensagem na mentoria",
   thread_reply: "Resposta no fórum",
   solution_marked: "Solução no fórum",
   paper_comment: "Comentário em paper",

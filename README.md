@@ -60,11 +60,17 @@ toque em **Compartilhar** → _Adicionar à Tela de Início_. Não há modo offl
 
 ## Qualidade
 
-| Comando           | Verifica                                                                       |
-| ----------------- | ------------------------------------------------------------------------------ |
-| `npm run check`   | ESLint + TypeScript + testes unitários (Vitest)                                |
-| `npm run db:test` | testes pgTAP de segurança do banco (RLS, anonimato, regras de mentoria, votos) |
-| `npm run build`   | build de produção                                                              |
+| Comando                        | Verifica                                                                         |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `npm run check`                | ESLint + TypeScript + testes unitários (Vitest)                                  |
+| `npm run db:test`              | testes pgTAP de segurança do banco (RLS, anonimato, regras de mentoria, votos)   |
+| `npm run build`                | build de produção                                                                |
+| `node scripts/e2e/journey.mjs` | jornada completa no navegador (Playwright), com o app e o Supabase local rodando |
+
+O **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), GitHub Actions) roda tudo isso a cada push e pull
+request: formatação, lint, tipos, testes unitários, build e pgTAP e, depois, a **jornada E2E** num build de produção
+contra um Supabase local completo no runner (se ela falhar, as capturas de tela ficam como artefato da execução).
+Detalhes em [docs/07 §7](docs/07-setup-e-deploy.md#7-integração-contínua-github-actions).
 
 ## Documentação
 

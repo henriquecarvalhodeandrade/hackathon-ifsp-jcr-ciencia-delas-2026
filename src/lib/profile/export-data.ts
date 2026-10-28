@@ -218,6 +218,21 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     loadNewsletter(user.email),
   ]);
 
+  // Conversas da mentoria: pelos ids dos pedidos DELA (o RLS também só mostra às participantes).
+  const messageChunks = await Promise.all(
+    chunks(mentorshipRequests.map((r) => r.id)).map((ids) =>
+      all("mensagens_da_mentoria", (from, to) =>
+        supabase
+          .from("mentorship_messages")
+          .select("id, request_id, sender_id, body, created_at, read_at")
+          .in("request_id", ids)
+          .order("created_at")
+          .order("id")
+          .range(from, to),
+      ),
+    ),
+  );
+
   // Publicações anônimas: author_id é NULL, então vêm pelos ids da autoria (só as dela, pelo RLS).
   const anonThreadIds = anonymousAuthorship.flatMap((row) =>
     row.thread_id ? [row.thread_id] : [],
@@ -256,6 +271,7 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     profile,
     areas: areaRows.flatMap((row) => (row.area ? [row.area] : [])),
     mentorshipRequests,
+    messages: messageChunks.flat(),
     suggestions,
     threads: [...namedThreads, ...anonThreads.flat()],
     posts: [...namedPosts, ...anonPosts.flat()],

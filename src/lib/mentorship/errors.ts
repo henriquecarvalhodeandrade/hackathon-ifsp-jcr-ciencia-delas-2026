@@ -10,7 +10,15 @@ export interface PostgrestLikeError {
 }
 
 export type MentorshipOperation =
-  "request" | "cancel" | "respond" | "complete" | "availability" | "consent" | "generic";
+  | "request"
+  | "cancel"
+  | "respond"
+  | "complete"
+  | "availability"
+  | "consent"
+  | "message"
+  | "read"
+  | "generic";
 
 const FALLBACK: Record<MentorshipOperation, string> = {
   request:
@@ -21,6 +29,9 @@ const FALLBACK: Record<MentorshipOperation, string> = {
   availability:
     "Não conseguimos atualizar a sua disponibilidade agora. Tente de novo em instantes.",
   consent: "Não conseguimos salvar a sua autorização agora. Tente de novo em instantes.",
+  message:
+    "Não conseguimos enviar a sua mensagem agora. Tente de novo em instantes — o texto continua aqui.",
+  read: "Não conseguimos marcar as mensagens como lidas agora.",
   generic: "Algo não saiu como esperado. Tente de novo em instantes.",
 };
 
@@ -44,13 +55,17 @@ export function friendlyMentorshipError(
         ? "Você já tem um pedido em aberto ou uma mentoria ativa com esta mentora."
         : "Esse registro já existe.";
     case "23514":
-      return operation === "request"
-        ? "Confira a mensagem: ela precisa ter entre 20 e 1.500 caracteres."
-        : "Alguns dados não passaram na validação. Confira e tente de novo.";
+      if (operation === "request") {
+        return "Confira a mensagem: ela precisa ter entre 20 e 1.500 caracteres.";
+      }
+      if (operation === "message") return "A mensagem precisa ter entre 1 e 2.000 caracteres.";
+      return "Alguns dados não passaram na validação. Confira e tente de novo.";
     case "42501":
-      return operation === "request"
-        ? "Esta mentora não está recebendo pedidos no momento."
-        : "Você não tem permissão para fazer isso.";
+      if (operation === "request") return "Esta mentora não está recebendo pedidos no momento.";
+      if (operation === "message") {
+        return "Esta conversa não está aberta para novas mensagens. Recarregue a página.";
+      }
+      return "Você não tem permissão para fazer isso.";
     case "PGRST301":
     case "PGRST303":
       return "Sua sessão expirou. Entre de novo para continuar.";

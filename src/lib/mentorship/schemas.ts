@@ -3,6 +3,7 @@
  * Ids de usuárias NUNCA vêm do formulário: só ids de pedidos/mentoras, conferidos no servidor.
  */
 import { z } from "zod";
+import { MESSAGE_MAX } from "./conversation";
 import { REQUEST_MESSAGE_MAX, REQUEST_MESSAGE_MIN, RESPONSE_MESSAGE_MAX } from "./presentation";
 
 const id = (message: string) => z.guid({ error: message });
@@ -39,6 +40,24 @@ export const respondSchema = z.object({
     .transform((text) => (text ? text : null)),
 });
 export type RespondInput = z.infer<typeof respondSchema>;
+
+/**
+ * Mensagem da conversa da mentoria (o banco confere participante, status e limite). O navegador
+ * envia as quebras de linha do <textarea> como CRLF: viram LF antes de contar os caracteres, para
+ * o limite valer igual ao contador do campo.
+ */
+export const messageSchema = z.object({
+  request_id: id("Não encontramos esta conversa. Recarregue a página e tente de novo."),
+  body: z.preprocess(
+    (value) => (typeof value === "string" ? value.replace(/\r\n?/g, "\n") : value),
+    z
+      .string({ error: "Escreva uma mensagem antes de enviar." })
+      .trim()
+      .min(1, { error: "Escreva uma mensagem antes de enviar." })
+      .max(MESSAGE_MAX, { error: "Use no máximo 2.000 caracteres." }),
+  ),
+});
+export type MessageInput = z.infer<typeof messageSchema>;
 
 export const availabilitySchema = z.object({
   available: z

@@ -126,6 +126,26 @@ describe("loadMyDataExport", () => {
     expect(session.filter((c) => !known.has(c.table))).toEqual([]);
   });
 
+  it("busca as mensagens da mentoria só pelos ids dos pedidos dela", async () => {
+    mocks.rows.mentorship_requests = [
+      { id: "m1", mentee_id: ME, mentor_id: "outra", created_at: "2026-10-01T00:00:00Z" },
+      { id: "m2", mentee_id: "outra", mentor_id: ME, created_at: "2026-10-02T00:00:00Z" },
+    ];
+    mocks.rows.mentorship_messages = [];
+    await loadMyDataExport(user);
+    const calls = mocks.calls.filter((c) => c.table === "mentorship_messages");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.client).toBe("session");
+    expect(filters(calls[0]!)).toEqual([["in", ["request_id", ["m1", "m2"]]]]);
+    const columns = String(calls[0]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(columns).toBe("id, request_id, sender_id, body, created_at, read_at");
+  });
+
+  it("sem pedidos de mentoria, não consulta mensagens", async () => {
+    await loadMyDataExport(user);
+    expect(mocks.calls.filter((c) => c.table === "mentorship_messages")).toEqual([]);
+  });
+
   it("lê a newsletter com o cliente admin só pelo e-mail da própria conta, sem tokens", async () => {
     await loadMyDataExport(user);
     const admin = mocks.calls.filter((c) => c.client === "admin");

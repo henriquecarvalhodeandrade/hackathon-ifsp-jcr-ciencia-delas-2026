@@ -9,6 +9,7 @@ import {
   MatchingError,
   refreshMyEmbedding,
 } from "@/lib/matching/service";
+import { conversationHref } from "@/lib/mentorship/conversation";
 import { fallbackMessage, friendlyMentorshipError } from "@/lib/mentorship/errors";
 import { isOpenStatus } from "@/lib/mentorship/presentation";
 import { loadCandidateAvailability, loadSuggestionMatch } from "@/lib/mentorship/queries";
@@ -16,6 +17,7 @@ import {
   availabilitySchema,
   consentSchema,
   fieldErrorsOf,
+  messageSchema,
   requestIdSchema,
   requestSchema,
   respondSchema,
@@ -23,6 +25,9 @@ import {
 import type {
   ActionState,
   FindMentorsState,
+  MarkReadResult,
+  MessageState,
+  MessageValues,
   RequestValues,
   RespondValues,
 } from "@/lib/mentorship/types";
@@ -357,4 +362,107 @@ export async function completeMentorshipAction(
 
   revalidatePath(PATH);
   redirect(`${PATH}?aba=ativas&aviso=concluido`);
+}
+
+// ---------------------------------------------------------------------------
+// Conversa da mentoria (/mentoria/conversa/<pedido>)
+// ---------------------------------------------------------------------------
+
+function nonce(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Envia uma mensagem. O banco decide se pode (participante, mentoria aceita, limite anti-spam —
+ * CD015/CD027/CD026) e avisa a outra participante (um aviso não lido por conversa).
+ */
+export async function sendMessageAction(
+  _prev: MessageState,
+  formData: FormData,
+): Promise<MessageState> {
+  const values: MessageValues = { body: str(formData, "body") };
+  const member = await getMember();
+  if ("error" in member) return { ok: false, error: member.error, values, nonce: nonce() };
+
+  const parsed = messageSchema.safeParse({
+    request_id: str(formData, "request_id"),
+    body: values.body,
+  });
+  if (!parsed.success) {
+    const fieldErrors = fieldErrorsOf(parsed.error);
+    return {
+      ok: false,
+      error: fieldErrors.body?.[0] ?? fieldErrors.request_id?.[0] ?? fallbackMessage("message"),
+      fieldErrors,
+      values,
+      nonce: nonce(),
+    };
+  }
+  const { request_id: requestId, body } = parsed.data;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("mentorship_messages")
+    .insert({ request_id: requestId, body });
+  if (error) {
+    if (!error.code?.startsWith("CD")) {
+      console.warn(`[mentoria] mensagem — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    }
+    return {
+      ok: false,
+      error: friendlyMentorshipError(error, "message"),
+      values,
+      nonce: nonce(),
+    };
+  }
+
+  revalidatePath(conversationHref(requestId));
+  return { ok: true, message: "Mensagem enviada.", nonce: nonce() };
+}
+
+/**
+ * Marca como lidas as mensagens que a outra participante enviou nesta conversa e os avisos dela.
+ * Chamada pela página quando está visível na tela (não na renderização: assim a pré-busca de
+ * links ou uma aba em segundo plano não contam como leitura). O RLS só deixa a destinatária
+ * alterar `read_at`, e o banco grava a hora do servidor.
+ */
+export async function markConversationReadAction(requestId: string): Promise<MarkReadResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: NOT_SIGNED_IN };
+  const parsed = requestIdSchema.safeParse({ request_id: requestId });
+  if (!parsed.success) return { ok: false, error: fallbackMessage("read") };
+  const id = parsed.data.request_id;
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  const [messages, notifications] = await Promise.all([
+    supabase
+      .from("mentorship_messages")
+      .update({ read_at: now })
+      .eq("request_id", id)
+      .neq("sender_id", user.id)
+      .is("read_at", null)
+      .select("id"),
+    supabase
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("user_id", user.id)
+      .eq("type", "mentorship_message")
+      .eq("link", conversationHref(id))
+      .is("read_at", null)
+      .select("id"),
+  ]);
+  if (messages.error) {
+    return { ok: false, error: friendlyMentorshipError(messages.error, "read") };
+  }
+  if (notifications.error) {
+    console.warn(
+      `[mentoria] avisos da conversa — ${notifications.error.code ?? ""} ${notifications.error.message.slice(0, 160)}`,
+    );
+  }
+
+  const marked = messages.data?.length ?? 0;
+  // O sino do cabeçalho (layout raiz) e os selos de "Conversar" mostram as contagens.
+  if (marked > 0 || (notifications.data?.length ?? 0) > 0) revalidatePath("/", "layout");
+  return { ok: true, marked };
 }

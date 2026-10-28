@@ -315,6 +315,49 @@ export type Database = {
           },
         ];
       };
+      mentorship_messages: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: string;
+          read_at: string | null;
+          request_id: string;
+          sender_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          body: string;
+          created_at?: string;
+          id?: string;
+          read_at?: string | null;
+          request_id: string;
+          sender_id?: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          read_at?: string | null;
+          request_id?: string;
+          sender_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_messages_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "mentorship_requests";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mentorship_messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       mentorship_requests: {
         Row: {
           created_at: string;
@@ -1205,7 +1248,8 @@ export type Database = {
         | "thread_reply"
         | "solution_marked"
         | "paper_comment"
-        | "report_resolved";
+        | "report_resolved"
+        | "mentorship_message";
       reaction_kind: "support" | "useful" | "celebrate";
       report_reason:
         "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
@@ -1344,6 +1388,7 @@ export const Constants = {
         "solution_marked",
         "paper_comment",
         "report_resolved",
+        "mentorship_message",
       ],
       reaction_kind: ["support", "useful", "celebrate"],
       report_reason: ["harassment", "spam", "misinformation", "offensive", "plagiarism", "other"],

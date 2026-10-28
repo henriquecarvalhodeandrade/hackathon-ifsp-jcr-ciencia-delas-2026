@@ -3,6 +3,7 @@ import {
   CircleCheckBig,
   HeartHandshake,
   MailCheck,
+  MessageSquareHeart,
   MessageSquareReply,
   ShieldCheck,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 const ICONS: Record<NotificationType, { Icon: typeof HeartHandshake; tone: string }> = {
   mentorship_request: { Icon: HeartHandshake, tone: "bg-primary-soft text-primary-soft-fg" },
   mentorship_response: { Icon: MailCheck, tone: "bg-primary-soft text-primary-soft-fg" },
+  mentorship_message: { Icon: MessageSquareHeart, tone: "bg-primary-soft text-primary-soft-fg" },
   thread_reply: { Icon: MessageSquareReply, tone: "bg-secondary-soft text-secondary-soft-fg" },
   solution_marked: { Icon: CircleCheckBig, tone: "bg-success-soft text-success-soft-fg" },
   paper_comment: { Icon: BookOpenText, tone: "bg-accent-soft text-accent-soft-fg" },

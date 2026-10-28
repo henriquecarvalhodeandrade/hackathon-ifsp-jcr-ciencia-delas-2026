@@ -10,7 +10,7 @@ import type { CandidateAvailability, CandidatePool } from "./view-models";
 
 export type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const PERSON_COLUMNS =
+export const PERSON_COLUMNS =
   "id, full_name, avatar_url, headline, institution, state, career_stage, mentorship_topics";
 
 export interface Person {
@@ -41,9 +41,9 @@ export interface RequestItem {
   other: Person;
 }
 
-type PersonRow = Omit<Person, "areas">;
+export type PersonRow = Omit<Person, "areas">;
 
-function toPerson(row: PersonRow | null | undefined, fallbackId: string): Person {
+export function toPerson(row: PersonRow | null | undefined, fallbackId: string): Person {
   return {
     id: row?.id ?? fallbackId,
     full_name: row?.full_name || "Pesquisadora",

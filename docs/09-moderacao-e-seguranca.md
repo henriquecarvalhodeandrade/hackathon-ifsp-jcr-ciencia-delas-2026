@@ -110,9 +110,11 @@ com aviso para leitor de tela; `DocCallout` destaca avisos.
 ## 4. Notificações (`/notificacoes`)
 
 As notificações são criadas **somente por triggers** no banco (novo pedido de mentoria, resposta
-ao pedido, resposta no seu tópico — inclusive anônimo —, solução marcada, comentário no seu paper e
-**denúncia concluída** — `report_resolved`, quando a moderação resolve ou arquiva uma denúncia sua;
-veja docs/03 §6). O app só lê, marca como lida e apaga.
+ao pedido, **mensagem nova na conversa da mentoria** — `mentorship_message`, agrupada: um aviso não
+lido por conversa —, resposta no seu tópico — inclusive anônimo —, solução marcada, comentário no
+seu paper e **denúncia concluída** — `report_resolved`, quando a moderação resolve ou arquiva uma
+denúncia sua; veja docs/03 §6). O app só lê, marca como lida e apaga (abrir a conversa da mentoria
+também marca como lido o aviso dela).
 
 O aviso de denúncia concluída ("Sua denúncia foi resolvida" / "Sua denúncia foi analisada") diz
 sobre o que era a denúncia ("um tópico do fórum", "um paper da Vitrine"…), agradece e, se a moderação
@@ -250,6 +252,24 @@ justificativa ligada a uma denúncia.
 Como promover alguém pela primeira vez (não há admin ainda): no SQL Editor do Supabase,
 `update public.profiles set role = 'admin' where id = '<uuid>';`. Depois disso, use a aba Membros.
 
+### Conversas da mentoria são privadas
+
+A conversa entre mentora e mentoranda (`/mentoria/conversa/<pedido>`, [12 §4](12-mentoria-fluxos.md#4-conversa-da-mentoria))
+é **só das duas**: a moderação e as admins **não leem** — nem pelo painel, nem pela API (RLS de
+`mentorship_messages`: só as participantes do pedido; para qualquer outra pessoa a página responde
+404). Não há exceção de moderação, e por isso também não há trilha de auditoria para conversas.
+
+- **Como denunciar:** pelo fluxo normal — o cabeçalho da conversa tem **"Denunciar perfil"**
+  (alvo `profile`). Quem denuncia descreve o que aconteceu e pode colar o trecho nos detalhes; a
+  moderação age sobre a conta (conversa com as duas, suspende o papel de mentora, exclui a conta
+  em casos graves) sem abrir a conversa. Qualquer uma das duas também pode encerrar a mentoria a
+  qualquer momento ("Concluir"; a mentoranda também "Cancelar"), e a conversa fica só leitura.
+- **Por que não "denunciar mensagem" agora:** um alvo `message` em `report_target` exigiria que a
+  moderação lesse a mensagem denunciada — uma exceção à privacidade que precisa de desenho próprio
+  (cópia do trecho na denúncia, com consentimento de quem denuncia) e mudaria telas e tipos do
+  painel. Fica como próximo passo ([seção 14](#14-limitações-conhecidas-e-próximos-passos)).
+- **Abuso de volume:** 60 mensagens por hora por pessoa (`CD026`), no banco.
+
 ## 7. Anonimato e revelação de autoria
 
 - Outras membras nunca veem quem publicou de forma anônima; o painel mostra “Anônima” mesmo para a
@@ -347,6 +367,9 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 - [x] Denúncias limitadas no banco: sem repetir denúncia aberta do mesmo alvo (`CD018`), sem alvo
       inexistente (`CD015`) e no máximo 10 em 24 h por pessoa (`CD019`).
 - [x] Pedidos de mentoria limitados no banco: 3 por mentora a cada 7 dias e 5 a cada 24 h (`CD020`).
+- [x] Conversa da mentoria privada no banco: só as duas participantes leem; envio só em nome próprio
+      e com a mentoria aceita (`CD027` depois de concluída/cancelada); só a destinatária marca como
+      lida; ninguém edita nem apaga; 60 mensagens por hora (`CD026`); quem está de fora recebe 404.
 - [x] Limites anti-spam no banco para tópicos, respostas, comentários, papers e destaques
       (`CD021`–`CD025`, seção abaixo) — valem também para quem usa a API direto.
 - [x] Toda exclusão de conteúdo alheio pela moderação fica no registro de auditoria (trigger).
@@ -370,11 +393,13 @@ qualquer código `CD…`). Como estão no banco, não dá para escapar chamando 
 | Destaques (votos)                  | 60 por hora                           | `CD025` | “Você destacou muitos papers na última hora…”           |
 | Denúncias                          | 10 em 24 h                            | `CD019` | “Você já enviou 10 denúncias nas últimas 24 horas…”     |
 | Pedidos de mentoria                | 5 em 24 h (e 3 por mentora em 7 dias) | `CD020` | “Você já enviou 5 pedidos de mentoria…”                 |
+| Mensagens na conversa da mentoria  | 60 por hora                           | `CD026` | “Você enviou muitas mensagens na última hora…”          |
 
 - **Quem não tem limite:** moderadoras e admins, e contextos confiáveis sem usuária (service role,
   seed, migrations). O limite de 3 pedidos para a mesma mentora em 7 dias vale para todas.
-- **Publicar e apagar não devolve a cota:** tópicos, respostas, comentários, papers e destaques são
-  contados num registro à parte, `private.rate_limit_events` (pessoa, ação, hora — nada sobre o
+- **Publicar e apagar não devolve a cota:** tópicos, respostas, comentários, papers, destaques e
+  mensagens da mentoria (migration `20261028181500_mentorship_messages.sql`) são contados num
+  registro à parte, `private.rate_limit_events` (pessoa, ação, hora — nada sobre o
   conteúdo, então não revela autoria anônima), fora da API. Sem ele, publicar-e-apagar em laço
   escaparia do limite e cada resposta/comentário avisaria outra pessoa (spam de notificações). Cada
   envio limpa os eventos vencidos da mesma pessoa. Denúncias e pedidos de mentoria não podem ser
@@ -388,17 +413,17 @@ qualquer código `CD…`). Como estão no banco, não dá para escapar chamando 
 
 ## 11. LGPD na prática
 
-| Direito / obrigação                   | Onde está                                                                                                                                                                                                                                                                          |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                                                                                                                                                                                                |
-| Consentimento de IA (art. 7º, I e 8º) | Opcional: sem ele, as sugestões heurísticas funcionam e nada sai da plataforma. Caixa desmarcada no onboarding/perfil, com 18+, que só liga embeddings do Gemini e explicações por LLM; revogar apaga o embedding e as `mentor_suggestions` salvas (trigger)                       |
-| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                                                                                                                                                                                              |
-| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                                                                                                                                                                                    |
-| Portabilidade (art. 18, V)            | “Baixar meus dados” em `/perfil#dados`: arquivo JSON com perfil, mentorias, fórum (inclusive as publicações anônimas), papers, destaques, comentários, notificações, denúncias feitas e a inscrição no Boletim ([11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade)) |
-| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro                                                                                                                                                                     |
-| Minimização                           | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids                                                                                                                                                                                                            |
-| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                                                                                                                                                                                                  |
-| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+                                                                                                                                                                                                                                 |
+| Direito / obrigação                   | Onde está                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                                                                                                                                                                                                                                                                                             |
+| Consentimento de IA (art. 7º, I e 8º) | Opcional: sem ele, as sugestões heurísticas funcionam e nada sai da plataforma. Caixa desmarcada no onboarding/perfil, com 18+, que só liga embeddings do Gemini e explicações por LLM; revogar apaga o embedding e as `mentor_suggestions` salvas (trigger)                                                                                                                    |
+| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                                                                                                                                                                                                                                                                                           |
+| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                                                                                                                                                                                                                                                                                 |
+| Portabilidade (art. 18, V)            | “Baixar meus dados” em `/perfil#dados`: arquivo JSON com perfil, mentorias (inclusive as conversas: mensagens enviadas e recebidas; da outra participante só id e nome), fórum (inclusive as publicações anônimas), papers, destaques, comentários, notificações, denúncias feitas e a inscrição no Boletim ([11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade)) |
+| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo e as conversas da mentoria — para as duas participantes —, com os avisos dessas conversas); “excluir meus dados” na página de descadastro                                                                                                                                                                        |
+| Minimização                           | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids                                                                                                                                                                                                                                                                                                         |
+| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                                                                                                                                                                                                                                                                                               |
+| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+                                                                                                                                                                                                                                                                                                                              |
 
 ## 12. Arquivos
 
@@ -459,10 +484,17 @@ os dados em cascata).
 
 ## 14. Limitações conhecidas e próximos passos
 
-- **404 “suave”:** como existe `src/app/loading.tsx` na raiz, `notFound()` em páginas responde em
-  streaming com status 200 (a tela “não encontrada” e `noindex` aparecem normalmente e nenhum dado
-  protegido é enviado). Para um 404 HTTP real, remova o `loading.tsx` da raiz e mantenha só os das
-  rotas.
+- **404 “suave”:** nas páginas com `loading.tsx` (tópico, paper, perfil…), `notFound()` acontece
+  depois de a resposta começar em streaming e o status fica 200 (a tela “não encontrada” e
+  `noindex` aparecem normalmente e nenhum dado protegido é enviado). Para um 404 HTTP real, faça a
+  checagem num `layout.tsx` da rota, fora do `loading.tsx` dela — como na conversa da mentoria
+  (`src/app/mentoria/conversa/[id]/layout.tsx`, docs/12 §4).
+- **Denunciar uma mensagem da conversa da mentoria:** hoje a denúncia é do perfil, com o trecho nos
+  detalhes ([§6](#conversas-da-mentoria-são-privadas)). Próximo passo: valor `message` em
+  `report_target` com uma cópia do trecho gravada na própria denúncia (a moderação lê só o trecho
+  denunciado, nunca a conversa), `targetExists`/`REPORT_TARGET_LABELS` em
+  `src/lib/moderation/*`, o cartão do painel (`src/components/admin/report-card.tsx`) e a regra de
+  alvo em `private.reports_before_write`.
 - **A denunciante lê a própria denúncia inteira pela API**, inclusive `resolved_by` (o id de quem
   resolveu). A nota (`resolution_note`) agora é de propósito visível para ela; os registros internos
   ficam em `moderation_audit_log`. Se for preciso esconder também quem resolveu, a saída é expor as

@@ -65,6 +65,7 @@ function sources(overrides: Partial<ExportSources> = {}): ExportSources {
       { id: 1, slug: "computacao", name: "Ciência da Computação", big_area: "Exatas" },
     ],
     mentorshipRequests: [],
+    messages: [],
     suggestions: [],
     threads: [],
     posts: [],
@@ -220,6 +221,89 @@ describe("buildDataExport", () => {
     expect(data.mentoria.pedidos_recebidos).toHaveLength(1);
     expect(data.mentoria.pedidos_recebidos[0]!.mentoranda).toEqual({ id: BIA, full_name: "Bia" });
     expect(JSON.stringify(data.mentoria)).not.toMatch(/bia@x\.dev|privada|de-outras/);
+  });
+
+  it("traz as conversas das mentorias dela, com da outra pessoa só id e nome", () => {
+    const message = (id: string, requestId: string, sender: string, createdAt: string) => ({
+      id,
+      request_id: requestId,
+      sender_id: sender,
+      body: `Mensagem ${id}`,
+      created_at: createdAt,
+      read_at: null,
+    });
+    const data = buildDataExport(
+      sources({
+        mentorshipRequests: [
+          {
+            ...request,
+            id: "m1",
+            created_at: T0,
+            mentee_id: ME,
+            mentor_id: MARINA,
+            mentee: { id: ME, full_name: "Larissa Gomes" },
+            mentor: {
+              id: MARINA,
+              full_name: "Marina Albuquerque",
+              email: "marina@x.dev",
+            } as never,
+          },
+          {
+            ...request,
+            id: "m2",
+            created_at: T1,
+            mentee_id: BIA,
+            mentor_id: ME,
+            mentee: { id: BIA, full_name: "Bia" },
+            mentor: { id: ME, full_name: "Larissa Gomes" },
+          },
+          {
+            ...request,
+            id: "sem-mensagens",
+            created_at: T2,
+            mentee_id: ME,
+            mentor_id: BIA,
+            mentee: { id: ME, full_name: "Larissa Gomes" },
+            mentor: { id: BIA, full_name: "Bia" },
+          },
+        ],
+        messages: [
+          message("c", "m1", ME, T2),
+          message("a", "m1", MARINA, T0),
+          // repetida (veio em duas páginas): entra uma vez
+          message("a", "m1", MARINA, T0),
+          message("b", "m2", BIA, T1),
+          // de um pedido que não é dela e de alguém fora do pedido: ficam de fora
+          { ...message("x", "de-outras", BIA, T0), body: "conversa alheia" },
+          { ...message("y", "m1", BIA, T1), body: "intrusa" },
+          { ...message("z", "m2", ME, T2), search_text: "interno" } as never,
+        ],
+      }),
+    );
+    expect(data.mentoria.conversas).toEqual([
+      {
+        request_id: "m1",
+        papel: "mentoranda",
+        outra_participante: { id: MARINA, full_name: "Marina Albuquerque" },
+        mensagens: [
+          { id: "a", sender_id: MARINA, body: "Mensagem a", created_at: T0, read_at: null },
+          { id: "c", sender_id: ME, body: "Mensagem c", created_at: T2, read_at: null },
+        ],
+      },
+      {
+        request_id: "m2",
+        papel: "mentora",
+        outra_participante: { id: BIA, full_name: "Bia" },
+        mensagens: [
+          { id: "b", sender_id: BIA, body: "Mensagem b", created_at: T1, read_at: null },
+          { id: "z", sender_id: ME, body: "Mensagem z", created_at: T2, read_at: null },
+        ],
+      },
+    ]);
+    const json = JSON.stringify(data.mentoria.conversas);
+    expect(json).not.toMatch(
+      /marina@x\.dev|conversa alheia|intrusa|search_text|request_id":"de-outras/,
+    );
   });
 
   it("mantém só id e nome da mentora nas sugestões salvas, na ordem do ranking", () => {

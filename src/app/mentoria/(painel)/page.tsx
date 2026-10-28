@@ -20,6 +20,8 @@ import {
   tabHref,
   type MentorshipTab,
 } from "@/lib/mentorship/presentation";
+import { hasConversation } from "@/lib/mentorship/conversation";
+import { loadUnreadCounts } from "@/lib/mentorship/conversation-queries";
 import { loadAreaNames, loadMyRequests } from "@/lib/mentorship/queries";
 import { createClient } from "@/lib/supabase/server";
 import { ScrollActiveTab } from "@/components/mentorship/scroll-active-tab";
@@ -81,6 +83,15 @@ export default async function MentoriaPage({ searchParams }: { searchParams: Sea
     hasDeepLink: Boolean(deepLinkId),
   });
   const notice = parseNotice(params.aviso);
+  // Selos de mensagens não lidas nos botões "Conversar" (abas com pedidos).
+  const unread =
+    tab === "sugestoes"
+      ? new Map<string, number>()
+      : await loadUnreadCounts(
+          supabase,
+          profile.id,
+          requests.filter(hasConversation).map((r) => r.id),
+        );
 
   const tabItem = (id: MentorshipTab, icon: React.ReactNode, count?: number): TabNavItem => ({
     href: tabHref(id),
@@ -134,14 +145,19 @@ export default async function MentoriaPage({ searchParams }: { searchParams: Sea
             deepLinkId={deepLinkId}
           />
         )}
-        {tab === "enviadas" && <SentTab sent={sent} seeksMentorship={profile.seeks_mentorship} />}
-        {tab === "recebidas" && <ReceivedTab profile={profile} received={received} />}
+        {tab === "enviadas" && (
+          <SentTab sent={sent} seeksMentorship={profile.seeks_mentorship} unread={unread} />
+        )}
+        {tab === "recebidas" && (
+          <ReceivedTab profile={profile} received={received} unread={unread} />
+        )}
         {tab === "ativas" && (
           <ActiveTab
             supabase={supabase}
             requests={requests}
             isMentor={profile.is_mentor}
             seeksMentorship={profile.seeks_mentorship}
+            unread={unread}
           />
         )}
       </div>

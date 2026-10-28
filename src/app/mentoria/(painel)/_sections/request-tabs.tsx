@@ -42,9 +42,12 @@ function SectionTitle({
 export function SentTab({
   sent,
   seeksMentorship,
+  unread,
 }: {
   sent: readonly RequestItem[];
   seeksMentorship: boolean;
+  /** Mensagens não lidas por conversa (pedido). */
+  unread: ReadonlyMap<string, number>;
 }) {
   if (sent.length === 0) {
     return (
@@ -77,7 +80,7 @@ export function SentTab({
           </SectionTitle>
           <ul className="grid gap-4">
             {open.map((r) => (
-              <SentRequestCard key={r.id} request={r} />
+              <SentRequestCard key={r.id} request={r} unread={unread.get(r.id) ?? 0} />
             ))}
           </ul>
         </section>
@@ -89,7 +92,7 @@ export function SentTab({
           </SectionTitle>
           <ul className="grid gap-4">
             {closed.map((r) => (
-              <SentRequestCard key={r.id} request={r} />
+              <SentRequestCard key={r.id} request={r} unread={unread.get(r.id) ?? 0} />
             ))}
           </ul>
         </section>
@@ -105,9 +108,12 @@ export function SentTab({
 export function ReceivedTab({
   profile,
   received,
+  unread,
 }: {
   profile: Profile;
   received: readonly RequestItem[];
+  /** Mensagens não lidas por conversa (pedido). */
+  unread: ReadonlyMap<string, number>;
 }) {
   const pending = received.filter((r) => r.status === "pending");
   const history = received.filter((r) => r.status !== "pending").slice(0, 20);
@@ -202,7 +208,7 @@ export function ReceivedTab({
           <SectionTitle id="recebidas-historico">Pedidos já respondidos</SectionTitle>
           <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
             {history.map((r) => (
-              <HistoryRow key={r.id} request={r} />
+              <HistoryRow key={r.id} request={r} unread={unread.get(r.id) ?? 0} />
             ))}
           </ul>
         </section>
@@ -220,11 +226,14 @@ export async function ActiveTab({
   requests,
   isMentor,
   seeksMentorship,
+  unread,
 }: {
   supabase: ServerClient;
   requests: readonly RequestItem[];
   isMentor: boolean;
   seeksMentorship: boolean;
+  /** Mensagens não lidas por conversa (pedido). */
+  unread: ReadonlyMap<string, number>;
 }) {
   const active = requests.filter((r) => r.status === "accepted");
   const completed = requests.filter((r) => r.status === "completed").slice(0, 20);
@@ -243,7 +252,12 @@ export async function ActiveTab({
           {active.length > 0 ? (
             <ul className="grid gap-4">
               {active.map((r) => (
-                <ActiveMentorshipCard key={r.id} request={r} contact={contacts.get(r.id) ?? null} />
+                <ActiveMentorshipCard
+                  key={r.id}
+                  request={r}
+                  contact={contacts.get(r.id) ?? null}
+                  unread={unread.get(r.id) ?? 0}
+                />
               ))}
             </ul>
           ) : (
@@ -276,7 +290,7 @@ export async function ActiveTab({
           </SectionTitle>
           <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
             {completed.map((r) => (
-              <HistoryRow key={r.id} request={r} />
+              <HistoryRow key={r.id} request={r} unread={unread.get(r.id) ?? 0} />
             ))}
           </ul>
         </section>
