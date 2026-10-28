@@ -108,8 +108,14 @@ com aviso para leitor de tela; `DocCallout` destaca avisos.
 ## 4. Notificações (`/notificacoes`)
 
 As notificações são criadas **somente por triggers** no banco (novo pedido de mentoria, resposta
-ao pedido, resposta no seu tópico — inclusive anônimo —, solução marcada, comentário no seu paper;
+ao pedido, resposta no seu tópico — inclusive anônimo —, solução marcada, comentário no seu paper e
+**denúncia concluída** — `report_resolved`, quando a moderação resolve ou arquiva uma denúncia sua;
 veja docs/03 §6). O app só lê, marca como lida e apaga.
+
+O aviso de denúncia concluída ("Sua denúncia foi resolvida" / "Sua denúncia foi analisada") diz
+sobre o que era a denúncia ("um tópico do fórum", "um paper da Vitrine"…), agradece e, se a moderação
+escreveu uma nota, acrescenta "Nota da moderação: …". Nunca diz **quem** moderou. Link:
+`/notificacoes`. Quem resolve a própria denúncia não recebe aviso.
 
 Fluxo:
 
@@ -131,7 +137,8 @@ alterar `read_at`).
 
 ## 5. Painel de moderação (`/admin`)
 
-Abas por URL (`?aba=`): **Denúncias** (padrão), **Newsletter** (só admins) e **Membros**.
+Abas por URL (`?aba=`): **Denúncias** (padrão), **Newsletter** (só admins), **Membros** e
+**Registro** (`?aba=registro`, a trilha de auditoria — [seção 8](#8-trilha-de-auditoria)).
 O resultado de cada ação aparece num aviso fixo no canto da tela (`AdminFlashRegion`, região
 `aria-live`), porque muitas ações tiram o cartão da lista (ex.: resolver uma denúncia).
 
@@ -141,7 +148,9 @@ O resultado de cada ação aparece num aviso fixo no canto da tela (`AdminFlashR
   **Arquivadas** (`?status=resolvidas|arquivadas`), com contagens e paginação (15 por página).
 - Cada cartão mostra: motivo, tipo do alvo, quando e quem denunciou, o relato, uma **prévia do
   conteúdo** (tópico, resposta, paper, comentário ou perfil — com autoria “Anônima” quando for o
-  caso e link “Abrir no site”) e o histórico de notas.
+  caso e link “Abrir no site”), a **nota para quem denunciou** (com o selo “Visível para quem
+  denunciou”) e o **registro interno** da moderação ligado àquela denúncia (quem fez o quê, quando e
+  por quê).
 - Ações sobre o conteúdo (só em denúncias abertas):
 
 | Alvo              | Ações                                                                                  | Como                                         |
@@ -152,15 +161,18 @@ O resultado de cada ação aparece num aviso fixo no canto da tela (`AdminFlashR
 | Comentário        | Excluir                                                                                | `delete` (RLS)                               |
 | Perfil            | Abrir o perfil (papéis são trocados na aba Membros)                                    | —                                            |
 
-- **Excluir** pede confirmação e **encerra automaticamente** as denúncias abertas sobre aquele
-  conteúdo, acrescentando “Conteúdo excluído pela moderação.” à nota. Também encerra as denúncias
+- As ações de conteúdo enviam o id da denúncia: o registro de auditoria fica ligado a ela.
+- **Excluir** pede confirmação, registra `delete_content` na auditoria e **encerra automaticamente**
+  as denúncias abertas sobre aquele conteúdo, acrescentando “Conteúdo excluído pela moderação.” à
+  nota (visível para quem denunciou, que recebe o aviso). Também encerra as denúncias
   abertas do que foi apagado **em cascata**: respostas de um tópico excluído e comentários de um
   paper excluído (“…removida junto com o tópico excluído pela moderação.”). Se a exclusão falhar,
   o diálogo de confirmação continua aberto e mostra o erro.
-- **Resolver / Arquivar / Reabrir** com nota opcional (até 800 caracteres). O trigger do banco
-  preenche `resolved_by` e `resolved_at`; reabrir limpa os dois. A denunciante **não** é avisada
-  automaticamente — mas o RLS deixa que ela leia a própria denúncia, **inclusive a nota** (veja a
-  seção 14). Escreva só o necessário.
+- **Resolver / Arquivar / Reabrir** com nota opcional (até 800 caracteres), rotulada **“Nota para
+  quem denunciou”**: ela é **visível para quem denunciou** (vai no aviso e o RLS deixa a denunciante
+  ler a própria denúncia). Nada interno vai para ela — as ações ficam no registro de auditoria. O
+  trigger do banco preenche `resolved_by` e `resolved_at` (reabrir limpa os dois) e, na passagem de
+  aberta → resolvida/arquivada, registra `resolve_report`/`dismiss_report` e avisa a denunciante.
 - Uma página além do fim (ex.: `?pagina=2` depois de resolver a última denúncia dela) mostra a
   última página existente, em vez de um erro (o PostgREST responde `PGRST103` nesse caso). O mesmo
   vale para a aba Membros.
@@ -190,18 +202,19 @@ Usa o serviço compartilhado com o cron (`src/lib/newsletter/service.ts`, CONTRA
 - **Somente admins** trocam papéis. A action `changeMemberRole` confere que quem pede é admin,
   recusa mudar o **próprio** papel e impede rebaixar a **última** administradora. Como a coluna
   `role` não tem GRANT de UPDATE para ninguém (de propósito), a escrita usa o cliente admin
-  (service role) — sempre depois da checagem.
+  (service role) — sempre depois da checagem. A troca é registrada na auditoria (`change_role`,
+  motivo “Membra → Moderadora”) com a sessão da admin.
 
 ### 5.4 Server Actions (`src/lib/admin/actions.ts`)
 
 | Action                     | Quem         | Valida (zod)                                         | Efeito                                                                 |
 | -------------------------- | ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------- |
-| `resolveReport`            | moderação    | `id` uuid, `status` open/resolved/dismissed, `note` ≤ 800 | `update reports` (preserva linhas de auditoria)                    |
-| `moderateThreadAction`     | moderação    | `threadId` uuid, `op` pin/unpin/lock/unlock           | `rpc('moderate_thread')`                                               |
-| `setPaperVisibility`       | moderação    | `paperId` uuid, `hidden` true/false                   | `rpc('moderate_paper')`                                                |
-| `deleteReportedContent`    | moderação    | `targetType` thread/post/paper/paper_comment, `targetId` uuid | `delete` + encerra denúncias abertas do alvo                    |
-| `revealAnonymousAuthor`    | **admin**    | `reportId`, `targetType` thread/post, `targetId`, `reason` 20–300, `confirm` | `rpc('reveal_anonymous_author')` + linha de auditoria   |
-| `changeMemberRole`         | **admin**    | `profileId` uuid, `role`                              | `update profiles.role` (service role)                                  |
+| `resolveReport`            | moderação    | `id` uuid, `status` open/resolved/dismissed, `note` ≤ 800 | `update reports` (nota visível para quem denunciou; o trigger audita e avisa) |
+| `moderateThreadAction`     | moderação    | `threadId` uuid, `op` pin/unpin/lock/unlock, `reportId?` | `rpc('moderate_thread', { …, p_report_id })` (a RPC audita)          |
+| `setPaperVisibility`       | moderação    | `paperId` uuid, `hidden` true/false, `reportId?`      | `rpc('moderate_paper', { …, p_report_id })` (a RPC audita)             |
+| `deleteReportedContent`    | moderação    | `targetType` thread/post/paper/paper_comment, `targetId` uuid, `reportId?` | `delete` + auditoria `delete_content` + encerra denúncias abertas do alvo |
+| `revealAnonymousAuthor`    | **admin**    | `reportId`, `targetType` thread/post, `targetId`, `reason` 20–300, `confirm` | `rpc('reveal_anonymous_author', { …, p_reason, p_report_id })` — auditoria na mesma transação |
+| `changeMemberRole`         | **admin**    | `profileId` uuid, `role`                              | `update profiles.role` (service role) + auditoria `change_role`        |
 | `generateEditionAction`    | **admin**    | —                                                    | `generateWeeklyEdition({ publish: true })`                             |
 | `publishEditionAction`     | **admin**    | `editionId` uuid (só rascunhos)                       | `publishEdition(id)`                                                   |
 | `sendEditionAction`        | **admin**    | `editionId` uuid, `mode` preview/send                 | `sendEdition(id, { dryRun })`                                          |
@@ -225,8 +238,11 @@ genérica (nunca a mensagem crua do Postgres). Depois de cada mutação, `revali
 | **Trocar papéis**                                   |        |            |   ✓   |
 | **Gerar e enviar o Boletim**                        |        |            |   ✓   |
 
-No banco, `reveal_anonymous_author` aceita moderadoras (docs/03 §7); o painel é **mais restritivo**
-e só oferece a ação a administradoras, exigindo justificativa ligada a uma denúncia.
+| Ver o **registro de auditoria** (aba Registro)      |        |     ✓      |   ✓   |
+
+No banco, `reveal_anonymous_author` aceita moderadoras (docs/03 §7) e exige o motivo (20–300
+caracteres); o painel é **mais restritivo** e só oferece a ação a administradoras, exigindo
+justificativa ligada a uma denúncia.
 
 Como promover alguém pela primeira vez (não há admin ainda): no SQL Editor do Supabase,
 `update public.profiles set role = 'admin' where id = '<uuid>';`. Depois disso, use a aba Membros.
@@ -237,54 +253,41 @@ Como promover alguém pela primeira vez (não há admin ainda): no SQL Editor do
   moderação.
 - A revelação só existe no painel, para **admins**, e exige: uma denúncia sobre **aquele**
   conteúdo, um motivo de 20 a 300 caracteres e a confirmação “Entendo que este é um caso grave…”.
-- Ordem das operações em `revealAnonymousAuthor`: confere a denúncia → chama a RPC → **grava a
-  linha de auditoria** → só então devolve o nome. Se a auditoria falhar, a identidade **não** é
-  exibida.
+- Ordem das operações em `revealAnonymousAuthor`: confere a denúncia → chama a RPC
+  `reveal_anonymous_author(p_thread_id | p_post_id, p_reason, p_report_id)`, que valida o motivo
+  (`CD016`) e se a denúncia é sobre aquele conteúdo (`CD017`) e **grava o registro de auditoria na
+  mesma transação** em que devolve a autoria → só então o nome é buscado e exibido. Sem registro,
+  nada é revelado. O nome revelado nunca é gravado (nem no registro, nem na denúncia).
 - O nome aparece apenas dentro do diálogo; ao fechar, some da tela. O log do servidor registra
   só ids (`[moderacao] autoria anônima revelada { report, target, by, at }`), nunca nomes ou o
   motivo.
 
 ## 8. Trilha de auditoria
 
-Enquanto não existe uma tabela dedicada, a auditoria fica na própria denúncia
-(`reports.resolution_note`), em linhas que começam com `[Auditoria]`:
+Tabela `public.moderation_audit_log` (migration `20261028090000_integration.sql`, docs/03 §3):
+`id`, `actor_id` (quem agiu; vira NULL se a conta for excluída), `action`, `target_type`/`target_id`
+(o conteúdo ou perfil), `report_id` (a denúncia de onde a ação partiu, se houver), `reason` (≤ 500) e
+`created_at`. **Só moderadoras e admins leem**; incluir só em nome próprio (`actor_id = auth.uid()`);
+**ninguém edita nem apaga** pela API (sem políticas nem GRANT de UPDATE/DELETE — só a service role).
 
-```
-[Auditoria] 27/10/2026, 19:19 — Helena Duarte: revelou a autoria do tópico anônimo. Motivo: …
-```
+| Ação (`action`)                                   | Quem grava                                                    | Motivo (`reason`)                   |
+| ------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- |
+| `reveal_author`                                   | RPC `reveal_anonymous_author`, na mesma transação             | obrigatório (20–300)                |
+| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)             | opcional (`p_reason`)               |
+| `hide_paper`, `unhide_paper`                      | RPC `moderate_paper` (só quando muda)                         | opcional (`p_reason`)               |
+| `resolve_report`, `dismiss_report`                | trigger `reports_after_status_change` (aberta → resolvida/arquivada) | —                            |
+| `delete_content`                                  | painel (`deleteReportedContent`, sessão da moderadora)        | nota da exclusão                    |
+| `change_role`                                     | painel (`changeMemberRole`, sessão da admin)                  | “Membra → Moderadora”               |
 
-`src/lib/admin/audit.ts` garante que essas linhas **sobrevivem** quando a moderação reescreve a
-nota ao resolver/arquivar (`mergeResolutionNote`) e que o limite de 1.000 caracteres da coluna é
-respeitado (descarta primeiro as linhas mais antigas). Testes em `audit.test.ts`.
+Onde aparece: em cada cartão de denúncia (“Registro da moderação · interno”) e na aba **Registro**
+(`/admin?aba=registro`, 30 por página, mais recente primeiro, ações sensíveis com selo). Rótulos e
+regras puras em `src/lib/admin/audit.ts` (+ `audit.test.ts`); consultas em
+`src/lib/admin/queries.ts` (`listAuditLog`, auditoria por denúncia).
 
-**Proposta de evolução (precisa de migration — não aplicada):**
-
-```sql
-create table public.moderation_audit_log (
-  id bigint generated always as identity primary key,
-  actor_id uuid not null default auth.uid() references public.profiles (id) on delete set null,
-  action text not null check (action in ('reveal_author','change_role','delete_content','hide_paper','moderate_thread')),
-  target_type text not null,
-  target_id uuid not null,
-  report_id uuid references public.reports (id) on delete set null,
-  reason text check (char_length(reason) <= 1000),
-  created_at timestamptz not null default now()
-);
-create index moderation_audit_log_actor_idx on public.moderation_audit_log (actor_id);
-create index moderation_audit_log_report_idx on public.moderation_audit_log (report_id);
-alter table public.moderation_audit_log enable row level security;
-create policy "Moderação lê a auditoria" on public.moderation_audit_log
-  for select to authenticated using ((select private.is_moderator()));
-create policy "Moderação registra em nome próprio" on public.moderation_audit_log
-  for insert to authenticated with check ((select private.is_moderator()) and actor_id = (select auth.uid()));
-revoke all on table public.moderation_audit_log from anon, authenticated;
-grant select on table public.moderation_audit_log to authenticated;
-grant insert (action, target_type, target_id, report_id, reason) on table public.moderation_audit_log to authenticated;
-grant all on table public.moderation_audit_log to service_role;
-```
-
-(Sem UPDATE/DELETE para ninguém além da service role: o registro é só de inclusão.) O ideal é
-que `reveal_anonymous_author` grave essa linha dentro da própria RPC, na mesma transação.
+**Por que saiu da nota da denúncia:** antes, o painel acrescentava linhas `[Auditoria] …` (com o nome
+de quem revelou uma autoria e o motivo) em `reports.resolution_note` — que a denunciante consegue ler
+pela API. A migration move essas linhas para o registro (ação `reveal_author`, autoria desconhecida) e
+as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 
 ## 9. SEO: `robots.txt` e `sitemap.xml`
 
@@ -308,17 +311,20 @@ que `reveal_anonymous_author` grave essa linha dentro da própria RPC, na mesma 
 - [x] Redirecionamento de notificações só para caminhos internos (sem open redirect).
 - [x] Erros do banco nunca são mostrados crus; códigos `CD…` têm mensagens pt-BR próprias.
 - [x] `/admin` e `/notificacoes` com `noindex` e bloqueados no `robots.txt`.
-- [x] Revelação de autoria: só admin, com motivo, ligada a uma denúncia e auditada.
+- [x] Revelação de autoria: só admin no painel, motivo obrigatório no banco, ligada a uma denúncia e
+      auditada na mesma transação.
+- [x] Registro de auditoria dedicado (`moderation_audit_log`), só de inclusão, legível só pela moderação.
+- [x] Nota da denúncia visível para quem denunciou sem dados internos; aviso ao concluir a denúncia.
 - [x] Logs sem dados pessoais (só ids e códigos de erro).
+- [x] Limites de e-mails de confirmação da newsletter (3 por endereço/dia + teto diário global).
 - [ ] Rate limit para denúncias e ações em massa (sugestão: Vercel Firewall ou contador no banco).
-- [ ] Tabela de auditoria dedicada (proposta na seção 8).
 
 ## 11. LGPD na prática
 
 | Direito / obrigação                     | Onde está                                                                          |
 | --------------------------------------- | ---------------------------------------------------------------------------------- |
 | Transparência (art. 9º)                 | `/privacidade` em linguagem simples                                                |
-| Consentimento de IA (art. 7º, I e 8º)   | Caixa desmarcada no onboarding/perfil, com 18+; revogar apaga o embedding (trigger) |
+| Consentimento de IA (art. 7º, I e 8º)   | Caixa desmarcada no onboarding/perfil, com 18+; revogar apaga o embedding e as sugestões de mentoras (trigger) |
 | Consentimento do Boletim                | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla               |
 | Correção e revogação (art. 18)          | `/perfil`; descadastro pelo link de cada edição                                     |
 | Eliminação                              | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo); “excluir meus dados” na página de descadastro |
@@ -338,7 +344,8 @@ src/app/robots.ts · src/app/sitemap.ts
 src/components/landing/*                 seções da landing, DocLayout, data.ts (server-only), featured.ts (+ teste)
 src/components/notifications/*           lista, ícone por tipo, ações (cliente)
 src/components/admin/*                   cartão de denúncia, ações de conteúdo, revelar autoria,
-                                         formulário de papel, painel da newsletter, aviso fixo (flash)
+                                         formulário de papel, painel da newsletter, registro de
+                                         auditoria (audit-log.tsx), aviso fixo (flash)
 src/lib/notifications/{meta,queries,actions}.ts (+ meta.test.ts)
 src/lib/admin/{action-state,errors,audit,params,queries,actions}.ts (+ testes)
 ```
@@ -351,9 +358,10 @@ Testes de unidade (regras puras):
 npx vitest run src/lib/admin src/lib/notifications src/components/landing
 ```
 
-Cobrem: tradução de erros, linhas de auditoria (montagem, preservação e limite), leitura dos
-parâmetros do painel, ordenação/filtros/links seguros das notificações e a escolha dos destaques
-da landing.
+Cobrem: tradução de erros, rótulos/links/limites do registro de auditoria e da nota para quem
+denunciou, leitura dos parâmetros do painel, ordenação/filtros/links seguros das notificações e a
+escolha dos destaques da landing. As regras do banco (auditoria, aviso de denúncia, motivo
+obrigatório) estão em `supabase/tests/database/rls.test.sql` (`npx supabase test db`).
 
 Roteiro manual com o Supabase local e as contas de demonstração (senha `ciencia-delas-demo`):
 
@@ -371,8 +379,9 @@ Roteiro manual com o Supabase local e as contas de demonstração (senha `cienci
    ver em “Resolvidas” e reabrir.
 5. **`admin@demo.cienciadelas.dev`** — aba Newsletter: “Preparar envio” na edição `2026-s43`
    (prévia sem enviar). Aba Membros: troque o papel de uma conta e volte. Em denúncias de tópicos
-   anônimos aparece “Revelar autoria” (motivo curto é recusado; depois de revelar, a linha
-   `[Auditoria]` aparece nas notas).
+   anônimos aparece “Revelar autoria” (motivo curto é recusado; depois de revelar, a entrada
+   “revelou a autoria” aparece no registro interno do cartão e na aba Registro — e **não** na nota
+   da denúncia). Resolva uma denúncia com nota: quem denunciou recebe o aviso em `/notificacoes`.
 
 A verificação automatizada da F6 (Playwright, 32 cenários contra o Supabase local) criou uma
 usuária de teste `f6-teste@demo.cienciadelas.dev` com tópicos, resposta, paper e denúncias
@@ -386,36 +395,14 @@ os dados em cascata).
   streaming com status 200 (a tela “não encontrada” e `noindex` aparecem normalmente e nenhum dado
   protegido é enviado). Para um 404 HTTP real, remova o `loading.tsx` da raiz e mantenha só os das
   rotas.
-- Auditoria guardada na nota da denúncia (seção 8) até existir a tabela dedicada.
-- **A denunciante consegue ler a nota da moderação.** A política de SELECT de `reports` libera a
-  linha inteira para quem denunciou (`reporter_id = auth.uid()`), e o GRANT de SELECT é da tabela
-  toda — então `resolution_note`, incluindo as linhas `[Auditoria]` (nome de quem revelou uma
-  autoria e o motivo), pode ser lida pela API por ela. Nenhuma tela mostra isso hoje, e o nome
-  revelado nunca é gravado, mas o painel avisa a moderação para escrever só o necessário.
-  Correção proposta (migration, não aplicada): mover as notas para uma tabela só da moderação.
-
-  ```sql
-  create table public.report_notes (
-    report_id uuid primary key references public.reports (id) on delete cascade,
-    note text check (char_length(note) <= 1000),
-    updated_by uuid default auth.uid() references public.profiles (id) on delete set null,
-    updated_at timestamptz not null default now()
-  );
-  create index report_notes_updated_by_idx on public.report_notes (updated_by);
-  alter table public.report_notes enable row level security;
-  create policy "Só a moderação lê e escreve notas" on public.report_notes
-    for all to authenticated
-    using ((select private.is_moderator())) with check ((select private.is_moderator()));
-  revoke all on table public.report_notes from anon, authenticated;
-  grant select, insert, update on table public.report_notes to authenticated;
-  grant all on table public.report_notes to service_role;
-  -- depois: copiar reports.resolution_note para report_notes e parar de usar a coluna.
-  ```
-- **Revogar o consentimento de IA não apaga as sugestões já salvas.** O trigger
-  `profiles_after_consent_revoked` apaga o embedding, mas as linhas de `mentor_suggestions` da
-  mentoranda continuam no banco (a tela de mentoria deixa de mostrá-las). Proposta: incluir
-  `delete from public.mentor_suggestions where mentee_id = new.id;` nesse trigger.
-- Sem notificação para a denunciante quando a denúncia é resolvida (precisaria de um novo
-  `notification_type`, ex.: `report_resolved`).
+- **A denunciante lê a própria denúncia inteira pela API**, inclusive `resolved_by` (o id de quem
+  resolveu). A nota (`resolution_note`) agora é de propósito visível para ela; os registros internos
+  ficam em `moderation_audit_log`. Se for preciso esconder também quem resolveu, a saída é expor as
+  denúncias da denunciante por uma view/RPC com colunas limitadas.
+- **Exclusões feitas fora do painel** (ex.: moderadora apagando uma resposta direto no fórum) não
+  entram no registro de auditoria — só as do painel (`deleteReportedContent`). Fixar/trancar e ocultar
+  são auditados em qualquer tela, porque a auditoria está nas RPCs.
+- A entrada `change_role` e a de `delete_content` são gravadas logo depois da ação (não na mesma
+  transação); se a gravação falhar, o erro vai para o log do servidor.
 - Notificações em tempo real (Realtime) não estão ligadas: a contagem do sino atualiza a cada
   navegação.

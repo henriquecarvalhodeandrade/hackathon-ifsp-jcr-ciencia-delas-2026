@@ -1,12 +1,14 @@
 # 08 · Newsletter — Boletim Delas
 
 O **Boletim Delas** é a newsletter semanal da Ciência Delas: toda segunda-feira, os papers de
-pesquisadoras mais destacados pela comunidade, as conversas que movimentaram o fórum, as mentoras
-na rede e os números da semana. Qualquer pessoa pode assinar (não precisa de conta) e o arquivo de
+pesquisadoras mais destacados pela comunidade, as conversas que movimentaram o fórum, quantas novas
+mentoras chegaram (e de quais áreas) e os números da semana. Qualquer pessoa pode assinar (não precisa de conta) e o arquivo de
 edições é público.
 
-> Contrato: CONTRACT §4 (tabelas `newsletter_*`), §9 (formato do `content`) e §11 (envio, cron,
-> descadastro e API do serviço). Banco: `supabase/migrations/20261027120500_newsletter.sql`.
+> Contrato: CONTRACT §4 (tabelas `newsletter_*`), §9 (formato do `content`, revisto na integração:
+> mentoras só em agregado — ver [seção 3](#3-como-a-edição-é-montada)) e §11 (envio, cron, descadastro
+> e API do serviço). Banco: `supabase/migrations/20261027120500_newsletter.sql`,
+> `20261028090000_integration.sql` (limites de confirmação) e `20261028091000_newsletter_mentor_summary.sql`.
 
 Sumário
 
@@ -51,7 +53,8 @@ one-click chega sem cookies). As páginas com token têm `robots: noindex` e `re
 2. A Server Action `subscribeToNewsletter` valida tudo com zod no servidor e grava com o cliente
    admin (a tabela não tem nenhuma política para a API):
    - e-mail novo → `status = 'pending'`, `consent_text`, `consented_at`, `area_ids`;
-   - já pendente → atualiza áreas/consentimento e **reenvia** o mesmo link (no máximo 1 a cada 2 minutos);
+   - já pendente → atualiza áreas/consentimento e **reenvia** o mesmo link (no máximo 1 a cada 2
+     minutos e 3 por dia — ver "Limites de e-mails de confirmação" abaixo);
    - já descadastrado → volta a `pending` com **tokens novos** (os links antigos deixam de valer);
    - já ativo → não faz nada.
 3. A resposta é **sempre a mesma** ("Se este endereço ainda não estiver confirmado, você vai receber…"),
@@ -69,6 +72,31 @@ cliente). Depois, `/newsletter` mostra "Falta confirmar" (pendente) ou "Você j�
 Proteções extras: campo-armadilha invisível (`website`) — se vier preenchido, respondemos sucesso e
 não gravamos nada; limite de 2 minutos entre e-mails de confirmação; corrida de duas inscrições
 simultâneas tratada pelo `unique` do e-mail.
+
+### Limites de e-mails de confirmação
+
+Cada e-mail de confirmação gasta a cota do provedor (Resend gratuito: 100/dia) e poderia ser usado para
+encher a caixa de outra pessoa. Por isso, além dos 2 minutos entre envios:
+
+| Limite                   | Valor                                                       | Onde                                                                     |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Por endereço             | **3 e-mails a cada 24 h**                                   | `CONFIRMATIONS_PER_ADDRESS_PER_DAY` (`constants.ts`)                     |
+| Global (todos somados)   | **80 por dia** (ajustável em `NEWSLETTER_CONFIRMATIONS_PER_DAY`; `0` pausa) | `getConfirmationsPerDay()` (`config.ts`)                                 |
+
+As colunas `newsletter_subscribers.confirmation_sent_count` (e-mails na janela atual) e
+`confirmation_sent_at` (último envio) guardam a contagem; a janela recomeça quando o último envio tem
+mais de 24 h. A reserva é **atômica** na RPC `newsletter_reserve_confirmation(p_subscriber_id,
+p_max_per_address, p_max_per_day)` (só `service_role`; trava consultiva para o teto global), chamada
+por `subscribe()` antes de enviar. Ela devolve `ok` (e conta o envio), `address_limit`, `daily_limit`
+ou `not_found`. O teto global soma as janelas ativas — pode contar a mais, nunca a menos.
+
+Mensagens (neutras, sem revelar se o e-mail existe):
+
+- **Limite do endereço:** "Se este endereço ainda não estiver confirmado, procure o e-mail de
+  confirmação que já enviamos… mandamos no máximo 3 e-mails de confirmação por dia para o mesmo
+  endereço."
+- **Teto diário:** "Recebemos muitos pedidos de inscrição hoje e pausamos os e-mails de confirmação até
+  amanhã…" (o formulário mantém os dados preenchidos).
 
 ### Descadastro e exclusão
 
@@ -100,20 +128,39 @@ anteriores** e leva o rótulo da **semana ISO da véspera**, no fuso de São Pau
 Rodar de novo na mesma semana reaproveita o slug (idempotente). Com `force: true` o conteúdo é
 recalculado — nunca de uma edição já `sent`.
 
-**Conteúdo** (`content`, CONTRACT §9 + campos extras opcionais `papers[].area_id` e `papers[].area`):
+**Conteúdo** (`content`, CONTRACT §9 revisto + campos extras opcionais `papers[].area_id` e
+`papers[].area`). Edições publicadas são **públicas** (visitantes leem o `content` pela API), então só
+entram dados que já são públicos:
+
+```json
+{
+  "papers": [{ "id": "…", "title": "…", "authors": ["…"], "votes": 12, "plain_summary": "…", "url": "/papers/<id>", "area_id": 3, "area": "Ecologia" }],
+  "threads": [{ "id": "…", "title": "…", "category": "Carreira acadêmica", "replies": 4, "url": "/forum/t/<id>" }],
+  "mentors": [],
+  "mentor_summary": { "total": 2, "areas": ["Ecologia", "Biotecnologia"] },
+  "stats": { "new_members": 10, "new_papers": 3, "mentorships": 2 }
+}
+```
 
 | Seção     | Regra                                                                                                                                                                                                                                                                                                                                                           |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `papers`  | Até 5 papers não ocultos com mais destaques **dados na janela** (desempate igual ao `get_paper_ranking`: total de votos, mais novo). Semana sem votos → até 3 papers indicados na janela.                                                                                                                                                                       |
-| `threads` | Até 4 tópicos com mais atividade na janela (respostas + reações + 1 se o tópico é novo). **Ficam de fora todos os tópicos anônimos e TODAS as categorias que aceitam anonimato** (apoio, maternidade, saúde mental): a newsletter é pública e esses espaços são de acolhimento — nem o título sai do fórum. Tópico sem categoria conhecida também fica de fora. |
-| `mentors` | Até 4 mentoras disponíveis (`is_mentor`, `mentor_available`, onboarding feito) que chegaram na janela. Nenhuma nova → até 3 mentoras disponíveis mais recentes. Só nome, headline e link do perfil.                                                                                                                                                             |
+| `threads` | Até 4 tópicos com mais atividade na janela (respostas + reações + 1 se o tópico é novo). **Ficam de fora todos os tópicos anônimos, TODAS as categorias que aceitam anonimato** (apoio, maternidade, saúde mental) **e "Apresente-se"** (apresentações são pessoais; lista em `NEWSLETTER_EXCLUDED_CATEGORY_SLUGS`): a newsletter é pública e esses espaços são de acolhimento — nem o título sai do fórum. Tópico sem categoria conhecida também fica de fora. Nunca leva o nome de quem escreveu. |
+| `mentors` | **Sempre `[]`** (mantido por compatibilidade com o formato antigo, que trazia nomes).                                                                                                                                                                                                                                                                           |
+| `mentor_summary` | Agregado das mentoras disponíveis (`is_mentor`, `mentor_available`) que concluíram o cadastro na janela: `total` e os nomes das **áreas** delas (até 8, das mais frequentes). Nada de nomes, headlines ou links de perfil — o diretório é só para membras. Semana sem mentoras novas → `{ "total": 0, "areas": [] }` (a seção some).                                     |
 | `stats`   | `new_members` (onboarding na janela), `new_papers` (papers visíveis criados na janela), `mentorships` (pedidos aceitos na janela, `responded_at`).                                                                                                                                                                                                              |
 
-Só entram dados que já são públicos na Vitrine ou informações mínimas de perfil; nada de e-mails, bios
-ou conteúdo de posts.
+Nada de nomes de mentoras, e-mails, bios ou conteúdo de posts. **Edições antigas** que ainda tragam
+`mentors` com nomes são lidas sem os nomes (`parseEditionContent` devolve `mentors: []` e um
+`mentor_summary` só com a contagem) e a migration `20261028091000_newsletter_mentor_summary.sql`
+converte o jsonb guardado no banco (inclusive o da edição de demonstração do seed).
 
-**Abertura editorial** (`summary`): `generateEditionIntro(content)` (IA, ≤ 600 caracteres, sem nomes
-de pessoas, só com os números fornecidos). Sem chave de IA ou em caso de falha, usamos
+A web (`/newsletter/[slug]`, também a prévia de rascunhos para admins), o e-mail e o cartão do arquivo
+mostram "N novas mentoras" + as áreas em chips, com o convite "entre na sua conta e acesse a página
+Mentoria".
+
+**Abertura editorial** (`summary`): `generateEditionIntro(...)` (IA, ≤ 600 caracteres, sem nomes
+de pessoas, só com os números fornecidos — das mentoras, a IA recebe só a quantidade). Sem chave de IA ou em caso de falha, usamos
 `fallbackIntro(content)`, um texto determinístico com os números reais da edição.
 
 A versão web (`/newsletter/[slug]`) e o e-mail usam o **mesmo** `content`; o e-mail é HTML próprio
@@ -258,6 +305,7 @@ Em desenvolvimento a página e o formulário mostram um aviso "Modo de desenvolv
 | `CRON_SECRET`            | Protege `/api/cron/newsletter` (gere com `openssl rand -hex 32`). |
 | `NEXT_PUBLIC_SITE_URL`   | Base dos links dos e-mails (confirmação, descadastro, papers).    |
 | `NEWSLETTER_MAX_PER_RUN` | Teto de e-mails por execução (padrão 90).                         |
+| `NEWSLETTER_CONFIRMATIONS_PER_DAY` | Teto diário de e-mails de confirmação, todos os endereços (padrão 80; `0` pausa). |
 | `MAILPIT_URL`            | Só dev: URL do Mailpit (`off` desliga).                           |
 
 **Resend em produção:** o remetente de testes `onboarding@resend.dev` só entrega para o e-mail da dona
@@ -286,7 +334,10 @@ garante que nada se repete).
   mascarado (`la••••a@…`).
 - **Tokens** uuid aleatórios; troca de tokens ao se reinscrever; páginas com token fora dos buscadores e
   sem Referer.
-- **Conteúdo público:** nenhum tópico anônimo nem de categoria com anonimato; nada de autoras de tópicos.
+- **Conteúdo público:** nenhum tópico anônimo, de categoria com anonimato ou de "Apresente-se"; nada de
+  autoras de tópicos; mentoras só como contagem + áreas (nunca nomes ou perfis).
+- **Limites de confirmação:** 3 e-mails por endereço a cada 24 h e teto diário global (evita usar o
+  formulário para encher a caixa de alguém).
 - Detalhes na página `/privacidade` (seção Newsletter).
 
 ## 10. Como testar
@@ -368,16 +419,16 @@ vercel.json                                 cron "0 12 * * 1"
 - **Soft 404:** como o layout raiz tem `src/app/loading.tsx`, páginas que chamam `notFound()` (edição
   inexistente, rascunho para visitantes) respondem HTTP 200 com a página 404 e `noindex` — os buscadores
   não indexam, mas o status não é 404. Rotas que não existem respondem 404 normalmente.
-- `NEWSLETTER_MAX_PER_RUN` e `MAILPIT_URL` são lidas em `src/lib/newsletter/config.ts` e
+- `NEWSLETTER_MAX_PER_RUN`, `NEWSLETTER_CONFIRMATIONS_PER_DAY` e `MAILPIT_URL` são lidas em `src/lib/newsletter/config.ts` e
   `src/lib/email/config.ts` (ainda não estão em `src/lib/env.ts`).
 - Não há página de preferências: para trocar as áreas, a pessoa se inscreve de novo com o mesmo e-mail
   enquanto ainda não confirmou, ou cancela e se inscreve outra vez.
 - O cron semanal manda o restante (quando passa do teto) só na próxima execução; com muitas inscritas,
   agende execuções diárias ou use "Enviar" no painel.
-- **Abuso do formulário:** há campo-armadilha e no máximo um e-mail de confirmação a cada 2 minutos
-  por endereço, mas não há limite por IP nem captcha. Alguém insistente pode gastar a cota gratuita do
-  Resend (100 e-mails/dia) com confirmações. Para produção com tráfego real: limite por IP (ex.: tabela
-  de tentativas ou serviço de rate limit) e um contador diário de confirmações por endereço.
+- **Abuso do formulário:** há campo-armadilha, 2 minutos entre e-mails de confirmação, no máximo 3 por
+  endereço a cada 24 h e um teto diário global (80 por padrão), mas não há limite por IP nem captcha:
+  alguém insistente pode esgotar o teto diário e atrasar inscrições legítimas até o dia seguinte (o
+  arquivo segue público). Para produção com tráfego real: limite por IP ou captcha.
 - **Conteúdo público:** a edição é pública e mostra títulos de conversas de categorias **sem**
-  anonimato (ex.: "Apresente-se") e nome + headline de mentoras, conforme o CONTRACT §9. As
-  categorias que aceitam anonimato (apoio, maternidade, saúde mental) nunca entram.
+  anonimato e fora de "Apresente-se". As categorias que aceitam anonimato (apoio, maternidade, saúde
+  mental) nunca entram, e mentoras aparecem só em agregado (contagem + áreas).

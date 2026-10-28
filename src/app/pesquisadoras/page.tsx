@@ -34,11 +34,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function PesquisadorasPage({ searchParams }: { searchParams: SearchParams }) {
   const me = await requireOnboardedProfile("/pesquisadoras");
   const filters = parseDirectoryFilters(await searchParams);
-  const [areas, page, availability] = await Promise.all([
-    getResearchAreas(),
-    getDirectoryPage(filters),
-    getMentorAvailability(),
-  ]);
+  const [areas, page] = await Promise.all([getResearchAreas(), getDirectoryPage(filters)]);
+  const availability = await getMentorAvailability(
+    page.items.filter((profile) => profile.is_mentor && profile.id !== me.id).map((profile) => profile.id),
+  );
   const ownSlots = me.is_mentor ? await getOwnOpenSlots(me.id, me.mentor_capacity) : null;
   const areaGroups = groupAreas(areas);
   const active = hasActiveFilters(filters);

@@ -54,16 +54,23 @@ export interface MentorAvailability {
   openSlots: number;
 }
 
+/** Máximo de ids por chamada de `get_mentor_open_slots` (o banco também corta em 200). */
+export const MENTOR_SLOTS_MAX_IDS = 200;
+
 /**
- * Vagas abertas de cada mentora disponível (via RPC SECURITY DEFINER, já que a usuária não
- * enxerga as mentorias das outras). Mentoras fora do mapa: indisponíveis, sem vagas, sem
- * onboarding ou a própria usuária. Falha → mapa vazio (a página continua funcionando).
+ * Vagas abertas (capacidade − mentorias aceitas) das mentoras indicadas, via RPC SECURITY
+ * DEFINER `get_mentor_open_slots` (a usuária não enxerga as mentorias das outras). Inclui
+ * mentoras pausadas ou sem vagas (0) e a própria usuária; quem não é mentora fica fora do
+ * mapa. Falha → mapa vazio (a página continua funcionando, o selo mostra "sem vagas agora").
  */
-export const getMentorAvailability = cache(async (): Promise<Map<string, MentorAvailability>> => {
+export async function getMentorAvailability(
+  mentorIds: readonly string[],
+): Promise<Map<string, MentorAvailability>> {
   const map = new Map<string, MentorAvailability>();
-  if (!isSupabaseConfigured()) return map;
+  const ids = [...new Set(mentorIds.filter(isUuid))].slice(0, MENTOR_SLOTS_MAX_IDS);
+  if (ids.length === 0 || !isSupabaseConfigured()) return map;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_mentor_candidates", { p_limit: 100 });
+  const { data, error } = await supabase.rpc("get_mentor_open_slots", { p_ids: ids });
   if (error) {
     console.warn(`[perfil] falha ao consultar vagas de mentoras (${error.code})`);
     return map;
@@ -72,7 +79,7 @@ export const getMentorAvailability = cache(async (): Promise<Map<string, MentorA
     map.set(row.mentor_id, { openSlots: row.open_slots });
   }
   return map;
-});
+}
 
 export interface OpenRequestBetween {
   status: Extract<Enums<"mentorship_status">, "pending" | "accepted">;

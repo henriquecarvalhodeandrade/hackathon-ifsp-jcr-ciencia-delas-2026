@@ -1441,6 +1441,22 @@ end
 $$;
 select pass('newsletter: até 3 confirmações por endereço a cada 24 h e teto diário global');
 
+-- Newsletter: o arquivo público não leva nomes de mentoras (só o agregado mentor_summary).
+do $$
+begin
+  perform cdtest.login_anon();
+  perform cdtest.check(
+    (select count(*) from public.newsletter_editions
+     where jsonb_typeof(content -> 'mentors') = 'array' and jsonb_array_length(content -> 'mentors') > 0) = 0,
+    'nenhuma edição pública traz a lista de mentoras com nomes');
+  perform cdtest.check(
+    (select count(*) from public.newsletter_editions where content::text like '%full_name%') = 0,
+    'nenhuma edição pública traz full_name');
+  perform cdtest.logout();
+end
+$$;
+select pass('newsletter: edições públicas sem nomes de mentoras');
+
 -- get_mentor_open_slots: vagas das mentoras indicadas
 do $$
 begin

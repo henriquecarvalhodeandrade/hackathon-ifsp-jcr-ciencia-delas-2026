@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { fallbackIntro, isEditionEmpty, parseEditionContent, safeInternalPath } from "./content";
+import {
+  fallbackIntro,
+  isEditionEmpty,
+  parseEditionContent,
+  safeInternalPath,
+  summarizeMentors,
+} from "./content";
 
 const PAPER_ID = "b1000000-0000-4000-8000-000000000001";
 
@@ -53,6 +59,29 @@ describe("parseEditionContent", () => {
     expect(content.stats).toEqual({ new_members: 10, new_papers: 3, mentorships: 2 });
   });
 
+  it("edição antiga com nomes de mentoras: só a contagem sobrevive (nunca os nomes)", () => {
+    const content = parseEditionContent({
+      mentors: [
+        { id: "m1", full_name: "Marina", headline: "Docente", url: "/pesquisadoras/m1" },
+        { id: "m2", full_name: "Luiza", headline: null },
+        "lixo",
+      ],
+    });
+    expect(content.mentors).toEqual([]);
+    expect(content.mentor_summary).toEqual({ total: 2, areas: [] });
+    expect(JSON.stringify(content)).not.toMatch(/Marina|Luiza|pesquisadoras/);
+  });
+
+  it("formato novo: mentor_summary prevalece e mentors é ignorado", () => {
+    const content = parseEditionContent({
+      mentors: [{ id: "m1", full_name: "Marina" }],
+      mentor_summary: { total: "3", areas: [" Ecologia ", "Ecologia", "", "Química"] },
+    });
+    expect(content.mentors).toEqual([]);
+    expect(content.mentor_summary).toEqual({ total: 3, areas: ["Ecologia", "Química"] });
+    expect(isEditionEmpty(content)).toBe(false);
+  });
+
   it("nunca quebra: descarta itens inválidos e completa valores ausentes", () => {
     const content = parseEditionContent({
       papers: [{ title: "sem id" }, { id: "p2", title: "Ok", url: "https://evil.example" }],
@@ -98,5 +127,32 @@ describe("fallbackIntro", () => {
 
   it("semana vazia tem texto acolhedor", () => {
     expect(fallbackIntro(parseEditionContent({}))).toMatch(/^Semana tranquila/);
+  });
+
+  it("conta as novas mentoras sem citar nomes", () => {
+    const intro = fallbackIntro(
+      parseEditionContent({ mentor_summary: { total: 2, areas: ["Ecologia"] } }),
+    );
+    expect(intro).toBe(
+      "Nesta semana, a comunidade ganhou 2 novas mentoras. Confira os destaques abaixo e compartilhe com quem também faz ciência.",
+    );
+  });
+});
+
+describe("summarizeMentors", () => {
+  it("conta mentoras e ordena as áreas por frequência (sem repetir por pessoa)", () => {
+    expect(
+      summarizeMentors([
+        { areas: ["Química", "Ecologia", "Ecologia"] },
+        { areas: ["Ecologia"] },
+        { areas: [] },
+      ]),
+    ).toEqual({ total: 3, areas: ["Ecologia", "Química"] });
+  });
+
+  it("limita a 8 áreas", () => {
+    const areas = Array.from({ length: 12 }, (_, i) => `Área ${String(i).padStart(2, "0")}`);
+    expect(summarizeMentors([{ areas }]).areas).toHaveLength(8);
+    expect(summarizeMentors([])).toEqual({ total: 0, areas: [] });
   });
 });

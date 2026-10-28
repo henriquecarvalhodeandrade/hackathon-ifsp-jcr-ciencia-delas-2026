@@ -147,7 +147,14 @@ export async function generateWeeklyEdition(
     start: week.windowStart,
     end: week.windowEnd,
   });
-  const summary = (await generateEditionIntro(content)) ?? fallbackIntro(content);
+  // A IA só recebe a QUANTIDADE de novas mentoras (o prompt conta itens; nunca há nomes).
+  const introInput = {
+    papers: content.papers,
+    threads: content.threads,
+    stats: content.stats,
+    mentors: Array.from({ length: content.mentor_summary.total }, (_, i) => ({ id: `m${i + 1}` })),
+  };
+  const summary = (await generateEditionIntro(introInput)) ?? fallbackIntro(content);
 
   const fields = {
     title: week.title,

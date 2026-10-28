@@ -806,12 +806,22 @@ select
       where t.id in ('a1000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000004',
                      'a1000000-0000-4000-8000-000000000003')
     ),
-    'mentors', (
-      select coalesce(jsonb_agg(jsonb_build_object(
-        'id', pr.id, 'full_name', pr.full_name, 'headline', pr.headline, 'url', '/pesquisadoras/' || pr.id
-      ) order by pr.full_name), '[]'::jsonb)
-      from public.profiles pr
-      where pr.id in ('d1000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000012')
+    -- Arquivo público: mentoras só em agregado (quantas e de quais áreas), nunca nomes.
+    'mentors', '[]'::jsonb,
+    'mentor_summary', jsonb_build_object(
+      'total', 2,
+      'areas', (
+        select coalesce(jsonb_agg(a.name order by a.n desc, a.name), '[]'::jsonb)
+        from (
+          select ra.name, count(*) as n
+          from public.profile_research_areas pra
+          join public.research_areas ra on ra.id = pra.area_id
+          where pra.profile_id in ('d1000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000012')
+          group by ra.name
+          order by count(*) desc, ra.name
+          limit 8
+        ) a
+      )
     ),
     'stats', jsonb_build_object('new_members', 3, 'new_papers', 2, 'mentorships', 3)
   ),

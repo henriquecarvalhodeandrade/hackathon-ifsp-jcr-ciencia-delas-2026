@@ -53,7 +53,7 @@ Convenções seguidas em todas as migrations:
 - **Políticas RLS** usam `(select auth.uid())` (avaliado uma vez por consulta, não por
   linha), são escopadas `to authenticated` ou `to anon, authenticated` e toda coluna usada
   em FK ou política tem índice.
-- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD015`) com mensagens em
+- **Erros de regra de negócio** usam SQLSTATE próprios (`CD001`…`CD017`) com mensagens em
   pt-BR prontas para mostrar na interface (ver [seção 8](#8-erros-que-o-app-pode-mostrar)).
 - **Identificadores em inglês; textos para pessoas em pt-BR.**
 
@@ -70,6 +70,8 @@ Migrations (em ordem):
 | `20261027120600_moderation_notifications.sql` | `reports`, `notifications` e triggers que criam notificações                                                                         |
 | `20261027120700_storage.sql`                  | bucket `avatars` + políticas em `storage.objects`                                                                                    |
 | `20261027120800_rpc.sql`                      | RPCs públicas                                                                                                                        |
+| `20261028090000_integration.sql`              | rodada de integração: `moderation_audit_log` + auditoria nas RPCs de moderação, aviso `report_resolved`, revogar IA apaga sugestões, limites de confirmação da newsletter, `get_mentor_open_slots` |
+| `20261028091000_newsletter_mentor_summary.sql` | converte edições antigas da newsletter: nomes de mentoras → agregado `mentor_summary` (o arquivo é público)                        |
 
 ---
 
@@ -105,6 +107,8 @@ erDiagram
   NEWSLETTER_SUBSCRIBERS ||--o{ NEWSLETTER_DELIVERIES : "recebe"
   PROFILES ||--o{ REPORTS : "reporter_id / resolved_by"
   PROFILES ||--o{ NOTIFICATIONS : "user_id"
+  PROFILES |o--o{ MODERATION_AUDIT_LOG : "actor_id (NULL se a conta sumiu)"
+  REPORTS |o--o{ MODERATION_AUDIT_LOG : "report_id"
 
   PROFILES {
     uuid id PK "= auth.users.id"
@@ -171,13 +175,13 @@ Enums: `career_stage`, `user_role`, `meeting_format`, `mentorship_status`, `reac
 | `research_areas`         | Catálogo de áreas: as 9 grandes áreas do CNPq + subáreas. Linhas com `name = big_area` são a própria grande área.                                                      | Leitura pública. Escrita só via migration/seed.                                                                                                                                                                                                                                                                                                                 |
 | `profiles`               | Perfil de cada usuária (1:1 com `auth.users`), criado automaticamente no cadastro. Guarda dados públicos para membros, preferências de mentoria e consentimento de IA. | Leitura **só para membros**. A dona edita todas as colunas **exceto** `id`, `role`, `created_at`, `updated_at`. Trigger normaliza (trim, strings vazias → `NULL`, UF maiúscula, palavras-chave em minúsculas, `ai_consent_at`). URLs precisam começar com `http(s)://` (evita `javascript:`). `mentorship_topics` só aceita slugs do catálogo (§7 do contrato). |
 | `profile_research_areas` | Áreas (N:N) de cada perfil.                                                                                                                                            | Membros leem; a dona insere/remove as próprias.                                                                                                                                                                                                                                                                                                                 |
-| `profile_embeddings`     | Vetor `vector(768)` do perfil (Gemini), hash do texto e modelo. Usado no matching.                                                                                     | **Só a dona** lê/escreve. Outras pessoas nunca veem vetores: o matching usa a RPC `get_mentor_candidates` (SECURITY DEFINER). Revogar `ai_consent` apaga o embedding. Índice HNSW (`vector_cosine_ops`).                                                                                                                                                        |
+| `profile_embeddings`     | Vetor `vector(768)` do perfil (Gemini), hash do texto e modelo. Usado no matching.                                                                                     | **Só a dona** lê/escreve. Outras pessoas nunca veem vetores: o matching usa a RPC `get_mentor_candidates` (SECURITY DEFINER). Revogar `ai_consent` apaga o embedding (e as sugestões de mentoras). Índice HNSW (`vector_cosine_ops`).                                                                                                                           |
 
 ### Mentoria
 
 | Tabela                | Para que serve                                                                                                                  | Regras importantes                                                                                                                                                                                                                                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mentor_suggestions`  | Sugestões de mentoras calculadas para a mentoranda (IA ou heurística), com nota 0–100, motivo e sugestões de primeira conversa. | Só a mentoranda (`mentee_id`) vê/grava/apaga (aceita upsert). Mentoras não veem.                                                                                                                                                                                                                                                             |
+| `mentor_suggestions`  | Sugestões de mentoras calculadas para a mentoranda (IA ou heurística), com nota 0–100, motivo e sugestões de primeira conversa. | Só a mentoranda (`mentee_id`) vê/grava/apaga (aceita upsert). Mentoras não veem. Revogar `ai_consent` apaga todas as sugestões da mentoranda (trigger); as heurísticas podem ser recalculadas sem IA.                                                                                                                                       |
 | `mentorship_requests` | Pedido de mentoria e seu ciclo de vida.                                                                                         | A mentoranda cria (mensagem 20–1500 caracteres) para quem `is_mentor` e `mentor_available`. Participantes leem. Só `status` e `response_message` podem ser alterados, e o trigger aplica a máquina de estados e a capacidade (ver [seção 6](#6-triggers)). Índice único impede dois pedidos abertos (`pending`/`accepted`) para o mesmo par. |
 
 Máquina de estados:
@@ -218,16 +222,17 @@ stateDiagram-v2
 
 | Tabela                   | Para que serve                                                                                                                              | Regras importantes                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `newsletter_subscribers` | Inscritas (double opt-in), áreas de interesse (`area_ids` vazio = todas), tokens de confirmação/descadastro, texto do consentimento (LGPD). | **Sem acesso pela API**: só service role (`createAdminClient()`).                                    |
-| `newsletter_editions`    | Edições semanais (`content` jsonb no formato do CONTRACT §9).                                                                               | Edições `published`/`sent` são públicas; rascunhos só para admins. Publicar preenche `published_at`. |
+| `newsletter_subscribers` | Inscritas (double opt-in), áreas de interesse (`area_ids` vazio = todas), tokens de confirmação/descadastro, texto do consentimento (LGPD), `confirmation_sent_count`/`confirmation_sent_at` (limites de e-mails de confirmação). | **Sem acesso pela API**: só service role (`createAdminClient()`). Envio de confirmação reservado pela RPC `newsletter_reserve_confirmation` (3 por endereço a cada 24 h + teto diário). |
+| `newsletter_editions`    | Edições semanais (`content` jsonb: `papers`, `threads`, `mentors: []`, `mentor_summary: { total, areas }`, `stats` — docs/08 §3).            | Edições `published`/`sent` são públicas (inclusive o jsonb, pela API) — por isso **nada de nomes de mentoras**; rascunhos só para admins. Publicar preenche `published_at`. |
 | `newsletter_deliveries`  | Registro de envio por inscrita (id do provedor, erro).                                                                                      | Só service role.                                                                                     |
 
 ### Moderação e notificações
 
 | Tabela          | Para que serve                                                                                                       | Regras importantes                                                                                                                                            |
 | --------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `reports`       | Denúncias de tópico, resposta, paper, comentário ou perfil.                                                          | A denunciante cria e vê as próprias; moderação vê todas e resolve (`resolved_by`/`resolved_at` são preenchidos pelo trigger com quem resolveu).               |
-| `notifications` | Avisos para a usuária (pedido de mentoria, resposta, nova resposta no tópico, solução marcada, comentário no paper). | Cada uma vê/apaga as próprias e só pode alterar `read_at`. Criadas **apenas** por triggers. Publicadas no Realtime (`supabase_realtime`), que respeita o RLS. |
+| `reports`       | Denúncias de tópico, resposta, paper, comentário ou perfil.                                                          | A denunciante cria e vê as próprias; moderação vê todas e resolve (`resolved_by`/`resolved_at` são preenchidos pelo trigger com quem resolveu). `resolution_note` é **visível para quem denunciou** (vai no aviso `report_resolved`); nada interno vai nela. |
+| `moderation_audit_log` | Registro das ações da moderação: `actor_id`, `action` (`reveal_author`, `hide_paper`, `unhide_paper`, `lock_thread`, `unlock_thread`, `pin_thread`, `unpin_thread`, `delete_content`, `resolve_report`, `dismiss_report`, `change_role`), alvo (`target_type`/`target_id`), `report_id`, `reason` (≤ 500), `created_at`. | **Só moderação lê**; inclui só em nome próprio (`actor_id = auth.uid()`); **ninguém edita nem apaga** pela API. As RPCs de moderação e o trigger de denúncias gravam sozinhos (docs/09 §8). |
+| `notifications` | Avisos para a usuária (pedido de mentoria, resposta, nova resposta no tópico, solução marcada, comentário no paper, denúncia concluída). | Cada uma vê/apaga as próprias e só pode alterar `read_at`. Criadas **apenas** por triggers. Publicadas no Realtime (`supabase_realtime`), que respeita o RLS. |
 
 ---
 
@@ -255,6 +260,7 @@ e tem acesso total a tudo (use só no servidor).
 | `newsletter_subscribers`, `newsletter_deliveries` | —                        | —                    | —                                                        | —                                        | — (só service role) |
 | `newsletter_editions`                             | L (publicadas)           | L (publicadas)       | —                                                        | L (publicadas)                           | L / C / E / A       |
 | `reports`                                         | —                        | C (como denunciante) | L (as próprias)                                          | L / E (`status`, `resolution_note`, ...) | igual à moderação   |
+| `moderation_audit_log`                            | —                        | —                    | —                                                        | L / C (em nome próprio)                  | igual à moderação   |
 | `notifications`                                   | —                        | —                    | L / E (`read_at`) / A                                    | —                                        | —                   |
 | `storage` bucket `avatars`                        | leitura pela URL pública | —                    | L / C / E / A em `<uid>/...`                             | —                                        | —                   |
 
@@ -268,9 +274,11 @@ RPCs (`EXECUTE`):
 | `get_paper_ranking(...)`                                                      | sim                   | sim             | SECURITY INVOKER                       |
 | `get_platform_stats()`                                                        | sim                   | sim             | só contagens agregadas                 |
 | `get_mentor_candidates(...)`                                                  | —                     | sim             |                                        |
+| `get_mentor_open_slots(p_ids)`                                                | —                     | sim             | SECURITY DEFINER, até 200 ids          |
 | `get_mentorship_contact(...)`                                                 | —                     | sim             | só participante de mentoria **aceita** |
 | `get_community_leaderboard(...)`                                              | —                     | sim             |                                        |
-| `reveal_anonymous_author(...)`, `moderate_thread(...)`, `moderate_paper(...)` | —                     | sim             | erro `42501` se não for moderação      |
+| `reveal_anonymous_author(...)`, `moderate_thread(...)`, `moderate_paper(...)` | —                     | sim             | erro `42501` se não for moderação; gravam `moderation_audit_log` |
+| `newsletter_reserve_confirmation(...)`                                        | —                     | —               | só `service_role`                      |
 
 ---
 
@@ -318,8 +326,9 @@ Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
 - **A autora continua dona:** políticas de UPDATE/DELETE aceitam quem tem a autoria
   registrada; notificações de resposta chegam para ela normalmente.
 - **Moderação:** moderadoras leem a tabela de autoria e podem usar
-  `reveal_anonymous_author()` em casos graves (assédio, ameaça). Use com parcimônia e registre
-  o motivo fora da plataforma.
+  `reveal_anonymous_author()` em casos graves (assédio, ameaça). O motivo (20–300 caracteres) é
+  **obrigatório** e a revelação fica em `moderation_audit_log` na mesma transação (sem o nome
+  revelado). O painel só oferece a ação a admins.
 - **Ranking da comunidade:** conteúdo anônimo **não** conta pontos (senão vazaria autoria).
 - **LGPD — exclusão de conta:** apagar a usuária remove em cascata as linhas de autoria, e um
   trigger AFTER DELETE apaga junto o tópico/resposta anônimo correspondente.
@@ -332,7 +341,7 @@ Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
 | ---------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `auth.users`                                   | `on_auth_user_created`                     | Cria o perfil com `full_name` (`full_name` ou `name` do `raw_user_meta_data`) e `avatar_url` (`avatar_url` ou `picture`, só se for URL http/https).                                       |
 | `profiles`                                     | `profiles_before_write`                    | Normaliza campos; atualiza `updated_at`; preenche/limpa `ai_consent_at`.                                                                                                                  |
-| `profiles`                                     | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding.                                                                                                                                                 |
+| `profiles`                                     | `profiles_after_consent_revoked`           | Revogou `ai_consent` → apaga o embedding e as sugestões de mentoras (`mentor_suggestions`) da mentoranda.                                                                                |
 | `profile_embeddings`, `newsletter_subscribers` | `*_set_updated_at`                         | Atualiza `updated_at`.                                                                                                                                                                    |
 | `mentorship_requests`                          | `mentorship_requests_before_insert`        | Mensagens amigáveis: não é mentora / indisponível (`CD003`), pedido duplicado (`CD004`).                                                                                                  |
 | `mentorship_requests`                          | `mentorship_requests_before_update`        | Máquina de estados (`CD002`), só participantes (`CD003`), só a mentora escreve a resposta, capacidade da mentora ao aceitar (`CD001`, com lock para aceites simultâneos), `responded_at`. |
@@ -351,11 +360,12 @@ Garantias (todas cobertas por testes em `supabase/tests/database/rls.test.sql`):
 | `paper_comments`                               | `..._after_insert/delete`, `..._notify`    | Mantém `comment_count`; notifica quem enviou o paper.                                                                                                                                     |
 | `newsletter_editions`                          | `newsletter_editions_before_write`         | Preenche `published_at`/`sent_at` ao mudar o status.                                                                                                                                      |
 | `reports`                                      | `reports_before_write`                     | Força `status = 'open'` na criação; ao resolver preenche `resolved_by`/`resolved_at`.                                                                                                     |
+| `reports`                                      | `reports_after_status_change`              | Aberta → resolvida/arquivada: grava `resolve_report`/`dismiss_report` no registro de auditoria e avisa a denunciante (`report_resolved`, com a nota, sem dizer quem moderou).             |
 
 Funções auxiliares no schema `private` (não expostas pela API): `is_moderator()`,
 `is_admin()`, `is_anonymous_thread_author()`, `is_anonymous_post_author()` (respondem só
 "a usuária atual é a autora anônima?", sem revelar ninguém),
-`thread_real_author()`, `post_real_author()`, `notify()`, `display_name()`,
+`thread_real_author()`, `post_real_author()`, `notify()`, `log_moderation()`, `display_name()`,
 `normalize_tags()`, `text_array_ok()`, `is_trusted_context()`, `set_updated_at()` e as
 funções de trigger.
 
@@ -387,6 +397,17 @@ const { data: candidates, error } = await supabase.rpc(
 );
 // candidates[i].similarity: number | null
 // candidates[i].area_ids: number[]  (ids de research_areas)
+```
+
+### `get_mentor_open_slots(p_ids)`
+
+Vagas abertas (`mentor_capacity` − mentorias aceitas, nunca negativo) das mentoras indicadas (até
+200 ids). Inclui mentoras pausadas ou sem vagas (0) e a própria usuária; quem não é mentora ou não
+concluiu o onboarding fica de fora. Usada pelos selos do diretório e do perfil.
+
+```ts
+const { data } = await supabase.rpc("get_mentor_open_slots", { p_ids: ids });
+// data[i]: { mentor_id, open_slots }
 ```
 
 ### `get_mentorship_contact(p_request_id)`
@@ -441,30 +462,44 @@ const { data } = await supabase.rpc("get_platform_stats");
 const stats = data?.[0];
 ```
 
-### `reveal_anonymous_author(p_thread_id?, p_post_id?)` — moderação
+### `reveal_anonymous_author(p_thread_id?, p_post_id?, p_reason, p_report_id?)` — moderação
+
+Motivo **obrigatório** (20–300 caracteres, `CD016`). Com `p_report_id`, a denúncia precisa ser
+sobre aquele conteúdo (`CD017`). Quando há autoria a revelar, grava `reveal_author` em
+`moderation_audit_log` (quem, quando, motivo, denúncia — nunca o nome revelado) na mesma transação.
 
 ```ts
 const { data: userId, error } = await supabase.rpc("reveal_anonymous_author", {
   p_thread_id: threadId,
+  p_reason: "Ameaça explícita a outra membra.",
+  p_report_id: reportId,
 });
-// error.code === "42501" se quem chamou não for moderadora
+// error.code === "42501" se quem chamou não for moderadora; "CD016" sem motivo válido
 ```
 
-### `moderate_thread(p_thread_id, p_pinned?, p_locked?)` — moderação
+### `moderate_thread(p_thread_id, p_pinned?, p_locked?, p_reason?, p_report_id?)` — moderação
 
-Parâmetro omitido/NULL = não altera.
+Parâmetro omitido/NULL = não altera. Registra `pin_thread`/`unpin_thread`/`lock_thread`/
+`unlock_thread` na auditoria — só o que de fato mudou.
 
 ```ts
-await supabase.rpc("moderate_thread", { p_thread_id: id, p_locked: true });
+await supabase.rpc("moderate_thread", { p_thread_id: id, p_locked: true, p_report_id: reportId });
 ```
 
-### `moderate_paper(p_paper_id, p_hidden)` — moderação (extra ao contrato)
+### `moderate_paper(p_paper_id, p_hidden, p_reason?, p_report_id?)` — moderação (extra ao contrato)
 
-Oculta/reexibe um paper da Vitrine e dos rankings (ex.: ao resolver uma denúncia).
+Oculta/reexibe um paper da Vitrine e dos rankings (ex.: ao resolver uma denúncia). Registra
+`hide_paper`/`unhide_paper` quando muda.
 
 ```ts
 await supabase.rpc("moderate_paper", { p_paper_id: paperId, p_hidden: true });
 ```
+
+### `newsletter_reserve_confirmation(p_subscriber_id, p_max_per_address = 3, p_max_per_day = 80)` — só service role
+
+Reserva atômica de um e-mail de confirmação da newsletter: devolve `ok` (e conta o envio em
+`confirmation_sent_count`/`confirmation_sent_at`), `address_limit`, `daily_limit` ou `not_found`
+(docs/08 §2).
 
 ### Escritas comuns (sem RPC)
 
@@ -537,6 +572,8 @@ await supabase
 | `CD013`      | Autoria falsificada; tentativa de trocar autoria/anonimato                                | "Autoria inválida: publique sempre com a sua própria conta."     |
 | `CD014`      | Solução que não é resposta do tópico                                                      | "A resposta escolhida como solução não pertence a este tópico."  |
 | `CD015`      | Categoria/tópico/paper inexistente (ou paper oculto ao votar)                             | "Tópico não encontrado." etc.                                    |
+| `CD016`      | Revelar autoria sem motivo de 20 a 300 caracteres                                         | "Explique o motivo da revelação com 20 a 300 caracteres…"        |
+| `CD017`      | Revelar autoria citando uma denúncia sobre outro conteúdo                                 | "A denúncia informada não é sobre esta publicação."              |
 | `42501`      | Sem GRANT/RLS (inclui RPCs de moderação e RPCs que exigem login)                          | mensagem do Postgres (em inglês) ou pt-BR nas RPCs               |
 | `23505`      | Duplicado (voto, reação, DOI)                                                             | trate como "já existe"                                           |
 | `23514`      | CHECK violado (tamanhos, URL sem http(s), tópico de mentoria inválido...)                 | valide antes com zod                                             |
@@ -613,12 +650,23 @@ npx supabase test db    # roda os testes pgTAP de supabase/tests/database/
 - Studio: <http://127.0.0.1:54323> · Mailpit (e-mails de confirmação/magic link):
   <http://127.0.0.1:54324>.
 - Confirmação de e-mail está **ligada** (como no Cloud). Os e-mails usam os modelos pt-BR de
-  `supabase/templates/` e apontam para `/auth/confirm?token_hash=...&type=...&next=...`
-  (confirmação → `/onboarding`, magic link → `/forum`, recuperação → `/redefinir-senha`,
-  troca de e-mail → `/perfil`, convite → `/redefinir-senha`).
+  `supabase/templates/` e apontam para `/auth/confirm?token_hash=...&type=...&next=...`.
+  Confirmação, link mágico e recuperação montam o link a partir de `{{ .RedirectTo }}` — o
+  `emailRedirectTo` que o app envia, sempre `<origem do app>/auth/confirm?next=<destino>` — e
+  acrescentam `&token_hash=…&type=…`. Assim o `?next` e a origem certa (porta local, deploy de
+  preview) valem mesmo se o e-mail for aberto em outro navegador. Fallback: quando o Auth não recebe
+  um redirect permitido (ele usa o `site_url`) ou o redirect é outra página do site, o link vai para
+  `{{ .SiteURL }}/auth/confirm` com o destino padrão (confirmação → `/onboarding`, magic link →
+  `/forum`, recuperação → `/redefinir-senha`). Troca de e-mail → `/perfil` e convite →
+  `/redefinir-senha` continuam com o `site_url`. O Auth só aceita em `.RedirectTo` endereços do
+  mesmo host do `site_url` (qualquer porta) ou de `additional_redirect_urls`.
+- Os modelos são servidos ao Auth pelo container do Kong (bind mount) e o Auth os relê
+  periodicamente; para aplicar uma edição na hora, reinicie só o Auth
+  (`docker restart supabase_auth_ciencia-delas`) — não apaga dados.
 - Nova migration: `npx supabase migration new nome_curto` e siga as convenções da
-  [seção 1](#1-visão-geral-e-convenções) (RLS + REVOKE/GRANT + índices). Depois rode
-  `npx supabase db reset`, `npx supabase test db` e gere os tipos de novo.
+  [seção 1](#1-visão-geral-e-convenções) (RLS + REVOKE/GRANT + índices). Para aplicar sem apagar os
+  dados locais: `npx supabase migration up`; para recriar tudo do zero: `npx supabase db reset`.
+  Depois rode `npx supabase test db` e gere os tipos de novo.
 
 ---
 
@@ -706,7 +754,10 @@ O script (para no primeiro erro, `psql -v ON_ERROR_STOP=1`):
 5. roda `supabase/tests/database/*.sql` e imprime o relatório TAP.
 
 Os testes simulam usuárias como o PostgREST faz (`set role authenticated` +
-`request.jwt.claims`), rodam numa transação desfeita no fim e cobrem: acesso de visitante;
+`request.jwt.claims`), rodam numa transação desfeita no fim e cobrem: registro de auditoria da
+moderação (só moderação lê, imutável, motivo obrigatório ao revelar, RPCs registram só o que muda);
+aviso para a denunciante; revogar IA apaga sugestões; limites de confirmação da newsletter; edições
+públicas sem nomes de mentoras; `get_mentor_open_slots`; acesso de visitante;
 colunas protegidas (`role`, `vote_count`, `is_hidden`, `is_pinned`...); voto no próprio paper;
 contadores; ranking por período e área; anonimato (autoria escondida, visível para autora e
 moderação, falsificação, categoria proibida, RLS sem o trigger); tópico trancado; mentoria
@@ -752,7 +803,8 @@ migrations usam (`vector(768)`, `<=>`, HNSW `vector_cosine_ops`) funciona nos do
 O seed também traz: 64 áreas de pesquisa, as 8 categorias do fórum, 8 tópicos (um anônimo,
 um com solução marcada, um fixado), 15 respostas, reações, 12 papers com votos espalhados no
 tempo (o líder da semana, do mês e de todos os tempos são diferentes), comentários,
-notificações, uma denúncia aberta e uma edição publicada da newsletter da semana anterior.
+notificações, uma denúncia aberta e uma edição publicada da newsletter da semana anterior (com as
+novas mentoras só em agregado: `mentor_summary` com total e áreas, sem nomes).
 O seed **não** cria embeddings (o matching usa heurística até cada perfil gerar o seu).
 UUIDs são fixos (ex.: mentoras `d1000000-…`, papers `b1000000-…`), e o seed pode ser
 reaplicado sem duplicar dados.

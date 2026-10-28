@@ -33,6 +33,7 @@ const edition = {
       },
     ],
     mentors: [{ id: "m1", full_name: "Marina", headline: "Docente", url: "/pesquisadoras/m1" }],
+    mentor_summary: { total: 2, areas: ["Ecologia", "Química"] },
     stats: { new_members: 1, new_papers: 2, mentorships: 0 },
   }),
 };
@@ -74,6 +75,17 @@ describe("renderEditionEmail", () => {
     expect(email.html).toContain(`href="${SITE}/newsletter/2026-s43"`);
     expect(email.html).toContain("Cancelar inscrição");
     expect(email.html).toContain('lang="pt-BR"');
+  });
+
+  it("mentoras só em agregado: contagem e áreas, nunca nomes ou perfis", () => {
+    expect(email.html).toContain("2 novas mentoras chegaram à rede nesta semana.");
+    expect(email.html).toContain("Áreas: Ecologia · Química");
+    expect(email.text).toContain("NOVAS MENTORAS NA REDE");
+    expect(email.text).toContain("Áreas: Ecologia · Química");
+    for (const out of [email.html, email.text]) {
+      expect(out).not.toContain("Marina");
+      expect(out).not.toContain("/pesquisadoras/");
+    }
   });
 
   it("gera versão em texto com os mesmos destaques", () => {

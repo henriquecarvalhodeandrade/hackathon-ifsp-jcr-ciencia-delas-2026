@@ -92,7 +92,7 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
   const [papers, threads, availability, ownSlots, openRequest] = await Promise.all([
     getMemberPapers(profile.id),
     getMemberThreads(profile.id),
-    profile.is_mentor && !isSelf ? getMentorAvailability() : Promise.resolve(null),
+    profile.is_mentor && !isSelf ? getMentorAvailability([profile.id]) : Promise.resolve(null),
     profile.is_mentor && isSelf
       ? getOwnOpenSlots(profile.id, profile.mentor_capacity)
       : Promise.resolve(null),
