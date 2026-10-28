@@ -54,7 +54,7 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
       <PageHeader
         eyebrow="Comunidade"
         title="Pesquisadoras"
-        description="Encontre colegas de área, mentoras e pessoas para trocar ideias. O diretório é visível só para membros."
+        description="Encontre colegas de área, mentoras e pessoas para trocar ideias. O diretório é visível só para membras."
         actions={
           me.seeks_mentorship ? (
             <ButtonLink href="/mentoria">Ver sugestões de mentoras</ButtonLink>

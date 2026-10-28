@@ -243,7 +243,7 @@ export default async function PaperPage({
                 variant="compact"
                 headingLevel="h3"
                 icon={<MessageCircle />}
-                title="A conversa é só para membros"
+                title="A conversa é só para membras"
                 description="Entre na sua conta para ler os comentários e participar com perguntas, leituras e elogios."
                 action={
                   <ButtonLink href={loginHref}>

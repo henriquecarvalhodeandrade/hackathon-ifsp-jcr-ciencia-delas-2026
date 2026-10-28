@@ -127,7 +127,7 @@ export function SignupForm({ next, devNotice }: SignupFormProps) {
               .
             </>
           }
-          description="Acolhimento, respeito e tolerância zero a assédio. Seus dados ficam visíveis só para membros."
+          description="Acolhimento, respeito e tolerância zero a assédio. Seus dados ficam visíveis só para membras."
         />
         {termsError && (
           <p id="erro-aceite" className="pl-8 text-sm font-medium text-danger">

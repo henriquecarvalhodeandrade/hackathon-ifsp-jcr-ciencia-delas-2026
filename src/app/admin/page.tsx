@@ -102,7 +102,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       : []),
     {
       href: "/admin?aba=membros",
-      label: "Membros",
+      label: "Membras",
       icon: <Users aria-hidden="true" />,
       active: tab === "membros",
     },
@@ -154,7 +154,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       {tab === "membros" && members && (
         <TabSection
           id="aba-membros"
-          title="Membros"
+          title="Membras"
           description={
             isAdmin
               ? "Veja quem está na rede e ajuste papéis de moderação."

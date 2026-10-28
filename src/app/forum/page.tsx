@@ -70,7 +70,7 @@ export default async function ForumPage({ searchParams }: { searchParams: Search
       <PageHeader
         eyebrow="Comunidade"
         title="Fórum"
-        description={`Pergunte, compartilhe e acolha, ${firstName}. Aqui as conversas são só entre membros da rede.`}
+        description={`Pergunte, compartilhe e acolha, ${firstName}. Aqui as conversas são só entre membras da rede.`}
         actions={
           <ButtonLink href="/forum/novo">
             <Plus aria-hidden="true" />

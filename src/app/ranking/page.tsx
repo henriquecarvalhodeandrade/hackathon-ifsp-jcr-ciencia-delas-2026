@@ -242,7 +242,7 @@ async function CommunityTab({ userId }: { userId: string | null }) {
     return (
       <EmptyState
         icon={<Lock />}
-        title="O ranking da comunidade é só para membros"
+        title="O ranking da comunidade é só para membras"
         description="Ele reconhece quem mais contribui com a rede — com mentorias, papers, destaques recebidos e respostas no fórum. Entre para ver e para fazer parte dele."
         action={
           <>
