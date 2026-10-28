@@ -213,8 +213,9 @@ export function parseArgs(argv) {
 }
 
 /**
- * Normaliza a URL do site: exige https, sem credenciais, query, fragmento ou vírgula, e remove a
- * barra final. Lança um Error com mensagem em pt-BR se a URL for inválida.
+ * Normaliza a URL do site: exige https (exceto http://localhost ou http://127.0.0.1, para usar o
+ * projeto na nuvem com o app rodando na máquina de quem desenvolve), sem credenciais, query,
+ * fragmento ou vírgula, e remove a barra final. Lança um Error em pt-BR se a URL for inválida.
  */
 export function normalizeSiteUrl(input) {
   if (!input) throw new Error("Informe a URL pública do site com --site-url=https://...");
@@ -224,8 +225,12 @@ export function normalizeSiteUrl(input) {
   } catch {
     throw new Error(`--site-url inválida: "${input}". Use algo como https://seu-app.vercel.app`);
   }
-  if (url.protocol !== "https:") {
-    throw new Error(`--site-url precisa começar com https:// (recebido: ${input}).`);
+  const isLocalDev =
+    url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+  if (url.protocol !== "https:" && !isLocalDev) {
+    throw new Error(
+      `--site-url precisa começar com https:// (ou ser http://localhost para desenvolvimento) (recebido: ${input}).`,
+    );
   }
   if (url.username || url.password || url.search || url.hash || input.includes(",")) {
     throw new Error("--site-url não pode ter usuário/senha, query (?), fragmento (#) nem vírgula.");
@@ -981,6 +986,26 @@ export function buildAuthConfigPayload({
     if (smtp.senderName) payload.smtp_sender_name = smtp.senderName;
   }
   return payload;
+}
+
+/**
+ * Tira do payload do Auth os assuntos e modelos de e-mail. No plano gratuito, sem SMTP próprio, a
+ * API recusa mudar os modelos ("Email template modification is not available for free tier
+ * projects using the default email provider"): o resto da configuração ainda deve ser aplicado.
+ */
+export function withoutEmailTemplates(payload) {
+  return Object.fromEntries(
+    Object.entries(payload).filter(
+      ([key]) => !key.startsWith("mailer_subjects_") && !key.startsWith("mailer_templates_"),
+    ),
+  );
+}
+
+/** A recusa da API aos modelos de e-mail no plano gratuito sem SMTP próprio. */
+export function isEmailTemplateRefusal(error) {
+  return (
+    error instanceof HttpError && error.status === 400 && /email template/i.test(error.detail ?? "")
+  );
 }
 
 /** Resumo legível do payload do Auth (modelos viram tamanhos; senha do SMTP mascarada). */
@@ -2103,16 +2128,36 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
     );
     for (const line of summarizeAuthPayload(authPayload)) out(`    ${line}`);
     if (!config.dryRun) {
-      try {
-        const { data } = await supabase.updateAuthConfig(authPayload);
+      let templatesApplied = true;
+      const applyAuth = async (payload) => {
+        const { data } = await supabase.updateAuthConfig(payload);
         if (data?.site_url && data.site_url !== config.siteUrl) {
           out(`  AVISO: a API devolveu site_url=${data.site_url}; confira no painel.`);
         }
+      };
+      try {
+        await applyAuth(authPayload);
       } catch (e) {
-        throw new StepError(supaErr(e, "Não consegui atualizar o Auth"));
+        if (!config.smtp && isEmailTemplateRefusal(e)) {
+          // Plano gratuito sem SMTP próprio: aplica o resto e segue com os e-mails padrão.
+          templatesApplied = false;
+          out(
+            "  AVISO: no plano gratuito, sem SMTP próprio, o Supabase não deixa trocar os modelos de e-mail. Apliquei o resto da configuração; os e-mails (link mágico, recuperação de senha) saem com o modelo padrão do Supabase, em inglês.",
+          );
+          try {
+            await applyAuth(withoutEmailTemplates(authPayload));
+          } catch (e2) {
+            throw new StepError(supaErr(e2, "Não consegui atualizar o Auth"));
+          }
+          pending.push(
+            "Modelos de e-mail em português: configure SMTP próprio (SMTP_* neste script, ex.: Resend com domínio verificado) e rode de novo — no plano gratuito, só com SMTP próprio o Supabase aceita modelos personalizados.",
+          );
+        } else {
+          throw new StepError(supaErr(e, "Não consegui atualizar o Auth"));
+        }
       }
       done.push(
-        `Auth configurado: site_url, Redirect URLs, confirmação de e-mail ligada, senha mínima ${authPayload.password_min_length}, ${EMAIL_TEMPLATE_TYPES.length} modelos pt-BR${config.smtp ? ", SMTP próprio" : ""}`,
+        `Auth configurado: site_url, Redirect URLs, confirmação de e-mail ${authPayload.mailer_autoconfirm ? "desligada (--auto-confirm-email)" : "ligada"}, senha mínima ${authPayload.password_min_length}, ${templatesApplied ? `${EMAIL_TEMPLATE_TYPES.length} modelos pt-BR` : "modelos de e-mail padrão do Supabase"}${config.smtp ? ", SMTP próprio" : ""}`,
       );
     }
 

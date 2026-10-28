@@ -39,6 +39,8 @@ import {
   resolveCronSecret,
   resolveEnvFilePath,
   summarizeAuthPayload,
+  withoutEmailTemplates,
+  isEmailTemplateRefusal,
   templatePathCandidates,
   validateRedirectUrl,
   vercelTeamQuery,
@@ -313,6 +315,10 @@ describe("validação de entradas", () => {
     assert.equal(normalizeSiteUrl("https://artemis.vercel.app/"), SITE);
     assert.equal(normalizeSiteUrl("https://exemplo.dev/app/"), "https://exemplo.dev/app");
     assert.throws(() => normalizeSiteUrl("http://artemis.vercel.app"), /https:\/\//);
+    // Exceção só para desenvolvimento local (app na máquina, banco na nuvem).
+    assert.equal(normalizeSiteUrl("http://localhost:3000/"), "http://localhost:3000");
+    assert.equal(normalizeSiteUrl("http://127.0.0.1:3000"), "http://127.0.0.1:3000");
+    assert.throws(() => normalizeSiteUrl("http://localhost.evil.dev"), /https:\/\//);
     assert.throws(() => normalizeSiteUrl("https://a.dev/?x=1"), /query/);
     assert.throws(() => normalizeSiteUrl("nao é url"), /inválida/);
     assert.throws(() => normalizeSiteUrl(undefined), /--site-url/);
@@ -536,6 +542,92 @@ describe("Auth", () => {
     assert.equal(p.mailer_autoconfirm, true);
     assert.equal(parseArgs([`--site-url=${SITE}`]).autoConfirmEmail, false);
     assert.equal(parseArgs(["--auto-confirm-email=false"]).errors.length, 1);
+  });
+
+  test("withoutEmailTemplates tira só assuntos e modelos; isEmailTemplateRefusal reconhece a recusa", () => {
+    const p = buildAuthConfigPayload({ siteUrl: SITE, templates, autoConfirmEmail: true });
+    const stripped = withoutEmailTemplates(p);
+    assert.ok(Object.keys(p).some((k) => k.startsWith("mailer_templates_")));
+    assert.ok(!Object.keys(stripped).some((k) => k.startsWith("mailer_templates_")));
+    assert.ok(!Object.keys(stripped).some((k) => k.startsWith("mailer_subjects_")));
+    assert.equal(stripped.site_url, SITE);
+    assert.equal(stripped.mailer_autoconfirm, true);
+    assert.equal(stripped.password_min_length, p.password_min_length);
+    const refusal = new HttpError({
+      status: 400,
+      data: {
+        message:
+          "Email template modification is not available for free tier projects using the default email provider. Please upgrade your plan or configure a custom SMTP provider.",
+      },
+      method: "PATCH",
+      url: "https://api.supabase.com/v1/projects/x/config/auth",
+    });
+    assert.equal(isEmailTemplateRefusal(refusal), true);
+    assert.equal(
+      isEmailTemplateRefusal(
+        new HttpError({ status: 400, data: { message: "outra coisa" }, method: "PATCH", url: "u" }),
+      ),
+      false,
+    );
+    assert.equal(isEmailTemplateRefusal(new Error("Email template")), false);
+  });
+
+  test("plano gratuito sem SMTP: Auth recusa os modelos → aplica o resto e segue (exit 0)", async () => {
+    const base = `api.supabase.com/v1/projects/${REF}`;
+    const t = makeDeps({
+      env: fullEnv(),
+      routes: supabaseRoutes({
+        [`PATCH ${base}/config/auth`]: ({ body }) =>
+          Object.keys(body).some((k) => k.startsWith("mailer_templates_"))
+            ? json(400, {
+                message:
+                  "Email template modification is not available for free tier projects using the default email provider. Please upgrade your plan or configure a custom SMTP provider.",
+              })
+            : json(200, body),
+      }),
+    });
+    const code = await main(
+      [`--site-url=${SITE}`, "--migrations-via-api", "--auto-confirm-email", "--write-env"],
+      t.deps,
+    );
+    assert.equal(code, 0, t.output());
+    const patches = t.calls.filter((c) => c.method === "PATCH" && c.path.endsWith("/config/auth"));
+    assert.equal(patches.length, 2);
+    assert.ok(Object.keys(patches[0].body).some((k) => k.startsWith("mailer_templates_")));
+    const second = patches[1].body;
+    assert.ok(
+      !Object.keys(second).some((k) => k.startsWith("mailer_")) || second.mailer_autoconfirm,
+    );
+    assert.ok(!Object.keys(second).some((k) => k.startsWith("mailer_templates_")));
+    assert.equal(second.site_url, SITE);
+    assert.equal(second.mailer_autoconfirm, true);
+    assert.match(t.output(), /plano gratuito, sem SMTP próprio/);
+    assert.match(t.output(), /Modelos de e-mail em português/);
+    assert.match(t.output(), /confirmação de e-mail desligada/);
+  });
+
+  test("com SMTP próprio, a recusa dos modelos continua sendo erro", async () => {
+    const base = `api.supabase.com/v1/projects/${REF}`;
+    const t = makeDeps({
+      env: fullEnv({
+        SMTP_HOST: "smtp.resend.com",
+        SMTP_PORT: "465",
+        SMTP_USER: "resend",
+        SMTP_PASS: "re_senha_smtp_123456",
+        SMTP_ADMIN_EMAIL: "nao-responda@artemis.dev",
+      }),
+      routes: supabaseRoutes({
+        [`PATCH ${base}/config/auth`]: json(400, {
+          message: "Email template modification is not available for free tier projects",
+        }),
+      }),
+    });
+    const code = await main([`--site-url=${SITE}`, "--migrations-via-api"], t.deps);
+    assert.notEqual(code, 0);
+    assert.equal(
+      t.calls.filter((c) => c.method === "PATCH" && c.path.endsWith("/config/auth")).length,
+      1,
+    );
   });
 
   test("buildAuthConfigPayload com SMTP próprio; resumo mascara a senha", () => {
