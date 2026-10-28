@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   MATCH_WEIGHTS,
+  SIMILARITY_CEIL,
+  SIMILARITY_FLOOR,
   effectiveWeights,
   inferTopicsFromText,
   rankMentorCandidates,
@@ -8,7 +10,7 @@ import {
   scoreSeniorityGap,
   scoreSimilarity,
 } from "./rank";
-import { AREAS, makeCandidate, makeMentee } from "./test-fixtures";
+import { AREAS, makeCandidate, makeMentee, similarityFor } from "./test-fixtures";
 
 /** Candidata e mentoranda montadas para que cada componente tenha valor conhecido. */
 function exactScenario(similarity: number | null) {
@@ -24,7 +26,7 @@ function exactScenario(similarity: number | null) {
   });
   const candidate = makeCandidate({
     area_ids: [1], // áreas: sqrt(1/1) = 1
-    similarity, // 0.7 → (0.7-0.5)/0.4 = 0.5
+    similarity, // similarityFor(0.5) → componente 0,5
     mentorship_topics: ["bolsas-editais"], // temas: 1/1 = 1 (sem palavras-chave)
     mentoring_offer: null,
     headline: null,
@@ -55,7 +57,7 @@ describe("pesos", () => {
   });
 
   it("calcula a pontuação exata com todos os componentes", () => {
-    const { mentee, candidate } = exactScenario(0.7);
+    const { mentee, candidate } = exactScenario(similarityFor(0.5));
     const r = scoreMentorCandidate(mentee, candidate, { areas: AREAS });
     expect(r.breakdown.components).toEqual({
       areas: 1,
@@ -118,11 +120,26 @@ describe("componentes", () => {
   it("similaridade é reescalada e limitada a 0..1", () => {
     expect(scoreSimilarity(null)).toBeNull();
     expect(scoreSimilarity(0.2)).toBe(0);
-    expect(scoreSimilarity(0.5)).toBe(0);
-    expect(scoreSimilarity(0.7)).toBeCloseTo(0.5, 10);
-    expect(scoreSimilarity(0.9)).toBe(1);
+    expect(scoreSimilarity(SIMILARITY_FLOOR)).toBe(0);
+    expect(scoreSimilarity(similarityFor(0.5))).toBeCloseTo(0.5, 10);
+    expect(scoreSimilarity(SIMILARITY_CEIL)).toBeCloseTo(1, 10);
+    expect(scoreSimilarity(0.95)).toBe(1);
     expect(scoreSimilarity(1.2)).toBe(1);
     expect(scoreSimilarity(Number.NaN)).toBeNull();
+  });
+
+  it("calibração com embeddings reais (docs/04 §4.1): separa pares relacionados dos sem relação", () => {
+    expect([SIMILARITY_FLOOR, SIMILARITY_CEIL]).toEqual([0.78, 0.87]);
+    // Percentis medidos nos 216 pares do seed (gemini-embedding-2, 768 dim.).
+    const different = { p50: 0.789, p90: 0.82 };
+    const sameArea = { p25: 0.829, p50: 0.844, p75: 0.865 };
+    expect(scoreSimilarity(different.p50)).toBeLessThan(0.15); // sem relação típico ≈ 0,1
+    expect(scoreSimilarity(different.p90)).toBeLessThan(0.5);
+    expect(scoreSimilarity(sameArea.p25)).toBeGreaterThan(0.5);
+    expect(scoreSimilarity(sameArea.p50)).toBeGreaterThan(0.65); // relacionado típico ≈ 0,7
+    expect(scoreSimilarity(sameArea.p75)).toBeGreaterThan(0.9);
+    // Com a faixa antiga (0,5–0,9), o par sem relação típico valia ~0,72.
+    expect((different.p50 - 0.5) / 0.4).toBeGreaterThan(0.7);
   });
 
   it("senioridade: mentora precisa estar à frente, ideal de 1 a 3 etapas", () => {

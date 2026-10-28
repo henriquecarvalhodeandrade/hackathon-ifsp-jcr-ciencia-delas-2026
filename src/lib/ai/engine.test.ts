@@ -4,6 +4,7 @@ import { AiError, AiUnavailableError } from "./errors";
 import { embedWithConfig, generateJsonWithChain, type EngineDeps } from "./engine";
 import { explainResponseSchema } from "@/lib/matching/pseudonymize";
 import {
+  GEMINI_ERROR_INVALID_KEY,
   GEMINI_EXPLAIN_OK,
   GEMINI_EXPLAIN_UNACCENTED,
   GEMINI_OPTIONAL_NULL,
@@ -327,6 +328,44 @@ describe("cadeia de fallback", () => {
       properties: { subtitulo: { type: ["string", "null"] } },
       required: ["titulo", "subtitulo"],
     });
+  });
+
+  it("chave inválida no Gemini (HTTP 400 real, API_KEY_INVALID) é erro de chave: sem repetir", async () => {
+    const { fetch, calls } = mockFetch(
+      json(GEMINI_ERROR_INVALID_KEY, { status: 400 }),
+      chatOk('{"answer":"ok"}'),
+    );
+    const { deps: d, log } = deps(fetch);
+    const res = await generateJsonWithChain([GEMINI, GROQ], OPTIONS, d);
+    expect(res.provider).toBe("groq");
+    expect(calls).toHaveLength(2);
+    expect(log.mock.calls.flat().join("\n")).toContain(
+      "gemini/gemini-3.5-flash-lite falhou (auth 400",
+    );
+
+    const only = mockFetch(json(GEMINI_ERROR_INVALID_KEY, { status: 400 }));
+    const error = (await generateJsonWithChain([GEMINI], OPTIONS, deps(only.fetch).deps).then(
+      () => null,
+      (e: unknown) => e,
+    )) as AiError;
+    expect(error.attempts).toEqual([
+      { provider: "gemini", model: "gemini-3.5-flash-lite", code: "auth", status: 400 },
+    ]);
+    expect(JSON.stringify(error.attempts) + String(error.message)).not.toContain("GEMINI-SECRET");
+  });
+
+  it("outros 400 do Gemini continuam bad_request", async () => {
+    const { fetch } = mockFetch(
+      json(
+        { error: { code: 400, message: "Invalid JSON payload", status: "INVALID_ARGUMENT" } },
+        { status: 400 },
+      ),
+    );
+    const error = (await generateJsonWithChain([GEMINI], OPTIONS, deps(fetch).deps).then(
+      () => null,
+      (e: unknown) => e,
+    )) as AiError;
+    expect(error.attempts[0].code).toBe("bad_request");
   });
 
   it("timeout: tenta de novo sem esperar e depois cai para o próximo", async () => {

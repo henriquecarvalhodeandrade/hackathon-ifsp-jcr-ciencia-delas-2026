@@ -166,3 +166,27 @@ export const GEMINI_OPTIONAL_NULL = {
   },
   modelVersion: "gemini-3.5-flash-lite",
 };
+
+/** Chave inválida: a Gemini API responde HTTP 400 (INVALID_ARGUMENT / API_KEY_INVALID), não 401. */
+export const GEMINI_ERROR_INVALID_KEY = {
+  error: {
+    code: 400,
+    message: "API key not valid. Please pass a valid API key.",
+    status: "INVALID_ARGUMENT",
+    details: [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        reason: "API_KEY_INVALID",
+        domain: "googleapis.com",
+        metadata: {
+          service: "generativelanguage.googleapis.com",
+        },
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.LocalizedMessage",
+        locale: "en-US",
+        message: "API key not valid. Please pass a valid API key.",
+      },
+    ],
+  },
+};

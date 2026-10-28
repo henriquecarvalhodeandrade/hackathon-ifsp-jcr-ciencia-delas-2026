@@ -6,7 +6,7 @@ import {
   scoreTrajectory,
   scoreWithoutTrajectory,
 } from "./rank";
-import { AREAS, makeCandidate, makeMentee } from "./test-fixtures";
+import { AREAS, makeCandidate, makeMentee, similarityFor } from "./test-fixtures";
 import type { MatchComponent, MenteeForMatching, MentorCandidate } from "./types";
 
 /**
@@ -226,7 +226,7 @@ describe("com marcas em comum", () => {
     });
     const candidate = makeCandidate({
       area_ids: [1],
-      similarity: 0.7,
+      similarity: similarityFor(0.5),
       mentorship_topics: ["bolsas-editais"],
       mentoring_offer: null,
       headline: null,

@@ -40,6 +40,21 @@ function codeForStatus(status: number): AiErrorCode {
   return "bad_request";
 }
 
+/**
+ * A Gemini API responde chave inválida ou expirada com HTTP 400 (INVALID_ARGUMENT, motivo
+ * API_KEY_INVALID), e não com 401/403 — visto na validação com a API real (out/2026). Sem este
+ * ajuste o log dizia "bad_request 400", que parece erro de esquema, e não de chave.
+ */
+function isInvalidApiKeyBody(body: unknown): boolean {
+  const error = (body as { error?: { message?: unknown; details?: unknown } } | undefined)?.error;
+  if (!error || typeof error !== "object") return false;
+  const details = Array.isArray(error.details)
+    ? (error.details as Array<{ reason?: unknown }>)
+    : [];
+  if (details.some((d) => d?.reason === "API_KEY_INVALID")) return true;
+  return typeof error.message === "string" && /API key (not valid|expired)/i.test(error.message);
+}
+
 /** Mensagem curta de erro do corpo da resposta (sem ecoar o prompt). */
 function errorSnippet(body: unknown): string | undefined {
   if (body && typeof body === "object") {
@@ -106,7 +121,10 @@ export async function postJson(
   }
 
   if (!response.ok) {
-    const code = codeForStatus(response.status);
+    const code =
+      response.status === 400 && isInvalidApiKeyBody(body)
+        ? "auth"
+        : codeForStatus(response.status);
     const snippet = errorSnippet(body);
     throw new AiError(`${provider}: HTTP ${response.status}${snippet ? ` — ${snippet}` : ""}`, {
       code,

@@ -11,7 +11,7 @@ import { explainMatchesWithAi } from "./ai-explain";
 import { buildProfileText } from "./profile-text";
 import { buildExplainPrompt, buildMenteePayload, pseudonymizeCandidates } from "./pseudonymize";
 import { rankMentorCandidates } from "./rank";
-import { AREAS, makeCandidate, makeMentee } from "./test-fixtures";
+import { AREAS, makeCandidate, makeMentee, similarityFor } from "./test-fixtures";
 import type { MenteeForMatching, MentorCandidate } from "./types";
 
 /**
@@ -107,13 +107,13 @@ describe("marcas de trajetória nunca chegam à IA", () => {
     const a = makeCandidate({
       mentor_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       area_ids: [5],
-      similarity: 0.82,
+      similarity: similarityFor(0.8),
       trajectory_tags: ["primeira-geracao"],
     });
     const b = makeCandidate({
       mentor_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       area_ids: [5],
-      similarity: 0.85,
+      similarity: similarityFor(0.875),
     });
     const ranked = rankMentorCandidates(shared, [a, b], { areas: AREAS });
     expect(ranked.map((r) => r.mentorId)).toEqual([a.mentor_id, b.mentor_id]);

@@ -1,6 +1,15 @@
+import { SIMILARITY_CEIL, SIMILARITY_FLOOR } from "./rank";
 import type { AreaInfo, MenteeForMatching, MentorCandidate } from "./types";
 
 /** Dados fictícios usados pelos testes do matching (não é usado em produção). */
+
+/**
+ * Cosseno que vira exatamente `component` (0..1) no componente semântico, qualquer que seja a
+ * calibração de SIMILARITY_FLOOR/CEIL — os cenários de nota exata não dependem dela.
+ */
+export function similarityFor(component: number): number {
+  return SIMILARITY_FLOOR + component * (SIMILARITY_CEIL - SIMILARITY_FLOOR);
+}
 
 export const AREAS = new Map<number, AreaInfo>([
   [1, { name: "Ecologia", big_area: "Ciências Biológicas" }],

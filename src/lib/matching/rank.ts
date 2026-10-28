@@ -54,9 +54,20 @@ export const MATCH_WEIGHTS: Readonly<Record<MatchComponent, number>> = {
 /** Marcas em comum que já valem o peso inteiro da afinidade de trajetória. */
 export const TRAJECTORY_SATURATION = 2;
 
-/** Faixa típica de cosseno entre perfis no gemini-embedding-2 (ajuste com dados reais). */
-export const SIMILARITY_FLOOR = 0.5;
-export const SIMILARITY_CEIL = 0.9;
+/**
+ * Faixa de cosseno reescalada para 0..1 no componente semântico. Calibrada em 28/10/2026 com
+ * embeddings reais (gemini-embedding-2, 768 dim., prefixos de consulta/documento) de 216 pares
+ * mentoranda × mentora do seed (docs/04 §4.1): TODOS os pares caem entre 0,75 e 0,90, porque os
+ * textos de perfil seguem o mesmo modelo. Com a faixa antiga (0,5–0,9), até pares sem relação
+ * ganhavam ~0,7. Regra com percentis robustos (não o máximo/mínimo de uma amostra pequena):
+ *   FLOOR ≈ mediana dos pares de grandes áreas diferentes (0,789 → 0,78): o par sem relação
+ *           típico vale ~0,1;
+ *   CEIL  ≈ 3º quartil dos pares que dividem uma área (0,865 → 0,87): par claramente
+ *           relacionado vale de ~0,7 (mediana) a 1.
+ * Vale para ESTE modelo, prefixo e formato de texto; se algum mudar, recalibre.
+ */
+export const SIMILARITY_FLOOR = 0.78;
+export const SIMILARITY_CEIL = 0.87;
 
 /** A cobertura de áreas/temas/palavras satura em 3 itens em comum. */
 const SATURATION = 3;
