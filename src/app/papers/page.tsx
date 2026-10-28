@@ -133,7 +133,7 @@ export default async function PapersPage({ searchParams }: { searchParams: Searc
             {q && (
               <>
                 {" "}
-                com “<span className="font-semibold text-fg">{q}</span>” no título
+                para “<span className="font-semibold text-fg">{q}</span>”
               </>
             )}
             {selectedArea && (

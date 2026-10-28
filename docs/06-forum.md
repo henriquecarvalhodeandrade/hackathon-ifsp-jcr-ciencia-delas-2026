@@ -34,7 +34,7 @@ completou o perfil vai para `/onboarding`). Nenhuma página do fórum é indexad
 | Rota                     | O que mostra                                                                                                   | Quem acessa                             |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | `/forum`                 | Busca, grade de categorias (com contagem e selo "Anonimato"), "Fixados pela moderação" e "Conversas recentes". | Membros                                 |
-| `/forum?q=…`             | Resultados da busca (título **e** texto, `ilike`), com trecho do texto.                                        | Membros                                 |
+| `/forum?q=…`             | Resultados da busca (título, texto e tags em `search_text`, sem acento), com trecho do texto.                  | Membros                                 |
 | `/forum?tag=…`           | Tópicos com a tag (clicar numa tag leva aqui).                                                                 | Membros                                 |
 | `/forum/c/[slug]`        | Cabeçalho da categoria, aviso de anonimato (quando aceita), busca na categoria, lista paginada, estado vazio.  | Membros                                 |
 | `/forum/novo?categoria=` | Formulário de tópico (categoria pré-selecionada pelo `slug`).                                                  | Membros                                 |
@@ -281,8 +281,9 @@ fim.
 
 ## 11. Limitações conhecidas
 
-- Busca é `ilike` (sensível a acentos: "revisao" não acha "revisão"). Uma evolução natural é
-  `unaccent` + `pg_trgm`/full-text com uma RPC.
+- Busca sem acento e sem diferença de maiúsculas em `forum_threads.search_text` (coluna gerada com
+  `unaccent` + índice trigram; cada palavra precisa aparecer). Não há ordenação por relevância (full-text
+  com ranking fica como evolução).
 - Respostas não são paginadas (até 500 por tópico).
 - Com `loading.tsx`, páginas inexistentes respondem HTTP 200 com a tela de "não encontrado"
   (comportamento de streaming do Next; a página inclui `noindex`).

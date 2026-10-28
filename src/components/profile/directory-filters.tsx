@@ -33,7 +33,7 @@ export function DirectoryFilters({ filters, areaGroups, hasActive }: DirectoryFi
       className="grid gap-4 rounded-card border border-border bg-surface p-4 shadow-card sm:p-5"
     >
       <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
-        <Field label="Buscar" hint="Nome, instituição ou título do perfil">
+        <Field label="Buscar" hint="Nome, instituição, título do perfil, cidade ou palavras-chave">
           <Input
             name="q"
             type="search"

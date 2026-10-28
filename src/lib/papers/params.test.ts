@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   areaIdsForSlug,
   buildHref,
-  escapeLikePattern,
   groupAreas,
   isUuid,
   parseAreaSlug,
@@ -63,10 +62,6 @@ describe("parse*", () => {
     expect(parseAreaSlug("Ecologia")).toBe("ecologia");
     expect(parseAreaSlug("a; drop table")).toBeNull();
     expect(parseAreaSlug("")).toBeNull();
-  });
-
-  it("escapa curingas do ILIKE", () => {
-    expect(escapeLikePattern("100%_ok\\")).toBe("100\\%\\_ok\\\\");
   });
 
   it("parseSearch remove o * (curinga do PostgREST no ilike)", () => {

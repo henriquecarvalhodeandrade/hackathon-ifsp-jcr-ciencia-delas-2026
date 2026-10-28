@@ -60,7 +60,9 @@ export async function updateSession(request: NextRequest) {
   if (!isLoggedIn && !isServerAction && matchesPrefix(pathname, PROTECTED_PREFIXES)) {
     const url = request.nextUrl.clone();
     url.pathname = "/entrar";
-    url.search = `?next=${encodeURIComponent(pathname + search)}`;
+    // O download de "Baixar meus dados" não serve de destino pós-login: volta para o perfil.
+    const next = pathname.startsWith("/perfil/exportar") ? "/perfil" : pathname + search;
+    url.search = `?next=${encodeURIComponent(next)}`;
     return withSessionCookies(NextResponse.redirect(url), supabaseResponse);
   }
 

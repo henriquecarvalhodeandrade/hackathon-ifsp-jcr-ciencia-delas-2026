@@ -233,9 +233,9 @@ seguro.
 
 - Formulário **GET** (`next/form`): funciona sem JavaScript e a busca fica na URL (dá para
   compartilhar). Com JS, a navegação é no cliente.
-- `q`: busca em nome, instituição e título (`ilike`, curinga entre palavras). O termo é limpo
-  (`sanitizeSearchTerm`) de vírgulas, parênteses, aspas, `%`, `_`, `*`… para não quebrar o filtro
-  `or=(…)` do PostgREST.
+- `q`: busca sem acento e sem diferença de maiúsculas em `profiles.search_text` (nome, instituição,
+  título do perfil, cidade e palavras-chave), um `ilike` por palavra (`applySearchText`). O termo é
+  limpo antes (`sanitizeSearchTerm`).
 - `area`: slug de `research_areas`; uma **grande área** inclui todas as subáreas (embed
   `profile_research_areas!inner` + `in`).
 - `stage` (fase), `uf` (estado), `mentoras=1` (só mentoras). Valores inválidos são ignorados.
@@ -424,10 +424,8 @@ flag ligada), em 390 px e 1440 px, nos temas claro e escuro.
 - **Destino do link mágico em outro navegador:** como os modelos de e-mail usam destino fixo, o
   `?next` só é respeitado no mesmo navegador (cookie). Alternativa: usar `{{ .RedirectTo }}` nos
   modelos (exige manter as Redirect URLs em dia).
-- **Busca sem acentos:** `ilike` diferencia "Patricia" de "Patrícia". Uma RPC com `unaccent`
-  ou `pg_trgm` resolveria.
-- **Vagas no diretório:** vêm de `get_mentor_candidates` (até 100 mentoras). Com muitas mentoras,
-  vale uma RPC dedicada, ex.: `get_mentor_open_slots(p_ids uuid[])`.
+- **Busca:** já ignora acentos e maiúsculas ("Patricia" acha "Patrícia"); não ordena por relevância.
+- **Vagas no diretório:** vêm da RPC `get_mentor_open_slots(p_ids uuid[])` (até 200 ids por chamada).
 - **Proxy e `?next`:** quem já está logada e abre `/entrar?next=/x` é mandada para `/forum`
   (regra do proxy), não para `/x`.
 - **Troca de e-mail** ainda não tem tela (o modelo `email_change` já leva a `/perfil`).

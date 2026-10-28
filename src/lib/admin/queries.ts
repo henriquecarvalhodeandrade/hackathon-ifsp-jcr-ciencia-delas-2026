@@ -1,6 +1,7 @@
 import "server-only";
 import type { Enums, Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { applySearchText } from "@/lib/search/normalize";
 import { truncate } from "@/lib/utils";
 import { isAuditAction, isAuditTargetType, type AuditAction, type AuditTargetType } from "./audit";
 import type { ReportStatus, ReportTarget, UserRole } from "./params";
@@ -488,7 +489,8 @@ export async function listMembers({
       query = query.range(from, from + MEMBERS_PAGE_SIZE - 1);
     }
     if (role) query = query.eq("role", role);
-    if (q) query = query.or(`full_name.ilike.%${q}%,institution.ilike.%${q}%`);
+    // Busca sem acento em profiles.search_text (nome, instituição, título, cidade, palavras-chave).
+    if (q) query = applySearchText(query, q);
     return query;
   };
 

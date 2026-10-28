@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 // quase todas as páginas dependem da sessão do Supabase (cookies), então o
 // modelo dinâmico clássico é mais simples para o hackathon. Ver docs/adr/0002.
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   turbopack: {
     rules: {
       "*.css": {

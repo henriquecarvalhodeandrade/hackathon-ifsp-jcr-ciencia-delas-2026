@@ -12,7 +12,7 @@ export interface PaperFiltersProps {
   order: string;
   areaSlug: string | null;
   q?: string;
-  /** Mostra a busca por título (a Vitrine tem; o ranking não). */
+  /** Mostra a busca por texto (a Vitrine tem; o ranking não). */
   withSearch?: boolean;
   action: string;
   /** Parâmetros extras a preservar (ex.: aba do ranking). */
@@ -50,7 +50,7 @@ export function PaperFilters({
           <input key={name} type="hidden" name={name} value={value} />
         ))}
       {withSearch ? (
-        <Field label="Buscar pelo título">
+        <Field label="Buscar" hint="Título, resumo, autoras, palavras-chave ou revista">
           <Input
             name="q"
             type="search"

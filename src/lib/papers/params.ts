@@ -72,11 +72,6 @@ export function parseAreaSlug(value: string | string[] | undefined): string | nu
   return /^[a-z0-9-]{2,80}$/.test(v) ? v : null;
 }
 
-/** Escapa curingas do LIKE/ILIKE (% _ \) para buscar o texto literal. */
-export function escapeLikePattern(text: string): string {
-  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
-}
-
 export interface AreaRow {
   id: number;
   slug: string;
