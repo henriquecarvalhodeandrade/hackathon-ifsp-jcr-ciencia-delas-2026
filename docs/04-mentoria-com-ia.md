@@ -265,31 +265,33 @@ números abaixo são agregados).
 pesquisa: …"), o que eleva o cosseno de todos os pares. Com o `gemini-embedding-2` (768 dim., prefixos de
 consulta e documento), **todos** os pares mentoranda × mentora ficaram entre **0,75 e 0,90**. Com a faixa
 antiga (0,5–0,9), um par sem relação nenhuma (mediana 0,79) valia 0,72 no componente semântico, quase o
-mesmo que um par da mesma área (0,85 → 0,87): os 30% da similaridade quase não separavam ninguém.
+mesmo que um par da mesma área (mediana 0,84, que valia 0,86): os 30% da similaridade quase não separavam
+ninguém.
 
 **Método.**
 
-1. `npm run ai:backfill` gerou os embeddings dos 19 perfis com consentimento (12 mentoras como documento,
-   7 perfis sem mentoria como consulta).
+1. `npm run ai:backfill` gerou os embeddings dos 19 perfis com consentimento (as 12 mentoras como
+   documento; as 5 mentorandas e as 2 contas da equipe, que não são mentoras, como consulta).
 2. Pares rotulados pela relação de áreas: **mesma área** (dividem ao menos uma área), **mesma grande área**
-   (só a grande área do CNPq) e **áreas diferentes**.
+   (só a grande área do CNPq) e **grandes áreas diferentes**.
 3. Como 7 × 12 = 84 pares é pouco, a amostra foi aumentada com as 12 mentoras escritas **como consulta**
    (texto de mentoranda, prefixo de busca) contra as outras 11 mentoras: mais 132 pares com relação
    conhecida, **216 no total**. Esses vetores extras só existiram no script de calibração (não vão para o
-   banco).
+   banco). Só com as 5 mentorandas seriam 60 pares, 6 deles da mesma área: pouco demais para um percentil
+   (o 3º quartil desses 6 pares é 0,89, puxado por dois pares).
 4. Os limites saem de **percentis**, não do mínimo/máximo, para não ajustar demais a 19 perfis fictícios:
-   - `FLOOR` ≈ **mediana dos pares de áreas diferentes** (0,789 → **0,78**): o par sem relação típico
-     vale ~0,1;
+   - `FLOOR` ≈ **mediana dos pares de grandes áreas diferentes** (0,789 → **0,78**): o par sem relação
+     típico vale ~0,1;
    - `CEIL` ≈ **3º quartil dos pares da mesma área** (0,865 → **0,87**): um par claramente relacionado
      vale de ~0,7 (mediana) a 1.
 
 **Números** (cosseno; 216 pares, com prefixo — a configuração do app):
 
-| Relação           | Pares | p10   | p25   | Mediana | p75   | p90   | Componente na mediana (antes → agora) |
-| ----------------- | ----- | ----- | ----- | ------- | ----- | ----- | ------------------------------------- |
-| Mesma área        | 18    | 0,821 | 0,829 | 0,844   | 0,865 | 0,890 | 0,86 → **0,71**                       |
-| Mesma grande área | 86    | 0,784 | 0,798 | 0,811   | 0,824 | 0,835 | 0,78 → **0,34**                       |
-| Áreas diferentes  | 112   | 0,766 | 0,777 | 0,789   | 0,809 | 0,820 | 0,72 → **0,10**                       |
+| Relação                  | Pares | p10   | p25   | Mediana | p75   | p90   | Componente na mediana (antes → agora) |
+| ------------------------ | ----- | ----- | ----- | ------- | ----- | ----- | ------------------------------------- |
+| Mesma área               | 18    | 0,821 | 0,829 | 0,844   | 0,865 | 0,890 | 0,86 → **0,71**                       |
+| Mesma grande área        | 86    | 0,784 | 0,798 | 0,811   | 0,824 | 0,835 | 0,78 → **0,34**                       |
+| Grandes áreas diferentes | 112   | 0,766 | 0,777 | 0,789   | 0,809 | 0,820 | 0,72 → **0,10**                       |
 
 Na nota final (peso de 30%), a diferença entre um par típico da mesma área e um sem relação subiu de
 cerca de 4 para cerca de 18 pontos. As frases da heurística acompanham: "muito próximos" a partir de 0,75
@@ -297,7 +299,7 @@ no componente (cosseno ≥ 0,848) e "se aproximam" a partir de 0,45 (≥ 0,82).
 
 **Prefixos conferidos.** A mesma conta sem os prefixos (`title: none | text:` e
 `task: search result | query:`) desloca todos os cossenos cerca de 0,05 para cima e separa os grupos de
-forma parecida (AUC mesma área × áreas diferentes: 0,989 com prefixo e 0,994 sem, nos 84 pares reais —
+forma parecida (AUC mesma área × grandes áreas diferentes: 0,989 com prefixo e 0,994 sem, nos 84 pares reais —
 diferença dentro do ruído de 8 pares positivos). Mantivemos os prefixos, que são o uso recomendado do
 modelo; **trocar o prefixo exige recalibrar**, porque a faixa muda.
 
@@ -310,21 +312,30 @@ ver a distribuição atual (SQL Editor, como `postgres`; só agrega, não mostra
 ```sql
 with pares as (
   select 1 - (q.embedding operator(extensions.<=>) d.embedding) as sim,
-         exists (select 1 from profile_research_areas a
-                 join profile_research_areas b on b.area_id = a.area_id
-                 where a.profile_id = qp.id and b.profile_id = dp.id) as mesma_area
+         case
+           when exists (select 1 from profile_research_areas a
+                        join profile_research_areas b on b.area_id = a.area_id
+                        where a.profile_id = qp.id and b.profile_id = dp.id) then '1 mesma área'
+           when exists (select 1 from profile_research_areas a
+                        join research_areas ra on ra.id = a.area_id
+                        join research_areas rb on rb.big_area = ra.big_area
+                        join profile_research_areas b on b.area_id = rb.id
+                        where a.profile_id = qp.id and b.profile_id = dp.id) then '2 mesma grande área'
+           else '3 grandes áreas diferentes'
+         end as relacao
   from profiles qp join profile_embeddings q on q.profile_id = qp.id
   cross join profiles dp join profile_embeddings d on d.profile_id = dp.id
   where qp.seeks_mentorship and not qp.is_mentor and dp.is_mentor and qp.id <> dp.id
 )
-select mesma_area, count(*),
+select relacao, count(*),
        percentile_cont(array[0.25, 0.5, 0.75]) within group (order by sim) as p25_p50_p75
-from pares group by mesma_area;
+from pares group by relacao order by relacao;
 ```
 
-Regra para os novos valores: `FLOOR` ≈ mediana dos pares sem área em comum; `CEIL` ≈ 3º quartil dos
-pares com área em comum. Atualize as constantes em `rank.ts` e o teste "calibração com embeddings reais"
-em `rank.test.ts`.
+Regra para os novos valores: `FLOOR` ≈ mediana dos pares de **grandes áreas diferentes**; `CEIL` ≈ 3º
+quartil dos pares da **mesma área**. Use a regra só com algumas dezenas de pares em cada grupo; com menos,
+um ou dois pares mudam o percentil (no seed, essa consulta devolve só 6 pares da mesma área). Atualize as
+constantes em `rank.ts` e o teste "calibração com embeddings reais" em `rank.test.ts`.
 
 ---
 
