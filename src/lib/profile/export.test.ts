@@ -40,6 +40,7 @@ const profile: ExportProfile = {
   mentorship_topics: ["carreira"],
   meeting_formats: ["online"],
   languages: ["pt"],
+  trajectory_tags: ["escola-publica", "primeira-geracao"],
   role: "member",
   ai_consent: true,
   ai_consent_at: T0,
@@ -68,6 +69,7 @@ function sources(overrides: Partial<ExportSources> = {}): ExportSources {
     messages: [],
     feedback: [],
     declarations: [],
+    publicAnswers: [],
     suggestions: [],
     threads: [],
     posts: [],
@@ -91,6 +93,7 @@ const request = {
   match_reason: "Mesma área",
   updated_at: T1,
   responded_at: T1,
+  completed_at: null,
 };
 
 describe("buildDataExport", () => {
@@ -217,6 +220,7 @@ describe("buildDataExport", () => {
         created_at: T0,
         updated_at: T1,
         responded_at: T1,
+        completed_at: null,
         mentora: { id: MARINA, full_name: "Marina Albuquerque" },
       },
     ]);
@@ -306,6 +310,63 @@ describe("buildDataExport", () => {
     expect(json).not.toMatch(
       /marina@x\.dev|conversa alheia|intrusa|search_text|request_id":"de-outras/,
     );
+  });
+
+  it("traz as marcas de trajetória no perfil (dados dela, opcionais)", () => {
+    const data = buildDataExport(sources());
+    expect(data.perfil?.trajectory_tags).toEqual(["escola-publica", "primeira-geracao"]);
+    const empty = buildDataExport(sources({ profile: { ...profile, trajectory_tags: [] } }));
+    expect(empty.perfil?.trajectory_tags).toEqual([]);
+  });
+
+  it("traz só as respostas dela no Pergunte a uma cientista, sem quem ocultou", () => {
+    const answer = (id: string, author: string, createdAt: string, extra: object = {}) => ({
+      id,
+      question_id: "q1",
+      author_id: author,
+      body: `Resposta ${id}`,
+      show_identity: true,
+      is_hidden: false,
+      hidden_at: null,
+      created_at: createdAt,
+      ...extra,
+    });
+    const data = buildDataExport(
+      sources({
+        publicAnswers: [
+          answer("a2", ME, T2, { show_identity: false }),
+          answer("a1", ME, T1, { is_hidden: true, hidden_at: T2, hidden_by: MARINA } as object),
+          // De outra pessoa: nunca entra, mesmo se viesse na consulta.
+          answer("a3", MARINA, T0),
+          // Repetida.
+          answer("a2", ME, T2, { show_identity: false }),
+        ],
+      }),
+    );
+    expect(data.respostas_pergunte_a_uma_cientista).toEqual([
+      {
+        id: "a1",
+        question_id: "q1",
+        body: "Resposta a1",
+        show_identity: true,
+        is_hidden: true,
+        hidden_at: T2,
+        created_at: T1,
+      },
+      {
+        id: "a2",
+        question_id: "q1",
+        body: "Resposta a2",
+        show_identity: false,
+        is_hidden: false,
+        hidden_at: null,
+        created_at: T2,
+      },
+    ]);
+    expect(JSON.stringify(data.respostas_pergunte_a_uma_cientista)).not.toMatch(
+      /hidden_by|author_id|a3/,
+    );
+    expect(data.sobre.observacoes.join(" ")).toMatch(/nenhuma pergunta aparece como sua/);
   });
 
   it("traz só os retornos que ela escreveu e as declarações das mentorias dela", () => {

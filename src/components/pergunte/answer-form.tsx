@@ -10,6 +10,7 @@ import {
 } from "@/lib/forum/client-action";
 import { submitAnswer, type AnswerFormState } from "@/lib/pergunte/actions";
 import { ANSWER_LIMITS, readAnswerForm } from "@/lib/pergunte/schemas";
+import { PersonalDataHint, usePersonalDataCheck } from "./personal-data-hint";
 
 const action = withConnectionFallback<AnswerFormState, FormData>(submitAnswer, (formData) => {
   const { body, showIdentity } = readAnswerForm(formData);
@@ -25,6 +26,8 @@ const action = withConnectionFallback<AnswerFormState, FormData>(submitAnswer, (
 export function AnswerForm({ questionId }: { questionId: string }) {
   const [state, formAction] = useActionState<AnswerFormState, FormData>(action, null);
   const formRef = useRef<HTMLFormElement>(null);
+  const personalData = usePersonalDataCheck({ allowLinks: true });
+  const resetPersonalData = personalData.reset;
 
   useEffect(() => {
     if (!state) return;
@@ -32,13 +35,15 @@ export function AnswerForm({ questionId }: { questionId: string }) {
       formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       return;
     }
+    // Resposta publicada: o campo volta vazio, e o aviso some junto.
+    resetPersonalData();
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => {
       document
         .getElementById(`resposta-${state.answerId}`)
         ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
     });
-  }, [state]);
+  }, [state, resetPersonalData]);
 
   const failure = state && !state.ok ? state : null;
   const values = failure?.values ?? { body: "", showIdentity: false };
@@ -70,8 +75,10 @@ export function AnswerForm({ questionId }: { questionId: string }) {
             maxLength={ANSWER_LIMITS.max}
             showCount
             defaultValue={values.body}
+            onChange={(event) => personalData.check(event.currentTarget.value)}
           />
         </Field>
+        <PersonalDataHint matches={personalData.matches} context="resposta" />
         <Checkbox
           name="showIdentity"
           defaultChecked={values.showIdentity}

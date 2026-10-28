@@ -53,6 +53,9 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
   const withoutTrajectoryHref = filters.trajetoria
     ? activeFilterChips(filters).find((chip) => chip.key === "trajetoria")?.href
     : undefined;
+  // Só a trajetória filtrada: "esses filtros" não faria sentido no título.
+  const onlyTrajectory =
+    Boolean(filters.trajetoria) && !hasActiveFilters({ ...filters, trajetoria: "" });
 
   return (
     <Container className="pb-16">
@@ -113,7 +116,11 @@ export default async function PesquisadorasPage({ searchParams }: { searchParams
             <EmptyState
               icon={<SearchX />}
               headingLevel="h3"
-              title="Ninguém com esses filtros e essa trajetória"
+              title={
+                onlyTrajectory
+                  ? "Ninguém marcou essa trajetória por enquanto"
+                  : "Ninguém com esses filtros e essa trajetória"
+              }
               description="As marcas de trajetória são opcionais: muitas pesquisadoras preferem não marcar nenhuma. Tente sem este filtro para ver mais gente."
               action={
                 <ButtonLink href={withoutTrajectoryHref}>Tirar o filtro de trajetória</ButtonLink>

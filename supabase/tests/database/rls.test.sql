@@ -1729,7 +1729,13 @@ begin
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prosecdef
     and has_function_privilege('anon', p.oid, 'execute')
-    and p.proname not in ('is_moderator', 'is_admin', 'get_platform_stats');
+    and p.proname not in ('is_moderator', 'is_admin', 'get_platform_stats',
+      -- Pergunte a uma cientista (docs/16): visitante sem conta envia, acompanha e apaga pelo link
+      -- e lê as perguntas e respostas publicadas.
+      'submit_public_question', 'get_public_question_status', 'delete_public_question_by_token',
+      'list_public_questions', 'list_public_answers',
+      -- Reconhecimento (docs/15): verificação pública da declaração e impacto agregado.
+      'verify_mentorship_declaration', 'get_mentorship_impact');
   perform cdtest.check(v_missing is null, format('funções SECURITY DEFINER inesperadas para anon: %s', v_missing));
 
   -- anon nunca escreve; authenticated só escreve por GRANT de coluna (exceto

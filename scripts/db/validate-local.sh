@@ -3,7 +3,8 @@
 # Artemis — validação do banco SEM Docker
 #
 # Cria um banco novo num Postgres local (16+ com pgvector), aplica o "stub" do
-# Supabase, todas as migrations em ordem, o seed e os testes de RLS/regras.
+# Supabase, todas as migrations em ordem, os seeds (supabase/seed.sql e depois
+# supabase/seeds/*.sql, como no config.toml) e os testes de RLS/regras.
 # Para no primeiro erro (psql -v ON_ERROR_STOP=1).
 #
 # Uso:
@@ -54,17 +55,35 @@ for f in "${migrations[@]}"; do
 done
 
 if [[ "${SKIP_SEED:-0}" != "1" ]]; then
-  step "Aplicando seed"
+  # Mesma ordem do supabase/config.toml ([db.seed] sql_paths = ['./seed.sql', './seeds/*.sql']):
+  # primeiro o seed principal, depois supabase/seeds/*.sql em ordem alfabética (10_, 20_, ...).
+  step "Aplicando seeds"
   run_file "${ROOT_DIR}/supabase/seed.sql"
+  seeds=("${ROOT_DIR}"/supabase/seeds/*.sql)
+  for f in "${seeds[@]}"; do
+    run_file "$f"
+  done
 fi
 
 step "Rodando testes"
 tests=("${ROOT_DIR}"/supabase/tests/database/*.sql)
+failed=()
 for f in "${tests[@]}"; do
   echo "   - ${f#"${ROOT_DIR}/"}"
   # Mesmo formato do pg_prove: saída TAP limpa (sem cabeçalhos de tabela).
-  "${PSQL[@]}" -tA -d "${DB_NAME}" -f "$f" | sed -e '/^$/d' -e 's/^/     /'
+  out="$("${PSQL[@]}" -tA -d "${DB_NAME}" -f "$f")"
+  sed -e '/^$/d' -e 's/^/     /' <<<"$out"
+  # Um "not ok" não interrompe o psql: conferimos a saída TAP de cada arquivo.
+  if grep -q '^not ok' <<<"$out"; then
+    failed+=("${f#"${ROOT_DIR}/"}")
+  fi
 done
+
+if [[ ${#failed[@]} -gt 0 ]]; then
+  printf '\nTestes com falha (not ok): %s\n' "${failed[*]}" >&2
+  echo "Banco mantido para investigar: postgresql://${PGUSER}@${PGHOST}:${PGPORT}/${DB_NAME}" >&2
+  exit 1
+fi
 
 if [[ "${KEEP_DB:-0}" != "1" ]]; then
   "${PSQL[@]}" -d postgres -c "drop database if exists ${DB_NAME} with (force);"
@@ -73,4 +92,4 @@ else
   echo "Banco mantido: postgresql://${PGUSER}@${PGHOST}:${PGPORT}/${DB_NAME}"
 fi
 
-step "Tudo certo: migrations, seed e testes passaram."
+step "Tudo certo: migrations, seeds e testes passaram."

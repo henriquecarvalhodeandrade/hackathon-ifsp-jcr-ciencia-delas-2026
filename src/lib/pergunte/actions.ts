@@ -24,6 +24,7 @@ import {
   readAnswerForm,
   readFormString,
   readQuestionForm,
+  removeQuestionSchema,
   reviewSchema,
   type AnswerFormValues,
   type QuestionFormValues,
@@ -309,6 +310,41 @@ export async function reviewQuestion(_prev: ActionState, formData: FormData): Pr
         ? "Pergunta publicada. Ela já aparece em Pergunte a uma cientista, esperando respostas."
         : `Pergunta não publicada (${REJECT_REASON_LABELS[reason!].toLowerCase()}). Quem perguntou verá o motivo no link de acompanhamento.`,
   };
+}
+
+/**
+ * Remove de vez uma pergunta (e as respostas): quando algo que identifica a estudante passou na
+ * revisão, ou quando ela pede a exclusão sem ter o link. Volta para /pergunte com a confirmação.
+ */
+export async function removeQuestion(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = removeQuestionSchema.safeParse({
+    questionId: readFormString(formData, "questionId"),
+    reason: readFormString(formData, "reason"),
+  });
+  if (!parsed.success) {
+    const fieldErrors = z.flattenError(parsed.error).fieldErrors;
+    return actionError(fieldErrors.reason?.[0] ?? "Não encontramos esta pergunta.", fieldErrors);
+  }
+
+  const check = await checkModerator();
+  if (!check.ok) return actionError(check.error);
+
+  const { questionId, reason } = parsed.data;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_public_question", {
+    p_question_id: questionId,
+    p_reason: reason,
+  });
+  if (error) {
+    if (!error.code?.startsWith("CD")) {
+      console.error("[pergunte] falha ao remover pergunta", error.code);
+    }
+    return actionError(dbMessage(error, "Não conseguimos remover a pergunta. Tente de novo."));
+  }
+
+  revalidateModeration(questionId);
+  revalidatePath("/pergunte", "layout");
+  redirect("/pergunte?pergunta=removida");
 }
 
 export async function setAnswerHidden(

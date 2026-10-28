@@ -14,6 +14,7 @@ const COLUMNS: Array<{
       { href: "/forum", label: "Fórum" },
       { href: "/mentoria", label: "Mentoria" },
       { href: "/pesquisadoras", label: "Pesquisadoras" },
+      { href: "/pergunte", label: "Pergunte a uma cientista" },
     ],
   },
   {
@@ -28,6 +29,7 @@ const COLUMNS: Array<{
     title: "Projeto",
     links: [
       { href: "/sobre", label: "Sobre" },
+      { href: "/verificar", label: "Verificar declaração" },
       { href: "/conduta", label: "Código de conduta" },
       { href: "/privacidade", label: "Privacidade" },
       { href: "/design-system", label: "Design system" },

@@ -176,6 +176,7 @@ export const PROTECTED_PREFIXES = [
   "/pesquisadoras",
   "/forum",
   "/mentoria",
+  "/painel",
   "/papers/novo",
   "/notificacoes",
   "/admin",

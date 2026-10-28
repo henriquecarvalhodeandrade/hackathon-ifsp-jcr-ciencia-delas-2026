@@ -16,7 +16,7 @@ function destinationAfterOnboarding(
   rawNext: FormDataEntryValue | null,
   seeksMentorship: boolean,
 ): string {
-  const fallback = seeksMentorship ? "/mentoria" : "/forum";
+  const fallback = seeksMentorship ? "/mentoria" : "/painel";
   const next = safeNextPath(rawNext, fallback);
   return next.startsWith("/onboarding") ? fallback : next;
 }

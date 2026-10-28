@@ -35,6 +35,14 @@ export const DEMO_LOGIN_FAILED =
 /** O único papel que uma persona pode ter (profiles.role). */
 const PERSONA_ROLE = "member";
 
+/** Tentativas do link mágico quando cliques simultâneos na mesma persona disputam o token. */
+const MAGIC_LINK_ATTEMPTS = 3;
+const RETRY_BASE_MS = 60;
+
+function pause(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 type Method = "admin" | "password";
 
 function availableMethod(): Method | null {
@@ -99,9 +107,11 @@ async function signInWithMagicLink(
   admin: AdminClient,
   persona: DemoPersona,
 ): Promise<DemoSessionResult> {
-  // Duas pessoas da banca clicando juntas na mesma persona: o token mais novo invalida o
-  // anterior. Uma segunda tentativa resolve a corrida.
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  // Várias pessoas da banca clicando juntas na mesma persona: o token mais novo invalida o
+  // anterior. Novas tentativas, com uma pausa curta e aleatória, desfazem a corrida (cada uma
+  // gasta uma validação do limite do Supabase Auth, por isso são poucas).
+  for (let attempt = 1; attempt <= MAGIC_LINK_ATTEMPTS; attempt++) {
+    if (attempt > 1) await pause(RETRY_BASE_MS + Math.random() * RETRY_BASE_MS * 2);
     const { data, error } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: persona.email,

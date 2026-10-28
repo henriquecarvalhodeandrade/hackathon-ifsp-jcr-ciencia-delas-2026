@@ -106,6 +106,8 @@ describe("loadMyDataExport", () => {
       reports: ["eq", ["reporter_id", ME]],
       // Retornos: só os que ELA escreveu (nunca o da outra participante).
       mentorship_feedback: ["eq", ["author_id", ME]],
+      // Pergunte a uma cientista: só as respostas dela (perguntas não têm autora).
+      public_answers: ["eq", ["author_id", ME]],
     };
     const session = mocks.calls.filter((c) => c.client === "session");
     for (const [table, filter] of Object.entries(expected)) {
@@ -160,6 +162,16 @@ describe("loadMyDataExport", () => {
     expect(filters(calls[0]!)).toEqual([["in", ["request_id", ["m1"]]]]);
     const columns = String(calls[0]!.ops.find(([m]) => m === "select")![1][0]);
     expect(columns).not.toMatch(/requested_by|revoked_by/);
+  });
+
+  it("lê as respostas públicas dela sem hidden_by e nunca consulta as perguntas", async () => {
+    await loadMyDataExport(user);
+    const calls = mocks.calls.filter((c) => c.table === "public_answers");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.client).toBe("session");
+    const columns = String(calls[0]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(columns).not.toMatch(/hidden_by/);
+    expect(mocks.calls.filter((c) => c.table === "public_questions")).toEqual([]);
   });
 
   it("lê os retornos da mentoria com o filtro da autora", async () => {

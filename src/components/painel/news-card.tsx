@@ -16,6 +16,15 @@ function SubHeading({ id, children }: { id: string; children: React.ReactNode })
 const linkClass =
   "inline-flex items-center gap-1.5 rounded-control text-sm font-semibold text-primary underline-offset-4 hover:underline";
 
+/** Uma parte do bloco não carregou: aviso calmo no lugar de um "nada novo" que não seria verdade. */
+function SectionUnavailable() {
+  return (
+    <p className="text-sm text-fg-muted">
+      Não conseguimos carregar esta parte agora. Recarregue a página em instantes.
+    </p>
+  );
+}
+
 export interface NewsCardProps {
   news: NewsData;
   failed?: boolean;
@@ -23,7 +32,7 @@ export interface NewsCardProps {
 
 /** "Novidades da semana": papers novos, quem chegou à rede e o último Boletim Delas. */
 export function NewsCard({ news, failed = false }: NewsCardProps) {
-  const { papers, papersMode, members, edition } = news;
+  const { papers, papersMode, members, edition, sectionsFailed } = news;
 
   return (
     <PainelSection
@@ -39,7 +48,9 @@ export function NewsCard({ news, failed = false }: NewsCardProps) {
               ? "Na Vitrine, nas suas áreas"
               : "Na Vitrine esta semana"}
           </SubHeading>
-          {papers.length > 0 ? (
+          {sectionsFailed?.papers ? (
+            <SectionUnavailable />
+          ) : papers.length > 0 ? (
             <ul className="grid gap-3">
               {papers.map((paper) => (
                 <li key={paper.id} className="grid gap-0.5">
@@ -72,7 +83,9 @@ export function NewsCard({ news, failed = false }: NewsCardProps) {
 
         <section aria-labelledby="novidades-membras" className="grid gap-2.5">
           <SubHeading id="novidades-membras">Chegaram à rede</SubHeading>
-          {members.length > 0 ? (
+          {sectionsFailed?.members ? (
+            <SectionUnavailable />
+          ) : members.length > 0 ? (
             <ul className="grid gap-3">
               {members.map((member) => (
                 <li key={member.id} className="flex items-start gap-3">
@@ -107,7 +120,9 @@ export function NewsCard({ news, failed = false }: NewsCardProps) {
 
         <section aria-labelledby="novidades-boletim" className="grid gap-2.5">
           <SubHeading id="novidades-boletim">Boletim Delas</SubHeading>
-          {edition ? (
+          {sectionsFailed?.edition ? (
+            <SectionUnavailable />
+          ) : edition ? (
             <div className="grid gap-1.5 rounded-control bg-surface-2 p-3.5">
               <Link
                 href={`/newsletter/${edition.slug}`}

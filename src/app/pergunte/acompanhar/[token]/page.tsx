@@ -124,7 +124,7 @@ export default async function TrackQuestionPage({ params }: { params: Params }) 
             headingLevel="h2"
             icon={<SearchX />}
             title="Não encontramos esta pergunta"
-            description="Confira se o link está completo. Perguntas apagadas por quem perguntou e perguntas não publicadas há mais de 30 dias deixam de existir."
+            description="Confira se o link está completo. Perguntas apagadas por quem perguntou ou removidas pela moderação, e perguntas não publicadas há mais de 30 dias, deixam de existir."
             action={
               <ButtonLink href="/pergunte">
                 <PenLine aria-hidden="true" />

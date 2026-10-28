@@ -21,7 +21,7 @@ import { NOT_CONFIGURED_ERROR, VALIDATION_ERROR } from "@/lib/profile/save";
 import type { AuthActionState } from "@/lib/profile/types";
 import { createClient } from "@/lib/supabase/server";
 
-const DEFAULT_NEXT = "/forum";
+const DEFAULT_NEXT = "/painel";
 
 /**
  * Login por e-mail. Um único formulário com dois botões:

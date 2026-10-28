@@ -107,7 +107,19 @@ export function pseudonymizeCandidates(
   options: { areas?: AreaLookup; consentByMentorId?: ReadonlyMap<string, boolean> } = {},
 ): PseudonymizedCandidates {
   const idMap = new Map<string, string>();
-  const payload = ranked.slice(0, MAX_AI_CANDIDATES).map((r, index) => {
+  // A ORDEM também não pode denunciar a afinidade de trajetória: as candidatas vão na ordem da
+  // nota SEM o bônus (a mesma de quem não declarou marcas). Sem marcas em comum, é a ordem de
+  // sempre; com elas, a IA não vê ninguém "furando a fila" com nota menor.
+  const selected = ranked
+    .slice(0, MAX_AI_CANDIDATES)
+    .map((r) => ({ r, baseScore: scoreWithoutTrajectory(r.breakdown) }))
+    .sort((x, y) =>
+      compareRanked(
+        { mentorId: x.r.mentorId, breakdown: { rawScore: x.baseScore } },
+        { mentorId: y.r.mentorId, breakdown: { rawScore: y.baseScore } },
+      ),
+    );
+  const payload = selected.map(({ r, baseScore }, index) => {
     const pseudonym = `c${index + 1}`;
     idMap.set(pseudonym, r.mentorId);
     const c = r.candidate;
@@ -125,7 +137,7 @@ export function pseudonymizeCandidates(
       mesmo_estado: r.breakdown.sameState,
       vagas_abertas: c.open_slots ?? null,
       // Sem o bônus de trajetória: nada derivado das marcas sai do servidor.
-      nota_heuristica: Math.round(scoreWithoutTrajectory(r.breakdown)),
+      nota_heuristica: Math.round(baseScore),
     };
     if (!consented) return base;
     return {

@@ -13,13 +13,18 @@
  *   4. marina@ responde SEM marcar "Mostrar meu nome…".
  *   5. O visitante vê a resposta como "Uma cientista da rede" (sem o nome) e o acompanhamento
  *      mostra "Respondida".
- *   6. moderacao@ oculta a resposta: o visitante não a vê mais; o Registro mostra "ocultou a resposta".
+ *   6. moderacao@ oculta a resposta: o visitante não a vê mais; o Registro mostra "ocultou a resposta";
+ *      a marina@ vê o aviso "Uma resposta sua foi ocultada pela moderação" (sem saber por quem).
  *   7. O visitante apaga a pergunta pelo link: volta para /pergunte com a confirmação e
  *      /pergunte/<id> responde 404.
- *   8. Capturas claro/escuro × 1440/390 de /pergunte, /pergunte/<pergunta do seed>, do
+ *   8. moderacao@ remove de vez uma segunda pergunta publicada (como quando ela identifica a
+ *      estudante), em /pergunte/<id>: volta para /pergunte com a confirmação, a página responde 404
+ *      e o Registro mostra "excluiu o conteúdo" com o motivo.
+ *   9. Capturas claro/escuro × 1440/390 de /pergunte, /pergunte/<pergunta do seed>, do
  *      acompanhamento (token de demonstração do seed), das duas páginas vistas pela marina@ (com
- *      "Perguntas esperando resposta" e o formulário de resposta) e da aba de moderação, com a checagem de
- *      rolagem horizontal, contraste AA (1440 px), erros de console e avisos de hidratação.
+ *      "Perguntas esperando resposta" e o formulário de resposta), da aba de moderação e da pergunta
+ *      vista pela moderação (cartão "Remover pergunta"), com a checagem de rolagem horizontal,
+ *      contraste AA (1440 px), erros de console e avisos de hidratação.
  *
  * Limpeza (service role): perguntas com a marca e2e-perg- (as respostas vão em cascata) e as linhas
  * do registro da moderação sobre elas e sobre os ids criados nesta execução (a etapa 7 apaga a
@@ -87,6 +92,7 @@ const SEEDED_QUESTION = "e3000000-0000-4000-8000-000000000001";
 const DEMO_TOKEN = "DemoPergunte-Artemis2026-IFSPjcr";
 
 const QUESTION_BODY = `Como é o trabalho de uma astrônoma? Quero entender como alguém começa a estudar estrelas. ${TAG}`;
+const REMOVED_BODY = `Pergunta publicada por engano: ela citava a escola de quem perguntou. ${TAG}`;
 const PII_QUESTION = `Meu e-mail é estudante.teste@gmail.com, alguém pode me ajudar a escolher um curso? ${TAG}`;
 const ANSWER_BODY = `Que pergunta boa! Comece observando o céu e anotando o que vê, e procure um clube de ciências na sua escola. ${TAG}`;
 const PII_MESSAGE =
@@ -757,6 +763,20 @@ async function main() {
       const text = (await entry.textContent()) ?? "";
       assert(/ocultou a resposta/.test(text), `primeira linha do registro: ${text}`);
       assert(/Teste automatizado/.test(text), `motivo no registro: ${text}`);
+
+      // A autora vê que a resposta foi ocultada (e pode apagar), mas não quem ocultou.
+      const author = await newPage(ctx.marinaContext);
+      await open(author, `/pergunte/${ctx.questionId}`);
+      await visible(
+        author.getByText("Uma resposta sua foi ocultada pela moderação"),
+        "aviso de resposta ocultada para a autora",
+      );
+      await visible(
+        author.getByRole("button", { name: "Apagar esta resposta" }),
+        "opção de apagar a resposta ocultada",
+      );
+      await author.close();
+      activePage = page;
     },
     { needs: ["answerId", "mod"] },
   );
@@ -792,7 +812,66 @@ async function main() {
     { needs: ["questionId"] },
   );
 
-  // 8. Capturas ----------------------------------------------------------------------------------
+  // 8. Moderação remove de vez uma pergunta publicada ---------------------------------------------
+  await step(
+    "moderacao@ remove de vez uma pergunta publicada; /pergunte/<id> responde 404 e o Registro mostra a remoção",
+    async () => {
+      const { data: token, error } = await anon.rpc("submit_public_question", {
+        p_body: REMOVED_BODY,
+      });
+      assert(!error && typeof token === "string", `envio pela API: ${error?.message}`);
+      // Publica direto (service role), como se a revisão tivesse deixado passar.
+      const now = new Date().toISOString();
+      const { data: row, error: publishError } = await db
+        .from("public_questions")
+        .update({ status: "published", reviewed_at: now, published_at: now })
+        .eq("body", REMOVED_BODY)
+        .select("id")
+        .single();
+      assert(!publishError && row, `publicar: ${publishError?.message}`);
+      created.questions.add(row.id);
+
+      const page = ctx.mod;
+      await open(page, `/pergunte/${row.id}`);
+      await page.getByRole("button", { name: "Remover pergunta" }).click();
+      const dialog = page.getByRole("dialog", { name: "Remover esta pergunta de vez?" });
+      const reason = dialog.getByRole("textbox", { name: /Motivo/ });
+      // Vazio, o navegador não deixa enviar (campo obrigatório); curto, o servidor explica.
+      await reason.fill("curto");
+      await dialog.getByRole("button", { name: "Remover de vez" }).click();
+      await visible(
+        dialog.getByText(/Explique o motivo da remoção/),
+        "motivo de 10 a 500 caracteres",
+      );
+      await reason.fill("Citava a escola de quem perguntou (teste E2E).");
+      await dialog.getByRole("button", { name: "Remover de vez" }).click();
+      await page.waitForURL(
+        (url) => url.pathname === "/pergunte" && url.searchParams.get("pergunta") === "removida",
+        { timeout: 30_000 },
+      );
+      await visible(page.getByText("Pergunta removida"), "confirmação da remoção");
+
+      const gone = await newPage(ctx.modContext, { allow404: true });
+      const response = await open(gone, `/pergunte/${row.id}`);
+      assert(response?.status() === 404, `/pergunte/<id> respondeu ${response?.status()}`);
+      await gone.close();
+      const { count } = await db
+        .from("public_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("id", row.id);
+      assert(count === 0, "a pergunta continua no banco");
+
+      await open(page, "/admin?aba=registro");
+      const entry = page.getByRole("list", { name: "Ações da moderação" }).locator("li").first();
+      const text = (await entry.textContent()) ?? "";
+      assert(/excluiu o conteúdo/.test(text), `primeira linha do registro: ${text}`);
+      assert(/Citava a escola/.test(text), `motivo no registro: ${text}`);
+      return "remoção com motivo, 404 e registro";
+    },
+    { needs: ["mod"] },
+  );
+
+  // 9. Capturas ----------------------------------------------------------------------------------
   await step("Capturas claro/escuro × 1440/390 (rolagem horizontal e contraste)", async () => {
     await capture("visitante", "/pergunte", undefined);
     await capture("visitante", `/pergunte/${SEEDED_QUESTION}`, undefined);
@@ -800,6 +879,11 @@ async function main() {
     await capture("marina", "/pergunte", await sessionCookies(demo("marina")));
     await capture("marina", `/pergunte/${SEEDED_QUESTION}`, await sessionCookies(demo("marina")));
     await capture("moderacao", "/admin?aba=perguntas", await sessionCookies(demo("moderacao")));
+    await capture(
+      "moderacao",
+      `/pergunte/${SEEDED_QUESTION}`,
+      await sessionCookies(demo("moderacao")),
+    );
     return `${shots.length} capturas em ${path.join(OUT, "capturas")}`;
   });
 

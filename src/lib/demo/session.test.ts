@@ -145,20 +145,30 @@ describe("openDemoSession — com a chave secreta (link mágico sem e-mail)", ()
     expect(mocks.admin.generateLink).not.toHaveBeenCalled();
   });
 
-  it("tenta de novo uma vez quando outro clique invalidou o token (corrida)", async () => {
+  it("tenta de novo quando outro clique invalidou o token (corrida)", async () => {
     mocks.session.verifyOtp
       .mockResolvedValueOnce({ error: { status: 403, code: "otp_expired" } })
       .mockResolvedValueOnce({ error: null });
     await expect(openDemoSession(marina)).resolves.toEqual({ ok: true });
     expect(mocks.admin.generateLink).toHaveBeenCalledTimes(2);
+
+    // Vários cliques juntos: até 3 tentativas no total.
+    mocks.admin.generateLink.mockClear();
+    mocks.session.verifyOtp
+      .mockResolvedValueOnce({ error: { status: 403, code: "otp_expired" } })
+      .mockResolvedValueOnce({ error: { status: 500 } })
+      .mockResolvedValueOnce({ error: null });
+    await expect(openDemoSession(marina)).resolves.toEqual({ ok: true });
+    expect(mocks.admin.generateLink).toHaveBeenCalledTimes(3);
   });
 
-  it("falhas persistentes viram mensagem amigável", async () => {
+  it("falhas persistentes viram mensagem amigável (sem passar de 3 tentativas)", async () => {
     mocks.session.verifyOtp.mockResolvedValue({ error: { status: 403, code: "otp_expired" } });
     await expect(openDemoSession(marina)).resolves.toEqual({
       ok: false,
       error: DEMO_LOGIN_FAILED,
     });
+    expect(mocks.admin.generateLink).toHaveBeenCalledTimes(3);
     mocks.admin.generateLink.mockResolvedValue({ data: null, error: { status: 500 } });
     await expect(openDemoSession(marina)).resolves.toEqual({
       ok: false,

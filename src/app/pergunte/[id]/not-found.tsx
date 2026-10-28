@@ -10,7 +10,7 @@ export default function QuestionNotFound() {
         headingLevel="h2"
         icon={<MessageCircleQuestion />}
         title="Não encontramos esta pergunta"
-        description="Ela pode estar em análise pela moderação, não ter sido publicada ou ter sido apagada por quem perguntou."
+        description="Ela pode estar em análise pela moderação, não ter sido publicada ou ter sido apagada (por quem perguntou ou pela moderação)."
         action={
           <>
             <ButtonLink href="/pergunte">Ver perguntas respondidas</ButtonLink>

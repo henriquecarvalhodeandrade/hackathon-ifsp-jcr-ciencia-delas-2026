@@ -196,6 +196,15 @@ describe("computeNextSteps — trilha da mentora", () => {
     expect(result.currentIndex).toBe(2);
   });
 
+  it("disponibilidade leva ao lugar do que falta: pedidos em /mentoria, vagas no perfil", () => {
+    const paused = computeNextSteps({ ...mentor, mentorAvailable: false, mentorCapacity: 0 });
+    expect(paused.steps[1]!.href).toBe("/mentoria?aba=recebidas");
+    const noSeats = computeNextSteps({ ...mentor, mentorAvailable: true, mentorCapacity: 0 });
+    expect(noSeats.steps[1]!.href).toBe("/perfil#mentoria");
+    const open = computeNextSteps({ ...mentor, mentorAvailable: true, mentorCapacity: 2 });
+    expect(open.steps[1]!.href).toBe("/mentoria?aba=recebidas");
+  });
+
   it("oferta sem tema, pedidos pausados ou capacidade zero não contam", () => {
     const steps = computeNextSteps({
       ...mentor,

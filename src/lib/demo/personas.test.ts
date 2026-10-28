@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { getPersona, isDemoEmail, listPersonas, personaByEmail } from "./personas";
 
 describe("personas do modo demonstração", () => {
-  it("tem a Larissa e a Marina, com o e-mail e o destino combinados", () => {
+  it("tem a Larissa, a Marina e a Débora, com o e-mail e o destino combinados", () => {
     expect(listPersonas().map((p) => [p.slug, p.email, p.name, p.start])).toEqual(
       expect.arrayContaining([
         ["larissa", "larissa@demo.cienciadelas.dev", "Larissa Gomes", "/painel"],
         ["marina", "marina@demo.cienciadelas.dev", "Marina Albuquerque", "/painel"],
+        ["debora", "debora@demo.cienciadelas.dev", "Débora Alves", "/mentoria?aba=ativas"],
       ]),
+    );
+    expect(getPersona("debora")!.id).toBe("d2000000-0000-4000-8000-000000000005");
+    expect(getPersona("debora")!.description).toBe(
+      "Mentoranda que concluiu uma mentoria e tem declaração",
     );
     expect(getPersona("larissa")!.description).toBe("Graduanda em IC que procura mentora");
     expect(getPersona("marina")!.description).toBe(

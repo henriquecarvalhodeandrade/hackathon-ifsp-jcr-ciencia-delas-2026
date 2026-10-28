@@ -23,7 +23,8 @@
  *   --redirect-url=<url>       URL extra para "Redirect URLs" (pode repetir; ex.: previews da Vercel)
  *   --migrations-via-api       aplica as migrations por HTTPS (API de gerenciamento) em vez de
  *                              `supabase db push`; para redes sem acesso TCP ao Postgres
- *   --with-demo-seed           aplica o seed.sql INTEIRO (contas fictícias, senha pública). Nunca em produção.
+ *   --with-demo-seed           aplica o seed.sql INTEIRO (contas fictícias, senha pública) e depois os
+ *                              seeds extras de supabase/seeds/*.sql (idempotentes). Nunca em produção.
  *   --help                     mostra esta ajuda
  *
  * Variáveis opcionais: VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT, CRON_SECRET, GEMINI_API_KEY,
@@ -1302,7 +1303,7 @@ Opções:
   --redirect-url=<url>      Redirect URL extra (repetível), ex.: https://*-sua-conta.vercel.app/**
   --migrations-via-api      aplica as migrations por HTTPS em vez de "supabase db push" (rede sem acesso
                             TCP ao Postgres, ex.: sessão na nuvem atrás de proxy)
-  --with-demo-seed          aplica o seed.sql inteiro (contas fictícias, senha pública) — nunca em produção
+  --with-demo-seed          aplica o seed.sql inteiro e os supabase/seeds/*.sql (contas fictícias, senha pública) — nunca em produção
   --auto-confirm-email      contas novas entram sem confirmar o e-mail (demo sem SMTP próprio: o SMTP
                             padrão do Supabase só entrega para o time do projeto)
   --help                    esta ajuda
@@ -1609,6 +1610,11 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
         out(
           `  (simulação) e o seed.sql inteiro (${Buffer.byteLength(local.seedSql)} bytes), se o usuário de demonstração ${local.seed.demoMarkerUserId} ainda não existir.`,
         );
+        if (local.demoSeeds.length) {
+          out(
+            `  (simulação) depois, os seeds extras de demonstração (idempotentes): ${local.demoSeeds.map((f) => f.file).join(", ")}.`,
+          );
+        }
       }
     } else {
       await applySql(local.seed.referenceSql, "os dados de referência", { idempotent: true });
@@ -1638,6 +1644,18 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
           await applySql(local.seedSql, "o seed de demonstração", { idempotent: false });
           state.demoApplied = true;
           done.push("Seed de DEMONSTRAÇÃO aplicado (contas fictícias)");
+        }
+        // Seeds extras (supabase/seeds/*.sql, na ordem do config.toml): idempotentes, então rodam
+        // de novo mesmo quando o seed.sql já estava aplicado (repõem os dados do pitch).
+        for (const extra of local.demoSeeds) {
+          await applySql(extra.content, `o seed de demonstração ${extra.file}`, {
+            idempotent: true,
+          });
+        }
+        if (local.demoSeeds.length) {
+          done.push(
+            `Seeds extras de DEMONSTRAÇÃO aplicados (${local.demoSeeds.map((f) => f.file).join(", ")})`,
+          );
         }
       }
       try {
@@ -2017,6 +2035,17 @@ async function loadLocalInputs(deps, config) {
   const seedSql = await deps.readText(path.join(supabaseDir, "seed.sql"));
   const seed = extractSeedSections(seedSql);
 
+  // Seeds extras de demonstração: supabase/seeds/*.sql em ordem alfabética, como no config.toml
+  // ([db.seed] sql_paths = ['./seed.sql', './seeds/*.sql']). Só são usados com --with-demo-seed.
+  const seedsDir = path.join(supabaseDir, "seeds");
+  const demoSeeds = [];
+  if (await deps.fileExists(seedsDir)) {
+    for (const file of (await deps.listDir(seedsDir)).sort()) {
+      if (!file.endsWith(".sql")) continue;
+      demoSeeds.push({ file, content: await deps.readText(path.join(seedsDir, file)) });
+    }
+  }
+
   const migrationsDir = path.join(supabaseDir, "migrations");
   const migrations = [];
   for (const file of (await deps.listDir(migrationsDir)).sort()) {
@@ -2051,6 +2080,7 @@ async function loadLocalInputs(deps, config) {
     passwordMinLength: authEmail.passwordMinLength,
     seedSql,
     seed,
+    demoSeeds,
     bucketInsert,
     envFile,
   };

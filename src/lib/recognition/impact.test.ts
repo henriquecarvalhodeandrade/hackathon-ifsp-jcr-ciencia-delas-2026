@@ -7,12 +7,14 @@ import {
   missingForResults,
   outcomeValueLabel,
   parseImpact,
+  pendingForNextBlock,
   sharePercent,
 } from "./impact";
 
 const full = {
   completed: 7,
   mentee_feedback: 5,
+  published_feedback: 5,
   outcomes: [
     { slug: "menos-sozinha", count: 4 },
     { slug: "plano-definido", count: 4 },
@@ -33,6 +35,7 @@ describe("parseImpact", () => {
     expect(data).toMatchObject({
       completed: 7,
       menteeFeedback: 5,
+      publishedFeedback: 5,
       declarationsIssued: 1,
       kMin: 5,
       allowed: true,
@@ -83,10 +86,40 @@ describe("parseImpact", () => {
       kMin: 5,
       allowed: false,
     });
-    expect(parseImpact({ ...full, k_min: 10, mentee_feedback: 6 })).toMatchObject({
+    expect(
+      parseImpact({ ...full, k_min: 10, mentee_feedback: 6, published_feedback: 5 }),
+    ).toMatchObject({
       kMin: 10,
       allowed: false,
     });
+  });
+
+  it("resultados em blocos de 5: porcentagens sobre o bloco publicado, não sobre o total", () => {
+    const data = parseImpact({ ...full, mentee_feedback: 8, published_feedback: 5 })!;
+    expect(data).toMatchObject({ allowed: true, menteeFeedback: 8, publishedFeedback: 5 });
+    expect(data.outcomes[0]).toMatchObject({ count: 4, percent: 80 });
+    expect(outcomeValueLabel(data.outcomes[0]!, data.publishedFeedback)).toBe("80% (4 de 5)");
+    expect(pendingForNextBlock(data)).toBe(3);
+    expect(pendingForNextBlock(parseImpact(full)!)).toBe(0);
+  });
+
+  it("sem published_feedback (ou com bloco menor que 5) não mostra resultados", () => {
+    const legacy: Record<string, unknown> = { ...full };
+    delete legacy.published_feedback;
+    expect(parseImpact(legacy)).toMatchObject({
+      allowed: false,
+      outcomes: [],
+      publishedFeedback: 0,
+    });
+    expect(parseImpact({ ...full, mentee_feedback: 7, published_feedback: 4 })).toMatchObject({
+      allowed: false,
+      helpfulnessAvg: null,
+    });
+    // Nunca mais retornos publicados do que recebidos.
+    expect(parseImpact({ ...full, mentee_feedback: 4, published_feedback: 10 })).toMatchObject({
+      allowed: false,
+    });
+    expect(pendingForNextBlock(parseImpact(legacy)!)).toBe(0);
   });
 
   it("ignora opções que não são da mentoranda", () => {

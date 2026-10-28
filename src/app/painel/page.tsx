@@ -6,6 +6,8 @@ import { NewsCard } from "@/components/painel/news-card";
 import { NextStepsCard } from "@/components/painel/next-steps-card";
 import { QuestionsCard } from "@/components/painel/questions-card";
 import { WaitingCard } from "@/components/painel/waiting-card";
+import { AwaitingQuestionsCard } from "@/components/pergunte/awaiting-questions-card";
+import { RecognitionTodos } from "@/components/recognition/recognition-todos";
 import { Container, PageHeader } from "@/components/ui";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { computeNextSteps } from "@/lib/painel/next-steps";
@@ -19,8 +21,10 @@ export const metadata: Metadata = {
 
 /**
  * /painel — o "início" de quem já faz parte da rede (docs/14-painel-e-modo-demo.md).
- * Cada bloco é um Server Component independente que recebe os próprios dados; todas as
- * leituras saem de um único Promise.all em loadPainelData (6 idas ao Supabase, com RLS).
+ * Cada bloco é um Server Component independente que recebe os próprios dados; as leituras do
+ * painel saem de um único Promise.all em loadPainelData (6 idas ao Supabase, com RLS). Os blocos
+ * das outras funcionalidades (RecognitionTodos, AwaitingQuestionsCard) leem por conta própria
+ * e não aparecem quando não há nada para mostrar.
  */
 export default async function PainelPage() {
   const profile = await requireOnboardedProfile("/painel");
@@ -45,10 +49,8 @@ export default async function PainelPage() {
         <div className="grid min-w-0 gap-6">
           <NextStepsCard result={steps} failed={data.stepsFailed} />
           <WaitingCard waiting={data.waiting} failed={data.waitingFailed} now={now} />
-          {/*
-            SLOT DE INTEGRAÇÃO — Pendências (lane reconhecimento):
-            <RecognitionTodos userId={profile.id} />
-          */}
+          {/* Pendências das mentorias concluídas (retorno e declaração; docs/15). */}
+          <RecognitionTodos userId={profile.id} />
         </div>
 
         <div className="grid min-w-0 gap-6">
@@ -58,10 +60,8 @@ export default async function PainelPage() {
             failed={data.questionsFailed}
             now={now}
           />
-          {/*
-            SLOT DE INTEGRAÇÃO — Perguntas (lane pergunte):
-            <AwaitingQuestionsCard />
-          */}
+          {/* Perguntas de estudantes sem resposta (Pergunte a uma cientista; docs/16). */}
+          <AwaitingQuestionsCard now={now} />
           <NewsCard news={data.news} failed={data.newsFailed} />
         </div>
       </div>

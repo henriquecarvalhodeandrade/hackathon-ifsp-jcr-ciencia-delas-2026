@@ -53,6 +53,19 @@ const PERSONAS: readonly DemoPersona[] = Object.freeze([
     ]),
     start: "/painel",
   }),
+  Object.freeze({
+    slug: "debora",
+    id: "d2000000-0000-4000-8000-000000000005",
+    email: `debora@${DEMO_EMAIL_DOMAIN}`,
+    name: "Débora Alves",
+    firstName: "Débora",
+    description: "Mentoranda que concluiu uma mentoria e tem declaração",
+    highlights: Object.freeze([
+      "Mentoria com a Patrícia concluída, com retorno privado enviado",
+      "Declaração de participação com QR code verificável",
+    ]),
+    start: "/mentoria?aba=ativas",
+  }),
 ]);
 
 /** Contas que nunca podem virar persona, mesmo que alguém edite a lista por engano. */

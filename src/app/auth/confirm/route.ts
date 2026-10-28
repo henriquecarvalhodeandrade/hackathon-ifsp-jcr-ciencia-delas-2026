@@ -24,8 +24,8 @@ const OTP_TYPES: readonly EmailOtpType[] = [
 /** Destino padrão por tipo de link (quando não há ?next válido). */
 const DEFAULT_NEXT: Record<EmailOtpType, string> = {
   signup: "/onboarding",
-  email: "/forum",
-  magiclink: "/forum",
+  email: "/painel",
+  magiclink: "/painel",
   recovery: "/redefinir-senha",
   invite: "/redefinir-senha",
   email_change: "/perfil",

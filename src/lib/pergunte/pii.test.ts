@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { describeKinds, detectPersonalData, normalizeForPii, PII_PATTERNS } from "./pii";
+import {
+  describeKinds,
+  describeMatches,
+  detectPersonalData,
+  findPersonalData,
+  normalizeForPii,
+  PII_PATTERNS,
+} from "./pii";
 
 const MIGRATION = fileURLToPath(
   new URL("../../../supabase/migrations/20261028190100_public_questions.sql", import.meta.url),
@@ -45,6 +52,13 @@ describe("detectPersonalData — positivos", () => {
     ["https://www.gov.br", "link"],
     ["www.exemplo.com.br", "link"],
     ["meusite.com", "link"],
+    // Disfarces comuns: espaços ou (at) no lugar do @, ponto como separador do telefone.
+    ["ana @ gmail.com", "email"],
+    ["ana (at) gmail.com", "email"],
+    ["ana [at] gmail . com", "email"],
+    ["ana @ gmail ponto com", "email"],
+    ["12.99876.5432", "telefone"],
+    ["(12) 99876.5432", "telefone"],
   ] as const)("%s → %s", (text, kind) => {
     expect(detectPersonalData(text)).toContain(kind);
   });
@@ -53,6 +67,28 @@ describe("detectPersonalData — positivos", () => {
     expect(detectPersonalData("99876​5432")).toContain("telefone");
     expect(detectPersonalData("ana＠gmail.com")).toContain("email");
     expect(detectPersonalData("（12）９９８７６-５４３２")).toContain("telefone");
+  });
+
+  it("pega contatos disfarçados que o Markdown das respostas desfaria", () => {
+    const asAnswer = { allowLinks: true } as const;
+    // %XX no nome do site: o navegador decodifica e abre o Instagram.
+    expect(detectPersonalData("[perfil](https://%69nstagram.com/ana)", asAnswer)).toContain(
+      "rede_social",
+    );
+    expect(detectPersonalData("[perfil](//%69nstagram.com/ana)", asAnswer)).toContain(
+      "rede_social",
+    );
+    // Entidades HTML viram @ e . na tela.
+    expect(detectPersonalData("ana&commat;gmail&period;com", asAnswer)).toContain("rede_social");
+    expect(detectPersonalData("ana&#64;gmail.com", asAnswer)).toContain("rede_social");
+    // Barra invertida do Markdown some na tela ("9\-9876" aparece como "9-9876").
+    expect(detectPersonalData(String.raw`(12) 99876\-5432`, asAnswer)).toContain("telefone");
+    // Ponto ideográfico: o navegador lê "instagram。com" como instagram.com.
+    expect(detectPersonalData("instagram。com/ana", asAnswer)).toContain("rede_social");
+    // Mas %XX no caminho de um site oficial passa.
+    expect(
+      detectPersonalData("https://www.gov.br/mec/pt-br/acesso-a-informa%C3%A7%C3%A3o", asAnswer),
+    ).toEqual([]);
   });
 
   it("devolve cada tipo uma vez, na ordem da lista", () => {
@@ -78,6 +114,11 @@ describe("detectPersonalData — negativos (números comuns em perguntas de ciê
     "Preciso ser muito boa em matemática para fazer pesquisa em biologia?",
     "O símbolo @ aparece em e-mails",
     "Página 123, exercício 45",
+    "Lei 9.394/1996, art. 3º",
+    "Custa R$ 1.234.567,89 por ano",
+    "P&D em empresas é pesquisa?",
+    "O @ e o ponto final do e-mail",
+    "Versão 3.14159265 do pi",
   ])("%s → nada", (text) => {
     expect(detectPersonalData(text)).toEqual([]);
   });
@@ -137,11 +178,30 @@ describe("paridade com o banco (private.detect_personal_data)", () => {
     }
   });
 
-  it("a normalização do banco também tira invisíveis e aplica NFKC", () => {
+  it("a normalização do banco também tira invisíveis e barras e aplica NFKC", () => {
     const sql = readFileSync(MIGRATION, "utf8");
     expect(sql).toContain("normalize(coalesce(p_text, ''), nfkc)");
     expect(sql).toContain(String.raw`'[​-‍⁠﻿­]'`);
+    // translate(…, '。\', '.'): "。" vira "." e a barra invertida some.
+    expect(sql).toContain(String.raw`'。\', '.')`);
     expect(normalizeForPii("a­b﻿c")).toBe("abc");
+    expect(normalizeForPii(String.raw`a\-b。c｡d`)).toBe("a-b.c.d");
+  });
+});
+
+describe("findPersonalData e describeMatches", () => {
+  it("mostra o trecho encontrado de cada tipo", () => {
+    const matches = findPersonalData("Tenho 15 anos.Me chama no (12) 99876-5432");
+    expect(matches).toEqual([
+      { kind: "telefone", text: "(12) 99876-5432" },
+      { kind: "link", text: "anos.Me" },
+    ]);
+    expect(describeMatches(matches)).toBe("telefone (“(12) 99876-5432”) e link (“anos.Me”)");
+  });
+
+  it("encurta trechos longos", () => {
+    const [match] = findPersonalData(`https://exemplo.com/${"a".repeat(80)}`);
+    expect(describeMatches([match!])).toMatch(/^link \(“https:\/\/exemplo\.com\/a+…”\)$/);
   });
 });
 

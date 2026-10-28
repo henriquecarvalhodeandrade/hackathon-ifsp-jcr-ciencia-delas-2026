@@ -54,7 +54,7 @@ export async function signInWithGoogleAction(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  const next = safeNextPath(formText(formData, "next"), "/forum");
+  const next = safeNextPath(formText(formData, "next"), "/painel");
   if (!isSupabaseConfigured()) return { ok: false, error: NOT_CONFIGURED_ERROR, values: {} };
   if (!isGoogleAuthEnabled())
     return { ok: false, error: "O acesso com Google não está habilitado.", values: {} };

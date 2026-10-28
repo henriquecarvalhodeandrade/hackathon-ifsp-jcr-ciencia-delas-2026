@@ -9,6 +9,7 @@ import {
   questionSchema,
   readAnswerForm,
   readQuestionForm,
+  removeQuestionSchema,
   reviewSchema,
 } from "./schemas";
 
@@ -136,6 +137,31 @@ describe("moderação", () => {
     );
     expect(
       hideAnswerSchema.safeParse({ answerId: ID, hidden: true, reason: "a".repeat(501) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("removeQuestionSchema", () => {
+  it("exige motivo de 10 a 500 caracteres (mesma mensagem do banco)", () => {
+    const short = removeQuestionSchema.safeParse({ questionId: ID, reason: "  curto  " });
+    expect(short.success).toBe(false);
+    expect(z.flattenError(short.error!).fieldErrors.reason?.[0]).toBe(
+      "Explique o motivo da remoção com 10 a 500 caracteres: ele fica no registro da moderação.",
+    );
+    expect(
+      removeQuestionSchema.safeParse({ questionId: ID, reason: "x".repeat(501) }).success,
+    ).toBe(false);
+    const ok = removeQuestionSchema.safeParse({
+      questionId: ID,
+      reason: "  Tinha o nome da escola da estudante.  ",
+    });
+    expect(ok.success && ok.data.reason).toBe("Tinha o nome da escola da estudante.");
+  });
+
+  it("recusa id inválido", () => {
+    expect(
+      removeQuestionSchema.safeParse({ questionId: "abc", reason: "Motivo suficiente aqui." })
+        .success,
     ).toBe(false);
   });
 });

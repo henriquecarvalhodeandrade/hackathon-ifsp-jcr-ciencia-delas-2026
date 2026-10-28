@@ -10,6 +10,7 @@ export const PUBLIC_NAV: readonly NavItem[] = [
   { href: "/papers", label: "Papers" },
   { href: "/ranking", label: "Ranking" },
   { href: "/newsletter", label: "Newsletter" },
+  { href: "/pergunte", label: "Pergunte" },
   { href: "/sobre", label: "Sobre" },
 ];
 

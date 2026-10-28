@@ -12,23 +12,26 @@
 --   | quem tem o link   | vê o andamento e apaga (RPC, por token) | (as respostas somem junto, em cascata)       |
 --   | membra            | lê só publicadas                        | responde se tiver cadastro completo, só em   |
 --   |                   |                                         | publicadas; lê e apaga as próprias           |
---   | moderação/admin   | lê todas; publica ou recusa (RPC)       | lê todas; oculta e reexibe (RPC)             |
+--   | moderação/admin   | lê todas; publica, recusa ou remove     | lê todas; oculta e reexibe (RPC)             |
+--   |                   | (RPC)                                   |                                              |
 --
 --   Proteção de quem pergunta (pode ter menos de 18 anos):
 --   - nenhum identificador é guardado: nem auth.uid(), nem IP, nem navegador — a pergunta não
---     tem autora no banco. O link de acompanhamento leva um token aleatório de 192 bits que só
+--     tem autora no banco. A hora exata do envio (created_at) não sai pela API: só a moderação a
+--     vê, na fila. O link de acompanhamento leva um token aleatório de 192 bits que só
 --     existe na tela de sucesso; o banco guarda apenas o SHA-256 dele (tracking_token_hash, que
 --     nem anon nem membras conseguem ler);
 --   - nada fica público antes da moderação publicar;
 --   - dados pessoais são recusados no banco também (e-mail, telefone, CPF/RG, @ e links de redes
---     sociais, linktree e encurtadores de link, que escondem contatos; na pergunta, qualquer
---     link), com as MESMAS expressões do app
+--     sociais, linktree e encurtadores de link, que escondem contatos, e endereços disfarçados com
+--     %XX ou entidades HTML; na pergunta, qualquer link), com as MESMAS expressões do app
 --     (src/lib/pergunte/pii.ts — um teste compara as duas listas);
 --   - não existe canal privado entre quem responde e quem pergunta: respostas são públicas e
 --     também não podem trazer contatos (CD047);
 --   - a identidade de quem responde só aparece se ela marcar, resposta por resposta
 --     (show_identity); author_id nunca sai do banco nas leituras públicas;
---   - perguntas recusadas são apagadas 30 dias depois da revisão.
+--   - perguntas recusadas são apagadas 30 dias depois da revisão; a moderação remove de vez uma
+--     pergunta (publicada ou não) que identifique a estudante ou a pedido dela, sem o link.
 --
 --   Erros: CD040 fila cheia (50 pendentes) · CD041 dados pessoais na pergunta · CD042 tamanho,
 --   etapa ou área inválidos · CD043 pergunta fechada para respostas · CD044 cadastro incompleto ·
@@ -68,7 +71,9 @@ alter table public.moderation_audit_log
 
 -- -----------------------------------------------------------------------------
 -- 3. Detector de dados pessoais (mesmas expressões de src/lib/pergunte/pii.ts)
---    Antes de comparar: NFKC (＠ e dígitos largos viram ASCII) e sem caracteres invisíveis.
+--    Antes de comparar: NFKC (＠ e dígitos largos viram ASCII), sem caracteres invisíveis, sem
+--    barras invertidas (no Markdown das respostas, "9\-9876" aparece como "9-9876") e com o ponto
+--    ideográfico (。, que o navegador lê como "." num endereço) trocado por ".".
 --    Sem \b (no Postgres é \y): as fronteiras usam (?<![0-9]) e (?![0-9]), iguais nos dois lados.
 -- -----------------------------------------------------------------------------
 create function private.detect_personal_data(p_text text, p_allow_links boolean default false)
@@ -79,21 +84,26 @@ parallel safe
 set search_path = ''
 as $$
 declare
-  v_text text := regexp_replace(normalize(coalesce(p_text, ''), nfkc), '[​-‍⁠﻿­]', '', 'g');
+  v_text text := translate(
+    regexp_replace(normalize(coalesce(p_text, ''), nfkc), '[​-‍⁠﻿­]', '', 'g'),
+    '。\', '.');
   v_kinds text[] := '{}';
   r record;
 begin
   -- PII_PATTERNS (início) — cada linha: (tipo, expressão). Mantenha igual a src/lib/pergunte/pii.ts.
   for r in
     select k.kind, k.pattern from (values
-      ('email', '[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}'),
-      ('email', '[a-z0-9._%+-]+\s*\(?\s*arroba\s*\)?\s*[a-z0-9-]+\s*(?:\.|ponto)\s*[a-z]{2,}'),
-      ('telefone', '(?<![0-9])(?:\+?55[\s-]*)?(?:\(?[1-9][0-9]\)?[\s-]*)?9[\s-]?[0-9]{4}[\s-]?[0-9]{4}(?![0-9])'),
-      ('telefone', '(?<![0-9])(?:\+?55[\s-]*)?\(?[1-9][0-9]\)?[\s-]*[2-5][0-9]{3}[\s-]?[0-9]{4}(?![0-9])'),
+      ('email', '[a-z0-9._%+-]+\s*(?:@|\(at\)|\[at\])\s*[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}'),
+      ('email', '[a-z0-9._%+-]+\s*(?:\(?\s*arroba\s*\)?|@|\(at\)|\[at\])\s*[a-z0-9-]+\s*(?:\.|ponto)\s*[a-z]{2,}'),
+      ('telefone', '(?<![0-9])(?:\+?55[\s.-]*)?(?:\(?[1-9][0-9]\)?[\s.-]*)?9[\s.-]?[0-9]{4}[\s.-]?[0-9]{4}(?![0-9])'),
+      ('telefone', '(?<![0-9])(?:\+?55[\s.-]*)?\(?[1-9][0-9]\)?[\s.-]*[2-5][0-9]{3}[\s.-]?[0-9]{4}(?![0-9])'),
       ('documento', '(?<![0-9])[0-9]{3}\.?[0-9]{3}\.?[0-9]{3}-?[0-9]{2}(?![0-9])'),
       ('documento', '(?<![0-9])[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9xX](?![0-9])'),
       ('rede_social', '(?<![a-z0-9._%+-])@[a-z0-9_][a-z0-9_.]{1,29}'),
       ('rede_social', '(?<![a-z0-9-])(?:instagram\.com|instagr\.am|tiktok\.com|facebook\.com|fb\.com|fb\.me|m\.me|twitter\.com|x\.com|linkedin\.com|wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com|t\.me|telegram\.me|discord\.gg|discord\.com|snapchat\.com|threads\.net|bsky\.app|kwai\.com|linktr\.ee|bit\.ly|tinyurl\.com|cutt\.ly|is\.gd|encurtador\.com\.br)'),
+      -- Contato disfarçado: endereço com %XX no nome do site (https://%69nstagram.com) ou
+      -- entidade HTML (&commat;, &#64;), que o Markdown das respostas transforma em @, ponto etc.
+      ('rede_social', '(?://|www\.)[^\s/?#]*%[0-9a-f]{2}|&#?[a-z0-9]{2,31};'),
       ('link', 'https?://\S+'),
       ('link', '(?<![a-z0-9@.-])www\.\S+'),
       ('link', '(?<![a-z0-9@-])[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|br|io|me|app|dev|info|xyz|site|link|ly|gl|gg)(?![a-z0-9])')
@@ -159,8 +169,11 @@ create policy "Moderação lê todas as perguntas"
   using ((select private.is_moderator()));
 
 -- Sem INSERT/UPDATE/DELETE pela API: toda escrita passa pelas RPCs abaixo.
+-- created_at fica FORA da leitura: a hora exata do envio, cruzada com um registro de rede (da
+-- escola, do roteador de casa), poderia apontar quem perguntou. O público vê published_at (a hora
+-- da moderação); a fila da moderação lê created_at por list_pending_public_questions.
 revoke all on table public.public_questions from anon, authenticated;
-grant select (id, body, stage, area_id, status, created_at, published_at)
+grant select (id, body, stage, area_id, status, published_at)
   on table public.public_questions to anon, authenticated;
 grant all on table public.public_questions to service_role;
 
@@ -275,8 +288,12 @@ create policy "Autora apaga a própria resposta"
 
 -- author_id entra no GRANT de INSERT (como sender_id em mentorship_messages) só para que uma
 -- autoria forjada receba a mensagem CD013 do trigger; o padrão é auth.uid() e o RLS confere.
+-- SELECT por coluna: hidden_by (QUEM da moderação ocultou) fica fora — a autora vê que a resposta
+-- foi ocultada (is_hidden, hidden_at), não por quem. Quem agiu fica no moderation_audit_log.
 revoke all on table public.public_answers from anon, authenticated;
-grant select, delete on table public.public_answers to authenticated;
+grant select (id, question_id, author_id, body, show_identity, is_hidden, hidden_at, created_at)
+  on table public.public_answers to authenticated;
+grant delete on table public.public_answers to authenticated;
 grant insert (question_id, author_id, body, show_identity) on table public.public_answers to authenticated;
 grant all on table public.public_answers to service_role;
 
@@ -600,6 +617,67 @@ begin
 end;
 $$;
 
+-- Moderação: fila de perguntas pendentes, mais antigas primeiro (com created_at, que a API não
+-- expõe a mais ninguém).
+create function public.list_pending_public_questions(p_limit integer default 50)
+returns table (
+  id uuid,
+  body text,
+  stage text,
+  area_id smallint,
+  created_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if not private.is_moderator() then
+    raise exception using errcode = '42501', message = 'Só a moderação vê a fila de perguntas.';
+  end if;
+
+  return query
+  select q.id, q.body, q.stage, q.area_id, q.created_at
+  from public.public_questions q
+  where q.status = 'pending'
+  order by q.created_at, q.id
+  limit least(greatest(coalesce(p_limit, 50), 1), 100);
+end;
+$$;
+
+-- Moderação: remove de vez uma pergunta (em qualquer status) e as respostas dela. Para quando algo
+-- que identifica a estudante passou na revisão, ou quando ela pede a exclusão sem ter o link
+-- (LGPD, art. 18). Motivo obrigatório; registra 'delete_content' no moderation_audit_log.
+create function public.remove_public_question(p_question_id uuid, p_reason text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_reason text := btrim(coalesce(p_reason, ''));
+begin
+  if not private.is_moderator() then
+    raise exception using errcode = '42501', message = 'Só a moderação pode remover perguntas.';
+  end if;
+  if char_length(v_reason) not between 10 and 500 then
+    raise exception using
+      errcode = '22023',
+      message = 'Explique o motivo da remoção com 10 a 500 caracteres: ele fica no registro da moderação.';
+  end if;
+
+  -- Uma resposta sendo enviada agora (FOR SHARE no trigger) termina antes; depois, CD043.
+  delete from public.public_questions q where q.id = p_question_id;
+  if not found then
+    raise exception using errcode = 'CD015', message = 'Não encontramos esta pergunta. Talvez quem perguntou já a tenha apagado.';
+  end if;
+
+  perform private.log_moderation('delete_content', 'public_question', p_question_id, null, v_reason);
+end;
+$$;
+
 revoke all on function public.submit_public_question(text, text, smallint) from public, anon, authenticated;
 revoke all on function public.get_public_question_status(text) from public, anon, authenticated;
 revoke all on function public.delete_public_question_by_token(text) from public, anon, authenticated;
@@ -607,6 +685,8 @@ revoke all on function public.list_public_questions(text, text, smallint, intege
 revoke all on function public.list_public_answers(uuid) from public, anon, authenticated;
 revoke all on function public.review_public_question(uuid, text, text) from public, anon, authenticated;
 revoke all on function public.set_public_answer_hidden(uuid, boolean, text) from public, anon, authenticated;
+revoke all on function public.remove_public_question(uuid, text) from public, anon, authenticated;
+revoke all on function public.list_pending_public_questions(integer) from public, anon, authenticated;
 
 grant execute on function public.submit_public_question(text, text, smallint) to anon, authenticated, service_role;
 grant execute on function public.get_public_question_status(text) to anon, authenticated, service_role;
@@ -615,3 +695,5 @@ grant execute on function public.list_public_questions(text, text, smallint, int
 grant execute on function public.list_public_answers(uuid) to anon, authenticated, service_role;
 grant execute on function public.review_public_question(uuid, text, text) to authenticated, service_role;
 grant execute on function public.set_public_answer_hidden(uuid, boolean, text) to authenticated, service_role;
+grant execute on function public.remove_public_question(uuid, text) to authenticated, service_role;
+grant execute on function public.list_pending_public_questions(integer) to authenticated, service_role;

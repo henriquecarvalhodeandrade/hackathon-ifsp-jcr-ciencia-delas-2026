@@ -37,6 +37,7 @@ export function FeedbackForm({
   const [state, formAction] = useActionState<FeedbackState, FormData>(submitFeedbackAction, null);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const messageRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const values = state?.values;
   const errors = state?.fieldErrors;
   // Remonta os campos com as respostas devolvidas (o React limpa o formulário a cada envio).
@@ -44,13 +45,17 @@ export function FeedbackForm({
   const helpfulnessError = errors?.helpfulness?.[0];
   const outcomes = outcomesFor(role);
 
+  // Erro de campo: o foco vai para o primeiro campo inválido (o botão de envio fica desabilitado
+  // durante o envio e o foco cairia no <body>); erro geral: a mensagem aparece na tela.
   useEffect(() => {
-    if (state && !state.ok && !state.fieldErrors?.helpfulness)
-      revealFormMessage(messageRef.current);
+    if (!state || state.ok) return;
+    const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (invalid) invalid.focus();
+    else revealFormMessage(messageRef.current);
   }, [state]);
 
   return (
-    <form action={formAction} noValidate className="grid gap-7">
+    <form ref={formRef} action={formAction} noValidate className="grid gap-7">
       <input type="hidden" name="request_id" value={requestId} />
       <FormMessage ref={messageRef} tone="error">
         {state && !state.ok ? state.error : null}

@@ -1,6 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
+import { DEMO_PASSWORD_REFUSED, isProtectedDemoAccount } from "@/lib/demo/guard";
 import { isSupabaseConfigured } from "@/lib/env";
 import { authFieldErrors, formText, resetPasswordSchema } from "@/lib/profile/auth-schemas";
 import { authErrorMessage } from "@/lib/profile/errors";
@@ -24,6 +25,10 @@ export async function updatePasswordAction(
       values: {},
     };
   }
+
+  // Modo demonstração: várias pessoas da banca usam as mesmas contas fictícias (docs/14).
+  if (isProtectedDemoAccount(user.email))
+    return { ok: false, error: DEMO_PASSWORD_REFUSED, values: {} };
 
   const parsed = resetPasswordSchema.safeParse({
     password: formText(formData, "password"),

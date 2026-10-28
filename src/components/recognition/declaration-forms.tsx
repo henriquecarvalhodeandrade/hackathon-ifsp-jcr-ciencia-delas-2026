@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useEffect, useId, useRef } from "react";
 import { BadgeCheck, CircleAlert, FileSignature, Trash2, Undo2, X } from "lucide-react";
 import {
   Checkbox,
@@ -23,12 +23,29 @@ import type { RecognitionActionState } from "@/lib/recognition/types";
 export const CONSENT_LABEL =
   "Autorizo que meu nome apareça na declaração e na página pública de verificação";
 
-/** Caixa de autorização (obrigatória) com o erro ligado por aria-describedby. */
-function ConsentCheckbox({ error, description }: { error?: string; description: string }) {
+/**
+ * Caixa de autorização (obrigatória) com o erro ligado por aria-describedby. Com erro, recebe o
+ * foco (o botão de envio fica desabilitado durante o envio e o foco cairia no <body>).
+ */
+function ConsentCheckbox({
+  error,
+  description,
+  state,
+}: {
+  error?: string;
+  description: string;
+  /** Estado da ação: a cada resposta com erro na caixa, o foco volta para ela. */
+  state: RecognitionActionState;
+}) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (state && !state.ok && state.fieldErrors?.consent) ref.current?.focus();
+  }, [state]);
   return (
     <div className="grid gap-1.5">
       <Checkbox
+        ref={ref}
         id={`${id}-autorizo`}
         name="consent"
         required
@@ -74,6 +91,7 @@ export function DeclarationRequestForm({
       <input type="hidden" name="return_to" value={returnTo} />
       <ConsentCheckbox
         error={consentError}
+        state={state}
         description={`A declaração só é emitida quando ${otherFirstName} também autorizar.`}
       />
       <FormMessage tone="error">
@@ -113,6 +131,7 @@ export function DeclarationConsentForm({
       <input type="hidden" name="return_to" value={returnTo} />
       <ConsentCheckbox
         error={consentError}
+        state={state}
         description={`${otherFirstName} já autorizou o nome dela. Com a sua autorização, a declaração é emitida.`}
       />
       <FormMessage tone="error">

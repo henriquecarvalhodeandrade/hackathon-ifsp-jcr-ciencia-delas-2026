@@ -15,7 +15,7 @@ function redirectTo(request: NextRequest, path: string) {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const next = safeNextPath(searchParams.get("next"), "/forum");
+  const next = safeNextPath(searchParams.get("next"), "/painel");
 
   if (!isSupabaseConfigured()) return redirectTo(request, "/auth/erro?motivo=configuracao");
 

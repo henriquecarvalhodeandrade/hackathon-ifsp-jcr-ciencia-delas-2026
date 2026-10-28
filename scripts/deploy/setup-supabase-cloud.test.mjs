@@ -875,8 +875,25 @@ describe("main", () => {
       .filter((c) => c.path.endsWith("/database/query"))
       .map((c) => c.body.query);
     assert.ok(queries.some((q) => q === readRepo("supabase/seed.sql")));
+    // Depois do seed.sql, os seeds extras (supabase/seeds/*.sql), na ordem do config.toml.
+    const extras = readdirSync(path.join(ROOT, "supabase", "seeds"))
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+    assert.ok(extras.length > 0);
+    const seedAt = queries.indexOf(readRepo("supabase/seed.sql"));
+    const extraAt = extras.map((f) => queries.indexOf(readRepo(`supabase/seeds/${f}`)));
+    assert.ok(
+      extraAt.every((i) => i > seedAt),
+      "seeds extras depois do seed.sql",
+    );
+    assert.deepEqual(
+      [...extraAt].sort((a, b) => a - b),
+      extraAt,
+      "seeds extras em ordem alfabética",
+    );
     assert.match(t.output(), /ATENÇÃO: --with-demo-seed/);
     assert.match(t.output(), /\[x\] Seed de DEMONSTRAÇÃO aplicado/);
+    assert.match(t.output(), /\[x\] Seeds extras de DEMONSTRAÇÃO aplicados/);
 
     const again = makeDeps({
       env: fullEnv(),
@@ -895,6 +912,8 @@ describe("main", () => {
       .map((c) => c.body.query);
     assert.ok(!queries2.some((q) => q.includes("insert into auth.users")));
     assert.match(again.output(), /já estava aplicado/);
+    // Os seeds extras são idempotentes: rodam de novo e repõem os dados do pitch.
+    assert.ok(queries2.some((q) => q === readRepo("supabase/seeds/20_reconhecimento.sql")));
   });
 
   test("cria chaves novas quando o projeto só tem as legadas", async () => {

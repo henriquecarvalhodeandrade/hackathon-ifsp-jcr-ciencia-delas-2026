@@ -10,6 +10,8 @@ import { NewsletterCta } from "@/components/landing/newsletter-cta";
 import { Pillars } from "@/components/landing/pillars";
 import { LandingStats } from "@/components/landing/platform-stats";
 import { WhySection } from "@/components/landing/why-section";
+import { PergunteLandingCta } from "@/components/pergunte/landing-cta";
+import { ImpactSummary } from "@/components/recognition/impact-summary";
 import { getCurrentProfile } from "@/lib/auth";
 import { SITE } from "@/lib/constants";
 
@@ -57,9 +59,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     <>
       <LandingHero viewer={viewer} />
       <LandingStats stats={data.stats} />
+      <ImpactSummary />
       <WhySection />
       <Pillars />
       <MentorshipSteps viewer={viewer} />
+      <PergunteLandingCta />
       <FeaturedPapers papers={data.papers} period={data.papersPeriod} />
       <NewsletterCta latestEdition={data.latestEdition} />
       <HackathonCredit />

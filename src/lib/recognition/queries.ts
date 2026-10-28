@@ -318,6 +318,8 @@ export async function loadRecognitionTodos(
   userId: string,
   now: Date = new Date(),
 ): Promise<RecognitionTodo[]> {
+  // O id entra num filtro .or() do PostgREST: só um UUID de verdade (nada de vírgulas/parênteses).
+  if (!z.guid().safeParse(userId).success) return [];
   const { data: rows, error } = await supabase
     .from("mentorship_requests")
     .select(

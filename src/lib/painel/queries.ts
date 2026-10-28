@@ -105,6 +105,11 @@ export interface NewsData {
   papersMode: "area" | "votes";
   members: NewMember[];
   edition: LatestEdition | null;
+  /**
+   * Partes que não carregaram (o bloco inteiro só falha quando as três falham). Uma lista vazia
+   * por erro não pode virar "Nenhum paper novo" nem "A primeira edição sai em breve".
+   */
+  sectionsFailed?: { papers: boolean; members: boolean; edition: boolean };
 }
 
 export interface PainelData {
@@ -581,7 +586,10 @@ export async function loadPainelData(profile: Profile, now = Date.now()): Promis
     waitingFailed: requests.failed || self.failed,
     questions,
     questionsFailed: candidates.failed,
-    news: buildNews(papers.rows, members.rows, self.data.areaIds, areaNames, edition.edition),
+    news: {
+      ...buildNews(papers.rows, members.rows, self.data.areaIds, areaNames, edition.edition),
+      sectionsFailed: { papers: papers.failed, members: members.failed, edition: edition.failed },
+    },
     newsFailed: papers.failed && members.failed && edition.failed,
   };
 }

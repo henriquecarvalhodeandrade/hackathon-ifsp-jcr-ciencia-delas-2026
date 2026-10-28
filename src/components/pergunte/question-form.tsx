@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Send, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Send, ShieldCheck } from "lucide-react";
 import {
   Alert,
   Field,
@@ -19,8 +19,8 @@ import {
 } from "@/lib/forum/client-action";
 import { submitQuestion, type QuestionFormState } from "@/lib/pergunte/actions";
 import { STAGE_OPTIONS } from "@/lib/pergunte/labels";
-import { describeKinds, detectPersonalData, type PersonalDataKind } from "@/lib/pergunte/pii";
 import { QUESTION_LIMITS, questionSchema, readQuestionForm } from "@/lib/pergunte/schemas";
+import { PersonalDataHint, usePersonalDataCheck } from "./personal-data-hint";
 import { TrackingLinkCard } from "./tracking-link-card";
 
 /**
@@ -67,7 +67,7 @@ export interface QuestionFormProps {
 export function QuestionForm({ areas, renderedAt }: QuestionFormProps) {
   const [state, formAction] = useActionState<QuestionFormState, FormData>(action, null);
   const [dismissedToken, setDismissedToken] = useState<string | null>(null);
-  const [kinds, setKinds] = useState<PersonalDataKind[]>([]);
+  const personalData = usePersonalDataCheck();
   const formRef = useRef<HTMLFormElement>(null);
   const messageRef = useRef<HTMLDivElement>(null);
 
@@ -89,7 +89,7 @@ export function QuestionForm({ areas, renderedAt }: QuestionFormProps) {
         token={success.token}
         onNewQuestion={() => {
           setDismissedToken(success.token);
-          setKinds([]);
+          personalData.reset();
           // O botão some junto com o cartão: o foco vai para o campo da nova pergunta.
           requestAnimationFrame(() =>
             document.querySelector<HTMLTextAreaElement>('textarea[name="body"]')?.focus(),
@@ -125,23 +125,10 @@ export function QuestionForm({ areas, renderedAt }: QuestionFormProps) {
               showCount
               defaultValue={values.body}
               placeholder="Ex.: Como é o dia a dia de quem pesquisa os oceanos?"
-              onChange={(event) => {
-                const found = detectPersonalData(event.currentTarget.value);
-                setKinds((current) => (current.join() === found.join() ? current : found));
-              }}
+              onChange={(event) => personalData.check(event.currentTarget.value)}
             />
           </Field>
-          <p aria-live="polite" className="text-sm">
-            {kinds.length > 0 && (
-              <span className="flex items-start gap-2 rounded-control bg-warning-soft px-3 py-2 text-warning-soft-fg">
-                <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  Parece que o texto tem {describeKinds(kinds)}. Tire antes de enviar: assim ninguém
-                  consegue identificar você.
-                </span>
-              </span>
-            )}
-          </p>
+          <PersonalDataHint matches={personalData.matches} context="pergunta" />
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">

@@ -15,18 +15,21 @@ export type PersonalDataKind = "email" | "telefone" | "documento" | "rede_social
 
 /** [tipo, expressão] na mesma ordem do banco. */
 export const PII_PATTERNS: ReadonlyArray<readonly [PersonalDataKind, string]> = [
-  ["email", String.raw`[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}`],
   [
     "email",
-    String.raw`[a-z0-9._%+-]+\s*\(?\s*arroba\s*\)?\s*[a-z0-9-]+\s*(?:\.|ponto)\s*[a-z]{2,}`,
+    String.raw`[a-z0-9._%+-]+\s*(?:@|\(at\)|\[at\])\s*[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}`,
+  ],
+  [
+    "email",
+    String.raw`[a-z0-9._%+-]+\s*(?:\(?\s*arroba\s*\)?|@|\(at\)|\[at\])\s*[a-z0-9-]+\s*(?:\.|ponto)\s*[a-z]{2,}`,
   ],
   [
     "telefone",
-    String.raw`(?<![0-9])(?:\+?55[\s-]*)?(?:\(?[1-9][0-9]\)?[\s-]*)?9[\s-]?[0-9]{4}[\s-]?[0-9]{4}(?![0-9])`,
+    String.raw`(?<![0-9])(?:\+?55[\s.-]*)?(?:\(?[1-9][0-9]\)?[\s.-]*)?9[\s.-]?[0-9]{4}[\s.-]?[0-9]{4}(?![0-9])`,
   ],
   [
     "telefone",
-    String.raw`(?<![0-9])(?:\+?55[\s-]*)?\(?[1-9][0-9]\)?[\s-]*[2-5][0-9]{3}[\s-]?[0-9]{4}(?![0-9])`,
+    String.raw`(?<![0-9])(?:\+?55[\s.-]*)?\(?[1-9][0-9]\)?[\s.-]*[2-5][0-9]{3}[\s.-]?[0-9]{4}(?![0-9])`,
   ],
   ["documento", String.raw`(?<![0-9])[0-9]{3}\.?[0-9]{3}\.?[0-9]{3}-?[0-9]{2}(?![0-9])`],
   ["documento", String.raw`(?<![0-9])[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9xX](?![0-9])`],
@@ -35,6 +38,9 @@ export const PII_PATTERNS: ReadonlyArray<readonly [PersonalDataKind, string]> = 
     "rede_social",
     String.raw`(?<![a-z0-9-])(?:instagram\.com|instagr\.am|tiktok\.com|facebook\.com|fb\.com|fb\.me|m\.me|twitter\.com|x\.com|linkedin\.com|wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com|t\.me|telegram\.me|discord\.gg|discord\.com|snapchat\.com|threads\.net|bsky\.app|kwai\.com|linktr\.ee|bit\.ly|tinyurl\.com|cutt\.ly|is\.gd|encurtador\.com\.br)`,
   ],
+  // Contato disfarçado: endereço com %XX no nome do site (https://%69nstagram.com) ou entidade HTML
+  // (&commat;, &#64;), que o Markdown das respostas transforma em @, ponto etc.
+  ["rede_social", String.raw`(?://|www\.)[^\s/?#]*%[0-9a-f]{2}|&#?[a-z0-9]{2,31};`],
   ["link", String.raw`https?://\S+`],
   ["link", String.raw`(?<![a-z0-9@.-])www\.\S+`],
   [
@@ -66,9 +72,13 @@ function patterns() {
 /** Caracteres invisíveis que alguém poderia usar para "quebrar" um e-mail ou telefone. */
 const INVISIBLE = /[​-‍⁠﻿­]/g;
 
-/** Mesma normalização do banco: NFKC (＠ e dígitos largos viram ASCII) e sem invisíveis. */
+/**
+ * Mesma normalização do banco: NFKC (＠ e dígitos largos viram ASCII), sem invisíveis, sem barras
+ * invertidas (no Markdown das respostas, "9\-9876" aparece como "9-9876") e com o ponto
+ * ideográfico "。" (que o navegador lê como "." num endereço) trocado por ".".
+ */
 export function normalizeForPii(text: string): string {
-  return text.normalize("NFKC").replace(INVISIBLE, "");
+  return text.normalize("NFKC").replace(INVISIBLE, "").replaceAll("。", ".").replaceAll("\\", "");
 }
 
 export interface DetectOptions {
@@ -76,18 +86,31 @@ export interface DetectOptions {
   allowLinks?: boolean;
 }
 
-/** Tipos de dado pessoal encontrados (sem repetição, na ordem da lista). Vazio = texto ok. */
-export function detectPersonalData(
+export interface PersonalDataMatch {
+  kind: PersonalDataKind;
+  /** Primeiro trecho encontrado deste tipo (já normalizado), para mostrar onde está. */
+  text: string;
+}
+
+/** Como `detectPersonalData`, com o primeiro trecho de cada tipo (o aviso mostra onde está). */
+export function findPersonalData(
   text: string,
   { allowLinks = false }: DetectOptions = {},
-): PersonalDataKind[] {
+): PersonalDataMatch[] {
   const value = normalizeForPii(text);
-  const found: PersonalDataKind[] = [];
+  const found: PersonalDataMatch[] = [];
   for (const [kind, pattern] of patterns()) {
     if (!pattern || (kind === "link" && allowLinks)) continue;
-    if (!found.includes(kind) && pattern.test(value)) found.push(kind);
+    if (found.some((match) => match.kind === kind)) continue;
+    const match = pattern.exec(value);
+    if (match) found.push({ kind, text: match[0].trim() });
   }
   return found;
+}
+
+/** Tipos de dado pessoal encontrados (sem repetição, na ordem da lista). Vazio = texto ok. */
+export function detectPersonalData(text: string, options: DetectOptions = {}): PersonalDataKind[] {
+  return findPersonalData(text, options).map((match) => match.kind);
 }
 
 /** CD041 — mesma mensagem do banco. */
@@ -106,9 +129,24 @@ const KIND_LABELS: Record<PersonalDataKind, string> = {
   link: "link",
 };
 
+function joinPtBr(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`;
+}
+
 /** "e-mail e telefone" — para mostrar, junto do aviso, o que foi encontrado. */
 export function describeKinds(kinds: readonly PersonalDataKind[]): string {
-  const labels = kinds.map((kind) => KIND_LABELS[kind]);
-  if (labels.length <= 1) return labels[0] ?? "";
-  return `${labels.slice(0, -1).join(", ")} e ${labels.at(-1)}`;
+  return joinPtBr(kinds.map((kind) => KIND_LABELS[kind]));
+}
+
+const SAMPLE_MAX = 40;
+
+/** "link (“anos.Me”) e telefone (“99876-5432”)" — o tipo e o trecho, para achar no texto. */
+export function describeMatches(matches: readonly PersonalDataMatch[]): string {
+  return joinPtBr(
+    matches.map(({ kind, text }) => {
+      const sample = text.length > SAMPLE_MAX ? `${text.slice(0, SAMPLE_MAX - 1)}…` : text;
+      return sample ? `${KIND_LABELS[kind]} (“${sample}”)` : KIND_LABELS[kind];
+    }),
+  );
 }

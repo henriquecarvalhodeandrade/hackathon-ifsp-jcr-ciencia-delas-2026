@@ -25,7 +25,7 @@ vi.mock("@/lib/demo/session", () => ({ openDemoSession: mocks.openDemoSession })
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 
 const { enterDemoPersona } = await import("@/app/demo/actions");
-const { default: DemoPage } = await import("@/app/demo/page");
+const { default: DemoPage, generateMetadata } = await import("@/app/demo/page");
 const { DemoBanner } = await import("@/components/demo/demo-banner");
 const { requireDemoMode, isProtectedDemoAccount, DEMO_OFF, DEMO_UNKNOWN_PERSONA } =
   await import("./guard");
@@ -47,9 +47,13 @@ beforeEach(() => {
 describe("DEMO_MODE desligado", () => {
   beforeEach(() => vi.stubEnv("DEMO_MODE", ""));
 
-  it("/demo responde 404 (notFound)", () => {
+  it("/demo responde 404 (notFound)", async () => {
     expect(() => requireDemoMode()).toThrow("NEXT_NOT_FOUND");
-    expect(() => DemoPage()).toThrow("NEXT_NOT_FOUND");
+    await expect(DemoPage()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("o 404 não revela a rota: sem título nem descrição do modo demonstração", () => {
+    expect(generateMetadata()).toEqual({});
   });
 
   it("só 'true' exato liga o modo", () => {
@@ -80,10 +84,22 @@ describe("DEMO_MODE desligado", () => {
 describe("DEMO_MODE=true", () => {
   beforeEach(() => vi.stubEnv("DEMO_MODE", "true"));
 
-  it("/demo renderiza as personas, o aviso honesto e o roteiro", () => {
-    const html = renderToString(DemoPage()).replace(/<!-- -->/g, "");
+  it("/demo tem título próprio e fica fora dos buscadores", () => {
+    expect(generateMetadata()).toMatchObject({
+      title: "Modo demonstração",
+      robots: { index: false, follow: false },
+    });
+  });
+
+  it("/demo renderiza as personas, o aviso honesto, o roteiro e o QR code", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://artemis.example.org");
+    const html = renderToString(await DemoPage()).replace(/<!-- -->/g, "");
     expect(html).toContain("Entrar como Larissa");
     expect(html).toContain("Entrar como Marina");
+    expect(html).toContain("Entrar como Débora");
+    expect(html).toContain('data-qr-url="https://artemis.example.org/demo"');
+    expect(html).toMatch(/<svg aria-hidden="true"/);
+    expect(html).toContain("/verificar/ART-7K2M-Q9XD-4HNP");
     expect(html).toContain(
       "Modo demonstração: todas as pessoas, papers e conversas daqui são fictícios.",
     );

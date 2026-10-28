@@ -153,9 +153,14 @@ impacto não a tocam). O app nunca faz `select('*')` em perfis de outras pessoas
 - **Só membras veem:** visitantes não leem `profiles` (sem GRANT para `anon`); as páginas que
   mostram marcas exigem sessão e perfil concluído.
 - **Nunca vai para a IA:** `pseudonymize.ts` não inclui marcas, frases nem a nota com o bônus
-  (`nota_heuristica` é calculada sem a trajetória). O teste `trajectory-privacy.test.ts` monta o
-  pedido real ao modelo para uma mentoranda e mentoras com as 8 marcas e confere que ele é
-  **idêntico, byte a byte,** ao de quem não marcou nada; o texto do embedding também não as leva.
+  (`nota_heuristica` é calculada sem a trajetória) — e a lista vai na **ordem da nota sem o
+  bônus**, para que a IA não veja uma candidata com nota menor "furando a fila" (sinal de um fator
+  escondido). O teste `trajectory-privacy.test.ts` monta o pedido real ao modelo para uma
+  mentoranda e mentoras com as 8 marcas, e um caso em que a afinidade troca a ordem de duas
+  candidatas, e confere que o pedido é **idêntico, byte a byte,** ao de quem não marcou nada; o
+  texto do embedding também não as leva. O único efeito possível é _quais_ 8 candidatas (das 30)
+  vão para a IA: quem subiu pela afinidade pode entrar na lista, sem nada que diga quem é nem por
+  quê.
 - **Removível a qualquer hora**, com efeito imediato: o diretório, o perfil e os chips do cartão
   leem as marcas de agora; o motivo de uma sugestão **já salva** tem a frase "Vocês têm em comum"
   refeita (ou retirada) na hora de mostrar; e essa frase **nunca** é copiada para um pedido de

@@ -112,6 +112,18 @@ export const reviewSchema = z
     path: ["reason"],
   });
 
+/** Limites do motivo de remoção (mesmos de public.remove_public_question). */
+export const REMOVE_REASON_LIMITS = { min: 10, max: 500 } as const;
+const REMOVE_REASON_MESSAGE = `Explique o motivo da remoção com ${REMOVE_REASON_LIMITS.min} a ${REMOVE_REASON_LIMITS.max} caracteres: ele fica no registro da moderação.`;
+
+export const removeQuestionSchema = z.object({
+  questionId: idSchema,
+  reason: z
+    .string()
+    .trim()
+    .refine((value) => within(value, REMOVE_REASON_LIMITS), { error: REMOVE_REASON_MESSAGE }),
+});
+
 export const hideAnswerSchema = z.object({
   answerId: z.guid({ error: "Não encontramos esta resposta." }),
   hidden: z.boolean(),

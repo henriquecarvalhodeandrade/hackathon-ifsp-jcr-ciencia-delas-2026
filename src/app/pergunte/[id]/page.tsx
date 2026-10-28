@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LogIn, MessageCircle, MessagesSquare, PenLine, UserRoundPen } from "lucide-react";
+import {
+  EyeOff,
+  LogIn,
+  MessageCircle,
+  MessagesSquare,
+  PenLine,
+  ShieldCheck,
+  Trash2,
+  UserRoundPen,
+} from "lucide-react";
+import { RemoveQuestionDialog } from "@/components/pergunte/admin-actions";
 import { AnswerForm } from "@/components/pergunte/answer-form";
 import { AnswerList } from "@/components/pergunte/answer-list";
 import {
@@ -10,11 +21,12 @@ import {
   Card,
   cardVariants,
   Chip,
+  ConfirmDialog,
   Container,
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentProfile, isModerator } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
   answerCountLabel,
@@ -22,8 +34,13 @@ import {
   questionHeadline,
   STAGE_LABELS,
 } from "@/lib/pergunte/labels";
-import { getPublishedQuestion, listPublicAnswers } from "@/lib/pergunte/queries";
-import { cn, formatDate, toIsoString } from "@/lib/utils";
+import { deleteAnswer } from "@/lib/pergunte/actions";
+import {
+  getPublishedQuestion,
+  listMyHiddenAnswers,
+  listPublicAnswers,
+} from "@/lib/pergunte/queries";
+import { cn, formatDate, toIsoString, truncate } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
 
@@ -50,7 +67,10 @@ export default async function QuestionPage({ params }: { params: Params }) {
   const [question, profile] = await Promise.all([loadQuestion(id), getCurrentProfile()]);
   if (!question) notFound();
 
-  const answers = await listPublicAnswers(question.id);
+  const [answers, myHidden] = await Promise.all([
+    listPublicAnswers(question.id),
+    profile ? listMyHiddenAnswers(question.id, profile.id) : Promise.resolve([]),
+  ]);
   const count = answers?.length ?? 0;
   const next = encodeURIComponent(`/pergunte/${question.id}#responder`);
 
@@ -110,6 +130,54 @@ export default async function QuestionPage({ params }: { params: Params }) {
         ) : (
           <AnswerList answers={answers} questionId={question.id} />
         )}
+
+        {myHidden.length > 0 && (
+          <Alert
+            variant="warning"
+            icon={<EyeOff />}
+            title={
+              myHidden.length === 1
+                ? "Uma resposta sua foi ocultada pela moderação"
+                : `${myHidden.length} respostas suas foram ocultadas pela moderação`
+            }
+          >
+            <p>
+              Ela não aparece para o público nem na contagem. Se quiser, apague e responda de novo
+              seguindo o código de conduta, sem contatos privados.
+            </p>
+            <ul className="mt-3 grid gap-3">
+              {myHidden.map((answer) => (
+                <li
+                  key={answer.id}
+                  className="grid gap-2 rounded-control border border-border bg-surface p-3 text-fg"
+                >
+                  <p className="text-sm whitespace-pre-line">{truncate(answer.body, 280)}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm text-fg-muted">
+                      Respondeu em{" "}
+                      <time dateTime={toIsoString(answer.createdAt)}>
+                        {formatDate(answer.createdAt)}
+                      </time>
+                    </p>
+                    <ConfirmDialog
+                      stateAction={deleteAnswer}
+                      hiddenFields={{ answerId: answer.id, questionId: question.id }}
+                      triggerLabel="Apagar esta resposta"
+                      triggerIcon={<Trash2 aria-hidden="true" />}
+                      triggerVariant="outline"
+                      triggerSize="sm"
+                      title="Apagar sua resposta ocultada?"
+                      description="Ela é apagada de vez. Não dá para desfazer."
+                      confirmLabel="Sim, apagar"
+                      pendingLabel="Apagando…"
+                      cancelLabel="Voltar"
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        )}
       </section>
 
       <section
@@ -158,6 +226,35 @@ export default async function QuestionPage({ params }: { params: Params }) {
           </Card>
         )}
       </section>
+
+      {isModerator(profile) && (
+        <section aria-labelledby="moderacao-titulo" className="grid gap-4 pt-12">
+          <h2
+            id="moderacao-titulo"
+            className="flex items-center gap-2 font-display text-xl font-semibold text-fg"
+          >
+            <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
+            Moderação
+          </h2>
+          <Card variant="outline" className="grid gap-3 p-5 sm:p-6">
+            <p className="text-sm text-fg-muted">
+              Se esta pergunta identifica quem perguntou (nome, escola, cidade pequena, contato) ou
+              se ela pediu a exclusão e não tem mais o link, remova de vez. As respostas vão junto e
+              a remoção fica no registro da moderação. Para uma resposta só, use{" "}
+              <Link
+                href="/admin?aba=perguntas"
+                className="font-semibold text-primary underline underline-offset-4"
+              >
+                a aba Perguntas
+              </Link>
+              .
+            </p>
+            <div>
+              <RemoveQuestionDialog questionId={question.id} />
+            </div>
+          </Card>
+        </section>
+      )}
     </Container>
   );
 }

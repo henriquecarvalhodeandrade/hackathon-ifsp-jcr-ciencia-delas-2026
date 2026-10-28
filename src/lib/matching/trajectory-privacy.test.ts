@@ -99,6 +99,38 @@ describe("marcas de trajetória nunca chegam à IA", () => {
     expect(payload.map((p) => p.nota_heuristica)).toEqual(plain.map((r) => r.score));
   });
 
+  it("nem a ORDEM das candidatas denuncia o bônus (quem subiu pela trajetória)", () => {
+    // A (com marca em comum) tem nota-base um pouco menor que B (sem marcas); o bônus põe A na
+    // frente no servidor. Se a IA recebesse a lista nessa ordem, c1 viria com nota menor que c2
+    // — um sinal de que existe um fator escondido. A lista vai na ordem SEM a afinidade.
+    const shared = makeMentee({ trajectory_tags: ["primeira-geracao"] });
+    const a = makeCandidate({
+      mentor_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      area_ids: [5],
+      similarity: 0.82,
+      trajectory_tags: ["primeira-geracao"],
+    });
+    const b = makeCandidate({
+      mentor_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      area_ids: [5],
+      similarity: 0.85,
+    });
+    const ranked = rankMentorCandidates(shared, [a, b], { areas: AREAS });
+    expect(ranked.map((r) => r.mentorId)).toEqual([a.mentor_id, b.mentor_id]);
+
+    const plainMentee = { ...shared, trajectory_tags: [] };
+    const plainList = [a, b].map((c) => ({ ...c, trajectory_tags: null }));
+    expect(
+      rankMentorCandidates(plainMentee, plainList, { areas: AREAS }).map((r) => r.mentorId),
+    ).toEqual([b.mentor_id, a.mentor_id]);
+
+    const { payload, idMap } = pseudonymizeCandidates(ranked, { areas: AREAS });
+    expect(idMap.get("c1")).toBe(b.mentor_id);
+    expect(idMap.get("c2")).toBe(a.mentor_id);
+    expect(payload[0].nota_heuristica).toBeGreaterThanOrEqual(payload[1].nota_heuristica);
+    expect(promptFor(shared, [a, b])).toBe(promptFor(plainMentee, plainList));
+  });
+
   it("o pedido real ao modelo (system + prompt) não leva nenhuma marca", async () => {
     aiMock.generateJson.mockResolvedValue({
       data: { ranking: [] },

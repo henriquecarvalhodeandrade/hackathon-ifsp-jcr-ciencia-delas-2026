@@ -1353,7 +1353,10 @@ export type Database = {
     };
     Functions: {
       claim_ai_matching_slot: { Args: Record<PropertyKey, never>; Returns: boolean };
-      consent_mentorship_declaration: { Args: { p_declaration_id: string }; Returns: string };
+      consent_mentorship_declaration: {
+        Args: { p_declaration_id: string };
+        Returns: string | null;
+      };
       delete_public_question_by_token: { Args: { p_token: string }; Returns: boolean };
       get_community_leaderboard: {
         Args: { p_limit?: number };
@@ -1442,22 +1445,32 @@ export type Database = {
       get_public_question_status: {
         Args: { p_token: string };
         Returns: {
-          answer_count: number;
+          answer_count: number | null;
           body: string;
           created_at: string;
-          question_id: string;
-          reject_reason: string;
+          question_id: string | null;
+          reject_reason: string | null;
           status: string;
         }[];
       };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_moderator: { Args: Record<PropertyKey, never>; Returns: boolean };
+      list_pending_public_questions: {
+        Args: { p_limit?: number };
+        Returns: {
+          area_id: number | null;
+          body: string;
+          created_at: string;
+          id: string;
+          stage: string | null;
+        }[];
+      };
       list_public_answers: {
         Args: { p_question_id: string };
         Returns: {
-          author_is_mentor: boolean;
-          author_name: string;
-          author_stage: Database["public"]["Enums"]["career_stage"];
+          author_is_mentor: boolean | null;
+          author_name: string | null;
+          author_stage: Database["public"]["Enums"]["career_stage"] | null;
           body: string;
           created_at: string;
           id: string;
@@ -1474,11 +1487,11 @@ export type Database = {
         };
         Returns: {
           answer_count: number;
-          area_id: number;
+          area_id: number | null;
           body: string;
           id: string;
           published_at: string;
-          stage: string;
+          stage: string | null;
           total_count: number;
         }[];
       };
@@ -1509,6 +1522,10 @@ export type Database = {
         Args: { p_max_per_address?: number; p_max_per_day?: number; p_subscriber_id: string };
         Returns: string;
       };
+      remove_public_question: {
+        Args: { p_question_id: string; p_reason: string };
+        Returns: undefined;
+      };
       reveal_anonymous_author: {
         Args: { p_post_id?: string; p_reason?: string; p_report_id?: string; p_thread_id?: string };
         Returns: string | null;
@@ -1532,13 +1549,13 @@ export type Database = {
       verify_mentorship_declaration: {
         Args: { p_code: string };
         Returns: {
-          issued_at: string;
-          mentee_name: string;
-          mentor_name: string;
-          period_end: string;
-          period_start: string;
+          issued_at: string | null;
+          mentee_name: string | null;
+          mentor_name: string | null;
+          period_end: string | null;
+          period_start: string | null;
           status: string;
-          themes: string[];
+          themes: string[] | null;
         }[];
       };
     };

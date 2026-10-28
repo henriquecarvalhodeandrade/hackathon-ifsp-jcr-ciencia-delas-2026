@@ -232,6 +232,41 @@ export async function listPublicAnswers(questionId: string): Promise<PublicAnswe
   }));
 }
 
+export interface MyHiddenAnswer {
+  id: string;
+  body: string;
+  createdAt: string;
+  hiddenAt: string | null;
+}
+
+/**
+ * Respostas DESTA autora que a moderação ocultou nesta pergunta (elas somem da leitura pública).
+ * Só a própria autora as vê aqui, com a opção de apagar; quem ocultou não aparece.
+ */
+export async function listMyHiddenAnswers(
+  questionId: string,
+  authorId: string,
+): Promise<MyHiddenAnswer[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("public_answers")
+    .select("id, body, created_at, hidden_at")
+    .eq("question_id", questionId)
+    .eq("author_id", authorId)
+    .eq("is_hidden", true)
+    .order("created_at");
+  if (error) {
+    console.error("[pergunte] falha ao listar respostas ocultas", error.code);
+    return [];
+  }
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    body: row.body,
+    createdAt: row.created_at,
+    hiddenAt: row.hidden_at,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Acompanhamento pelo link (cliente anônimo)
 // ---------------------------------------------------------------------------
@@ -333,16 +368,16 @@ export async function countPendingQuestions(): Promise<number> {
 
 type NamedProfile = { full_name: string } | null;
 
+type PendingRow = Nullable<
+  Database["public"]["Functions"]["list_pending_public_questions"]["Returns"][number]
+>;
+
 export async function loadPerguntasAdmin(now: number = Date.now()): Promise<PerguntasAdminData> {
   const supabase = await createClient();
   const since = new Date(now - RECENT_ANSWERS_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const [pending, answers, areas] = await Promise.all([
-    supabase
-      .from("public_questions")
-      .select("id, body, stage, area_id, created_at")
-      .eq("status", "pending")
-      .order("created_at", { ascending: true })
-      .limit(PENDING_LIMIT),
+    // RPC só da moderação: a hora exata do envio (created_at) não sai pela API para mais ninguém.
+    supabase.rpc("list_pending_public_questions", { p_limit: PENDING_LIMIT }),
     supabase
       .from("public_answers")
       .select(
@@ -358,12 +393,12 @@ export async function loadPerguntasAdmin(now: number = Date.now()): Promise<Perg
   if (answers.error) console.error("[pergunte] falha ao listar respostas", answers.error.code);
 
   return {
-    pending: (pending.data ?? []).map((q) => ({
-      id: q.id,
-      body: q.body,
+    pending: ((pending.data ?? []) as PendingRow[]).map((q) => ({
+      id: q.id ?? "",
+      body: q.body ?? "",
       stage: toStage(q.stage),
-      areaName: areaName(areas, q.area_id),
-      createdAt: q.created_at,
+      areaName: areaName(areas, q.area_id ?? null),
+      createdAt: q.created_at ?? "",
     })),
     answers: (answers.data ?? []).map((a) => {
       const author = (Array.isArray(a.author) ? a.author[0] : a.author) as NamedProfile;

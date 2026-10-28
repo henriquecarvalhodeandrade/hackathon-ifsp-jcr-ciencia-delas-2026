@@ -13,7 +13,10 @@ import type { Tables } from "@/lib/database.types";
  *     leu e escreveu);
  *   - tópicos e respostas anônimos dela entram marcados com `is_anonymous: true`;
  *   - retornos de mentoria: SÓ os que ela mesma escreveu (o da outra participante nunca entra);
- *     declarações: as das mentorias dela, com o status derivado (emitida, aguardando, revogada…).
+ *     declarações: as das mentorias dela, com o status derivado (emitida, aguardando, revogada…);
+ *   - Pergunte a uma cientista: só as respostas que ELA escreveu. As perguntas não têm autora no
+ *     banco, então nada no arquivo liga uma pessoa a uma pergunta anônima;
+ *   - marcas de trajetória (trajectory_tags) entram no perfil: são dados dela.
  *
  * Formato: seções com nomes em português; dentro de cada registro, os nomes das colunas do banco
  * (docs/03-banco-de-dados.md), que são estáveis e servem para importar em outro sistema.
@@ -60,6 +63,7 @@ const PROFILE_FIELDS = [
   "mentorship_topics",
   "meeting_formats",
   "languages",
+  "trajectory_tags",
   "role",
   "ai_consent",
   "ai_consent_at",
@@ -78,6 +82,7 @@ const REQUEST_FIELDS = [
   "created_at",
   "updated_at",
   "responded_at",
+  "completed_at",
 ] as const satisfies ReadonlyArray<keyof Tables<"mentorship_requests">>;
 
 /** Mensagens da conversa da mentoria (as dela e as que ela recebeu). */
@@ -110,6 +115,20 @@ const DECLARATION_FIELDS = [
   "revoked_at",
   "revoke_reason",
 ] as const satisfies ReadonlyArray<keyof Tables<"mentorship_declarations">>;
+
+/**
+ * Respostas dela no Pergunte a uma cientista. Sem `hidden_by` (quem da moderação ocultou: a
+ * coluna nem é legível pela API) e sem nada da pergunta além do id.
+ */
+const PUBLIC_ANSWER_FIELDS = [
+  "id",
+  "question_id",
+  "body",
+  "show_identity",
+  "is_hidden",
+  "hidden_at",
+  "created_at",
+] as const satisfies ReadonlyArray<keyof Tables<"public_answers">>;
 
 const SUGGESTION_FIELDS = [
   "score",
@@ -261,6 +280,9 @@ export type ExportDeclarationSource = Fields<
 export type DeclarationExportStatus =
   "emitida" | "aguardando_autorizacao" | "revogada" | "cancelada";
 export type ExportDeclaration = ExportDeclarationSource & { status: DeclarationExportStatus };
+export type ExportPublicAnswer = Fields<Tables<"public_answers">, typeof PUBLIC_ANSWER_FIELDS>;
+export type ExportPublicAnswerSource = ExportPublicAnswer &
+  Pick<Tables<"public_answers">, "author_id">;
 export type ExportSuggestionSource = Fields<
   Tables<"mentor_suggestions">,
   typeof SUGGESTION_FIELDS
@@ -305,6 +327,8 @@ export interface ExportSources {
   feedback: ExportFeedbackSource[];
   /** Declarações das mentorias dela (o RLS só devolve às participantes). */
   declarations: ExportDeclarationSource[];
+  /** Respostas dela no Pergunte a uma cientista (filtradas pela autora). */
+  publicAnswers: ExportPublicAnswerSource[];
   suggestions: ExportSuggestionSource[];
   /** Tópicos assinados por ela + os anônimos dela (pode haver repetidos). */
   threads: ExportThreadSource[];
@@ -368,6 +392,8 @@ export interface DataExport {
   /** Retornos privados que ela deixou ao concluir mentorias (nunca o da outra participante). */
   retornos_de_mentoria: ExportFeedback[];
   declaracoes_de_mentoria: ExportDeclaration[];
+  /** Respostas públicas que ela escreveu (as perguntas não têm autora: nunca entram como dela). */
+  respostas_pergunte_a_uma_cientista: ExportPublicAnswer[];
   notificacoes: ExportNotification[];
   denuncias_feitas: ExportReport[];
   newsletter:
@@ -462,6 +488,7 @@ export function buildDataExport(sources: ExportSources): DataExport {
     "Tópicos e respostas que você publicou como anônima aparecem com is_anonymous = true. Este arquivo liga o seu nome a eles: guarde-o em lugar seguro e só compartilhe se quiser.",
     "De outras pessoas, o arquivo traz só o id e o nome de quem participou das suas mentorias e das mentoras sugeridas a você, além das mensagens que vocês trocaram nas conversas da mentoria.",
     "Retornos de mentoria: só os que você escreveu. O retorno da outra participante é privado dela e não entra no seu arquivo.",
+    "Pergunte a uma cientista: entram as respostas que você escreveu (show_identity diz se o seu nome aparece nelas). As perguntas não guardam quem as enviou, então nenhuma pergunta aparece como sua.",
     "Não entram aqui: a representação numérica do perfil usada pela IA (embedding, que pode ser recalculada), as anotações da moderação sobre as suas denúncias e os registros técnicos dos provedores.",
   ];
   if (!sources.newsletter.available) observacoes.push(NEWSLETTER_UNAVAILABLE);
@@ -533,6 +560,12 @@ export function buildDataExport(sources: ExportSources): DataExport {
       sources.declarations.filter((d) => myRequestIds.has(d.request_id)),
       (d) => d.code,
     ).map((d) => ({ ...pick(d, DECLARATION_FIELDS), status: declarationExportStatus(d) })),
+    respostas_pergunte_a_uma_cientista: byCreatedAt(
+      uniqueBy(
+        sources.publicAnswers.filter((a) => a.author_id === me),
+        (a) => a.id,
+      ).map((a) => pick(a, PUBLIC_ANSWER_FIELDS)),
+    ),
     notificacoes: byCreatedAt(sources.notifications.map((n) => pick(n, NOTIFICATION_FIELDS))),
     denuncias_feitas: byCreatedAt(sources.reports.map((r) => pick(r, REPORT_FIELDS))),
     newsletter: sources.newsletter.available

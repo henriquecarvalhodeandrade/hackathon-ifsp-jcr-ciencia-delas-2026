@@ -26,6 +26,20 @@ const NULLABLE_RETURN_COLUMNS = {
     "existing_request_status",
   ],
   get_community_leaderboard: ["avatar_url", "career_stage"],
+  // Reconhecimento (docs/15): declaração revogada não devolve nomes, período nem temas.
+  verify_mentorship_declaration: [
+    "mentee_name",
+    "mentor_name",
+    "period_start",
+    "period_end",
+    "themes",
+    "issued_at",
+  ],
+  // Pergunte a uma cientista (docs/16).
+  get_public_question_status: ["question_id", "answer_count", "reject_reason"],
+  list_public_questions: ["stage", "area_id"],
+  list_public_answers: ["author_name", "author_stage", "author_is_mentor"],
+  list_pending_public_questions: ["stage", "area_id"],
   get_paper_ranking: [
     "venue",
     "year",
@@ -39,7 +53,11 @@ const NULLABLE_RETURN_COLUMNS = {
 };
 
 /** RPCs escalares cujo retorno pode ser NULL. */
-const NULLABLE_SCALAR_RETURNS = ["reveal_anonymous_author"];
+const NULLABLE_SCALAR_RETURNS = [
+  "reveal_anonymous_author",
+  // NULL enquanto falta o consentimento da outra pessoa (docs/15).
+  "consent_mentorship_declaration",
+];
 
 const file = resolve(process.argv[2] ?? "src/lib/database.types.ts");
 let source = readFileSync(file, "utf8");

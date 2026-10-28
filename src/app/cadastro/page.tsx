@@ -38,7 +38,7 @@ export default async function CadastroPage({ searchParams }: { searchParams: Sea
     >
       {isGoogleAuthEnabled() && (
         <>
-          <GoogleSignIn next={next === "/onboarding" ? "/forum" : next} />
+          <GoogleSignIn next={next === "/onboarding" ? "/painel" : next} />
           <Separator label="ou com e-mail" />
         </>
       )}

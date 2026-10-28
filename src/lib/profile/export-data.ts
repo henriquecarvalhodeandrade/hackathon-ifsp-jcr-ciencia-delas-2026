@@ -98,12 +98,13 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     notifications,
     reports,
     feedback,
+    publicAnswers,
     newsletter,
   ] = await Promise.all([
     supabase
       .from("profiles")
       .select(
-        "id, full_name, pronouns, headline, bio, avatar_url, career_stage, institution, city, state, keywords, lattes_url, orcid, linkedin_url, website_url, seeks_mentorship, mentoring_goals, is_mentor, mentor_available, mentor_capacity, mentoring_offer, mentorship_topics, meeting_formats, languages, role, ai_consent, ai_consent_at, onboarded_at, created_at, updated_at",
+        "id, full_name, pronouns, headline, bio, avatar_url, career_stage, institution, city, state, keywords, lattes_url, orcid, linkedin_url, website_url, seeks_mentorship, mentoring_goals, is_mentor, mentor_available, mentor_capacity, mentoring_offer, mentorship_topics, meeting_formats, languages, trajectory_tags, role, ai_consent, ai_consent_at, onboarded_at, created_at, updated_at",
       )
       .eq("id", uid)
       .maybeSingle()
@@ -117,7 +118,7 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
       supabase
         .from("mentorship_requests")
         .select(
-          "id, status, message, response_message, match_score, match_reason, created_at, updated_at, responded_at, mentee_id, mentor_id, mentee:profiles!mentorship_requests_mentee_id_fkey(id, full_name), mentor:profiles!mentorship_requests_mentor_id_fkey(id, full_name)",
+          "id, status, message, response_message, match_score, match_reason, created_at, updated_at, responded_at, completed_at, mentee_id, mentor_id, mentee:profiles!mentorship_requests_mentee_id_fkey(id, full_name), mentor:profiles!mentorship_requests_mentor_id_fkey(id, full_name)",
         )
         .or(`mentee_id.eq.${uid},mentor_id.eq.${uid}`)
         .order("created_at")
@@ -228,6 +229,17 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
         .order("id")
         .range(from, to),
     ),
+    // Pergunte a uma cientista: as respostas que ELA escreveu. Sem hidden_by (o GRANT por coluna
+    // nem deixa ler). As perguntas não têm autora: não há o que buscar do lado delas.
+    all("respostas_pergunte_a_uma_cientista", (from, to) =>
+      supabase
+        .from("public_answers")
+        .select("id, question_id, author_id, body, show_identity, is_hidden, hidden_at, created_at")
+        .eq("author_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
     loadNewsletter(user.email),
   ]);
 
@@ -304,6 +316,7 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     messages: messageChunks.flat(),
     feedback,
     declarations: declarationChunks.flat(),
+    publicAnswers,
     suggestions,
     threads: [...namedThreads, ...anonThreads.flat()],
     posts: [...namedPosts, ...anonPosts.flat()],

@@ -105,6 +105,18 @@ language sql stable security definer set search_path = '' as $$
   select count(*) from public.public_answers a where a.question_id = p_question;
 $$;
 
+create function cdtest_perg.answer(p_id uuid) returns public.public_answers
+language sql stable security definer set search_path = '' as $$
+  select a.* from public.public_answers a where a.id = p_id;
+$$;
+
+create function cdtest_perg.audit_reason(p_action text, p_target_type text, p_target uuid) returns text
+language sql stable security definer set search_path = '' as $$
+  select l.reason from public.moderation_audit_log l
+  where l.action = p_action and l.target_type = p_target_type and l.target_id = p_target
+  order by l.id desc limit 1;
+$$;
+
 create function cdtest_perg.audit_count(p_action text, p_target_type text, p_target uuid) returns bigint
 language sql stable security definer set search_path = '' as $$
   select count(*) from public.moderation_audit_log l
@@ -163,17 +175,22 @@ begin
     and not has_column_privilege('anon', 'public.public_questions', 'tracking_token_hash', 'select')
     and not has_column_privilege('authenticated', 'public.public_questions', 'tracking_token_hash', 'select')
     and not has_column_privilege('authenticated', 'public.public_questions', 'reviewed_by', 'select')
-    and not has_column_privilege('authenticated', 'public.public_questions', 'reject_reason', 'select'),
-    'colunas sensíveis (hash, quem revisou, motivo) fora da leitura');
+    and not has_column_privilege('authenticated', 'public.public_questions', 'reject_reason', 'select')
+    and not has_column_privilege('anon', 'public.public_questions', 'created_at', 'select')
+    and not has_column_privilege('authenticated', 'public.public_questions', 'created_at', 'select')
+    and has_column_privilege('anon', 'public.public_questions', 'published_at', 'select'),
+    'colunas sensíveis (hash, quem revisou, motivo, hora exata do envio) fora da leitura');
   perform cdtest_perg.check(
     not has_table_privilege('anon', 'public.public_answers', 'select')
-    and has_table_privilege('authenticated', 'public.public_answers', 'select')
+    and has_column_privilege('authenticated', 'public.public_answers', 'body', 'select')
+    and has_column_privilege('authenticated', 'public.public_answers', 'is_hidden', 'select')
+    and not has_column_privilege('authenticated', 'public.public_answers', 'hidden_by', 'select')
     and has_table_privilege('authenticated', 'public.public_answers', 'delete')
     and not has_table_privilege('authenticated', 'public.public_answers', 'update')
     and not has_column_privilege('authenticated', 'public.public_answers', 'is_hidden', 'insert')
     and not has_column_privilege('authenticated', 'public.public_answers', 'created_at', 'insert')
     and has_column_privilege('authenticated', 'public.public_answers', 'show_identity', 'insert'),
-    'respostas: membras leem/apagam (RLS), inserem só question_id, author_id, body e show_identity');
+    'respostas: membras leem (sem hidden_by) e apagam (RLS), inserem só question_id, author_id, body e show_identity');
   perform cdtest_perg.check(
     not exists (
       select 1 from information_schema.columns
@@ -208,6 +225,10 @@ begin
     'visitante não lê tracking_token_hash');
   perform cdtest_perg.throws('select reviewed_by from public.public_questions', '42501',
     'visitante não lê reviewed_by');
+  perform cdtest_perg.throws('select created_at from public.public_questions', '42501',
+    'visitante não lê a hora exata do envio');
+  perform cdtest_perg.throws('select * from public.list_pending_public_questions()', '42501',
+    'visitante não lê a fila da moderação');
 
   perform cdtest_perg.logout();
   select q.* into v_row from public.public_questions q
@@ -235,9 +256,18 @@ begin
   perform cdtest_perg.check(public.submit_public_question(cdtest_perg.question_text(1)) ~ '^[A-Za-z0-9_-]{32}$',
     'membra logada também envia pergunta');
 
+  perform cdtest_perg.throws('select created_at from public.public_questions', '42501',
+    'membra não lê a hora exata do envio');
+  perform cdtest_perg.throws('select * from public.list_pending_public_questions()', '42501',
+    'membra não lê a fila da moderação', 'Só a moderação vê a fila de perguntas.');
+
   perform cdtest_perg.login('f3000000-0000-4000-8000-000000000004');
   perform cdtest_perg.check((select count(*) from public.public_questions where id = v_row.id) = 1,
     'moderação lê a pergunta pendente');
+  perform cdtest_perg.check(
+    (select p.created_at is not null and p.body = v_row.body
+     from public.list_pending_public_questions() p where p.id = v_row.id),
+    'a fila da moderação traz a pergunta pendente com a hora do envio');
   perform cdtest_perg.throws('select tracking_token_hash from public.public_questions', '42501',
     'nem a moderação lê tracking_token_hash');
 
@@ -268,6 +298,15 @@ begin
     'CD041', 'link na pergunta');
   perform cdtest_perg.throws($q$select public.submit_public_question('Meu perfil é instagram.com/ana, vocês podem olhar meus projetos?')$q$,
     'CD041', 'link de rede social na pergunta');
+  -- Disfarces: espaços ou (at) no lugar do @, ponto ideográfico, telefone com pontos.
+  perform cdtest_perg.throws($q$select public.submit_public_question('Me escreve em ana @ gmail.com para falar de química, por favor')$q$,
+    'CD041', 'e-mail com espaços em volta do @');
+  perform cdtest_perg.throws($q$select public.submit_public_question('Me escreve em ana (at) gmail.com para falar de química, por favor')$q$,
+    'CD041', 'e-mail com (at)');
+  perform cdtest_perg.throws($q$select public.submit_public_question('Meu perfil é instagram。com/ana, vocês podem olhar meus projetos?')$q$,
+    'CD041', 'rede social com ponto ideográfico');
+  perform cdtest_perg.throws($q$select public.submit_public_question('Me chama no 12.99876.5432 para falar de engenharia, por favor')$q$,
+    'CD041', 'telefone separado por pontos');
   perform cdtest_perg.throws($q$select public.submit_public_question('Curta demais?')$q$,
     'CD042', 'pergunta curta demais', 'Sua pergunta precisa ter entre 30 e 800 caracteres.');
   perform cdtest_perg.throws(format($q$select public.submit_public_question(%L)$q$, repeat('a', 801)),
@@ -442,6 +481,13 @@ begin
     'CD047', 'telefone na resposta');
   perform cdtest_perg.throws(format($q$insert into public.public_answers (question_id, body) values (%L, 'Me segue em instagram.com/ana.cientista para mais dicas.')$q$, v_q1),
     'CD047', 'rede social na resposta');
+  -- Disfarces que o Markdown desfaz na tela: %XX no site, entidade HTML e barra invertida.
+  perform cdtest_perg.throws(format($q$insert into public.public_answers (question_id, body) values (%L, 'Veja meu [perfil oficial](https://%%69nstagram.com/ana) para mais dicas.')$q$, v_q1),
+    'CD047', 'rede social com %XX no endereço');
+  perform cdtest_perg.throws(format($q$insert into public.public_answers (question_id, body) values (%L, 'Escreva para ana&commat;gmail&period;com que eu explico.')$q$, v_q1),
+    'CD047', 'e-mail com entidades HTML');
+  perform cdtest_perg.throws(format($q$insert into public.public_answers (question_id, body) values (%L, E'Me chama no zap (12) 99876\\-5432 que a gente conversa.')$q$, v_q1),
+    'CD047', 'telefone com barra invertida do Markdown');
   perform cdtest_perg.throws(format($q$insert into public.public_answers (question_id, author_id, body) values (%L, 'f3000000-0000-4000-8000-000000000002', 'Resposta em nome de outra pessoa da rede.')$q$, v_q1),
     'CD013', 'autoria forjada', 'Autoria inválida%');
   perform cdtest_perg.throws(format($q$insert into public.public_answers (question_id, body, is_hidden) values (%L, 'Tentando criar uma resposta já oculta.', true)$q$, v_q1),
@@ -465,6 +511,8 @@ begin
   returning id into v_answer;
   perform cdtest_perg.put('a_bia', v_answer::text);
   perform cdtest_perg.check((select count(*) from public.public_answers) = 1, 'membra lê só a própria resposta');
+  perform cdtest_perg.throws('select hidden_by from public.public_answers', '42501',
+    'a autora não lê quem da moderação ocultou');
   perform cdtest_perg.throws(format($q$update public.public_answers set body = 'Editada' where id = %L$q$, v_answer),
     '42501', 'resposta não é editada pela API');
   perform cdtest_perg.check(
@@ -548,9 +596,18 @@ begin
     'moderação oculta');
   perform cdtest_perg.check(not public.set_public_answer_hidden(v_a_bia, true), 'ocultar de novo não muda nada');
   perform cdtest_perg.check(
-    (select is_hidden and hidden_at is not null and hidden_by = 'f3000000-0000-4000-8000-000000000004'
-     from public.public_answers where id = v_a_bia),
+    (select a.is_hidden and a.hidden_at is not null and a.hidden_by = 'f3000000-0000-4000-8000-000000000004'
+     from cdtest_perg.answer(v_a_bia) a),
     'ocultação grava data e quem ocultou');
+  perform cdtest_perg.throws('select hidden_by from public.public_answers', '42501',
+    'nem a moderação lê hidden_by pela API (quem agiu fica no registro)');
+
+  -- A autora vê que a resposta dela foi ocultada (para poder apagar), mas não por quem.
+  perform cdtest_perg.login('f3000000-0000-4000-8000-000000000002');
+  perform cdtest_perg.check(
+    (select is_hidden and hidden_at is not null from public.public_answers where id = v_a_bia),
+    'a autora vê que a própria resposta está oculta');
+  perform cdtest_perg.login('f3000000-0000-4000-8000-000000000004');
   perform cdtest_perg.check(cdtest_perg.audit_count('hide_answer', 'public_answer', v_a_bia) = 1,
     'ocultação registrada (uma vez)');
 
@@ -566,7 +623,7 @@ begin
   perform cdtest_perg.check(cdtest_perg.audit_count('unhide_answer', 'public_answer', v_a_bia) = 1,
     'reexibição registrada');
   perform cdtest_perg.check(
-    (select not is_hidden and hidden_at is null and hidden_by is null from public.public_answers where id = v_a_bia),
+    (select not a.is_hidden and a.hidden_at is null and a.hidden_by is null from cdtest_perg.answer(v_a_bia) a),
     'reexibir limpa data e quem ocultou');
   perform cdtest_perg.throws(format($q$select public.set_public_answer_hidden(%L, true)$q$, gen_random_uuid()),
     'CD015', 'resposta inexistente');
@@ -574,6 +631,48 @@ begin
 end
 $$;
 select pass('leitura pública: nome só com show_identity, sem author_id, ocultas fora da lista e da contagem');
+
+-- =============================================================================
+-- 7b. Moderação remove de vez (pergunta publicada que identifica a estudante, ou pedido dela)
+-- =============================================================================
+do $$
+declare
+  v_q uuid;
+  v_a uuid;
+begin
+  -- Pergunta publicada e uma resposta, como contexto confiável.
+  insert into public.public_questions (body, status, tracking_token_hash, reviewed_at, published_at)
+  values ('Pergunta publicada por engano com o nome da escola da estudante.', 'published',
+          repeat('b', 64), now(), now())
+  returning id into v_q;
+  insert into public.public_answers (question_id, author_id, body)
+  values (v_q, 'f3000000-0000-4000-8000-000000000001', 'Uma resposta que vai embora junto com a pergunta.')
+  returning id into v_a;
+
+  perform cdtest_perg.login_anon();
+  perform cdtest_perg.throws(format($q$select public.remove_public_question(%L, 'Identifica a estudante.')$q$, v_q),
+    '42501', 'visitante não remove');
+  perform cdtest_perg.login('f3000000-0000-4000-8000-000000000002');
+  perform cdtest_perg.throws(format($q$select public.remove_public_question(%L, 'Identifica a estudante.')$q$, v_q),
+    '42501', 'membra não remove', 'Só a moderação pode remover perguntas.');
+
+  perform cdtest_perg.login('f3000000-0000-4000-8000-000000000004');
+  perform cdtest_perg.throws(format($q$select public.remove_public_question(%L, '  curto  ')$q$, v_q),
+    '22023', 'motivo curto demais', 'Explique o motivo da remoção%');
+  perform public.remove_public_question(v_q, '  Tinha o nome da escola: pedido da estudante.  ');
+  perform cdtest_perg.check((cdtest_perg.question(v_q)).id is null, 'a pergunta some');
+  perform cdtest_perg.check((cdtest_perg.answer(v_a)).id is null, 'as respostas vão junto (cascata)');
+  perform cdtest_perg.check(cdtest_perg.audit_count('delete_content', 'public_question', v_q) = 1,
+    'remoção registrada como delete_content');
+  perform cdtest_perg.check(
+    cdtest_perg.audit_reason('delete_content', 'public_question', v_q) = 'Tinha o nome da escola: pedido da estudante.',
+    'o motivo vai para o registro, sem espaços nas pontas');
+  perform cdtest_perg.throws(format($q$select public.remove_public_question(%L, 'Tinha o nome da escola.')$q$, v_q),
+    'CD015', 'remover de novo: não encontrada');
+  perform cdtest_perg.logout();
+end
+$$;
+select pass('moderação remove de vez: visitante e membra → 42501; motivo obrigatório; cascata e registro');
 
 -- =============================================================================
 -- 8. Acompanhamento e exclusão pelo link (as respostas vão junto)
@@ -618,7 +717,8 @@ begin
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where (n.nspname = 'public' and p.proname in ('submit_public_question', 'get_public_question_status',
            'delete_public_question_by_token', 'list_public_questions', 'list_public_answers',
-           'review_public_question', 'set_public_answer_hidden')
+           'review_public_question', 'set_public_answer_hidden', 'remove_public_question',
+           'list_pending_public_questions')
          or n.nspname = 'private' and p.proname in ('detect_personal_data', 'public_answers_before_insert'))
     and (not p.prosecdef and p.proname <> 'detect_personal_data'
          or not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) cfg where cfg = 'search_path=""'));
@@ -627,6 +727,8 @@ begin
   perform cdtest_perg.check(
     not has_function_privilege('anon', 'public.review_public_question(uuid, text, text)', 'execute')
     and not has_function_privilege('anon', 'public.set_public_answer_hidden(uuid, boolean, text)', 'execute')
+    and not has_function_privilege('anon', 'public.remove_public_question(uuid, text)', 'execute')
+    and not has_function_privilege('anon', 'public.list_pending_public_questions(integer)', 'execute')
     and has_function_privilege('anon', 'public.submit_public_question(text, text, smallint)', 'execute')
     and has_function_privilege('anon', 'public.list_public_answers(uuid)', 'execute')
     and not has_function_privilege('authenticated', 'private.detect_personal_data(text, boolean)', 'execute')

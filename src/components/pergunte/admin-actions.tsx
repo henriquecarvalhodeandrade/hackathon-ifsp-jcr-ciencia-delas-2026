@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, Eye, EyeOff, X } from "lucide-react";
+import { Check, Eye, EyeOff, Trash2, X } from "lucide-react";
 import { ActionForm, runInConfirmDialog } from "@/components/admin/action-form";
-import { ConfirmDialog, Field, Input, Select, SubmitButton } from "@/components/ui";
-import { reviewQuestion, setAnswerHidden } from "@/lib/pergunte/actions";
+import { ConfirmDialog, Field, Input, Select, SubmitButton, Textarea } from "@/components/ui";
+import { removeQuestion, reviewQuestion, setAnswerHidden } from "@/lib/pergunte/actions";
 import { REJECT_REASON_OPTIONS } from "@/lib/pergunte/labels";
-import { HIDE_REASON_MAX } from "@/lib/pergunte/schemas";
+import { HIDE_REASON_MAX, REMOVE_REASON_LIMITS } from "@/lib/pergunte/schemas";
 
 /** "Publicar": um clique (o texto inteiro está no cartão, logo acima). */
 export function PublishQuestionButton({ questionId }: { questionId: string }) {
@@ -80,6 +80,37 @@ export function AnswerVisibilityDialog({
     >
       <Field label="Motivo" optional hint="Fica no registro da moderação. A autora não é avisada.">
         <Input name="reason" maxLength={HIDE_REASON_MAX} autoComplete="off" data-autofocus="" />
+      </Field>
+    </ConfirmDialog>
+  );
+}
+
+/**
+ * "Remover pergunta" (moderação): apaga de vez a pergunta e as respostas — quando algo que
+ * identifica a estudante passou na revisão, ou quando ela pede a exclusão sem ter o link. O motivo
+ * vai para o registro da moderação; depois, volta para /pergunte com a confirmação.
+ */
+export function RemoveQuestionDialog({ questionId }: { questionId: string }) {
+  return (
+    <ConfirmDialog
+      triggerLabel="Remover pergunta"
+      triggerIcon={<Trash2 aria-hidden="true" />}
+      triggerVariant="danger"
+      triggerSize="sm"
+      title="Remover esta pergunta de vez?"
+      description="A pergunta e todas as respostas dela são apagadas para sempre. Quem tem o link de acompanhamento passa a ver “Não encontramos esta pergunta”."
+      confirmLabel="Remover de vez"
+      pendingLabel="Removendo…"
+      cancelLabel="Voltar"
+      hiddenFields={{ questionId }}
+      stateAction={removeQuestion}
+    >
+      <Field
+        label="Motivo"
+        required
+        hint="Fica no registro da moderação. Não copie aqui o nome, a escola ou os contatos de quem perguntou."
+      >
+        <Textarea name="reason" rows={3} maxLength={REMOVE_REASON_LIMITS.max} data-autofocus="" />
       </Field>
     </ConfirmDialog>
   );

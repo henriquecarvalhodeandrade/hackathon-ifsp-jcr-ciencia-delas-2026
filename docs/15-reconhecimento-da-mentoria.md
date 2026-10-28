@@ -139,7 +139,7 @@ outcomes, would_recommend, note)`; nada de `update`. `author_id`, `role` e `crea
 | `consent_mentorship_declaration(p_declaration_id)`          | membras            | a participante que ainda não autorizou carimba a autorização; com as duas, emite. Devolve `issued_at`. Já autorizou → nada muda |
 | `revoke_mentorship_declaration(p_declaration_id, p_reason)` | membras            | qualquer das duas revoga, uma vez (segunda vez → CD035)                                                                         |
 | `verify_mentorship_declaration(p_code)`                     | **anon** e membras | `status` (`valida`/`revogada`), `mentee_name`, `mentor_name`, `period_start`, `period_end`, `themes`, `issued_at`               |
-| `get_mentorship_impact()`                                   | **anon** e membras | `{completed, mentee_feedback, outcomes, helpfulness_avg, declarations_issued, k_min, is_demo}`                                  |
+| `get_mentorship_impact()`                                   | **anon** e membras | `{completed, mentee_feedback, published_feedback, outcomes, helpfulness_avg, declarations_issued, k_min, is_demo}`              |
 
 `verify_mentorship_declaration`:
 
@@ -150,12 +150,24 @@ outcomes, would_recommend, note)`; nada de `update`. `author_id`, `role` e `crea
   mentora (a interface traduz com `MENTORSHIP_TOPICS`);
 - **nunca** devolve ids, e-mails, instituição, mensagens ou retornos;
 - os nomes são lidos na hora: se uma das participantes excluir a conta, o pedido e a declaração
-  somem em cascata e o código passa a "não encontrada".
+  somem em cascata e o código passa a "não encontrada". Os temas também: se a mentora mudar os
+  temas em que orienta, a página de verificação (e a folha impressa de novo) acompanha.
 
 `get_mentorship_impact` (`K_MIN = 5`, células com menos de 3 → `null`): `outcomes` e
 `helpfulness_avg` só existem com pelo menos 5 retornos **de mentorandas** (retornos de mentoras
 não entram nessa conta); `is_demo` é verdadeiro enquanto existir alguma conta
 `@demo.cienciadelas.dev`. A interface aplica a mesma supressão de novo (`src/lib/recognition/impact.ts`).
+
+**Blocos de 5 (contra dedução por diferença).** Os resultados usam só os `floor(n / 5) × 5`
+retornos mais antigos (`published_feedback`); o total (`mentee_feedback`) continua público. Sem
+isso, quem comparasse os números antes e depois de **um** retorno novo — por exemplo, a mentora
+logo depois de concluir — deduziria a resposta da mentoranda dela: com 5 → 6 retornos, a média
+passar de 4,6 para 4,0 só é possível com nota 1, e uma opção sair de "menos de 3" para 3 mostra
+que ela marcou aquela opção. Com blocos, cada mudança nos resultados mistura pelo menos 5
+retornos novos (pgTAP, seção 7b). As porcentagens são sobre o bloco publicado ("Entre as 5
+mentorandas que responderam"); os retornos que esperam o próximo bloco aparecem só no total.
+Limite conhecido: ninguém se protege, com agregados, de quem cria várias contas falsas para
+isolar uma resposta (ataque n−1); a moderação e o limite de pedidos de mentoria tornam isso caro.
 
 ### 3.5 Códigos de erro
 
@@ -176,8 +188,9 @@ não entram nessa conta); `is_demo` é verdadeiro enquanto existir alguma conta
 
 - **Retorno:** visível só para a autora (RLS), provado no pgTAP para a outra participante, a
   moderação e a administração. A nota livre nunca entra em nenhum número.
-- **Agregados:** só a partir de 5 retornos de mentorandas; opções com menos de 3 marcações
-  aparecem como "menos de 3"; "Como calculamos" explica a regra na própria página.
+- **Agregados:** só a partir de 5 retornos de mentorandas e atualizados em blocos de 5 (ninguém
+  deduz uma resposta comparando o antes e o depois); opções com menos de 3 marcações aparecem
+  como "menos de 3"; "Como calculamos" explica a regra na própria página.
 - **Nomes públicos só com as duas autorizações**, dadas por uma caixa explícita ("Autorizo que
   meu nome apareça na declaração e na página pública de verificação") — tanto para pedir quanto
   para autorizar. Pendente = "não encontrada".
@@ -224,7 +237,12 @@ de pular e avisos do site (sem mexer no layout compartilhado). O QR é um SVG ge
 - **Código para o slide do pitch: `ART-7K2M-Q9XD-4HNP`** → `<site>/verificar/ART-7K2M-Q9XD-4HNP`
   mostra "Declaração válida" (Débora Alves, mentoranda; Patrícia Santos, mentora; agosto a outubro
   de 2026). Imprima o QR da própria declaração (entre como `debora@` ou `patricia@` →
-  `/mentoria?aba=ativas` → "Ver declaração").
+  `/mentoria?aba=ativas` → "Ver declaração"). Por honestidade, a página desse código traz o selo
+  "Dados de demonstração" e avisa que as duas participantes são perfis fictícios.
+- Enquanto `supabase/config.toml` listar só `./seed.sql` em `[db.seed] sql_paths`, o
+  `supabase db reset` não aplica este seed: rode-o depois com
+  `psql "$DB" -v ON_ERROR_STOP=1 --single-transaction -f supabase/seeds/20_reconhecimento.sql`
+  (pedido de integração: `sql_paths = ["./seed.sql", "./seeds/*.sql"]`).
 - Seed `20_reconhecimento.sql` (idempotente): a mentoria Débora → Patrícia concluída há ~10 dias
   com os dois retornos e a declaração emitida; mais 4 mentorias concluídas fictícias (Gabriela →
   Luiza, Manuela → Carolina, Yasmin → Tatiane, Débora → Isabela), criadas pelo fluxo normal há
@@ -267,9 +285,10 @@ anteriores); a disponibilidade da `aline@` volta ao valor original.
 
 > **Retornos e declarações de mentoria.** Ao concluir uma mentoria, você pode deixar um retorno
 > opcional (uma nota de 1 a 5, o que mudou para você e um comentário). O retorno é visível
-> **somente para você**: nem a outra participante, nem a moderação, nem a administração têm
-> acesso a ele. A plataforma publica apenas números agregados, e só a partir de 5 retornos;
-> opções marcadas por menos de 3 pessoas aparecem como "menos de 3", e comentários nunca são
+> **somente para você**: nem a outra participante, nem as contas de moderação e de administração
+> da plataforma têm acesso a ele. A plataforma publica apenas números agregados, só a partir de 5 retornos e
+> atualizados em blocos de 5, para que nenhuma resposta individual possa ser deduzida; opções
+> marcadas por menos de 3 pessoas aparecem como "menos de 3", e comentários nunca são
 > publicados. Mentora e mentoranda também podem emitir uma declaração de participação: seus
 > nomes, papéis, o período e os temas da mentoria aparecem na página pública de verificação
 > **somente depois que as duas autorizarem**, e qualquer uma pode revogar a declaração a qualquer
@@ -281,6 +300,10 @@ anteriores); a disponibilidade da `aline@` volta ao valor original.
 ## 10. Limitações e decisões
 
 - O retorno não é editável (apaga e responde de novo): menos estados, menos superfície.
+- Nomes e temas são lidos na hora: quem muda o nome (por exemplo, para o nome social) vê a
+  declaração acompanhar, sem pedir outra. O outro lado da moeda: a declaração atesta as **contas**
+  que participaram, não uma identidade civil — a página de verificação diz que a Artemis não
+  confere documentos.
 - O lembrete de retorno no painel dura 30 dias; o de autorização da declaração fica até ela
   autorizar ou recusar.
 - A verificação pública não tem limite de consultas: com 60 bits por código, enumerar não é

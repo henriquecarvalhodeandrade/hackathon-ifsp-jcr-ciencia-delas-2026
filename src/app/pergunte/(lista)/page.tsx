@@ -65,6 +65,7 @@ export default async function PerguntePage({ searchParams }: { searchParams: Sea
 
   const now = serverNow();
   const deleted = params.pergunta === "apagada";
+  const removed = params.pergunta === "removida";
 
   return (
     <Container>
@@ -78,6 +79,12 @@ export default async function PerguntePage({ searchParams }: { searchParams: Sea
         <Alert variant="success" title="Sua pergunta foi apagada" className="mb-8">
           Ela e as respostas que recebeu não existem mais na Artemis. Quando quiser, é só perguntar
           de novo.
+        </Alert>
+      )}
+      {removed && (
+        <Alert variant="success" title="Pergunta removida" className="mb-8">
+          A pergunta e as respostas foram apagadas de vez, e a remoção ficou no registro da
+          moderação.
         </Alert>
       )}
 

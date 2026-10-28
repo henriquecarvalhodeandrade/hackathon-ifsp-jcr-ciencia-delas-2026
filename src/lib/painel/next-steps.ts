@@ -210,7 +210,12 @@ function mentorSteps(input: NextStepsInput): NextStep[] {
       title: "Abra sua disponibilidade",
       description:
         "Com pelo menos uma vaga e os pedidos abertos, você aparece nas sugestões de quem está começando.",
-      href: "/mentoria?aba=recebidas",
+      // Os pedidos abrem e fecham em /mentoria; o número de vagas fica no perfil. O botão leva ao
+      // lugar do que falta (pedidos fechados primeiro).
+      href:
+        !input.mentorAvailable || input.mentorCapacity >= 1
+          ? "/mentoria?aba=recebidas"
+          : "/perfil#mentoria",
       done: input.mentorAvailable && input.mentorCapacity >= 1,
     },
     {

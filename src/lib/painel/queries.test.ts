@@ -283,6 +283,18 @@ describe("loadPainelData", () => {
     ]);
   });
 
+  it("Novidades: uma parte que falha fica marcada, sem derrubar as outras partes", async () => {
+    state.respond = (call) =>
+      call.table === "newsletter_editions"
+        ? { data: null, error: { code: "57014", message: "timeout" } }
+        : happyPath(call);
+    const data = await loadPainelData(profile, NOW);
+    expect(data.newsFailed).toBe(false);
+    expect(data.news.sectionsFailed).toEqual({ papers: false, members: false, edition: true });
+    expect(data.news.edition).toBeNull();
+    expect(data.news.papers.map((p) => p.id)).toEqual(["p-2"]);
+  });
+
   it("um bloco que falha não derruba os outros", async () => {
     state.respond = (call) =>
       call.table === "forum_threads"

@@ -7,8 +7,10 @@ import {
   BookOpen,
   HeartHandshake,
   Info,
+  LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircleQuestion,
   MessagesSquare,
   Newspaper,
   ShieldCheck,
@@ -34,6 +36,7 @@ const ICONS: Record<
   "/papers": BookOpen,
   "/ranking": Trophy,
   "/newsletter": Newspaper,
+  "/pergunte": MessageCircleQuestion,
   "/sobre": Info,
 };
 
@@ -133,6 +136,17 @@ export function MobileNav({ items, account }: MobileNavProps) {
                 <>
                   <p className="mt-6 mb-2 px-3 eyebrow text-fg-subtle">Sua conta</p>
                   <ul className="grid gap-1">
+                    <li>
+                      <NavLink
+                        href="/painel"
+                        className={linkClasses}
+                        activeClassName={activeClasses}
+                        onClick={() => setOpen(false)}
+                      >
+                        <LayoutDashboard aria-hidden="true" />
+                        Meu painel
+                      </NavLink>
+                    </li>
                     <li>
                       <NavLink
                         href="/perfil"

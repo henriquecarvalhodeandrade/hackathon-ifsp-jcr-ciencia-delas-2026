@@ -5,7 +5,11 @@ import { BadgeCheck, FileQuestion, ShieldAlert } from "lucide-react";
 import { Alert, Badge, ButtonLink, Card, Chip, Container, EmptyState } from "@/components/ui";
 import { VerifyForm } from "@/components/recognition/verify-form";
 import { isSupabaseConfigured } from "@/lib/env";
-import { normalizeDeclarationCode, verificationPath } from "@/lib/recognition/code";
+import {
+  DEMO_DECLARATION_CODE,
+  normalizeDeclarationCode,
+  verificationPath,
+} from "@/lib/recognition/code";
 import { formatPeriodRange, themeLabels } from "@/lib/recognition/declaration-text";
 import { verifyDeclaration, type VerificationResult } from "@/lib/recognition/queries";
 import { formatDate, toIsoString } from "@/lib/utils";
@@ -36,6 +40,8 @@ export default async function VerifyCodePage({ params }: { params: Params }) {
   // Formato inválido nem chega ao banco.
   const result: VerificationResult =
     code && isSupabaseConfigured() ? await verifyDeclaration(code) : { kind: "not-found" };
+  // A declaração fixa do seed (slide do pitch) é de perfis fictícios: dizemos isso na página.
+  const isDemo = code === DEMO_DECLARATION_CODE;
 
   return (
     <Container size="narrow" className="grid gap-8 py-10 sm:py-14">
@@ -50,6 +56,11 @@ export default async function VerifyCodePage({ params }: { params: Params }) {
               <span className="font-mono text-sm font-semibold tracking-wide text-fg-muted">
                 {code}
               </span>
+              {isDemo && (
+                <Badge variant="accent" size="md">
+                  Dados de demonstração
+                </Badge>
+              )}
             </div>
             <h1
               id="verificacao-titulo"
@@ -114,7 +125,10 @@ export default async function VerifyCodePage({ params }: { params: Params }) {
             >
               Artemis
             </Link>
-            . Não é certificado institucional e não registra horas.
+            . Não é certificado institucional e não registra horas. Os nomes são os que as
+            participantes usam na plataforma; a Artemis não confere documentos de identidade.
+            {isDemo &&
+              " Esta é a declaração de demonstração da plataforma: as duas participantes são perfis fictícios."}
           </p>
         </Card>
       )}

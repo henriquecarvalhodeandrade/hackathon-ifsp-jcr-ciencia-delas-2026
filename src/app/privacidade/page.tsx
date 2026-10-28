@@ -16,6 +16,7 @@ const TOC = [
   { id: "finalidades", label: "Finalidades e bases legais" },
   { id: "ia", label: "Inteligência artificial" },
   { id: "newsletter", label: "Boletim (newsletter)" },
+  { id: "recursos", label: "Pergunte, mentorias concluídas e trajetória" },
   { id: "compartilhamento", label: "Com quem compartilhamos" },
   { id: "cookies", label: "Cookies e armazenamento local" },
   { id: "retencao", label: "Por quanto tempo guardamos" },
@@ -45,7 +46,13 @@ export default function PrivacyPage() {
           </li>
           <li>
             Perfis são visíveis <strong>apenas para membras logadas</strong>. O público vê só a
-            Vitrine de papers, os rankings e o Boletim.
+            Vitrine de papers, os rankings, o Boletim, as perguntas e respostas publicadas do
+            Pergunte a uma cientista e as declarações de mentoria que as duas participantes
+            autorizaram.
+          </li>
+          <li>
+            Para perguntar a uma cientista, você não precisa de conta: não guardamos nome, e-mail
+            nem endereço IP junto com a pergunta.
           </li>
           <li>
             As sugestões de mentoria são calculadas pela própria plataforma, sem enviar seus dados a
@@ -99,6 +106,19 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Denúncias:</strong> o que foi denunciado, o motivo e o relato que você escrever.
+          </li>
+          <li>
+            <strong>Pergunte a uma cientista:</strong> o texto da pergunta e, se você quiser, a
+            etapa de estudo e a área — sem nada que diga quem perguntou. Das membras que respondem,
+            a resposta e se ela escolheu mostrar o nome.
+          </li>
+          <li>
+            <strong>Mentorias concluídas:</strong> o retorno opcional que você deixar (nota, o que
+            mudou e um comentário) e as declarações de participação que você pedir ou autorizar.
+          </li>
+          <li>
+            <strong>Trajetória (opcional):</strong> as opções que você marcar no perfil sobre o seu
+            caminho, como “fui a primeira da família na universidade”.
           </li>
         </ul>
         <h3>Gerados pelo uso</h3>
@@ -271,6 +291,56 @@ export default function PrivacyPage() {
         </ul>
       </DocSection>
 
+      <DocSection id="recursos" title="Pergunte, mentorias concluídas e trajetória">
+        <h3>Pergunte a uma cientista</h3>
+        <p>
+          Para perguntar, você não precisa criar conta nem dizer quem é. Não guardamos seu nome,
+          e-mail, endereço IP, navegador nem qualquer identificador junto com a pergunta — nem
+          quando você está logada. Toda pergunta passa pela moderação antes de ficar pública, e
+          pedimos que você não escreva dados pessoais (o sistema recusa e-mails, telefones,
+          documentos, links e perfis de redes sociais). Ao enviar, você recebe um link de
+          acompanhamento: guardamos apenas uma versão cifrada dele (hash), que ninguém consegue ler
+          nem transformar de volta no link, por isso não conseguimos recuperá-lo. Por esse link você
+          vê o andamento e pode apagar sua pergunta a qualquer momento, junto com as respostas. Se
+          perder o link, você pode pedir a exclusão pelo <a href="#contato">contato desta página</a>
+          , indicando a pergunta: a moderação a remove sem precisar saber quem você é, e também
+          remove por conta própria uma pergunta publicada que permita identificar quem perguntou.
+          Perguntas não publicadas são apagadas 30 dias depois da revisão. As respostas são públicas
+          e mostram o nome e a etapa da carreira de quem respondeu somente quando ela escolhe,
+          resposta por resposta; a moderação sempre sabe quem respondeu. Quem exclui a conta na
+          Artemis apaga também as próprias respostas.
+        </p>
+        <h3>Retornos e declarações de mentoria</h3>
+        <p>
+          Ao concluir uma mentoria, você pode deixar um retorno opcional (uma nota de 1 a 5, o que
+          mudou para você e um comentário). O retorno é visível <strong>somente para você</strong>:
+          nem a outra participante, nem as contas de moderação e de administração da plataforma têm
+          acesso a ele. A plataforma publica apenas números agregados, só a partir de 5 retornos e
+          atualizados em blocos de 5, para que nenhuma resposta individual possa ser deduzida;
+          opções marcadas por menos de 3 pessoas aparecem como “menos de 3”, e comentários nunca são
+          publicados. Mentora e mentoranda também podem emitir uma declaração de participação: seus
+          nomes, papéis, o período e os temas da mentoria aparecem na página pública de verificação{" "}
+          <strong>somente depois que as duas autorizarem</strong>, e qualquer uma pode revogar a
+          declaração a qualquer momento — depois disso, a página mostra apenas que ela foi revogada,
+          sem nomes. Você pode apagar o seu retorno quando quiser, e tudo isso entra em “Baixar meus
+          dados”. Se você excluir a sua conta, a mentoria, os retornos e as declarações são
+          apagados, e o código de verificação deixa de existir.
+        </p>
+        <h3>Trajetória (opcional)</h3>
+        <p>
+          No seu perfil você pode marcar, se quiser, algumas opções sobre o seu caminho — por
+          exemplo, “fui a primeira da família na universidade” ou “vim do ensino técnico”. Elas
+          servem para sugerir mentoras que passaram por caminhos parecidos e para você encontrar
+          pesquisadoras com histórias como a sua. Não pedimos dados sensíveis (como raça ou etnia,
+          saúde, religião, orientação sexual ou identidade de gênero) nem renda. As marcas são
+          visíveis só para membras da Artemis — nunca para visitantes, em páginas públicas ou no
+          Boletim —, <strong>nunca são enviadas a serviços de inteligência artificial</strong> e não
+          diminuem a pontuação de ninguém nas sugestões. Você pode tirá-las quando quiser, em{" "}
+          <Link href="/perfil#sobre">Meu perfil</Link>, e elas entram no arquivo de “Baixar meus
+          dados”; ao excluir a conta, elas são apagadas.
+        </p>
+      </DocSection>
+
       <DocSection id="compartilhamento" title="Com quem compartilhamos">
         <p>
           Não vendemos nem alugamos dados. Usamos fornecedores (operadores, na linguagem da LGPD)
@@ -333,6 +403,10 @@ export default function PrivacyPage() {
             <strong>Preferência de tema</strong> (claro, escuro ou automático), guardada só no seu
             navegador (armazenamento local).
           </li>
+          <li>
+            No <strong>modo demonstração</strong> (só durante apresentações), as paradas do roteiro
+            que você já visitou, também só no seu navegador.
+          </li>
         </ul>
         <p>Não usamos cookies de publicidade, de análise de audiência ou de redes sociais.</p>
       </DocSection>
@@ -346,6 +420,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Boletim:</strong> até você se descadastrar ou pedir a exclusão do cadastro.
+          </li>
+          <li>
+            <strong>Pergunte a uma cientista:</strong> perguntas publicadas ficam até quem perguntou
+            apagá-las pelo link (ou pedir a exclusão); perguntas não publicadas são apagadas 30 dias
+            depois da revisão.
           </li>
           <li>
             <strong>Denúncias:</strong> pelo tempo necessário para a segurança da comunidade e o
@@ -397,12 +476,13 @@ export default function PrivacyPage() {
         <p>
           <strong>Portabilidade (art. 18, V):</strong> em{" "}
           <Link href="/perfil#dados">Meu perfil</Link>, “Baixar meus dados” gera na hora um arquivo
-          JSON, formato aberto que outros serviços conseguem ler, com o seu perfil, mentorias,
-          publicações no fórum (inclusive as anônimas), papers, destaques, comentários,
-          notificações, denúncias que você fez e a situação da sua inscrição no Boletim. De outras
-          pessoas, o arquivo traz só o nome de quem participou das suas mentorias e das mentoras
-          sugeridas a você. Ele liga o seu nome às suas publicações anônimas: guarde-o em lugar
-          seguro.
+          JSON, formato aberto que outros serviços conseguem ler, com o seu perfil (inclusive as
+          marcas de trajetória), mentorias, conversas da mentoria, retornos que você escreveu,
+          declarações de participação, publicações no fórum (inclusive as anônimas), respostas no
+          Pergunte a uma cientista, papers, destaques, comentários, notificações, denúncias que você
+          fez e a situação da sua inscrição no Boletim. De outras pessoas, o arquivo traz só o nome
+          de quem participou das suas mentorias e das mentoras sugeridas a você. Ele liga o seu nome
+          às suas publicações anônimas: guarde-o em lugar seguro.
         </p>
         <p>
           Se não ficar satisfeita, você pode reclamar à Autoridade Nacional de Proteção de Dados (
@@ -423,6 +503,11 @@ export default function PrivacyPage() {
             Menores de 18 anos <strong>não devem</strong> ativar os recursos de IA nem se inscrever
             no Boletim: as duas caixas de consentimento exigem a declaração de 18 anos ou mais. As
             sugestões de mentoria por regras da plataforma continuam disponíveis.
+          </li>
+          <li>
+            No <Link href="/pergunte">Pergunte a uma cientista</Link>, estudantes perguntam sem
+            conta: nada que identifique quem perguntou é guardado, e a moderação lê toda pergunta
+            antes de publicar. Não existe canal privado entre quem pergunta e quem responde.
           </li>
           <li>
             Se soubermos que uma conta viola essas regras, poderemos suspendê-la e apagar os dados.

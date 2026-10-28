@@ -87,13 +87,13 @@ feito quando ela destacou ou enviou um paper) e "Encontre pesquisadoras da sua �
 
 **Mentora** (`is_mentor`, tem prioridade):
 
-| #   | Passo                    | Feito quando                                        | Destino                   |
-| --- | ------------------------ | --------------------------------------------------- | ------------------------- |
-| 1   | Conte como pode ajudar   | `mentoring_offer` preenchido + ≥ 1 tema de mentoria | `/perfil#mentoria`        |
-| 2   | Abra sua disponibilidade | `mentor_available` e capacidade ≥ 1                 | `/mentoria?aba=recebidas` |
-| 3   | Responda aos pedidos     | 0 pedidos recebidos pendentes                       | `/mentoria?aba=recebidas` |
-| 4   | Ajude no fórum           | respondeu a um tópico nos últimos 30 dias           | `/forum`                  |
-| 5   | Divulgue um paper        | enviou ≥ 1 paper à Vitrine                          | `/papers/novo`            |
+| #   | Passo                    | Feito quando                                        | Destino                                                                            |
+| --- | ------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Conte como pode ajudar   | `mentoring_offer` preenchido + ≥ 1 tema de mentoria | `/perfil#mentoria`                                                                 |
+| 2   | Abra sua disponibilidade | `mentor_available` e capacidade ≥ 1                 | `/mentoria?aba=recebidas` (pedidos fechados) ou `/perfil#mentoria` (só falta vaga) |
+| 3   | Responda aos pedidos     | 0 pedidos recebidos pendentes                       | `/mentoria?aba=recebidas`                                                          |
+| 4   | Ajude no fórum           | respondeu a um tópico nos últimos 30 dias           | `/forum`                                                                           |
+| 5   | Divulgue um paper        | enviou ≥ 1 paper à Vitrine                          | `/papers/novo`                                                                     |
 
 "Respondeu" conta respostas com nome e anônimas (a autoria anônima vem do registro dela mesma,
 que o RLS só entrega para ela).
@@ -157,15 +157,22 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
 
 1. Sem chave secreta e sem `DEMO_PASSWORD`: devolve "O modo demonstração precisa da chave secreta do
    Supabase no servidor." **sem** deslogar ninguém.
-2. Sai da sessão atual **só neste navegador** (`signOut({ scope: "local" })`). O padrão
+2. Com `SUPABASE_SECRET_KEY`, **antes** de mexer na sessão atual (uma recusa não desloga ninguém):
+   `auth.admin.getUserById(<id do seed>)` confere que a conta existe com o e-mail esperado (o
+   `generateLink("magiclink")` **criaria** a conta se ela não existisse) e o perfil dela precisa ter
+   o papel `member`. Se alguém tiver promovido a persona a moderadora ou administradora, a entrada é
+   recusada ("Por segurança, o modo demonstração só entra em contas comuns da rede, sem poderes de
+   moderação ou administração.") — uma segunda trava além da lista fixa.
+3. Sai da sessão atual **só neste navegador** (`signOut({ scope: "local" })`). O padrão
    (`"global"`) derrubaria todas as pessoas da banca que estão usando a mesma conta.
-3. Com `SUPABASE_SECRET_KEY`: `auth.admin.getUserById(<id do seed>)` confere que a conta existe com
-   o e-mail esperado (o `generateLink("magiclink")` **criaria** a conta se ela não existisse);
-   `auth.admin.generateLink({ type: "magiclink", email })` gera o token **sem enviar e-mail**; e
+4. `auth.admin.generateLink({ type: "magiclink", email })` gera o token **sem enviar e-mail**; e
    `auth.verifyOtp({ token_hash, type: "email" })` no cliente com cookies grava a sessão no navegador
-   de quem clicou. Se duas pessoas clicam juntas, o token mais novo invalida o anterior: há uma
-   segunda tentativa automática.
-4. Sem a chave, com `DEMO_PASSWORD`: `signInWithPassword` (plano B).
+   de quem clicou. Se várias pessoas clicam juntas, o token mais novo invalida o anterior: há até
+   3 tentativas, com uma pausa curta e aleatória entre elas (cada uma gasta uma validação do limite
+   do Supabase Auth). Se ainda assim falhar, a pessoa vê "Não conseguimos entrar com essa pessoa
+   agora. Tente de novo em alguns segundos."
+5. Sem a chave, com `DEMO_PASSWORD`: `signInWithPassword` (plano B). A mesma conferência (conta do
+   seed + papel `member`) roda logo depois do login; se falhar, a sessão recém-aberta é encerrada.
 
 ### 3.3 Modelo de segurança
 
@@ -180,21 +187,38 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
 - **Contas compartilhadas:** várias pessoas usam a mesma persona ao mesmo tempo, e o que uma
   publica aparece para as outras (o `/demo` avisa). Por isso a exclusão de conta fictícia é recusada
   ("Contas de demonstração não podem ser excluídas. Elas voltam ao normal quando a equipe reinicia
-  os dados."). A mesma trava existe para troca de senha (`DEMO_PASSWORD_REFUSED` em
-  `src/lib/demo/guard.ts`, a ser ligada em `/redefinir-senha` na integração). A sessão é real: quem
-  quiser pode alterar o perfil da persona — por isso os dados são reiniciados depois do evento.
+  os dados."). A troca de senha **ainda não** tem trava: a mensagem existe (`DEMO_PASSWORD_REFUSED` em
+  `src/lib/demo/guard.ts`) e precisa ser ligada em `/redefinir-senha` na integração. Mesmo com ela,
+  quem tem a sessão pode trocar a senha direto na API do Supabase Auth
+  (`secure_password_change = false`). Por isso o caminho principal é o link mágico (chave secreta),
+  que não depende da senha; o plano B por `DEMO_PASSWORD` pode ser quebrado por alguém da banca. A
+  sessão é real: quem quiser pode alterar o perfil da persona — por isso os dados são reiniciados
+  depois do evento.
+- **Contas de administração e moderação do seed:** `admin@` e `moderacao@` usam a mesma senha
+  **pública** das demais (`ciencia-delas-demo`, no README). O `/demo` nunca entra nelas, mas numa
+  instância de apresentação acessível pela internet (deploy com `--with-demo-seed`) qualquer pessoa
+  entraria nelas pelo `/entrar`. Antes do evento, troque a senha dessas duas contas (Supabase →
+  Authentication → Users) ou remova-as; isso vale com ou sem `DEMO_MODE`.
 - **Limites do Supabase Auth:** todas as entradas saem do IP do servidor; o limite padrão é de 30
   validações de token por 5 minutos por IP (`[auth.rate_limit]` do `config.toml`). Sobra para uma
-  apresentação; num evento com muita gente, aumente no painel do Supabase.
+  apresentação; num evento com muita gente, aumente no painel do Supabase. Como o `/demo` é público
+  enquanto o modo está ligado, alguém de fora pode gastar esse limite (ou ficar gerando links da
+  mesma persona) e atrapalhar as entradas por alguns minutos: é mais um motivo para ligar o modo só
+  durante a apresentação.
 - **Desligue depois do evento:** `DEMO_MODE=false` (ou apague a variável). Nunca ligue numa instância
   com membras reais.
 
 ### 3.4 Como reiniciar as personas
 
-- **Local:** `npx supabase db reset` (recria o banco, aplica migrations e todos os seeds).
+- **Local:** `npx supabase db reset` (recria o banco, aplica as migrations e o seed). Enquanto o
+  `config.toml` listar só `./seed.sql` em `[db.seed] sql_paths`, aplique depois os seeds extras:
+  `for f in supabase/seeds/*.sql; do psql "$DB" -v ON_ERROR_STOP=1 --single-transaction -f "$f"; done`.
+  (Pedido de integração: `sql_paths = ["./seed.sql", "./seeds/*.sql"]`.)
 - **Nuvem:** rode de novo os seeds no banco da apresentação (`supabase/seed.sql` e depois
-  `supabase/seeds/*.sql`, pelo SQL Editor ou `psql`). Os seeds são idempotentes; para voltar ao
-  estado exato do começo (sem o que a banca escreveu), recrie o banco antes.
+  `supabase/seeds/*.sql`, pelo SQL Editor ou `psql`). O `--with-demo-seed` do
+  `scripts/deploy/setup-supabase-cloud.mjs` aplica só o `seed.sql`; os de `supabase/seeds/` vão à
+  mão. Os seeds são idempotentes; para voltar ao estado exato do começo (sem o que a banca
+  escreveu), recrie o banco antes.
 
 ## 4. Dados de demonstração (`supabase/seeds/10_painel.sql`)
 
@@ -216,16 +240,16 @@ da Yasmin e as notificações não lidas em "O que está esperando você", as du
 
 ## 5. Testes
 
-| Arquivo                                    | O que cobre                                                                                                                                                                  |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/painel/next-steps.test.ts`        | ordem e "feito" da mentoranda; variante sem mentoria; trilha da mentora; tudo feito; mensagem travada até o aceite; nunca cobra campos opcionais                             |
-| `src/lib/painel/questions-for-you.test.ts` | "Estatistica" × "estatística"; título/corpo como palavra inteira; área e tema; exclui o tópico dela (inclusive o anônimo dela); trancados e antigos; mais recentes; máximo 3 |
-| `src/lib/painel/queries.test.ts`           | no máximo 6 idas, todas com limite (inclusive listas embutidas); filtros de segurança; montagem; um bloco falhando sozinho                                                   |
-| `src/lib/demo/personas.test.ts`            | slug desconhecido → null; `isDemoEmail`; admin e moderação nunca na lista; lista imutável                                                                                    |
-| `src/lib/demo/gate.test.ts`                | modo desligado → `/demo` 404, action recusa sem abrir sessão, faixa sem chamada ao Supabase; ligado → personas, slug forjado recusado, redirecionamento, faixa               |
-| `src/lib/demo/session.test.ts`             | link mágico sem e-mail, `signOut` local, conta inexistente não é criada, corrida, plano B por senha, sem configuração; exclusão de conta fictícia recusada                   |
-| `src/lib/profile/redirect.test.ts`         | destino padrão `/painel`                                                                                                                                                     |
-| `scripts/e2e/painel-demo.mjs`              | jornada com Playwright (abaixo)                                                                                                                                              |
+| Arquivo                                    | O que cobre                                                                                                                                                                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/painel/next-steps.test.ts`        | ordem e "feito" da mentoranda; variante sem mentoria; trilha da mentora; tudo feito; mensagem travada até o aceite; nunca cobra campos opcionais                                                                                                                                      |
+| `src/lib/painel/questions-for-you.test.ts` | "Estatistica" × "estatística"; título/corpo como palavra inteira; área e tema; exclui o tópico dela (inclusive o anônimo dela); trancados e antigos; mais recentes; máximo 3                                                                                                          |
+| `src/lib/painel/queries.test.ts`           | no máximo 6 idas, todas com limite (inclusive listas embutidas); filtros de segurança; montagem; um bloco falhando sozinho                                                                                                                                                            |
+| `src/lib/demo/personas.test.ts`            | slug desconhecido → null; `isDemoEmail`; admin e moderação nunca na lista; lista imutável                                                                                                                                                                                             |
+| `src/lib/demo/gate.test.ts`                | modo desligado → `/demo` 404, action recusa sem abrir sessão, faixa sem chamada ao Supabase; ligado → personas, slug forjado recusado, redirecionamento, faixa                                                                                                                        |
+| `src/lib/demo/session.test.ts`             | link mágico sem e-mail, `signOut` local, conta inexistente não é criada, conferência antes de deslogar, persona promovida a moderadora/admin recusada, corrida (até 3 tentativas), plano B por senha (com a mesma conferência), sem configuração; exclusão de conta fictícia recusada |
+| `src/lib/profile/redirect.test.ts`         | destino padrão `/painel`                                                                                                                                                                                                                                                              |
+| `scripts/e2e/painel-demo.mjs`              | jornada com Playwright (abaixo)                                                                                                                                                                                                                                                       |
 
 E2E (`scripts/e2e/painel-demo.mjs`, independente da `journey.mjs`): visitante em `/painel` →
 `/entrar?next=%2Fpainel`; landing intacta; larissa@ entra pelo formulário sem `next` e cai no painel
