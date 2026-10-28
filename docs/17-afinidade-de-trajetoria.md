@@ -165,9 +165,9 @@ impacto não a tocam). O app nunca faz `select('*')` em perfis de outras pessoas
   leem as marcas de agora; o motivo de uma sugestão **já salva** tem a frase "Vocês têm em comum"
   refeita (ou retirada) na hora de mostrar; e essa frase **nunca** é copiada para um pedido de
   mentoria (`loadSuggestionMatch`), que dura mais que as marcas e entra na exportação das duas.
-- **Exportação e exclusão:** "Baixar meus dados" passa a incluir `trajectory_tags` (pedido de
-  integração: `PROFILE_FIELDS` em `src/lib/profile/export.ts`); excluir a conta apaga o perfil e,
-  com ele, as marcas.
+- **Exportação e exclusão:** "Baixar meus dados" inclui `trajectory_tags` no perfil
+  (`PROFILE_FIELDS` em `src/lib/profile/export.ts`, com teste); excluir a conta apaga o perfil e, com
+  ele, as marcas.
 - **Minimização:** catálogo fechado, sem categorias sensíveis, sem texto livre.
 
 ### Parágrafo pronto para `/privacidade`

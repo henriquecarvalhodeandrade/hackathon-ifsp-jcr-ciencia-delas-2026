@@ -197,9 +197,12 @@ pergunta, sem saber quem ocultou, e pode apagá-la.
 | `src/app/pergunte/(lista)/` · `[id]/` · `acompanhar/[token]/` | as três páginas.                                                                                          |
 | `src/components/pergunte/`                                    | formulários, listas, fila da moderação e as peças da integração (abaixo).                                 |
 
-Peças para a integração: `landing-cta.tsx` (`<PergunteLandingCta />`, seção da landing depois de
-`<MentorshipSteps />`) e `awaiting-questions-card.tsx` (`<AwaitingQuestionsCard />`, cartão do
-`/painel` com até 3 perguntas sem resposta; não renderiza nada sem perguntas).
+Peças montadas fora do `/pergunte`: `landing-cta.tsx` (`<PergunteLandingCta />`, seção da landing
+depois de `<MentorshipSteps />`) e `awaiting-questions-card.tsx` (`<AwaitingQuestionsCard />`, cartão
+do `/painel` com até 3 perguntas sem resposta; não renderiza nada sem perguntas). "Pergunte" está na
+navegação principal (de visitantes e de membras, logo depois de "Fórum") e no rodapé (Comunidade → "Pergunte a uma cientista"); `/pergunte` está no
+sitemap e `/pergunte/acompanhar/` fora do `robots.txt`. "Baixar meus dados" traz as respostas da
+membra (`respostas_pergunte_a_uma_cientista`); nenhuma pergunta é exportada como de alguém.
 
 ## 7. Demonstração (dados fictícios)
 

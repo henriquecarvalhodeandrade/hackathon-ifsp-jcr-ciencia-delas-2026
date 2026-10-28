@@ -306,8 +306,11 @@ async function loadQuestionCandidates(
     .select(
       `id, title, body, tags, is_anonymous, is_locked, reply_count, created_at, author_id,
        author:profiles!forum_threads_author_id_fkey(full_name),
-       category:forum_categories!forum_threads_category_id_fkey(name)`,
+       category:forum_categories!forum_threads_category_id_fkey!inner(name)`,
     )
+    // Categorias de acolhimento (as que aceitam anonimato: apoio, maternidade, saúde mental) ficam
+    // fora: um relato pessoal não vira "pergunta rápida" na página inicial de todo mundo.
+    .eq("category.allow_anonymous", false)
     .eq("reply_count", 0)
     .eq("is_locked", false)
     .gte("created_at", sinceIso(QUESTIONS_MAX_AGE_DAYS, now))

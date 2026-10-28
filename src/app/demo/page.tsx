@@ -175,11 +175,14 @@ export default async function DemoPage() {
                 </p>
               </div>
             </div>
+            {/* Ilha de tema claro: QR escuro sobre fundo claro em qualquer tema (leitores antigos
+                não leem QR invertido). */}
             <div
               role="img"
               aria-label={`QR code para abrir ${displayHost(demoUrl)}`}
               data-qr-url={demoUrl}
-              className="mx-auto size-44 rounded-control bg-surface p-3 text-fg"
+              data-theme="light"
+              className="mx-auto size-44 rounded-control border border-border bg-surface p-3 text-fg"
               dangerouslySetInnerHTML={{ __html: qrSvg }}
             />
             <p className="text-center font-mono text-sm break-all text-fg-muted">

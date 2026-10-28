@@ -62,7 +62,8 @@ jobs:
         with:
           version: 2.122.0
 
-      # Só o Postgres: aplica as migrations e o seed (supabase/seed.sql).
+      # Só o Postgres: aplica as migrations e os seeds do config.toml ([db.seed] sql_paths:
+      # supabase/seed.sql e depois supabase/seeds/*.sql).
       - name: Subir o banco local
         run: supabase db start
 
@@ -91,8 +92,8 @@ jobs:
         with:
           version: 2.122.0
 
-      # Stack local completa para o app (Postgres com migrations e seed, Auth, API, Storage e Mailpit),
-      # sem o que a jornada não usa.
+      # Stack local completa para o app (Postgres com migrations e os seeds do config.toml — seed.sql e
+      # supabase/seeds/*.sql —, Auth, API, Storage e Mailpit), sem o que a jornada não usa.
       - name: Subir o Supabase local
         run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor
 
@@ -117,7 +118,11 @@ jobs:
       - name: Build de produção
         run: npx next build
 
-      - name: Iniciar o app (porta 3000)
+      # DEMO_MODE=true liga o /demo (entrar como persona fictícia), que o painel-demo.mjs testa. Só
+      # aqui e na apresentação: nunca num ambiente com membras de verdade (docs/14).
+      - name: Iniciar o app (porta 3000, modo demonstração)
+        env:
+          DEMO_MODE: "true"
         run: |
           nohup npx next start -p 3000 > "$RUNNER_TEMP/next-start.log" 2>&1 &
           for _ in $(seq 1 60); do
@@ -138,8 +143,29 @@ jobs:
 
       - name: Jornada E2E
         env:
-          OUT_DIR: ${{ runner.temp }}/artemis-e2e
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/jornada
         run: BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs
+
+      # Roteiros de cada funcionalidade (docs/14 a 17). Cada um apaga ou restaura o que cria.
+      - name: E2E — painel e modo demonstração
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/painel-demo
+        run: DEMO=1 BASE_URL=http://localhost:3000 node scripts/e2e/painel-demo.mjs
+
+      - name: E2E — reconhecimento da mentoria
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/reconhecimento
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/reconhecimento.mjs
+
+      - name: E2E — Pergunte a uma cientista
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/pergunte
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/pergunte.mjs
+
+      - name: E2E — afinidade de trajetória
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/trajetoria
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/trajetoria.mjs
 
       - name: Log do servidor (se falhar)
         if: failure()

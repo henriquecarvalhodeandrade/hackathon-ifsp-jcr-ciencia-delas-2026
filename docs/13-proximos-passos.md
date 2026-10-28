@@ -8,6 +8,20 @@
 - App completo (Next.js 16 + Supabase): autenticação, onboarding, perfis, diretório, fórum com anonimato,
   mentoria com IA (com modo por afinidade quando a IA não está disponível), Vitrine Delas, ranking, Boletim
   Delas, notificações, moderação com auditoria, design system.
+- **Quatro funcionalidades da história do pitch** ("da primeira curiosidade à mentoria reconhecida"), todas
+  sem nenhuma chave de IA:
+  - **Pergunte a uma cientista** (`/pergunte`): estudantes perguntam sem conta e sem nome; a moderação publica
+    (aba Perguntas do `/admin`) e cientistas da rede respondem em público — [16](16-pergunte-a-uma-cientista.md).
+  - **Afinidade de trajetória:** marcas opcionais no perfil viram "Vocês têm em comum: as duas foram as
+    primeiras da família na universidade" nas sugestões de mentoras, um filtro no diretório e uma seção no
+    perfil — [17](17-afinidade-de-trajetoria.md).
+  - **Meu painel** (`/painel`): o início de quem já é da rede (login sem destino e a `/` de quem tem perfil
+    completo vão para lá) e o **modo demonstração** (`/demo`, só com `DEMO_MODE=true`): entrar como Larissa,
+    Marina ou Débora com um clique, roteiro de 3 minutos e QR code para o slide —
+    [14](14-painel-e-modo-demo.md).
+  - **Reconhecimento da mentoria:** ao concluir, retorno privado, declaração de participação com QR code
+    verificável em `/verificar` e impacto agregado na landing (só a partir de 5 retornos) —
+    [15](15-reconhecimento-da-mentoria.md).
 - **Conversa da mentoria** em `/mentoria/conversa/<pedido>`: depois do aceite, mentora e mentoranda trocam
   mensagens pela plataforma (botão "Conversar" com o número de não lidas, aviso agrupado por conversa, recibo
   "Enviada"/"Lida", atualização a cada 15 s com a aba visível). Concluída ou cancelada, fica só para leitura.
@@ -26,10 +40,12 @@
   denúncias, pedidos e mensagens da mentoria — valem também pela API); **auditoria** de toda ação da moderação, inclusive
   exclusões feitas em qualquer tela; avatares só do Storage do projeto; **cabeçalhos de segurança HTTP**
   (anti-clickjacking, `nosniff`, HSTS…) — [09](09-moderacao-e-seguranca.md#10-checklist-de-segurança).
-- Banco: migrations com RLS e GRANTs explícitos, seed de demonstração, testes pgTAP.
+- Banco: migrations com RLS e GRANTs explícitos, seeds de demonstração (`supabase/seed.sql` e
+  `supabase/seeds/*.sql`, aplicados juntos pelo `config.toml`), testes pgTAP.
 - Testes: unitários (Vitest), banco (pgTAP), jornada completa no navegador (`scripts/e2e/journey.mjs`, com
   Playwright: cadastro, onboarding, mentoria e conversa, fórum, moderação, Boletim, Vitrine e a varredura de
-  telas claro/escuro × 1440/390 px).
+  telas claro/escuro × 1440/390 px, inclusive `/painel`, `/pergunte` e `/verificar`) e um roteiro por
+  funcionalidade nova (`painel-demo`, `reconhecimento`, `pergunte`, `trajetoria`).
 - **CI no GitHub Actions** (`.github/workflows/ci.yml`): a cada push e pull request roda formatação, lint, tipos,
   testes unitários, testes do script de deploy, build e pgTAP e, depois, a **jornada E2E** num build de produção
   contra um Supabase local completo no próprio runner (se falhar, as capturas ficam como artefato) —
@@ -101,7 +117,24 @@ O SMTP padrão do Supabase **só entrega e-mails para membros do time do projeto
 
 ### 4. Antes da apresentação
 
-- [ ] Preencher contato da controladora/encarregada de dados em `/privacidade` e a equipe em `/sobre`.
+- [ ] Preencher contato da controladora/encarregada de dados em `/privacidade` e a equipe em `/sobre` (a
+      equipe preenche: nada disso pode ser inventado).
+- [ ] Recriar o banco da apresentação logo antes do evento (`npx supabase db reset` no local, ou recriar o
+      projeto e rodar o `setup-supabase-cloud.mjs --with-demo-seed` na nuvem): aplica as migrations, o
+      `seed.sql` e os `supabase/seeds/*.sql` e apaga sobras de testes (ex.: "Jornada E2E …" ou "Relato de teste
+      automatizado" em capturas antigas). Alguns dados do seed são relativos à data: rode perto do dia.
+- [ ] **Nunca** rodar `scripts/e2e/journey.mjs` nem os roteiros (`painel-demo`, `reconhecimento`, `pergunte`,
+      `trajetoria`) contra o banco da apresentação: eles escrevem de verdade (e limpam depois, mas a
+      apresentação pode pegar o meio do caminho).
+- [ ] `DEMO_MODE=true` só no ambiente da apresentação e só durante o evento; desligar logo depois e reiniciar os
+      dados (as personas são compartilhadas: a banca pode editar o perfil delas). Trocar a senha de `admin@` e
+      `moderacao@` (Supabase → Authentication → Users) numa instância acessível pela internet: a senha do seed é
+      pública ([14 §3.3](14-painel-e-modo-demo.md)).
+- [ ] Definir `NEXT_PUBLIC_SITE_URL` com o endereço público **antes** de imprimir ou projetar QR codes (o do
+      `/demo` e o da declaração apontam para esse endereço).
+- [ ] Para o slide: declaração fictícia `ART-7K2M-Q9XD-4HNP` (`/verificar/ART-7K2M-Q9XD-4HNP`, com o selo
+      "Dados de demonstração") e o link de acompanhamento da pergunta pendente
+      `/pergunte/acompanhar/DemoPergunte-Artemis2026-IFSPjcr` ([16 §7](16-pergunte-a-uma-cientista.md)).
 - [ ] Decidir se o site público usa as contas de demonstração (seed) ou começa vazio.
 - [ ] Opcional: domínio verificado no Resend para o Boletim chegar a todas as inscritas
       (sem isso, o Boletim fica publicado no site).

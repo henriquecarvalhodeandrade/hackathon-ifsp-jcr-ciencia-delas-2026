@@ -13,6 +13,8 @@ pós — costumam enfrentar os mesmos obstáculos:
 - **Isolamento.** Dúvidas e situações difíceis (como assédio) ficam sem um espaço seguro para serem compartilhadas.
 - **Pouca visibilidade.** O trabalho de pesquisadoras circula menos fora dos círculos acadêmicos e quase não chega
   ao público em linguagem acessível.
+- **Mentoria invisível.** Quem mentora dedica tempo sem nenhum reconhecimento, e ninguém consegue dizer se a
+  mentoria ajudou.
 
 ## A proposta
 
@@ -24,27 +26,51 @@ Um fórum com rede de conexões em três pilares:
 | **Mentoria com IA**             | A pesquisadora iniciante preenche o perfil (áreas, palavras-chave, objetivos) e recebe **sugestões de mentoras experientes** com uma explicação do porquê da combinação e temas para a primeira conversa. Depois envia o pedido; a mentora aceita ou recusa. | `/mentoria`                          |
 | **Vitrine + Ranking + Boletim** | Divulgação de papers com autoria feminina, **resumo acessível** (escrito pela autora ou gerado por IA), votos de destaque, **rankings** por semana/mês/ano/sempre e por área, e o **Boletim Delas**, newsletter semanal automática com os destaques.         | `/papers`, `/ranking`, `/newsletter` |
 
+E quatro funcionalidades que ligam os pilares numa única história, "da primeira curiosidade à mentoria
+reconhecida" — todas funcionam **sem nenhuma chave de IA**:
+
+| Funcionalidade                 | O que faz                                                                                                                               | Onde                          | Documento                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
+| **Pergunte a uma cientista**   | A estudante que ainda não pesquisa pergunta sem conta e sem nome; a moderação publica e cientistas da rede respondem em público.        | `/pergunte`                   | [`16-pergunte-a-uma-cientista.md`](16-pergunte-a-uma-cientista.md)     |
+| **Afinidade de trajetória**    | Marcas opcionais ("fui a primeira da família na universidade") viram um bônus explicado na sugestão de mentoras: "Vocês têm em comum…". | `/mentoria`, `/pesquisadoras` | [`17-afinidade-de-trajetoria.md`](17-afinidade-de-trajetoria.md)       |
+| **Meu painel**                 | O início de quem já é da rede: próximos passos e o que está esperando por ela, em vez da página de apresentação.                        | `/painel`                     | [`14-painel-e-modo-demo.md`](14-painel-e-modo-demo.md)                 |
+| **Reconhecimento da mentoria** | Retorno privado ao concluir, declaração de participação verificável por QR code e impacto agregado (só a partir de 5 retornos).         | `/verificar`                  | [`15-reconhecimento-da-mentoria.md`](15-reconhecimento-da-mentoria.md) |
+
 ## Para quem
 
+- **Estudante curiosa** (ensino médio, técnico integrado, começo da graduação): ainda não pesquisa, tem dúvidas
+  sobre ciência e carreira e pergunta a uma cientista sem criar conta.
 - **Pesquisadora iniciante** (ex.: estudante do técnico ou da graduação em iniciação científica, mestranda):
   quer orientação de carreira, entender editais e ter com quem conversar.
 - **Mentora** (doutoranda, pós-doc, docente, pesquisadora da indústria): quer retribuir, com controle de quantas
   mentoradas consegue acompanhar.
-- **Comunidade e público geral**: lê a vitrine, os rankings e o boletim — sem precisar de conta.
+- **Comunidade e público geral**: lê a vitrine, os rankings, o boletim e as respostas do Pergunte a uma
+  cientista, e confere declarações de mentoria — sem precisar de conta.
 - **Moderação**: recebe denúncias, bloqueia tópicos, oculta conteúdo e protege o espaço.
 
 ## Jornada principal (demo de 3 minutos)
 
-1. **Cadastro** → onboarding em 4 passos (sobre você, sua pesquisa, mentoria, privacidade e IA).
-2. **Mentoria** → "Encontrar mentoras" → cartões com pontuação de afinidade, motivo e temas de conversa
-   → "Pedir mentoria" com mensagem.
-3. **Mentora** (outra conta de demonstração) → aceita o pedido → as duas passam a ver o contato uma da outra.
-4. **Vitrine** → divulgar um paper pelo DOI (metadados preenchidos automaticamente) → gerar resumo acessível com IA
-   → receber destaques → aparecer no **ranking da semana**.
-5. **Boletim** → a edição semanal reúne os papers mais destacados, discussões e novas mentoras.
+A história do pitch: **da primeira curiosidade à mentoria reconhecida**. Com `DEMO_MODE=true`, a plateia entra
+como uma persona fictícia em [`/demo`](14-painel-e-modo-demo.md) (um clique, sem senha; o QR code da página leva
+para lá).
+
+1. **Pergunte a uma cientista** (`/pergunte`) → uma estudante do técnico pergunta sem conta e sem nome → a
+   moderação publica → uma cientista da rede responde em público.
+2. **Matching com "Vocês têm em comum"** → a Larissa abre `/mentoria`, "Encontrar mentoras" → os cartões trazem a
+   pontuação, o motivo e, quando há marcas em comum, "Vocês têm em comum: as duas foram as primeiras da família na
+   universidade" — sem IA → "Pedir mentoria" com mensagem.
+3. **Meu painel** (`/painel`) → a Marina (mentora) vê o pedido esperando por ela, perguntas do fórum que combinam
+   com a pesquisa dela e as perguntas de estudantes sem resposta.
+4. **Conclusão → retorno → declaração → `/verificar`** → a Débora concluiu a mentoria com a Patrícia, deixou o
+   retorno privado e as duas autorizaram a declaração → o QR code abre `/verificar/ART-7K2M-Q9XD-4HNP`
+   ("Declaração válida", dados de demonstração) → a landing mostra o impacto agregado.
+
+Também dá para mostrar: a **Vitrine** (divulgar um paper pelo DOI, resumo acessível, destaques e **ranking da
+semana**) e o **Boletim** semanal.
 
 Contas de demonstração e o passo a passo para rodar localmente estão em
-[`07-setup-e-deploy.md`](07-setup-e-deploy.md).
+[`07-setup-e-deploy.md`](07-setup-e-deploy.md); o checklist da apresentação, em
+[`13-proximos-passos.md`](13-proximos-passos.md).
 
 ## Princípios
 
@@ -60,17 +86,23 @@ Contas de demonstração e o passo a passo para rodar localmente estão em
 
 ## Mapa da documentação
 
-| Documento                                                    | Conteúdo                                                   |
-| ------------------------------------------------------------ | ---------------------------------------------------------- |
-| [`01-arquitetura.md`](01-arquitetura.md)                     | Stack, diagrama, pastas, fluxo de dados, rotas             |
-| [`02-design-system.md`](02-design-system.md)                 | Marca, tokens, tipografia, componentes, voz e tom          |
-| [`03-banco-de-dados.md`](03-banco-de-dados.md)               | Modelo de dados, RLS, triggers, RPCs, seed                 |
-| [`04-mentoria-com-ia.md`](04-mentoria-com-ia.md)             | Algoritmo de matching, prompts, provedores gratuitos, LGPD |
-| [`05-papers-e-ranking.md`](05-papers-e-ranking.md)           | Vitrine, votos, fórmulas de ranking, DOI/Crossref          |
-| [`06-forum.md`](06-forum.md)                                 | Categorias, anonimato, reações, soluções, moderação        |
-| [`07-setup-e-deploy.md`](07-setup-e-deploy.md)               | Rodar localmente, variáveis de ambiente, deploy            |
-| [`08-newsletter.md`](08-newsletter.md)                       | Boletim semanal, envio, cron, descadastro                  |
-| [`09-moderacao-e-seguranca.md`](09-moderacao-e-seguranca.md) | Denúncias, papéis, LGPD, checklist de segurança            |
-| [`10-roadmap.md`](10-roadmap.md)                             | Próximos passos e ideias                                   |
-| [`11-perfis-e-autenticacao.md`](11-perfis-e-autenticacao.md) | Login, onboarding, perfil, diretório                       |
-| [`adr/`](adr/README.md)                                      | Decisões de arquitetura                                    |
+| Documento                                                              | Conteúdo                                                   |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| [`01-arquitetura.md`](01-arquitetura.md)                               | Stack, diagrama, pastas, fluxo de dados, rotas             |
+| [`02-design-system.md`](02-design-system.md)                           | Marca, tokens, tipografia, componentes, voz e tom          |
+| [`03-banco-de-dados.md`](03-banco-de-dados.md)                         | Modelo de dados, RLS, triggers, RPCs, seed                 |
+| [`04-mentoria-com-ia.md`](04-mentoria-com-ia.md)                       | Algoritmo de matching, prompts, provedores gratuitos, LGPD |
+| [`05-papers-e-ranking.md`](05-papers-e-ranking.md)                     | Vitrine, votos, fórmulas de ranking, DOI/Crossref          |
+| [`06-forum.md`](06-forum.md)                                           | Categorias, anonimato, reações, soluções, moderação        |
+| [`07-setup-e-deploy.md`](07-setup-e-deploy.md)                         | Rodar localmente, variáveis de ambiente, deploy            |
+| [`08-newsletter.md`](08-newsletter.md)                                 | Boletim semanal, envio, cron, descadastro                  |
+| [`09-moderacao-e-seguranca.md`](09-moderacao-e-seguranca.md)           | Denúncias, papéis, LGPD, checklist de segurança            |
+| [`10-roadmap.md`](10-roadmap.md)                                       | Próximos passos e ideias                                   |
+| [`11-perfis-e-autenticacao.md`](11-perfis-e-autenticacao.md)           | Login, onboarding, perfil, diretório                       |
+| [`12-mentoria-fluxos.md`](12-mentoria-fluxos.md)                       | Telas e estados dos pedidos de mentoria                    |
+| [`13-proximos-passos.md`](13-proximos-passos.md)                       | O que está pronto e o checklist da apresentação            |
+| [`14-painel-e-modo-demo.md`](14-painel-e-modo-demo.md)                 | /painel e modo demonstração (/demo)                        |
+| [`15-reconhecimento-da-mentoria.md`](15-reconhecimento-da-mentoria.md) | Retorno, declaração verificável, impacto (k = 5)           |
+| [`16-pergunte-a-uma-cientista.md`](16-pergunte-a-uma-cientista.md)     | Perguntas sem conta, moderação, proteção de menores        |
+| [`17-afinidade-de-trajetoria.md`](17-afinidade-de-trajetoria.md)       | Marcas de trajetória, bônus no matching, LGPD              |
+| [`adr/`](adr/README.md)                                                | Decisões de arquitetura                                    |

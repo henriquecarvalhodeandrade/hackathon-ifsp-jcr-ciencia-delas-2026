@@ -17,6 +17,7 @@ export const PUBLIC_NAV: readonly NavItem[] = [
 /** Para membras logadas: comunidade primeiro. */
 export const MEMBER_NAV: readonly NavItem[] = [
   { href: "/forum", label: "Fórum" },
+  { href: "/pergunte", label: "Pergunte" },
   { href: "/mentoria", label: "Mentoria" },
   { href: "/pesquisadoras", label: "Pesquisadoras" },
   { href: "/papers", label: "Papers" },

@@ -30,8 +30,10 @@ hora — nenhum e-mail sai, nenhuma senha é digitada, nenhum segredo vai para o
 | Menu da conta                            | Meu perfil, Notificações… | **Meu painel** (primeiro item), Meu perfil, Notificações… |
 | `/demo` com `DEMO_MODE` desligado        | —                         | 404 (`notFound()`), como qualquer rota inexistente        |
 
-`/painel` e `/demo` têm `robots: noindex`. O `/painel` entra em `PROTECTED_PREFIXES` na integração
-(até lá a própria página redireciona); `/demo` **não** é protegido — é a porta de entrada.
+`/painel` e `/demo` têm `robots: noindex` (e estão no `robots.txt`). O `/painel` está em
+`PROTECTED_PREFIXES`: o proxy manda a visitante para `/entrar?next=%2Fpainel` com um 307 de verdade;
+`/demo` **não** é protegido — é a porta de entrada. Login sem destino (senha, link mágico, Google)
+cai no `/painel`; no celular, "Meu painel" é o primeiro item de "Sua conta" no menu.
 
 ## 2. Os blocos do `/painel`
 
@@ -41,9 +43,10 @@ independente em `src/components/painel/` que recebe os próprios dados; se uma l
 aquele bloco mostra "Não conseguimos carregar esta parte agora" e os outros continuam.
 
 Layout: duas colunas a partir de 1024 px (principal: passos + pendências; lateral: perguntas +
-novidades) e uma coluna no celular. Há dois **slots comentados** para a integração: depois de
-"O que está esperando você" (`<RecognitionTodos />`, lane reconhecimento) e depois das perguntas
-(`<AwaitingQuestionsCard />`, lane pergunte).
+novidades) e uma coluna no celular. Dois blocos de outras funcionalidades fazem a própria leitura e
+somem quando não há nada: depois de "O que está esperando você", `<RecognitionTodos />` ("Para
+fechar suas mentorias", [docs/15](15-reconhecimento-da-mentoria.md)); depois das perguntas,
+`<AwaitingQuestionsCard />` ("Estudantes perguntando", [docs/16](16-pergunte-a-uma-cientista.md)).
 
 ### 2.1 Leituras (6 idas ao Supabase, um único `Promise.all`)
 
@@ -116,7 +119,9 @@ Vazio: "Nada pendente agora. Que tal ver as conversas do fórum?".
 Título "Perguntas esperando por você" (mentora) ou "Sem resposta ainda: talvez você saiba ajudar"
 (demais), com "Em 5 minutos você ajuda uma iniciante.".
 
-1. Candidatos: até 40 tópicos sem resposta, não trancados, dos últimos 30 dias e que não são dela.
+1. Candidatos: até 40 tópicos sem resposta, não trancados, dos últimos 30 dias e que não são dela,
+   fora das categorias de acolhimento (as que aceitam anonimato: apoio, maternidade, saúde mental) —
+   um relato pessoal não vira "pergunta rápida" na página inicial de todo mundo.
    Tópicos anônimos chegam **sem autoria** e assim ficam — o painel nunca tenta descobrir quem
    escreveu. A única exceção é a própria autoria anônima dela (lida do registro que o RLS já
    entrega só para ela), para não pedir que ela responda a si mesma.
@@ -142,16 +147,17 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
 
 ### 3.1 Como funciona
 
-| Peça                                             | O que faz                                                                                                                                           |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `env.demoMode` (`src/lib/env.ts`)                | `true` **só** com `DEMO_MODE=true` exatamente. `env.demoPassword` lê `DEMO_PASSWORD` (opcional, só servidor). Nenhuma variável `NEXT_PUBLIC_`.      |
-| `src/lib/demo/personas.ts`                       | Lista fixa e pura: `larissa` e `marina` (ids e e-mails do seed). `getPersona`, `listPersonas`, `isDemoEmail`, `personaByEmail`.                     |
-| `/demo` (`src/app/demo/page.tsx`)                | `notFound()` sem o modo; um cartão por persona com "Entrar como …"; aviso honesto; "Roteiro de 3 minutos" com 6 links e "Já vi" no navegador.       |
-| `enterDemoPersona` (`src/app/demo/actions.ts`)   | Confere de novo o modo e a lista (zod + `getPersona`); recusa slug desconhecido; abre a sessão; `revalidatePath("/", "layout")`; vai para o painel. |
-| `openDemoSession` (`src/lib/demo/session.ts`)    | Ver 3.2.                                                                                                                                            |
-| `DemoBanner` (`src/components/demo/`)            | Faixa acima do cabeçalho: "Modo demonstração · você está como Marina (perfil fictício) · Trocar persona · Sair".                                    |
-| Cartão no `/entrar`                              | "Só quer conhecer? Entre como uma pessoa fictícia" → `/demo` (só com o modo ligado).                                                                |
-| Trava de exclusão (`src/lib/profile/account.ts`) | Com o modo ligado, contas `@demo.cienciadelas.dev` não se excluem.                                                                                  |
+| Peça                                                  | O que faz                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `env.demoMode` (`src/lib/env.ts`)                     | `true` **só** com `DEMO_MODE=true` exatamente. `env.demoPassword` lê `DEMO_PASSWORD` (opcional, só servidor). Nenhuma variável `NEXT_PUBLIC_`.                                                                                                                                                                                                                                          |
+| `src/lib/demo/personas.ts`                            | Lista fixa e pura: `larissa`, `marina` e `debora` (ids e e-mails do seed). `getPersona`, `listPersonas`, `isDemoEmail`, `personaByEmail`.                                                                                                                                                                                                                                               |
+| `/demo` (`src/app/demo/page.tsx`)                     | `notFound()` sem o modo; um cartão por persona com "Entrar como …"; aviso honesto; "Roteiro de 3 minutos" com 6 links (na ordem do pitch: Pergunte, sugestões com "Vocês têm em comum", perfil da Marina, painel, declaração verificável, Vitrine) e "Já vi" no navegador; QR code de `<site>/demo` (gerado no servidor, `renderQrSvg`) para o slide e para a plateia abrir no celular. |
+| `enterDemoPersona` (`src/app/demo/actions.ts`)        | Confere de novo o modo e a lista (zod + `getPersona`); recusa slug desconhecido; abre a sessão; `revalidatePath("/", "layout")`; vai para o painel.                                                                                                                                                                                                                                     |
+| `openDemoSession` (`src/lib/demo/session.ts`)         | Ver 3.2.                                                                                                                                                                                                                                                                                                                                                                                |
+| `DemoBanner` (`src/components/demo/`)                 | Faixa acima do cabeçalho: "Modo demonstração · você está como Marina (perfil fictício) · Trocar persona · Sair".                                                                                                                                                                                                                                                                        |
+| Cartão no `/entrar`                                   | "Só quer conhecer? Entre como uma pessoa fictícia" → `/demo` (só com o modo ligado).                                                                                                                                                                                                                                                                                                    |
+| Trava de exclusão (`src/lib/profile/account.ts`)      | Com o modo ligado, contas `@demo.cienciadelas.dev` não se excluem.                                                                                                                                                                                                                                                                                                                      |
+| Trava de senha (`src/app/redefinir-senha/actions.ts`) | Com o modo ligado, contas `@demo.cienciadelas.dev` não trocam de senha por `/redefinir-senha` (`DEMO_PASSWORD_REFUSED`).                                                                                                                                                                                                                                                                |
 
 ### 3.2 Abrindo a sessão sem senha e sem e-mail
 
@@ -187,9 +193,9 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
 - **Contas compartilhadas:** várias pessoas usam a mesma persona ao mesmo tempo, e o que uma
   publica aparece para as outras (o `/demo` avisa). Por isso a exclusão de conta fictícia é recusada
   ("Contas de demonstração não podem ser excluídas. Elas voltam ao normal quando a equipe reinicia
-  os dados."). A troca de senha **ainda não** tem trava: a mensagem existe (`DEMO_PASSWORD_REFUSED` em
-  `src/lib/demo/guard.ts`) e precisa ser ligada em `/redefinir-senha` na integração. Mesmo com ela,
-  quem tem a sessão pode trocar a senha direto na API do Supabase Auth
+  os dados."). A troca de senha pela tela `/redefinir-senha` também é recusada
+  (`DEMO_PASSWORD_REFUSED`, `src/lib/demo/guard.ts`). Mesmo assim, quem tem a sessão pode trocar a
+  senha direto na API do Supabase Auth
   (`secure_password_change = false`). Por isso o caminho principal é o link mágico (chave secreta),
   que não depende da senha; o plano B por `DEMO_PASSWORD` pode ser quebrado por alguém da banca. A
   sessão é real: quem quiser pode alterar o perfil da persona — por isso os dados são reiniciados
@@ -210,15 +216,13 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
 
 ### 3.4 Como reiniciar as personas
 
-- **Local:** `npx supabase db reset` (recria o banco, aplica as migrations e o seed). Enquanto o
-  `config.toml` listar só `./seed.sql` em `[db.seed] sql_paths`, aplique depois os seeds extras:
-  `for f in supabase/seeds/*.sql; do psql "$DB" -v ON_ERROR_STOP=1 --single-transaction -f "$f"; done`.
-  (Pedido de integração: `sql_paths = ["./seed.sql", "./seeds/*.sql"]`.)
+- **Local:** `npx supabase db reset` (recria o banco, aplica as migrations, o `seed.sql` e os
+  `supabase/seeds/*.sql`: `[db.seed] sql_paths = ["./seed.sql", "./seeds/*.sql"]` no `config.toml`).
 - **Nuvem:** rode de novo os seeds no banco da apresentação (`supabase/seed.sql` e depois
   `supabase/seeds/*.sql`, pelo SQL Editor ou `psql`). O `--with-demo-seed` do
-  `scripts/deploy/setup-supabase-cloud.mjs` aplica só o `seed.sql`; os de `supabase/seeds/` vão à
-  mão. Os seeds são idempotentes; para voltar ao estado exato do começo (sem o que a banca
-  escreveu), recrie o banco antes.
+  `scripts/deploy/setup-supabase-cloud.mjs` aplica o `seed.sql` (se a demonstração ainda não existir)
+  e sempre os `supabase/seeds/*.sql`, que são idempotentes; para voltar ao estado exato do começo (sem o
+  que a banca escreveu), recrie o banco antes.
 
 ## 4. Dados de demonstração (`supabase/seeds/10_painel.sql`)
 

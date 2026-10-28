@@ -18,16 +18,18 @@ da usuária: o RLS e os triggers do banco garantem as regras.
 
 ## 1. Rota e abas
 
-| Rota                       | Acesso                                                | O que mostra                                                              |
-| -------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| `/mentoria`                | membros com onboarding (`requireOnboardedProfile`)    | aba padrão (ver abaixo)                                                   |
-| `/mentoria?aba=sugestoes`  | membros                                               | sugestões de mentoras (+ cartão "Ativar sugestões com IA") ou convite     |
-| `/mentoria?aba=enviadas`   | membros                                               | pedidos que ela enviou (em andamento e encerrados)                        |
-| `/mentoria?aba=recebidas`  | só quem é mentora (ou ainda tem pedidos recebidos)    | disponibilidade, vagas, pedidos aguardando resposta e já respondidos      |
-| `/mentoria?aba=ativas`     | membros                                               | mentorias aceitas (as duas participantes), contato, checklist, concluídas |
-| `/mentoria?mentora=<uuid>` | membros                                               | link direto: abre o pedido para essa mentora, mesmo sem sugestões         |
-| `/mentoria?aviso=<chave>`  | membros                                               | aviso de sucesso depois de uma ação (só chaves conhecidas)                |
-| `/mentoria/conversa/<id>`  | só as duas participantes do pedido (404 para o resto) | conversa da mentoria ([seção 4](#4-conversa-da-mentoria))                 |
+| Rota                        | Acesso                                                | O que mostra                                                                                   |
+| --------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `/mentoria`                 | membros com onboarding (`requireOnboardedProfile`)    | aba padrão (ver abaixo)                                                                        |
+| `/mentoria?aba=sugestoes`   | membros                                               | sugestões de mentoras (+ cartão "Ativar sugestões com IA") ou convite                          |
+| `/mentoria?aba=enviadas`    | membros                                               | pedidos que ela enviou (em andamento e encerrados)                                             |
+| `/mentoria?aba=recebidas`   | só quem é mentora (ou ainda tem pedidos recebidos)    | disponibilidade, vagas, pedidos aguardando resposta e já respondidos                           |
+| `/mentoria?aba=ativas`      | membros                                               | mentorias aceitas (as duas participantes), contato, checklist, concluídas                      |
+| `/mentoria?mentora=<uuid>`  | membros                                               | link direto: abre o pedido para essa mentora, mesmo sem sugestões                              |
+| `/mentoria?aviso=<chave>`   | membros                                               | aviso de sucesso depois de uma ação (só chaves conhecidas)                                     |
+| `/mentoria/conversa/<id>`   | só as duas participantes do pedido (404 para o resto) | conversa da mentoria ([seção 4](#4-conversa-da-mentoria))                                      |
+| `/mentoria/concluida/<id>`  | só as duas participantes do pedido (404 para o resto) | mentoria concluída: retorno privado e declaração ([docs/15](15-reconhecimento-da-mentoria.md)) |
+| `/mentoria/declaracao/<id>` | só as duas participantes do pedido (404 para o resto) | folha da declaração para imprimir, com código e QR code                                        |
 
 - Visitante sem sessão: o proxy manda para `/entrar?next=/mentoria...`; quem não terminou o
   onboarding vai para `/onboarding?next=...`.
@@ -100,7 +102,8 @@ flowchart TD
    resposta da mentora, **contato** (`get_mentorship_contact`: e-mail com "Copiar" e `mailto:`),
    pedido original, **"Conversar"** (botão principal, com selo âmbar de não lidas), "Concluir
    mentoria" (as duas) e "Cancelar mentoria" (só a mentoranda), o checklist do primeiro encontro e
-   a lista de mentorias concluídas (cada uma com "Ver conversa", só leitura).
+   as mentorias concluídas em cartões, cada um com "Ver conversa" (só leitura) e o painel de
+   reconhecimento (retorno privado e declaração de participação — [docs/15](15-reconhecimento-da-mentoria.md)).
 
 ## 3. Fluxo da mentora
 
@@ -217,15 +220,15 @@ cliente com a sessão (RLS) e chamam `revalidatePath("/mentoria")`. Erros voltam
 As duas actions da conversa (`sendMessageAction`, `markConversationReadAction`) estão na
 [seção 4](#4-conversa-da-mentoria).
 
-| Action                     | Quem                 | Entrada                                       | O que faz                                                                                                              | Sucesso                                      |
-| -------------------------- | -------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `findMentorsAction`        | quem busca mentoria  | —                                             | `findMentorsForCurrentUser({ limit: 6 })` (grava `mentor_suggestions`); sem `ai_consent` = só heurística               | `{ ok, count, source, warnings }`            |
-| `grantAiConsentAction`     | membro               | `ai_consent=on`                               | `profiles.update({ ai_consent: true })` (o trigger grava a data) + `refreshMyEmbedding()`                              | → `?aba=sugestoes&aviso=consentimento`       |
-| `createRequestAction`      | membro               | `mentor_id`, `message` (20–1.500)             | confere vagas/pedido aberto pela RPC `get_mentor_candidates`; insere `mentorship_requests` com nota/motivo da sugestão | → `?aba=enviadas&aviso=enviado`              |
-| `cancelRequestAction`      | mentoranda do pedido | `request_id`                                  | `status → cancelled` (só `pending`/`accepted`, `mentee_id = eu`)                                                       | → `?aba=enviadas&aviso=cancelado`            |
-| `respondRequestAction`     | mentora do pedido    | `request_id`, `decision`, `response_message?` | `status → accepted/declined` + resposta (só `pending`, `mentor_id = eu`); capacidade garantida pelo trigger (`CD001`)  | → ativas (`aceito`) / recebidas (`recusado`) |
-| `completeMentorshipAction` | participantes        | `request_id`                                  | `status → completed` (só `accepted`)                                                                                   | → `?aba=ativas&aviso=concluido`              |
-| `setAvailabilityAction`    | mentora              | `available=true/false`                        | `profiles.update({ mentor_available })`                                                                                | mensagem no próprio formulário               |
+| Action                     | Quem                 | Entrada                                       | O que faz                                                                                                              | Sucesso                                             |
+| -------------------------- | -------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `findMentorsAction`        | quem busca mentoria  | —                                             | `findMentorsForCurrentUser({ limit: 6 })` (grava `mentor_suggestions`); sem `ai_consent` = só heurística               | `{ ok, count, source, warnings }`                   |
+| `grantAiConsentAction`     | membro               | `ai_consent=on`                               | `profiles.update({ ai_consent: true })` (o trigger grava a data) + `refreshMyEmbedding()`                              | → `?aba=sugestoes&aviso=consentimento`              |
+| `createRequestAction`      | membro               | `mentor_id`, `message` (20–1.500)             | confere vagas/pedido aberto pela RPC `get_mentor_candidates`; insere `mentorship_requests` com nota/motivo da sugestão | → `?aba=enviadas&aviso=enviado`                     |
+| `cancelRequestAction`      | mentoranda do pedido | `request_id`                                  | `status → cancelled` (só `pending`/`accepted`, `mentee_id = eu`)                                                       | → `?aba=enviadas&aviso=cancelado`                   |
+| `respondRequestAction`     | mentora do pedido    | `request_id`, `decision`, `response_message?` | `status → accepted/declined` + resposta (só `pending`, `mentor_id = eu`); capacidade garantida pelo trigger (`CD001`)  | → ativas (`aceito`) / recebidas (`recusado`)        |
+| `completeMentorshipAction` | participantes        | `request_id`                                  | `status → completed` (só `accepted`)                                                                                   | → `/mentoria/concluida/<id>` (retorno e declaração) |
+| `setAvailabilityAction`    | mentora              | `available=true/false`                        | `profiles.update({ mentor_available })`                                                                                | mensagem no próprio formulário                      |
 
 Os updates usam `.select("id")`: se nenhuma linha mudou (pedido já respondido, de outra pessoa
 ou forjado), a usuária vê "Este pedido já foi respondido ou cancelado… Recarregue a página." e
@@ -234,6 +237,7 @@ pelos triggers do banco.
 
 **Avisos (`?aviso=`)** — `enviado`, `cancelado`, `aceito`, `recusado`, `concluido`,
 `consentimento` (`parseNotice`). Qualquer outro valor é ignorado: nenhum texto da URL é exibido.
+(`concluido` continua aceito, mas a conclusão agora leva a `/mentoria/concluida/<id>`.)
 
 **Erros** (`friendlyMentorshipError`): `CDxxx` → a mensagem pt-BR do banco; `23505` → pedido
 duplicado; `23514` → tamanho da mensagem; `42501` → mentora sem receber pedidos / sem
@@ -323,7 +327,7 @@ aviso agrupado; exclusão de conta em cascata.
 | `renata@`   | mentora com **1 vaga**: aceitar um pedido e tentar aceitar outro → erro `CD001`; recusar com resposta; pausar e retomar                                                                           |
 | `fernanda@` | pedido pendente da Manuela em "Solicitações recebidas"; aba Sugestões mostra o convite (ela não busca mentoria)                                                                                   |
 | `larissa@`  | "Mentorias ativas" com a Marina (contato, checklist, "Conversar"); "Encontrar mentoras" não traz a Marina; links diretos: `?mentora=<Marina>` (já em mentoria), `?mentora=<Aline>` (indisponível) |
-| `debora@`   | mentoria concluída com a Patrícia: "Ver conversa" abre a conversa só para leitura                                                                                                                 |
+| `debora@`   | mentoria concluída com a Patrícia: "Ver conversa" abre a conversa só para leitura; retorno enviado e declaração `ART-7K2M-Q9XD-4HNP` emitida ("Ver declaração")                                   |
 | `gabriela@` | abrir `/mentoria/conversa/c1000000-0000-4000-8000-000000000001` (conversa da Larissa com a Marina) → 404                                                                                          |
 | `marina@`   | mentora com 3 vagas e uma mentoria ativa; histórico de respostas; conversa com a Larissa (abra as duas contas em janelas diferentes: a mensagem chega em até 15 s e vira "Lida")                  |
 | visitante   | `/mentoria` → `/entrar?next=%2Fmentoria`                                                                                                                                                          |

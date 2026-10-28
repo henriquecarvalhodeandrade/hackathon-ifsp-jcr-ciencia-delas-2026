@@ -71,11 +71,13 @@ newsletter (inscrição, envio, cron), backfill de embeddings e ações administ
 ├── scripts/
 │   ├── ai/                    backfill de embeddings (npm run ai:backfill)
 │   ├── db/                    geração de tipos, validação sem Docker, stub do Supabase
-│   └── e2e/                   helper de cookies de sessão para testes com Playwright
+│   ├── deploy/                configuração do Supabase Cloud + Vercel (setup-supabase-cloud.mjs)
+│   └── e2e/                   jornada completa e roteiros de cada funcionalidade (Playwright)
 ├── supabase/
 │   ├── config.toml            configuração local (auth, templates, storage)
-│   ├── migrations/            schema versionado (9 migrations)
-│   ├── seed.sql               dados fictícios de demonstração
+│   ├── migrations/            schema versionado (23 migrations)
+│   ├── seed.sql               dados fictícios de demonstração (contas, fórum, papers, mentorias)
+│   ├── seeds/                 seeds extras da demonstração (10_painel, 20_reconhecimento, ...)
 │   ├── templates/             e-mails de autenticação em pt-BR
 │   └── tests/database/        testes pgTAP de RLS e regras de negócio
 └── src/
@@ -149,27 +151,34 @@ template é usado. Detalhes, pesos e prompts: [`04-mentoria-com-ia.md`](04-mento
 
 ## 7. Mapa de rotas
 
-| Rota                                                           | Acesso                              | O que é                                                        |
-| -------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------- |
-| `/`                                                            | público                             | Landing: proposta, números da comunidade, destaques da semana  |
-| `/entrar`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha` | público                             | Autenticação                                                   |
-| `/auth/confirm`, `/auth/callback`, `/auth/sair`, `/auth/erro`  | —                                   | Rotas técnicas de login/logout                                 |
-| `/onboarding`                                                  | membra                              | Perfil em 4 passos                                             |
-| `/perfil`                                                      | membra                              | Editar perfil, avatar, consentimentos                          |
-| `/pesquisadoras`, `/pesquisadoras/[id]`                        | membra                              | Diretório com filtros e perfil                                 |
-| `/forum`, `/forum/c/[slug]`, `/forum/t/[id]`, `/forum/novo`    | membra                              | Fórum                                                          |
-| `/mentoria`                                                    | membra                              | Sugestões por IA, pedidos enviados/recebidos, mentorias ativas |
-| `/mentoria/conversa/[id]`                                      | as duas participantes (demais: 404) | Conversa da mentoria (somente leitura depois de concluída)     |
-| `/papers`, `/papers/[id]`                                      | público                             | Vitrine e detalhe do paper                                     |
-| `/papers/novo`, `/papers/[id]/editar`                          | membra                              | Divulgar e editar paper                                        |
-| `/ranking`                                                     | público (aba Comunidade: membra)    | Rankings por período e área                                    |
-| `/newsletter`, `/newsletter/[slug]`                            | público                             | Inscrição e arquivo do Boletim Delas                           |
-| `/newsletter/confirmar`, `/newsletter/cancelar`                | público (token)                     | Dupla confirmação e descadastro                                |
-| `/notificacoes`                                                | membra                              | Central de notificações                                        |
-| `/admin`                                                       | moderadora/admin                    | Denúncias, newsletter, membros                                 |
-| `/sobre`, `/conduta`, `/privacidade`, `/design-system`         | público                             | Institucional e guia de estilo                                 |
-| `GET/POST /api/cron/newsletter`                                | `Bearer CRON_SECRET`                | Gera, publica e envia a edição semanal                         |
-| `POST /api/newsletter/unsubscribe`                             | token                               | Descadastro one-click (RFC 8058)                               |
+| Rota                                                           | Acesso                                       | O que é                                                                                                                      |
+| -------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                            | público (membra com perfil: → `/painel`)     | Landing: proposta, números e impacto da comunidade, destaques da semana, Pergunte a uma cientista                            |
+| `/painel`                                                      | membra                                       | Meu painel: próximos passos, o que está esperando, perguntas, novidades ([14](14-painel-e-modo-demo.md))                     |
+| `/demo`                                                        | público, só com `DEMO_MODE=true` (senão 404) | Modo demonstração: entrar como persona fictícia, roteiro e QR code ([14](14-painel-e-modo-demo.md))                          |
+| `/pergunte`, `/pergunte/[id]`                                  | público (responder: membra)                  | Pergunte a uma cientista: enviar pergunta sem conta, perguntas e respostas publicadas ([16](16-pergunte-a-uma-cientista.md)) |
+| `/pergunte/acompanhar/[token]`                                 | quem tem o link (noindex)                    | Andamento da pergunta; apagar a pergunta                                                                                     |
+| `/entrar`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha` | público                                      | Autenticação                                                                                                                 |
+| `/auth/confirm`, `/auth/callback`, `/auth/sair`, `/auth/erro`  | —                                            | Rotas técnicas de login/logout                                                                                               |
+| `/onboarding`                                                  | membra                                       | Perfil em 4 passos                                                                                                           |
+| `/perfil`                                                      | membra                                       | Editar perfil, avatar, consentimentos                                                                                        |
+| `/pesquisadoras`, `/pesquisadoras/[id]`                        | membra                                       | Diretório com filtros e perfil                                                                                               |
+| `/forum`, `/forum/c/[slug]`, `/forum/t/[id]`, `/forum/novo`    | membra                                       | Fórum                                                                                                                        |
+| `/mentoria`                                                    | membra                                       | Sugestões por IA, pedidos enviados/recebidos, mentorias ativas                                                               |
+| `/mentoria/conversa/[id]`                                      | as duas participantes (demais: 404)          | Conversa da mentoria (somente leitura depois de concluída)                                                                   |
+| `/mentoria/concluida/[id]`                                     | as duas participantes (demais: 404)          | Mentoria concluída: retorno privado e pedido de declaração ([15](15-reconhecimento-da-mentoria.md))                          |
+| `/mentoria/declaracao/[id]`                                    | as duas participantes (demais: 404)          | Folha da declaração para imprimir, com código e QR code                                                                      |
+| `/verificar`, `/verificar/[codigo]`                            | público (subpáginas noindex)                 | Verificação pública de uma declaração de participação                                                                        |
+| `/papers`, `/papers/[id]`                                      | público                                      | Vitrine e detalhe do paper                                                                                                   |
+| `/papers/novo`, `/papers/[id]/editar`                          | membra                                       | Divulgar e editar paper                                                                                                      |
+| `/ranking`                                                     | público (aba Comunidade: membra)             | Rankings por período e área                                                                                                  |
+| `/newsletter`, `/newsletter/[slug]`                            | público                                      | Inscrição e arquivo do Boletim Delas                                                                                         |
+| `/newsletter/confirmar`, `/newsletter/cancelar`                | público (token)                              | Dupla confirmação e descadastro                                                                                              |
+| `/notificacoes`                                                | membra                                       | Central de notificações                                                                                                      |
+| `/admin`                                                       | moderadora/admin                             | Denúncias, perguntas de estudantes, newsletter, membros, registro                                                            |
+| `/sobre`, `/conduta`, `/privacidade`, `/design-system`         | público                                      | Institucional e guia de estilo                                                                                               |
+| `GET/POST /api/cron/newsletter`                                | `Bearer CRON_SECRET`                         | Gera, publica e envia a edição semanal                                                                                       |
+| `POST /api/newsletter/unsubscribe`                             | token                                        | Descadastro one-click (RFC 8058)                                                                                             |
 
 ## 8. Segurança em camadas
 

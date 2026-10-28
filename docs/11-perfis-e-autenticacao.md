@@ -31,8 +31,8 @@ Sumário
 
 | Rota                  | Acesso                                      | O que faz                                                                                                                                                            |
 | --------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/entrar`             | pública (logada → `/forum`, pelo proxy)     | E-mail + senha **ou** link mágico (mesmo formulário, dois botões). Google se habilitado. Respeita `?next=`. Mostra aviso após exclusão de conta (`?conta=excluida`). |
-| `/cadastro`           | pública (logada → `/forum`)                 | Nome, e-mail, senha (≥ 8) e aceite do código de conduta + privacidade. Mostra "Confira seu e-mail".                                                                  |
+| `/entrar`             | pública (logada → `/painel`, pelo proxy)    | E-mail + senha **ou** link mágico (mesmo formulário, dois botões). Google se habilitado. Respeita `?next=`. Mostra aviso após exclusão de conta (`?conta=excluida`). |
+| `/cadastro`           | pública (logada → `/painel`)                | Nome, e-mail, senha (≥ 8) e aceite do código de conduta + privacidade. Mostra "Confira seu e-mail".                                                                  |
 | `/recuperar-senha`    | pública                                     | Envia o link de redefinição (resposta sempre neutra).                                                                                                                |
 | `/redefinir-senha`    | exige sessão (link de recuperação ou login) | Nova senha + confirmação. Sem sessão, explica que o link expirou e oferece um novo.                                                                                  |
 | `GET /auth/confirm`   | pública                                     | Destino dos links de e-mail (`token_hash` + `type`): `verifyOtp`, grava a sessão e redireciona.                                                                      |
@@ -86,7 +86,7 @@ sequenceDiagram
 ### Respeitando o `?next=`
 
 Os modelos de e-mail (`supabase/templates/*.html`) usam `{{ .SiteURL }}/auth/confirm?…&next=` com
-destino **fixo** (`/forum` no link mágico, `/onboarding` na confirmação). Para levar a pessoa
+destino **fixo** (`/painel` no link mágico, `/onboarding` na confirmação). Para levar a pessoa
 de volta à página que ela queria, as actions de link mágico e cadastro gravam o destino num cookie
 curto (`cd_auth_next`, httpOnly, 1 hora). O `/auth/confirm` consome o cookie nos tipos
 `email`, `signup` e `magiclink`; em recuperação, convite e troca de e-mail vale o destino do link.
@@ -122,17 +122,17 @@ Assistente com estado no cliente (`OnboardingWizard`) e **uma Server Action por 
 (`saveOnboardingStepAction`): cada "Salvar e continuar" grava a etapa, então nada se perde se a
 pessoa sair no meio. Ao voltar, o assistente começa na primeira etapa incompleta.
 
-| Etapa               | Campos                                                                                               | Regras (zod, iguais aos CHECKs do banco)                                                                   |
-| ------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 1. Sobre você       | nome completo, pronomes, título curto, fase da carreira, instituição, cidade, estado (UF)            | nome 3–120; fase obrigatória (`CAREER_STAGES`); UF da lista; limites 30/160/160/80                         |
-| 2. Sua pesquisa     | áreas (CNPq, agrupadas por grande área), palavras-chave, apresentação, Lattes, ORCID, LinkedIn, site | 1–5 áreas; até 15 palavras-chave (minúsculas, sem repetir, ≤ 60); bio ≤ 2.000; links normalizados (abaixo) |
-| 3. Mentoria         | "Quero ser mentorada", "Quero ser mentora", objetivos, oferta + vagas, temas, formatos, idiomas      | mentora: oferta ≥ 20 caracteres e vagas 1–20; participando: ≥ 1 tema (máx. 8), ≥ 1 formato, ≥ 1 idioma     |
-| 4. Privacidade e IA | consentimento de IA (opcional)                                                                       | texto exato de `docs/04-mentoria-com-ia.md` §6.4 (18+ e aviso do plano gratuito do Gemini)                 |
+| Etapa               | Campos                                                                                                                                                     | Regras (zod, iguais aos CHECKs do banco)                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1. Sobre você       | nome completo, pronomes, título curto, fase da carreira, instituição, cidade, estado (UF), trajetória (opcional, [docs/17](17-afinidade-de-trajetoria.md)) | nome 3–120; fase obrigatória (`CAREER_STAGES`); UF da lista; limites 30/160/160/80; marcas do catálogo (`CD050`) |
+| 2. Sua pesquisa     | áreas (CNPq, agrupadas por grande área), palavras-chave, apresentação, Lattes, ORCID, LinkedIn, site                                                       | 1–5 áreas; até 15 palavras-chave (minúsculas, sem repetir, ≤ 60); bio ≤ 2.000; links normalizados (abaixo)       |
+| 3. Mentoria         | "Quero ser mentorada", "Quero ser mentora", objetivos, oferta + vagas, temas, formatos, idiomas                                                            | mentora: oferta ≥ 20 caracteres e vagas 1–20; participando: ≥ 1 tema (máx. 8), ≥ 1 formato, ≥ 1 idioma           |
+| 4. Privacidade e IA | consentimento de IA (opcional)                                                                                                                             | texto exato de `docs/04-mentoria-com-ia.md` §6.4 (18+ e aviso do plano gratuito do Gemini)                       |
 
 Ao concluir: a action confere o mínimo (nome, fase e 1 área — senão volta para a etapa que falta),
 grava `onboarded_at`, agenda `refreshMyEmbedding()` com `after()` (não atrasa a resposta; sem
 consentimento ou sem chave de IA ele simplesmente não faz nada) e redireciona para `?next`, ou
-`/mentoria` (se busca mentoria), ou `/forum`.
+`/mentoria` (se busca mentoria), ou `/painel`.
 
 **Normalização dos links** (`src/lib/profile/links.ts`): `lattes.cnpq.br/123` vira
 `https://lattes.cnpq.br/123`; Lattes precisa ser de `*.cnpq.br` e LinkedIn de `*.linkedin.com`;
@@ -209,19 +209,22 @@ a situação não pôde ser consultada.
 campos permitidos, então colunas a mais nunca vazam. Seções com nomes em português; dentro delas,
 os nomes das colunas do banco (estáveis, documentados no [docs/03](03-banco-de-dados.md)).
 
-| Seção                                                   | Conteúdo                                                                                                                                                       |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sobre`                                                 | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                                 |
-| `conta`                                                 | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                            |
-| `perfil`, `areas_de_pesquisa`, `palavras_chave`         | todas as colunas do perfil dela (inclusive `role` e consentimento de IA), exceto `search_text`; áreas com slug e nome                                          |
-| `mentoria.pedidos_enviados` / `pedidos_recebidos`       | os dois papéis; mensagem, resposta, status, datas, nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`)                |
-| `mentoria.conversas`                                    | uma por mentoria com conversa: `request_id`, `papel` dela, `outra_participante` (só `{ id, full_name }`) e as `mensagens` (quem enviou, texto, envio, leitura) |
-| `mentoria.sugestoes_salvas`                             | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                               |
-| `forum.topicos` / `respostas` / `reacoes`               | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela         |
-| `vitrine.papers_enviados` / `destaques` / `comentarios` | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                           |
-| `notificacoes`                                          | todas as notificações dela                                                                                                                                     |
-| `denuncias_feitas`                                      | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                          |
-| `newsletter`                                            | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }`   |
+| Seção                                                   | Conteúdo                                                                                                                                                                   |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sobre`                                                 | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                                             |
+| `conta`                                                 | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                                        |
+| `perfil`, `areas_de_pesquisa`, `palavras_chave`         | todas as colunas do perfil dela (inclusive `role`, consentimento de IA e `trajectory_tags`), exceto `search_text`; áreas com slug e nome                                   |
+| `mentoria.pedidos_enviados` / `pedidos_recebidos`       | os dois papéis; mensagem, resposta, status, datas (inclusive `completed_at`), nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`) |
+| `mentoria.conversas`                                    | uma por mentoria com conversa: `request_id`, `papel` dela, `outra_participante` (só `{ id, full_name }`) e as `mensagens` (quem enviou, texto, envio, leitura)             |
+| `mentoria.sugestoes_salvas`                             | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                                           |
+| `forum.topicos` / `respostas` / `reacoes`               | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela                     |
+| `vitrine.papers_enviados` / `destaques` / `comentarios` | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                                       |
+| `retornos_de_mentoria`                                  | só os retornos que **ela** escreveu (nunca o da outra participante) — [docs/15](15-reconhecimento-da-mentoria.md)                                                          |
+| `declaracoes_de_mentoria`                               | declarações das mentorias dela, com o status derivado (`emitida`, `aguardando_autorizacao`, `revogada`, `cancelada`), sem quem pediu ou revogou                            |
+| `respostas_pergunte_a_uma_cientista`                    | respostas que ela escreveu no Pergunte a uma cientista (`show_identity`, `is_hidden`, `hidden_at`), sem `hidden_by`; perguntas não têm autora e nunca entram               |
+| `notificacoes`                                          | todas as notificações dela                                                                                                                                                 |
+| `denuncias_feitas`                                      | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                                      |
+| `newsletter`                                            | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }`               |
 
 Fica de fora: o embedding do perfil (representação numérica da IA, recalculável), anotações da
 moderação, registros técnicos dos provedores e qualquer dado privado de outras pessoas. O arquivo
@@ -427,8 +430,8 @@ flag ligada), em 390 px e 1440 px, nos temas claro e escuro.
   modelos (exige manter as Redirect URLs em dia).
 - **Busca:** já ignora acentos e maiúsculas ("Patricia" acha "Patrícia"); não ordena por relevância.
 - **Vagas no diretório:** vêm da RPC `get_mentor_open_slots(p_ids uuid[])` (até 200 ids por chamada).
-- **Proxy e `?next`:** quem já está logada e abre `/entrar?next=/x` é mandada para `/forum`
-  (regra do proxy), não para `/x`.
+- **Proxy e `?next`:** quem já está logada e abre `/entrar?next=/x` é mandada para `/x` se for um
+  caminho interno seguro (`safeNextPath`); sem destino, para o `/painel`.
 - **Troca de e-mail** ainda não tem tela (o modelo `email_change` já leva a `/perfil`).
 - **Status 404:** como as páginas fazem streaming (`loading.tsx`), o perfil inexistente mostra a
   tela de "não encontrado" com `noindex`, mas a resposta HTTP é 200 (comportamento do Next.js).

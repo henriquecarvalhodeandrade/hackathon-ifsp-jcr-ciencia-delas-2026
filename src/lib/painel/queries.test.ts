@@ -237,6 +237,7 @@ describe("loadPainelData", () => {
     const threads = state.calls.find((c) => c.table === "forum_threads")!;
     expect(threads.methods).toContainEqual(["eq", ["reply_count", 0]]);
     expect(threads.methods).toContainEqual(["eq", ["is_locked", false]]);
+    expect(threads.methods).toContainEqual(["eq", ["category.allow_anonymous", false]]);
     // Anônimos (author_id NULL) não podem sumir por causa do "diferente de mim".
     expect(threads.methods).toContainEqual(["or", [`author_id.is.null,author_id.neq.${ME}`]]);
     expect(threads.methods).toContainEqual(["limit", [PAINEL_LIMITS.questions]]);

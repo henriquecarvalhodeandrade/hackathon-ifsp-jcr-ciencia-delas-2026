@@ -2,12 +2,13 @@ import { ArrowRight, EyeOff, MessageCircleQuestion, ShieldCheck } from "lucide-r
 import { ButtonLink, ConstellationPattern, Container } from "@/components/ui";
 
 /**
- * Seção da landing (integração: montar depois de <MentorshipSteps />): a porta de entrada para
- * quem ainda não pesquisa — sem conta, anônima e moderada.
+ * Seção da landing, logo depois de <MentorshipSteps /> (mesmo fundo): a porta de entrada para
+ * quem ainda não pesquisa — sem conta, anônima e moderada. Sem respiro em cima porque a seção
+ * anterior já termina com o dela.
  */
 export function PergunteLandingCta() {
   return (
-    <section aria-labelledby="pergunte-titulo" className="py-16 sm:py-20">
+    <section aria-labelledby="pergunte-titulo" className="pb-16 sm:pb-20">
       <Container>
         <div className="relative isolate overflow-hidden rounded-dialog border border-border bg-surface px-6 py-10 shadow-card sm:px-10 sm:py-12">
           <ConstellationPattern

@@ -34,7 +34,10 @@ Sumário
 | `/privacidade`                | Pública                                  | Política de privacidade (LGPD)                                                |
 | `/notificacoes`               | Logada (`requireUser`)                   | Lista, filtro “Não lidas”, marcar como lida, marcar todas, limpar lidas       |
 | `/notificacoes/abrir/[id]`    | Logada (route handler GET)               | Marca como lida e redireciona (303) para o link interno da notificação        |
-| `/admin`                      | Moderadora ou admin (`requireModerator`) | Abas Denúncias · Newsletter (só admin) · Membros                              |
+| `/admin`                      | Moderadora ou admin (`requireModerator`) | Abas Denúncias · Perguntas · Newsletter (só admin) · Membros · Registro       |
+| `/pergunte`, `/pergunte/[id]` | Pública (responder: membra)              | Pergunte a uma cientista: enviar sem conta, ler o que a moderação publicou    |
+| `/verificar/[codigo]`         | Pública (noindex, sem `Referer`)         | Verificação de declaração de mentoria (nomes só com as duas autorizações)     |
+| `/demo`                       | Pública só com `DEMO_MODE=true`          | Entrar como persona fictícia; 404 com o modo desligado                        |
 | `/robots.txt`, `/sitemap.xml` | Pública                                  | Gerados por `src/app/robots.ts` e `src/app/sitemap.ts`                        |
 
 - O **proxy** (`src/proxy.ts`) faz só a checagem otimista: visitante em `/notificacoes` ou `/admin`
@@ -141,8 +144,10 @@ alterar `read_at`).
 
 ## 5. Painel de moderação (`/admin`)
 
-Abas por URL (`?aba=`): **Denúncias** (padrão), **Newsletter** (só admins), **Membros** e
-**Registro** (`?aba=registro`, a trilha de auditoria — [seção 8](#8-trilha-de-auditoria)).
+Abas por URL (`?aba=`): **Denúncias** (padrão), **Perguntas** (`?aba=perguntas`, a fila do
+Pergunte a uma cientista — [seção 7b](#7b-pergunte-a-uma-cientista-proteção-de-quem-pergunta)),
+**Newsletter** (só admins), **Membros** e **Registro** (`?aba=registro`, a trilha de auditoria —
+[seção 8](#8-trilha-de-auditoria)).
 O resultado de cada ação aparece num aviso fixo no canto da tela (`AdminFlashRegion`, região
 `aria-live`), porque muitas ações tiram o cartão da lista (ex.: resolver uma denúncia).
 
@@ -289,6 +294,48 @@ A conversa entre mentora e mentoranda (`/mentoria/conversa/<pedido>`, [12 §4](1
   só ids (`[moderacao] autoria anônima revelada { report, target, by, at }`), nunca nomes ou o
   motivo.
 
+## 7b. Pergunte a uma cientista: proteção de quem pergunta
+
+Quem pergunta pode ter menos de 18 anos e não tem conta. Resumo do modelo (completo em
+[docs/16 §3](16-pergunte-a-uma-cientista.md#3-modelo-de-proteção)):
+
+- **Nenhum identificador guardado:** a pergunta não tem autora, `auth.uid()`, IP nem navegador; o app
+  chama a RPC com um cliente **sem sessão**, então nem a conta de quem está logada vai junto. A hora
+  exata do envio (`created_at`) só a moderação vê.
+- **Link de acompanhamento com hash:** token de 192 bits mostrado uma única vez; o banco guarda só o
+  SHA-256, que ninguém lê pela API. Com o link, ela vê o andamento e apaga a pergunta (com as
+  respostas).
+- **Pré-moderação:** nada fica público antes de uma moderadora publicar (aba **Perguntas**); a fila
+  tem no máximo 50 pendentes (`CD040`). Recusadas são apagadas 30 dias depois da revisão.
+- **Dados pessoais recusados em 3 camadas** (navegador, servidor e banco, com as mesmas expressões):
+  e-mails, telefones, documentos, @ e links de redes sociais, encurtadores e contatos disfarçados
+  (`CD041` na pergunta, `CD047` na resposta).
+- **Sem canal privado:** não existe mensagem direta nem notificação para quem perguntou; respostas
+  são públicas e mostram a identidade de quem respondeu só se ela marcar (`show_identity`).
+- **Remoção pela moderação:** "Remover pergunta" apaga de vez uma pergunta que identifique a estudante
+  ou a pedido dela sem o link (LGPD, art. 18), com motivo obrigatório (`delete_content`).
+- **Quem ocultou não aparece:** a autora vê que a resposta foi ocultada, não por quem (`hidden_by` fora
+  do GRANT).
+
+Limitações (docs/16 §10): **denúncia de respostas públicas por membras ainda não existe** (precisa de
+um valor novo em `report_target`; hoje a moderação oculta pela aba Perguntas); sem CAPTCHA, um robô
+consegue encher a fila de 50 pendentes (recusa em massa resolve, Turnstile está no roadmap); o filtro
+de dados pessoais protege contra descuido, não contra quem quer burlar (contato escrito por extenso).
+
+## 7c. Reconhecimento da mentoria: privacidade do retorno
+
+- O **retorno** de cada participante é visível **só para a autora** — nem a outra participante, nem
+  moderação, nem admin (provado no pgTAP). A nota livre nunca entra em número nenhum.
+- **Agregados com k = 5:** o impacto público só aparece com 5 ou mais retornos de mentorandas e é
+  atualizado em **blocos de 5** (comparar antes e depois de um retorno novo não revela a resposta);
+  opções com menos de 3 marcações viram "menos de 3".
+- A **declaração** mostra nomes, período e temas na página pública só depois que **as duas**
+  autorizam; qualquer uma revoga, e a página passa a "revogada", sem nomes. Excluir a conta apaga
+  pedido, retornos, declarações e o código.
+- Limite conhecido: quem criar várias contas falsas com mentorias concluídas ainda consegue isolar
+  uma resposta (ataque n−1); só ruído estatístico resolveria. Detalhes em
+  [docs/15 §4 e §10](15-reconhecimento-da-mentoria.md).
+
 ## 8. Trilha de auditoria
 
 Tabela `public.moderation_audit_log` (migration `20261028090000_integration.sql`, docs/03 §3):
@@ -297,14 +344,16 @@ Tabela `public.moderation_audit_log` (migration `20261028090000_integration.sql`
 `created_at`. **Só moderadoras e admins leem**; incluir só em nome próprio (`actor_id = auth.uid()`);
 **ninguém edita nem apaga** pela API (sem políticas nem GRANT de UPDATE/DELETE — só a service role).
 
-| Ação (`action`)                                              | Quem grava                                                                                                                                                                                                    | Motivo (`reason`)     |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| `reveal_author`                                              | RPC `reveal_anonymous_author`, na mesma transação                                                                                                                                                             | obrigatório (20–300)  |
-| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)                                                                                                                                                                        | opcional (`p_reason`) |
-| `hide_paper`, `unhide_paper`                                 | RPC `moderate_paper` (só quando muda)                                                                                                                                                                         | opcional (`p_reason`) |
-| `resolve_report`, `dismiss_report`                           | trigger `reports_after_status_change` (aberta → resolvida/arquivada)                                                                                                                                          | —                     |
-| `delete_content`                                             | trigger `*_audit_moderator_delete` (BEFORE DELETE): moderadora/admin apagando conteúdo de **outra** pessoa em qualquer tela ou pela API. Pelo painel, a RPC `moderate_delete_content` liga a linha à denúncia | opcional (`p_reason`) |
-| `change_role`                                                | painel (`changeMemberRole`, sessão da admin)                                                                                                                                                                  | “Membra → Moderadora” |
+| Ação (`action`)                                              | Quem grava                                                                                                                                                                                                    | Motivo (`reason`)          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `reveal_author`                                              | RPC `reveal_anonymous_author`, na mesma transação                                                                                                                                                             | obrigatório (20–300)       |
+| `pin_thread`, `unpin_thread`, `lock_thread`, `unlock_thread` | RPC `moderate_thread` (só o que mudou)                                                                                                                                                                        | opcional (`p_reason`)      |
+| `hide_paper`, `unhide_paper`                                 | RPC `moderate_paper` (só quando muda)                                                                                                                                                                         | opcional (`p_reason`)      |
+| `resolve_report`, `dismiss_report`                           | trigger `reports_after_status_change` (aberta → resolvida/arquivada)                                                                                                                                          | —                          |
+| `delete_content`                                             | trigger `*_audit_moderator_delete` (BEFORE DELETE): moderadora/admin apagando conteúdo de **outra** pessoa em qualquer tela ou pela API. Pelo painel, a RPC `moderate_delete_content` liga a linha à denúncia | opcional (`p_reason`)      |
+| `change_role`                                                | painel (`changeMemberRole`, sessão da admin)                                                                                                                                                                  | “Membra → Moderadora”      |
+| `publish_question`, `reject_question`                        | RPC `review_public_question` (Pergunte a uma cientista; alvo `public_question`)                                                                                                                               | recusa: motivo do catálogo |
+| `hide_answer`, `unhide_answer`                               | RPC `set_public_answer_hidden` (só quando muda; alvo `public_answer`)                                                                                                                                         | opcional (`p_reason`)      |
 
 **Exclusões (`delete_content`)** — uma linha por exclusão, gravada pelo banco na mesma transação:
 
@@ -334,10 +383,11 @@ as apaga da nota. Agora `resolution_note` é só a **nota para quem denunciou**.
 ## 9. SEO: `robots.txt` e `sitemap.xml`
 
 - `robots.ts`: libera `/` e bloqueia as áreas de membras (`PROTECTED_PREFIXES`: `/onboarding`,
-  `/perfil`, `/pesquisadoras`, `/forum`, `/mentoria`, `/papers/novo`, `/notificacoes`, `/admin`),
-  `/papers/*/editar`, telas de autenticação, `/auth/`, `/api/` e as páginas com token da
-  newsletter (`/newsletter/confirmar`, `/newsletter/cancelar`). Aponta para o sitemap.
-- `sitemap.ts`: rotas públicas fixas + edições `published`/`sent` + papers visíveis (até 1.000),
+  `/perfil`, `/pesquisadoras`, `/forum`, `/mentoria`, `/painel`, `/papers/novo`, `/notificacoes`,
+  `/admin`), `/papers/*/editar`, telas de autenticação, `/auth/`, `/api/`, as páginas com token
+  (`/newsletter/confirmar`, `/newsletter/cancelar`, `/pergunte/acompanhar/`), as páginas de cada
+  declaração (`/verificar/`) e o `/demo`. Aponta para o sitemap.
+- `sitemap.ts`: rotas públicas fixas (inclusive `/pergunte` e `/verificar`) + edições `published`/`sent` + papers visíveis (até 1.000),
   consultados com um cliente **anônimo sem cookies** (o RLS de `anon` já esconde ocultos e
   rascunhos). `revalidate = 3600`. Sem Supabase, devolve só as rotas fixas.
 - As URLs usam `getSiteUrl()` — defina `NEXT_PUBLIC_SITE_URL` em produção.
@@ -413,17 +463,17 @@ qualquer código `CD…`). Como estão no banco, não dá para escapar chamando 
 
 ## 11. LGPD na prática
 
-| Direito / obrigação                   | Onde está                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                                                                                                                                                                                                                                                                                             |
-| Consentimento de IA (art. 7º, I e 8º) | Opcional: sem ele, as sugestões heurísticas funcionam e nada sai da plataforma. Caixa desmarcada no onboarding/perfil, com 18+, que só liga embeddings do Gemini e explicações por LLM; revogar apaga o embedding e as `mentor_suggestions` salvas (trigger)                                                                                                                    |
-| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                                                                                                                                                                                                                                                                                           |
-| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                                                                                                                                                                                                                                                                                 |
-| Portabilidade (art. 18, V)            | “Baixar meus dados” em `/perfil#dados`: arquivo JSON com perfil, mentorias (inclusive as conversas: mensagens enviadas e recebidas; da outra participante só id e nome), fórum (inclusive as publicações anônimas), papers, destaques, comentários, notificações, denúncias feitas e a inscrição no Boletim ([11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade)) |
-| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo e as conversas da mentoria — para as duas participantes —, com os avisos dessas conversas); “excluir meus dados” na página de descadastro                                                                                                                                                                        |
-| Minimização                           | Prompts pseudonimizados; painel de membros sem e-mails; logs só com ids                                                                                                                                                                                                                                                                                                         |
-| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                                                                                                                                                                                                                                                                                               |
-| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+                                                                                                                                                                                                                                                                                                                              |
+| Direito / obrigação                   | Onde está                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Transparência (art. 9º)               | `/privacidade` em linguagem simples                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Consentimento de IA (art. 7º, I e 8º) | Opcional: sem ele, as sugestões heurísticas funcionam e nada sai da plataforma. Caixa desmarcada no onboarding/perfil, com 18+, que só liga embeddings do Gemini e explicações por LLM; revogar apaga o embedding e as `mentor_suggestions` salvas (trigger)                                                                                                                                                                                                                                                                                                  |
+| Consentimento do Boletim              | Caixa desmarcada, texto guardado em `consent_text`, confirmação dupla                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Correção e revogação (art. 18)        | `/perfil`; descadastro pelo link de cada edição                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Portabilidade (art. 18, V)            | “Baixar meus dados” em `/perfil#dados`: arquivo JSON com perfil (inclusive as marcas de trajetória), mentorias (inclusive as conversas: mensagens enviadas e recebidas; da outra participante só id e nome), retornos que ela escreveu, declarações das mentorias dela, fórum (inclusive as publicações anônimas), respostas no Pergunte a uma cientista (nenhuma pergunta: elas não têm autora), papers, destaques, comentários, notificações, denúncias feitas e a inscrição no Boletim ([11](11-perfis-e-autenticacao.md#baixar-meus-dados-portabilidade)) |
+| Eliminação                            | Exclusão de conta apaga em cascata (inclusive conteúdo anônimo, as conversas da mentoria — para as duas participantes —, com os avisos dessas conversas, os retornos, as declarações e as respostas públicas); “excluir meus dados” na página de descadastro; quem perguntou apaga a pergunta pelo link ou pede a remoção à moderação                                                                                                                                                                                                                         |
+| Minimização                           | Prompts pseudonimizados (sem marcas de trajetória); painel de membros sem e-mails; logs só com ids; perguntas de estudantes sem nenhum identificador; trajetória em catálogo fechado, sem categorias sensíveis                                                                                                                                                                                                                                                                                                                                                |
+| Dados sensíveis (art. 11)             | Anonimato nos temas sensíveis e aviso na política                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Menores (art. 14)                     | Seção própria na política; IA e Boletim exigem 18+; no Pergunte a uma cientista, nada identifica quem perguntou, pré-moderação e nenhum canal privado                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ## 12. Arquivos
 
@@ -504,3 +554,9 @@ os dados em cascata).
   autoria são auditados pelo banco, na mesma transação, em qualquer tela.)
 - Notificações em tempo real (Realtime) não estão ligadas: a contagem do sino atualiza a cada
   navegação.
+- **Denúncia de respostas públicas do Pergunte a uma cientista:** pendente (valor novo em
+  `report_target`); hoje só a moderação oculta, pela aba Perguntas ([§7b](#7b-pergunte-a-uma-cientista-proteção-de-quem-pergunta)).
+- **Modo demonstração:** as personas são contas compartilhadas; a exclusão e a troca de senha pela
+  tela são recusadas com o modo ligado, mas a sessão é real (quem entra pode editar o perfil) e a API
+  do Supabase Auth ainda aceita troca de senha. Ligue `DEMO_MODE` só durante a apresentação e reinicie
+  os dados depois ([docs/14 §3.3](14-painel-e-modo-demo.md)).

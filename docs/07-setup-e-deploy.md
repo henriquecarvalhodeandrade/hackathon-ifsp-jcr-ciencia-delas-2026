@@ -25,7 +25,8 @@ cd hackathon-ifsp-jcr-ciencia-delas-2026
 npm install
 
 # Sobe Postgres, Auth, API, Storage e a caixa de e-mails (Mailpit) em Docker.
-# Na primeira vez aplica as migrations e o seed de demonstração.
+# Na primeira vez aplica as migrations e os seeds de demonstração (supabase/seed.sql e depois
+# supabase/seeds/*.sql, como manda o [db.seed] do supabase/config.toml).
 npx supabase start
 
 cp .env.example .env.local
@@ -64,10 +65,14 @@ Senha de todas: **`ciencia-delas-demo`** (dados fictícios — não use o seed e
 | Mentoranda com mentoria ativa       | `larissa@demo.cienciadelas.dev`   |
 | Mentoranda com pedido pendente      | `yasmin@demo.cienciadelas.dev`    |
 | Mentora (recebe pedidos)            | `marina@demo.cienciadelas.dev`    |
+| Mentoria concluída com declaração   | `debora@demo.cienciadelas.dev`    |
 | Moderadora                          | `moderacao@demo.cienciadelas.dev` |
 | Administradora (newsletter, papéis) | `admin@demo.cienciadelas.dev`     |
 
 A lista completa está em [`03-banco-de-dados.md` §15](03-banco-de-dados.md#15-contas-de-demonstração).
+
+Com `DEMO_MODE=true` no servidor, `/demo` deixa entrar como Larissa, Marina ou Débora com um clique, sem
+senha e sem e-mail ([`14-painel-e-modo-demo.md`](14-painel-e-modo-demo.md)). Use só na apresentação.
 
 Para testar o fluxo completo de **cadastro**, crie uma conta nova em `/cadastro`: o e-mail de confirmação chega
 no Mailpit; clique no link e você cai no onboarding.
@@ -88,7 +93,8 @@ no Mailpit; clique no link e você cai no onboarding.
 | `npm run check`                     | lint + typecheck + testes unitários                          |
 | `npm test`                          | testes unitários (Vitest)                                    |
 | `npm run db:test`                   | testes do banco (pgTAP: RLS, triggers, RPCs)                 |
-| `npm run db:reset`                  | recria o banco local do zero (migrations + seed)             |
+| `npm run db:reset`                  | recria o banco local do zero (migrations + seeds)            |
+| `npm run db:validate`               | migrations + seeds + pgTAP num banco novo, sem Docker        |
 | `npm run db:types`                  | regenera `src/lib/database.types.ts` a partir do banco local |
 | `npx supabase migration new <nome>` | cria uma migration nova                                      |
 | `npm run ai:backfill`               | gera embeddings dos perfis (precisa de `GEMINI_API_KEY`)     |
@@ -101,22 +107,24 @@ no Mailpit; clique no link e você cai no onboarding.
 
 Todas estão documentadas em [`.env.example`](../.env.example). Resumo:
 
-| Variável                               | Obrigatória?                                            | Onde conseguir                                                              |
-| -------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`                 | sim em produção                                         | URL pública do site (links de e-mail, redirects de login)                   |
-| `NEXT_PUBLIC_SUPABASE_URL`             | **sim**                                                 | `supabase status` ou Project Settings → API                                 |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **sim**                                                 | `sb_publishable_...` (ou a anon key legada)                                 |
-| `SUPABASE_SECRET_KEY`                  | para newsletter, cron, exclusão de conta e painel admin | `sb_secret_...` (ou service_role legada) — **nunca** com `NEXT_PUBLIC_`     |
-| `GEMINI_API_KEY`                       | opcional (IA)                                           | https://aistudio.google.com/apikey — grátis, sem cartão                     |
-| `GROQ_API_KEY`                         | opcional (IA, fallback)                                 | https://console.groq.com/keys — grátis                                      |
-| `OPENROUTER_API_KEY`                   | opcional (IA, fallback)                                 | https://openrouter.ai/keys                                                  |
-| `AI_PROVIDER`                          | opcional                                                | `gemini`, `groq`, `openrouter` ou `none`; vazio = primeira chave encontrada |
-| `RESEND_API_KEY`                       | opcional (envio da newsletter)                          | https://resend.com/api-keys                                                 |
-| `NEWSLETTER_FROM`                      | com Resend                                              | remetente de um **domínio verificado** no Resend                            |
-| `NEWSLETTER_MAX_PER_RUN`               | opcional                                                | teto de e-mails por execução (padrão 90)                                    |
-| `CRON_SECRET`                          | sim em produção                                         | string aleatória longa (`openssl rand -hex 32`)                             |
-| `CONTACT_EMAIL`                        | opcional                                                | contato usado no User-Agent do Crossref                                     |
-| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | opcional                                                | `true` depois de configurar o Google no Supabase                            |
+| Variável                               | Obrigatória?                                            | Onde conseguir                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                 | sim em produção                                         | URL pública do site (links de e-mail, redirects de login)                                                                        |
+| `NEXT_PUBLIC_SUPABASE_URL`             | **sim**                                                 | `supabase status` ou Project Settings → API                                                                                      |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **sim**                                                 | `sb_publishable_...` (ou a anon key legada)                                                                                      |
+| `SUPABASE_SECRET_KEY`                  | para newsletter, cron, exclusão de conta e painel admin | `sb_secret_...` (ou service_role legada) — **nunca** com `NEXT_PUBLIC_`                                                          |
+| `GEMINI_API_KEY`                       | opcional (IA)                                           | https://aistudio.google.com/apikey — grátis, sem cartão                                                                          |
+| `GROQ_API_KEY`                         | opcional (IA, fallback)                                 | https://console.groq.com/keys — grátis                                                                                           |
+| `OPENROUTER_API_KEY`                   | opcional (IA, fallback)                                 | https://openrouter.ai/keys                                                                                                       |
+| `AI_PROVIDER`                          | opcional                                                | `gemini`, `groq`, `openrouter` ou `none`; vazio = primeira chave encontrada                                                      |
+| `RESEND_API_KEY`                       | opcional (envio da newsletter)                          | https://resend.com/api-keys                                                                                                      |
+| `NEWSLETTER_FROM`                      | com Resend                                              | remetente de um **domínio verificado** no Resend                                                                                 |
+| `NEWSLETTER_MAX_PER_RUN`               | opcional                                                | teto de e-mails por execução (padrão 90)                                                                                         |
+| `CRON_SECRET`                          | sim em produção                                         | string aleatória longa (`openssl rand -hex 32`)                                                                                  |
+| `CONTACT_EMAIL`                        | opcional                                                | contato usado no User-Agent do Crossref                                                                                          |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | opcional                                                | `true` depois de configurar o Google no Supabase                                                                                 |
+| `DEMO_MODE`                            | só na apresentação                                      | `true` (exatamente) liga o `/demo`; **nunca** com membras de verdade; desligue (`false` ou apague) depois do evento. Só servidor |
+| `DEMO_PASSWORD`                        | opcional (plano B do `/demo`)                           | senha das contas fictícias, usada só se faltar `SUPABASE_SECRET_KEY`. Só servidor, nunca `NEXT_PUBLIC_`                          |
 
 **O app funciona sem as chaves opcionais:** sem IA, a mentoria usa o score heurístico; sem Resend, as edições da
 newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mailpit).
@@ -136,7 +144,9 @@ newsletter ficam só no site (e, em desenvolvimento, os e-mails vão para o Mail
    pesquisa e 8 categorias do fórum) ficam no `supabase/seed.sql`, que o `db push` não aplica:
    - **Produção:** no SQL Editor, rode só as seções **1. Áreas de pesquisa** e **1b. Categorias do fórum** do
      `seed.sql` (linhas iniciais, antes de `2. DEMONSTRAÇÃO`).
-   - **Ambiente de demonstração:** rode o arquivo inteiro (inclui as contas e dados fictícios).
+   - **Ambiente de demonstração:** rode o arquivo inteiro (inclui as contas e dados fictícios) e depois os
+     `supabase/seeds/*.sql`, em ordem (painel, reconhecimento, Pergunte, trajetória). O
+     `scripts/deploy/setup-supabase-cloud.mjs --with-demo-seed` faz as duas coisas.
 3. **Authentication → URL Configuration**:
    - _Site URL_: `https://<seu-app>.vercel.app`
    - _Redirect URLs_: `https://<seu-app>.vercel.app/**` e, para previews, `https://*-<sua-conta>.vercel.app/**`
@@ -208,7 +218,8 @@ Administradoras podem promover moderadoras pelo painel `/admin`.
 - [ ] `CRON_SECRET` forte e `SUPABASE_SECRET_KEY` só no servidor.
 - [ ] Site URL e Redirect URLs corretas no Supabase.
 - [ ] Templates de e-mail em pt-BR colados no painel.
-- [ ] Seed de demonstração **não** aplicado em produção (ou contas demo removidas).
+- [ ] Seed de demonstração **não** aplicado em produção (ou contas demo removidas), nem os `supabase/seeds/*.sql`.
+- [ ] `DEMO_MODE` desligado em produção (ligue só no ambiente da apresentação, durante o evento).
 - [ ] `npm run check`, `npm run db:test` e `npm run build` passando.
 - [ ] Advisors do Supabase sem alertas críticos.
 
@@ -231,11 +242,11 @@ qualquer branch) e também sob demanda (_Actions → CI → Run workflow_; o bot
 chega ao branch padrão, `main`). Um push novo no mesmo branch (ou PR) cancela a execução anterior. O selo no topo
 do README mostra o resultado da última execução no branch padrão (`main`), não a do seu branch.
 
-| Job               | O que roda (na ordem)                                                                                                                                                                                                                                                                                                                                             |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22)                                                                                                                                                                                |
-| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations e seed) → `supabase test db`                                                                                                                                                                                                                                  |
-| **Jornada E2E**   | Só depois do App passar: `npm ci` → CLI do Supabase 2.122.0 → `supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor` → `.env.local` gerado de `supabase status -o env` → `npx next build` → `npx next start -p 3000` → `npx playwright install --with-deps chromium` → `BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs` |
+| Job               | O que roda (na ordem)                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22)                                                                                                                                                                                                                                                                                                       |
+| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations, `seed.sql` e `supabase/seeds/*.sql`) → `supabase test db`                                                                                                                                                                                                                                                                                                                           |
+| **Jornada E2E**   | Só depois do App passar: `npm ci` → CLI do Supabase 2.122.0 → `supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor` → `.env.local` gerado de `supabase status -o env` → `npx next build` → `DEMO_MODE=true npx next start -p 3000` → `npx playwright install --with-deps chromium` → `BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs` → os roteiros `painel-demo.mjs` (com `DEMO=1`), `reconhecimento.mjs`, `pergunte.mjs` e `trajetoria.mjs` |
 
 - O build do job App roda **sem nenhuma variável do app** de propósito: garante que a Artemis compila sem
   Supabase, IA ou e-mail configurados (as páginas mostram o aviso de configuração). Nenhum segredo é necessário no
@@ -254,8 +265,12 @@ telas claro/escuro × 1440/390 px) num build de produção, contra um Supabase l
 de 30 minutos.
 
 - **Stack:** `supabase start` sem Studio, imgproxy, Edge Functions, Logflare, Vector, Realtime e Supavisor (o app
-  não usa nenhum deles): ficam Postgres (migrations + seed de demonstração), Auth, API, Storage e Mailpit. A CLI
-  baixa as imagens do registro padrão.
+  não usa nenhum deles): ficam Postgres (migrations + `seed.sql` + `supabase/seeds/*.sql`), Auth, API, Storage e
+  Mailpit. A CLI baixa as imagens do registro padrão.
+- **Modo demonstração:** o `next start` do job roda com `DEMO_MODE=true`, para o `painel-demo.mjs` testar o
+  `/demo`. Os outros roteiros usam contas separadas (reconhecimento: gabriela@ e aline@; Pergunte: visitante,
+  moderacao@ e marina@; trajetória: larissa@, cujas marcas são restauradas no fim) e apagam ou restauram o que
+  criam. A saída de cada um vai para `artemis-e2e/<roteiro>` dentro do artefato.
 - **`.env.local` montado no próprio job:**
 
   | Variável do app                        | Valor                                                                                                                                         |
@@ -288,8 +303,11 @@ de 30 minutos.
   npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor
   npx playwright install chromium   # uma vez por versão do Playwright
   MAILPIT_URL=http://127.0.0.1:54324 npx next build
-  MAILPIT_URL=http://127.0.0.1:54324 npx next start -p 3000   # deixe rodando; o resto em outro terminal
+  DEMO_MODE=true MAILPIT_URL=http://127.0.0.1:54324 npx next start -p 3000   # deixe rodando; o resto em outro terminal
   BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs
+  # roteiros das funcionalidades (o painel-demo precisa do servidor com DEMO_MODE=true):
+  DEMO=1 BASE_URL=http://localhost:3000 node scripts/e2e/painel-demo.mjs
+  for s in reconhecimento pergunte trajetoria; do BASE_URL=http://localhost:3000 node scripts/e2e/$s.mjs; done
   ```
 
   Com a porta 3000 ocupada (por exemplo, pelo `npm run dev`), use outra porta em `next start` e em `BASE_URL`:

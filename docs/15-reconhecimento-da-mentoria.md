@@ -35,8 +35,10 @@ pessoas viram "menos de 3".
   recebe a declaração).
 - `/verificar/<código>` normaliza o que foi digitado (minúsculas, espaços, sem prefixo, O → 0,
   I/L → 1) e redireciona para o endereço canônico. Formato inválido nem chega ao banco.
-- Componentes montados pela integração: `<ImpactSummary />` (landing) e
-  `<RecognitionTodos userId={…} />` (`/painel`, "Para fechar suas mentorias").
+- Componentes montados: `<ImpactSummary />` (landing, logo depois dos números da comunidade) e
+  `<RecognitionTodos userId={…} />` (`/painel`, "Para fechar suas mentorias"). O rodapé (coluna
+  Projeto) leva a "Verificar declaração" (`/verificar`), que está no sitemap; as subpáginas ficam
+  fora do `robots.txt`.
 
 ## 2. Fluxos
 
@@ -239,10 +241,9 @@ de pular e avisos do site (sem mexer no layout compartilhado). O QR é um SVG ge
   de 2026). Imprima o QR da própria declaração (entre como `debora@` ou `patricia@` →
   `/mentoria?aba=ativas` → "Ver declaração"). Por honestidade, a página desse código traz o selo
   "Dados de demonstração" e avisa que as duas participantes são perfis fictícios.
-- Enquanto `supabase/config.toml` listar só `./seed.sql` em `[db.seed] sql_paths`, o
-  `supabase db reset` não aplica este seed: rode-o depois com
-  `psql "$DB" -v ON_ERROR_STOP=1 --single-transaction -f supabase/seeds/20_reconhecimento.sql`
-  (pedido de integração: `sql_paths = ["./seed.sql", "./seeds/*.sql"]`).
+- O `supabase db reset` (e o CI) aplicam este seed depois do `seed.sql`
+  (`[db.seed] sql_paths = ["./seed.sql", "./seeds/*.sql"]` no `config.toml`). Para reaplicar só ele:
+  `psql "$DB" -v ON_ERROR_STOP=1 --single-transaction -f supabase/seeds/20_reconhecimento.sql`.
 - Seed `20_reconhecimento.sql` (idempotente): a mentoria Débora → Patrícia concluída há ~10 dias
   com os dois retornos e a declaração emitida; mais 4 mentorias concluídas fictícias (Gabriela →
   Luiza, Manuela → Carolina, Yasmin → Tatiane, Débora → Isabela), criadas pelo fluxo normal há

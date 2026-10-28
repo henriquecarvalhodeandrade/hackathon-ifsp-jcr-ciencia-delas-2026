@@ -5,8 +5,9 @@
  *
  * O que o script faz, em ordem:
  *   1. Visitante: landing → Vitrine → ranking → assina o Boletim → confirma pelo e-mail (Mailpit).
- *   2. Cadastro novo → link de confirmação (Mailpit) → onboarding em 4 etapas → /mentoria
- *      (sugestões pelas regras da plataforma, sem IA) → pede mentoria à Marina.
+ *   2. Cadastro novo → link de confirmação (Mailpit) → onboarding em 4 etapas (com uma marca de
+ *      trajetória) → /mentoria (sugestões pelas regras da plataforma, sem IA) → pede mentoria à
+ *      Marina.
  *   3. Marina (marina@) aceita → a mentoranda vê o e-mail de contato e o aviso.
  *      Conversa da mentoria (seed: larissa@ ↔ marina@, aceita): larissa@ escreve (Enter envia),
  *      marina@ abre pelo aviso, a mensagem vira "lida" e ela responde; a página da larissa@ mostra
@@ -19,8 +20,8 @@
  *   6. admin@ gera e envia o Boletim da semana → chega no Mailpit, sem nomes nem relatos anônimos.
  *   7. Vitrine: divulga um paper pelo DOI (Crossref; se a busca falhar, preenche à mão),
  *      larissa@ destaca e o paper aparece no ranking.
- *   8. Varredura: capturas claro/escuro × 1440/390 px das páginas principais (visitante, membra,
- *      mentora, admin), erros de console, avisos de hidratação, respostas ≥ 400, rolagem
+ *   8. Varredura: capturas claro/escuro × 1440/390 px das páginas principais (visitante — inclusive
+ *      /pergunte e /verificar —, membra e mentora — inclusive /painel —, admin), erros de console, avisos de hidratação, respostas ≥ 400, rolagem
  *      horizontal, contraste de texto (AA, telas de 1440 px), links internos quebrados (cada
  *      papel confere os links que vê, com a própria sessão), foco visível pelo teclado e o menu
  *      do celular (abre, prende o foco, fecha com Esc e devolve o foco).
@@ -126,6 +127,10 @@ const SEED = {
   pinnedThread: "a1000000-0000-4000-8000-000000000008",
   paper: "b1000000-0000-4000-8000-000000000002",
   edition: "2026-s43",
+  /** Pergunta publicada do seed supabase/seeds/30_pergunte.sql. */
+  publicQuestion: "e3000000-0000-4000-8000-000000000001",
+  /** Declaração fictícia do seed supabase/seeds/20_reconhecimento.sql (a do slide do pitch). */
+  declarationCode: "ART-7K2M-Q9XD-4HNP",
 };
 /** DOI real (Jinek, Chylinski, Fonfara, Hauer, Doudna, Charpentier — Science, 2012). */
 const LOOKUP_DOI = "10.1126/science.1225829";
@@ -579,6 +584,42 @@ async function cleanup() {
   );
   summary.subscribers = subscribers.length;
 
+  // Pergunte a uma cientista e reconhecimento da mentoria (docs/15 e 16): respostas públicas,
+  // retornos e declarações das contas do teste. Também sairiam em cascata com as contas; apagamos
+  // antes para que a limpeza não dependa disso e para contar.
+  summary.publicAnswers = 0;
+  summary.feedback = 0;
+  summary.declarations = 0;
+  if (userIds.length > 0) {
+    const answers = await q(
+      db.from("public_answers").delete().in("author_id", userIds).select("id"),
+      "apagar respostas públicas",
+    );
+    summary.publicAnswers = answers.length;
+    const requests = [
+      ...(await q(
+        db.from("mentorship_requests").select("id").in("mentee_id", userIds),
+        "mentorias (mentoranda)",
+      )),
+      ...(await q(
+        db.from("mentorship_requests").select("id").in("mentor_id", userIds),
+        "mentorias (mentora)",
+      )),
+    ].map((row) => row.id);
+    if (requests.length > 0) {
+      const feedback = await q(
+        db.from("mentorship_feedback").delete().in("request_id", requests).select("id"),
+        "apagar retornos",
+      );
+      const declarations = await q(
+        db.from("mentorship_declarations").delete().in("request_id", requests).select("id"),
+        "apagar declarações",
+      );
+      summary.feedback = feedback.length;
+      summary.declarations = declarations.length;
+    }
+  }
+
   for (const id of userIds) {
     const { error } = await db.auth.admin.deleteUser(id);
     if (error && !/not found/i.test(error.message)) {
@@ -707,6 +748,12 @@ async function journey() {
       await np.getByLabel("Instituição").fill("IFSP Jacareí (teste automatizado)");
       await np.getByLabel("Cidade").fill("Jacareí");
       await np.getByLabel("Estado").selectOption("SP");
+      // Trajetória (opcional): uma marca, para o perfil levar a afinidade (docs/17).
+      await check(
+        np
+          .getByRole("group", { name: /Sua trajetória/ })
+          .getByRole("checkbox", { name: "Fui a primeira da família na universidade" }),
+      );
       await np.getByRole("button", { name: "Salvar e continuar" }).click();
       await visible(np.getByRole("heading", { name: "Sua pesquisa" }), "etapa 2");
 
@@ -737,12 +784,16 @@ async function journey() {
       const profile = await q(
         db
           .from("profiles")
-          .select("onboarded_at, seeks_mentorship, ai_consent, career_stage")
+          .select("onboarded_at, seeks_mentorship, ai_consent, career_stage, trajectory_tags")
           .eq("id", ctx.newUserId)
           .single(),
         "perfil",
       );
       assert(profile.onboarded_at, "onboarded_at continua vazio");
+      assert(
+        JSON.stringify(profile.trajectory_tags) === JSON.stringify(["primeira-geracao"]),
+        `trajectory_tags = ${JSON.stringify(profile.trajectory_tags)}`,
+      );
       assert(profile.seeks_mentorship, "seeks_mentorship não foi salvo");
       assert(!profile.ai_consent, "ai_consent deveria ser false");
       ctx.onboarded = true;
@@ -1630,10 +1681,15 @@ async function sweep() {
     "/cadastro",
     "/recuperar-senha",
     "/design-system",
+    "/pergunte",
+    `/pergunte/${SEED.publicQuestion}`,
+    "/verificar",
+    `/verificar/${SEED.declarationCode}`,
     NOT_FOUND_PATH,
   ];
+  // Membra com perfil completo que abre "/" vai para o /painel (o início dela).
   const memberPaths = [
-    "/",
+    "/painel",
     "/forum",
     "/forum/c/carreira",
     `/forum/t/${SEED.pinnedThread}`,
@@ -1642,6 +1698,7 @@ async function sweep() {
     "/mentoria?aba=enviadas",
     `/mentoria/conversa/${SEED.larissaRequest}`,
     "/pesquisadoras",
+    "/pesquisadoras?trajetoria=primeira-geracao",
     `/pesquisadoras/${SEED.marinaId}`,
     "/perfil",
     "/notificacoes",
@@ -1650,7 +1707,7 @@ async function sweep() {
     ...(ctx.paperId ? [`/papers/${ctx.paperId}`] : []),
   ];
 
-  await step("Varredura: visitante (14 páginas × 4 variantes)", async () => {
+  await step(`Varredura: visitante (${visitorPaths.length} páginas × 4 variantes)`, async () => {
     await sweepRole("visitante", visitorPaths, undefined);
     return `${visitorPaths.length * 4} capturas`;
   });
@@ -1660,17 +1717,21 @@ async function sweep() {
   });
   await step("Varredura: mentora marina@ e admin@ (× 4 variantes)", async () => {
     const mentorPaths = [
+      "/painel",
       "/mentoria?aba=recebidas",
       "/mentoria?aba=ativas",
       `/mentoria/conversa/${SEED.larissaRequest}`,
     ];
     await sweepRole("mentora", mentorPaths, mentor);
-    await sweepRole(
-      "admin",
-      ["/admin", "/admin?aba=newsletter", "/admin?aba=membros", "/admin?aba=registro"],
-      adminCookies,
-    );
-    return `${mentorPaths.length * 4} capturas da mentora + 16 da admin`;
+    const adminPaths = [
+      "/admin",
+      "/admin?aba=perguntas",
+      "/admin?aba=newsletter",
+      "/admin?aba=membros",
+      "/admin?aba=registro",
+    ];
+    await sweepRole("admin", adminPaths, adminCookies);
+    return `${mentorPaths.length * 4} capturas da mentora + ${adminPaths.length * 4} da admin`;
   });
   await step("Links internos de cada papel (< 400)", async () => {
     const counts = [];
