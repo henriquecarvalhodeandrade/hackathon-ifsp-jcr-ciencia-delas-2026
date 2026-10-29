@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import { Bell, MessageCircle } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { cn, formatNumber } from "@/lib/utils";
 import { MobileNav } from "./mobile-nav";
-import { MEMBER_NAV, PUBLIC_NAV } from "./nav-items";
+import { MoreNav } from "./more-nav";
+import { MEMBER_NAV, MEMBER_NAV_MORE, MEMBER_NAV_PRIMARY, PUBLIC_NAV } from "./nav-items";
 import { NavLink } from "./nav-link";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
@@ -21,6 +22,8 @@ export interface HeaderAccount {
   avatarUrl: string | null;
   headline: string | null;
   unread: number;
+  /** Conversas diretas com mensagem nova (docs/18 §2.5). */
+  unreadMessages: number;
   isModerator: boolean;
 }
 
@@ -39,6 +42,22 @@ const desktopLink = cn(
 );
 const desktopActive = "text-fg after:bg-primary";
 
+/** Ícone do cabeçalho com selo de não lidas (notificações, mensagens). */
+const headerIcon =
+  "relative inline-flex size-10 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg [&_svg]:size-5";
+
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute top-1 right-1 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-pill bg-accent px-1 text-[0.6875rem] leading-none font-bold text-accent-fg tabular ring-2 ring-bg"
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 /** Cabeçalho "puro" (sem buscar dados) — usado pelo SiteHeader e pelo guia vivo. */
 export function SiteHeaderView({
   account,
@@ -46,6 +65,7 @@ export function SiteHeaderView({
   navLabel = "Principal",
 }: SiteHeaderViewProps) {
   const items = account ? MEMBER_NAV : PUBLIC_NAV;
+  const desktopItems = account ? MEMBER_NAV_PRIMARY : PUBLIC_NAV;
   return (
     <header
       className={cn(
@@ -64,13 +84,22 @@ export function SiteHeaderView({
 
         <nav aria-label={navLabel} className="ml-4 hidden lg:block">
           <ul className="flex items-center gap-0.5">
-            {items.map((item) => (
+            {desktopItems.map((item) => (
               <li key={item.href}>
                 <NavLink href={item.href} className={desktopLink} activeClassName={desktopActive}>
                   {item.label}
                 </NavLink>
               </li>
             ))}
+            {account && (
+              <li>
+                <MoreNav
+                  items={MEMBER_NAV_MORE}
+                  className={desktopLink}
+                  activeClassName={desktopActive}
+                />
+              </li>
+            )}
           </ul>
         </nav>
 
@@ -79,23 +108,23 @@ export function SiteHeaderView({
 
           {account ? (
             <>
-              <Link
-                href="/notificacoes"
-                className="relative inline-flex size-10 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg [&_svg]:size-5"
-              >
+              <Link href="/mensagens" className={headerIcon}>
+                <MessageCircle aria-hidden="true" />
+                <span className="sr-only">
+                  Mensagens
+                  {account.unreadMessages > 0
+                    ? ` (${formatNumber(account.unreadMessages)} ${account.unreadMessages === 1 ? "conversa nova" : "conversas novas"})`
+                    : ""}
+                </span>
+                <UnreadBadge count={account.unreadMessages} />
+              </Link>
+              <Link href="/notificacoes" className={headerIcon}>
                 <Bell aria-hidden="true" />
                 <span className="sr-only">
                   Notificações
                   {account.unread > 0 ? ` (${formatNumber(account.unread)} não lidas)` : ""}
                 </span>
-                {account.unread > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-1 right-1 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-pill bg-accent px-1 text-[0.6875rem] leading-none font-bold text-accent-fg tabular ring-2 ring-bg"
-                  >
-                    {account.unread > 99 ? "99+" : account.unread}
-                  </span>
-                )}
+                <UnreadBadge count={account.unread} />
               </Link>
               <div className="hidden lg:block">
                 <UserMenu
@@ -104,6 +133,7 @@ export function SiteHeaderView({
                   profileId={account.id}
                   headline={account.headline}
                   unread={account.unread}
+                  unreadMessages={account.unreadMessages}
                   isModerator={account.isModerator}
                 />
               </div>
@@ -124,7 +154,12 @@ export function SiteHeaderView({
               items={items}
               account={
                 account
-                  ? { name: account.name, unread: account.unread, isModerator: account.isModerator }
+                  ? {
+                      name: account.name,
+                      unread: account.unread,
+                      unreadMessages: account.unreadMessages,
+                      isModerator: account.isModerator,
+                    }
                   : null
               }
             />

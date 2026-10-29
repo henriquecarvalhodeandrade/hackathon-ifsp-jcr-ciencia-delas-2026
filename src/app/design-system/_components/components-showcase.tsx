@@ -947,6 +947,7 @@ export function ComponentsShowcase() {
               avatarUrl: null,
               headline: "Doutoranda em Microbiologia · USP",
               unread: 3,
+              unreadMessages: 2,
               isModerator: true,
             }}
           />

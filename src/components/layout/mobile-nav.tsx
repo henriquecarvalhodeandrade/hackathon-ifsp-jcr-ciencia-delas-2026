@@ -5,13 +5,18 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   BookOpen,
+  FlaskConical,
+  FolderOpen,
   HeartHandshake,
+  House,
   Info,
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
   MessageCircleQuestion,
   MessagesSquare,
+  Network,
   Newspaper,
   ShieldCheck,
   Trophy,
@@ -30,6 +35,9 @@ const ICONS: Record<
   string,
   React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
 > = {
+  "/feed": House,
+  "/rede": Network,
+  "/ics": FlaskConical,
   "/forum": MessagesSquare,
   "/mentoria": HeartHandshake,
   "/pesquisadoras": Users,
@@ -46,6 +54,7 @@ export interface MobileNavProps {
   account: {
     name: string;
     unread: number;
+    unreadMessages: number;
     isModerator: boolean;
   } | null;
 }
@@ -156,6 +165,36 @@ export function MobileNav({ items, account }: MobileNavProps) {
                       >
                         <UserRound aria-hidden="true" />
                         Meu perfil
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        href="/portfolio"
+                        className={linkClasses}
+                        activeClassName={activeClasses}
+                        onClick={() => setOpen(false)}
+                      >
+                        <FolderOpen aria-hidden="true" />
+                        Meu portfólio
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        href="/mensagens"
+                        className={linkClasses}
+                        activeClassName={activeClasses}
+                        onClick={() => setOpen(false)}
+                      >
+                        <MessageCircle aria-hidden="true" />
+                        <span className="flex-1">Mensagens</span>
+                        {account.unreadMessages > 0 && (
+                          <span className="rounded-pill bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg tabular">
+                            {formatNumber(account.unreadMessages)}
+                            <span className="sr-only">
+                              {account.unreadMessages === 1 ? " conversa nova" : " conversas novas"}
+                            </span>
+                          </span>
+                        )}
                       </NavLink>
                     </li>
                     <li>

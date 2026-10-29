@@ -31,7 +31,10 @@ const ICONS: Record<NotificationType, { Icon: typeof HeartHandshake; tone: strin
   connection_accepted: { Icon: UserCheck, tone: "bg-success-soft text-success-soft-fg" },
   post_like: { Icon: Heart, tone: "bg-accent-soft text-accent-soft-fg" },
   post_comment: { Icon: MessagesSquare, tone: "bg-secondary-soft text-secondary-soft-fg" },
-  opportunity_application: { Icon: BriefcaseBusiness, tone: "bg-primary-soft text-primary-soft-fg" },
+  opportunity_application: {
+    Icon: BriefcaseBusiness,
+    tone: "bg-primary-soft text-primary-soft-fg",
+  },
   application_update: { Icon: ClipboardCheck, tone: "bg-info-soft text-info-soft-fg" },
   direct_message: { Icon: MessageCircle, tone: "bg-primary-soft text-primary-soft-fg" },
 };
