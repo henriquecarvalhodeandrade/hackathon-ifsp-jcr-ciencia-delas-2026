@@ -603,5 +603,194 @@ end
 $$;
 select pass('candidaturas: regras, privacidade, transições, contador e avisos');
 
+-- =============================================================================
+-- 9. Feed: anexos, curtidas, comentários, contadores e avisos
+-- =============================================================================
+do $$
+declare
+  v_post uuid;
+  v_comment uuid;
+begin
+  -- Ana não anexa item do portfólio da Bia.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  perform cdtest.throws(
+    format('insert into public.posts (body, portfolio_item_id) values (%L, %L)', 'Olha esse artigo!', cdtest.get('portfolio_bia')),
+    'CD080', 'anexar item do portfólio de outra pessoa');
+  perform cdtest.throws(
+    format('insert into public.posts (body, opportunity_id) values (%L, %L)', 'Vaga legal!', cdtest.get('opp')),
+    'CD080', 'anexar oportunidade de outra pessoa');
+  perform cdtest.logout();
+
+  -- Bia publica com anexos dela.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  insert into public.posts (kind, body, portfolio_item_id, opportunity_id)
+  values ('publication', '  Saiu o nosso artigo sobre ciência aberta!  ', cdtest.get('portfolio_bia'), cdtest.get('opp'))
+  returning id into v_post;
+  perform cdtest.check((select body = 'Saiu o nosso artigo sobre ciência aberta!' from public.posts where id = v_post),
+    'texto aparado');
+  perform cdtest.throws(
+    format('update public.posts set like_count = 50 where id = %L', v_post),
+    '42501', 'contador de curtidas não é atualizável');
+  -- Curtir a própria publicação conta, mas não gera aviso.
+  insert into public.post_likes (post_id) values (v_post);
+  perform cdtest.logout();
+
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  insert into public.post_likes (post_id) values (v_post);
+  perform cdtest.throws(format('insert into public.post_likes (post_id) values (%L)', v_post), '23505', 'curtir duas vezes');
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  insert into public.post_likes (post_id) values (v_post);
+  perform cdtest.logout();
+
+  perform cdtest.check((select like_count from public.posts where id = v_post) = 3, 'três curtidas contadas');
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'post_like', '/feed/p/' || v_post) = 1,
+    'um aviso agrupado de curtidas para a Bia (sem o da própria curtida)');
+
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  delete from public.post_likes where post_id = v_post;
+  perform cdtest.check((select like_count from public.posts where id = v_post) = 2, 'descurtir desconta');
+  perform cdtest.check(
+    cdtest.affected(format('delete from public.post_likes where post_id = %L and user_id = %L',
+      v_post, 'e9000000-0000-4000-8000-000000000003')) = 0,
+    'ninguém apaga a curtida de outra pessoa');
+
+  -- Comentários: Clara comenta; Ana não edita; a autora da publicação apaga.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  insert into public.post_comments (post_id, body) values (v_post, 'Parabéns, Bia! Vou ler hoje mesmo.')
+  returning id into v_comment;
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  perform cdtest.check(
+    cdtest.affected(format('update public.post_comments set body = %L where id = %L', 'Editado por outra', v_comment)) = 0
+    and cdtest.affected(format('delete from public.post_comments where id = %L', v_comment)) = 0,
+    'outra membra não edita nem apaga o comentário');
+  perform cdtest.logout();
+  perform cdtest.check((select comment_count from public.posts where id = v_post) = 1, 'um comentário contado');
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'post_comment', '/feed/p/' || v_post) = 1,
+    'Bia recebe o aviso do comentário');
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  perform cdtest.check(
+    cdtest.affected(format('delete from public.post_comments where id = %L', v_comment)) = 1,
+    'a autora da publicação apaga comentários nela');
+  perform cdtest.logout();
+  perform cdtest.check((select comment_count from public.posts where id = v_post) = 0, 'comentário apagado sai do contador');
+
+  perform cdtest.login_anon();
+  perform cdtest.throws('select count(*) from public.posts', '42501', 'visitante não lê o feed');
+  perform cdtest.logout();
+
+  -- Apagar a publicação leva os avisos.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  delete from public.posts where id = v_post;
+  perform cdtest.logout();
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'post_like', '/feed/p/' || v_post) = 0
+    and cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'post_comment', '/feed/p/' || v_post) = 0,
+    'publicação apagada leva os avisos');
+end
+$$;
+select pass('feed: anexos, curtidas, comentários, contadores e avisos');
+
+-- =============================================================================
+-- 10. Mensagens diretas: vínculo, pedido de mensagem, recusa, ensino médio, leitura
+-- =============================================================================
+do $$
+declare
+  v_ana_bia uuid;
+  v_clara_bia uuid;
+  v_unread boolean;
+begin
+  -- Ana e Bia têm candidatura aprovada entre si: a conversa já nasce aberta.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  v_ana_bia := public.start_direct_conversation('e9000000-0000-4000-8000-000000000002');
+  perform cdtest.check(
+    (select status = 'active' from public.direct_conversations where id = v_ana_bia),
+    'candidatura aprovada abre a conversa sem pedido');
+  perform cdtest.check(public.start_direct_conversation('e9000000-0000-4000-8000-000000000002') = v_ana_bia,
+    'uma conversa por par');
+  insert into public.direct_messages (conversation_id, body) values (v_ana_bia, 'Oi, Bia! Obrigada pela vaga.');
+  insert into public.direct_messages (conversation_id, body) values (v_ana_bia, 'Quando começamos?');
+  perform cdtest.throws(
+    format('update public.direct_messages set body = %L where conversation_id = %L', 'editada', v_ana_bia),
+    '42501', 'mensagens não se editam');
+  perform cdtest.throws(
+    format('delete from public.direct_messages where conversation_id = %L', v_ana_bia),
+    '42501', 'mensagens não se apagam');
+  perform cdtest.throws($q$select public.start_direct_conversation('e9000000-0000-4000-8000-000000000001')$q$,
+    'CD065', 'conversa consigo mesma');
+  perform cdtest.throws($q$select public.start_direct_conversation('e9000000-0000-4000-8000-000000000006')$q$,
+    'CD060', 'conversa com perfil sem cadastro completo');
+  -- Ana não tem vínculo com a Eva (ensino médio).
+  perform cdtest.throws($q$select public.start_direct_conversation('e9000000-0000-4000-8000-000000000005')$q$,
+    'CD084', 'estudante do ensino médio só recebe mensagem de conexões');
+  perform cdtest.logout();
+
+  -- Bia vê a conversa como não lida; ler zera e marca o aviso.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  select l.unread into v_unread from public.list_my_conversations() l where l.id = v_ana_bia;
+  perform cdtest.check(v_unread, 'conversa com mensagem nova aparece como não lida');
+  perform cdtest.check(public.count_unread_conversations() = 1, 'selo de mensagens com 1');
+  perform public.mark_conversation_read(v_ana_bia);
+  perform cdtest.check(public.count_unread_conversations() = 0, 'ler zera o selo');
+  perform cdtest.logout();
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'direct_message', '/mensagens/' || v_ana_bia, true) = 0
+    and cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'direct_message', '/mensagens/' || v_ana_bia) = 1,
+    'um aviso para as duas mensagens, marcado como lido ao abrir a conversa');
+
+  -- Gabi não enxerga a conversa nem as mensagens.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  perform cdtest.check(
+    (select count(*) from public.direct_conversations where id = v_ana_bia) = 0
+    and (select count(*) from public.direct_messages where conversation_id = v_ana_bia) = 0,
+    'outras membras não veem a conversa');
+  perform cdtest.throws(
+    format('insert into public.direct_messages (conversation_id, body) values (%L, %L)', v_ana_bia, 'intrusa'),
+    'CD085', 'outras membras não escrevem na conversa');
+  perform cdtest.logout();
+
+  -- Clara não tem vínculo com a Bia (a conexão foi removida): pedido de mensagem.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  v_clara_bia := public.start_direct_conversation('e9000000-0000-4000-8000-000000000002');
+  perform cdtest.check((select status = 'request' from public.direct_conversations where id = v_clara_bia),
+    'sem vínculo, a conversa nasce como pedido');
+  insert into public.direct_messages (conversation_id, body) values (v_clara_bia, 'Oi, Bia! Posso tirar uma dúvida?');
+  perform cdtest.throws(
+    format('insert into public.direct_messages (conversation_id, body) values (%L, %L)', v_clara_bia, 'Oi de novo?'),
+    'CD086', 'pedido de mensagem: uma mensagem só');
+  perform cdtest.logout();
+  perform cdtest.check(
+    exists (select 1 from public.notifications n
+            where n.user_id = 'e9000000-0000-4000-8000-000000000002' and n.type = 'direct_message'
+              and n.link = '/mensagens/' || v_clara_bia and n.title like '%quer conversar com você'),
+    'aviso de pedido de mensagem');
+
+  -- Bia recusa: Clara continua vendo "pedido" e não manda mais nada.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  perform public.respond_conversation_request(v_clara_bia, false);
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  perform public.respond_conversation_request(v_clara_bia, true);
+  perform cdtest.check((select status = 'declined' from public.direct_conversations where id = v_clara_bia),
+    'quem começou não aceita o próprio pedido');
+  perform cdtest.throws(
+    format('insert into public.direct_messages (conversation_id, body) values (%L, %L)', v_clara_bia, 'Por favor?'),
+    'CD086', 'pedido recusado: a mesma mensagem de espera, sem revelar a recusa');
+  -- Bia muda de ideia e responde: a conversa abre.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  insert into public.direct_messages (conversation_id, body) values (v_clara_bia, 'Oi, Clara! Pode perguntar.');
+  perform cdtest.check((select status = 'active' from public.direct_conversations where id = v_clara_bia),
+    'responder abre a conversa');
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  insert into public.direct_messages (conversation_id, body) values (v_clara_bia, 'Obrigada! É sobre bolsas.');
+  perform cdtest.logout();
+
+  perform cdtest.login_anon();
+  perform cdtest.throws($q$select public.count_unread_conversations()$q$, '42501', 'visitante não chama as RPCs de mensagens');
+  perform cdtest.logout();
+end
+$$;
+select pass('mensagens diretas: vínculo, pedido, recusa sem revelar, ensino médio, leitura');
+
 select * from finish();
 rollback;

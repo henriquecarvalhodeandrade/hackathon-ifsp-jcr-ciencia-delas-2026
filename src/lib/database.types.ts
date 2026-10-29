@@ -53,6 +53,116 @@ export type Database = {
           },
         ];
       };
+      direct_conversations: {
+        Row: {
+          created_at: string;
+          id: string;
+          initiator_id: string;
+          last_message_at: string | null;
+          last_message_preview: string | null;
+          last_sender_id: string | null;
+          status: Database["public"]["Enums"]["conversation_status"];
+          user_a: string;
+          user_a_read_at: string | null;
+          user_b: string;
+          user_b_read_at: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          initiator_id: string;
+          last_message_at?: string | null;
+          last_message_preview?: string | null;
+          last_sender_id?: string | null;
+          status?: Database["public"]["Enums"]["conversation_status"];
+          user_a: string;
+          user_a_read_at?: string | null;
+          user_b: string;
+          user_b_read_at?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          initiator_id?: string;
+          last_message_at?: string | null;
+          last_message_preview?: string | null;
+          last_sender_id?: string | null;
+          status?: Database["public"]["Enums"]["conversation_status"];
+          user_a?: string;
+          user_a_read_at?: string | null;
+          user_b?: string;
+          user_b_read_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversations_initiator_id_fkey";
+            columns: ["initiator_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "direct_conversations_last_sender_id_fkey";
+            columns: ["last_sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "direct_conversations_user_a_fkey";
+            columns: ["user_a"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "direct_conversations_user_b_fkey";
+            columns: ["user_b"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      direct_messages: {
+        Row: {
+          body: string;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          sender_id: string;
+        };
+        Insert: {
+          body: string;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          sender_id?: string;
+        };
+        Update: {
+          body?: string;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          sender_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "direct_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "direct_messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       follows: {
         Row: {
           created_at: string;
@@ -1113,6 +1223,145 @@ export type Database = {
           },
         ];
       };
+      post_comments: {
+        Row: {
+          author_id: string;
+          body: string;
+          created_at: string;
+          id: string;
+          post_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          author_id?: string;
+          body: string;
+          created_at?: string;
+          id?: string;
+          post_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+          id?: string;
+          post_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_comments_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      post_likes: {
+        Row: {
+          created_at: string;
+          post_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          post_id: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          post_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      posts: {
+        Row: {
+          author_id: string;
+          body: string;
+          comment_count: number;
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["post_kind"];
+          like_count: number;
+          link_url: string | null;
+          opportunity_id: string | null;
+          portfolio_item_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          author_id?: string;
+          body: string;
+          comment_count?: number;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["post_kind"];
+          like_count?: number;
+          link_url?: string | null;
+          opportunity_id?: string | null;
+          portfolio_item_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          author_id?: string;
+          body?: string;
+          comment_count?: number;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["post_kind"];
+          like_count?: number;
+          link_url?: string | null;
+          opportunity_id?: string | null;
+          portfolio_item_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "posts_opportunity_id_fkey";
+            columns: ["opportunity_id"];
+            isOneToOne: false;
+            referencedRelation: "research_opportunities";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "posts_portfolio_item_id_fkey";
+            columns: ["portfolio_item_id"];
+            isOneToOne: false;
+            referencedRelation: "portfolio_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profile_embeddings: {
         Row: {
           content_hash: string;
@@ -1613,6 +1862,7 @@ export type Database = {
         Args: { p_declaration_id: string };
         Returns: string | null;
       };
+      count_unread_conversations: { Args: never; Returns: number };
       delete_public_question_by_token: {
         Args: { p_token: string };
         Returns: boolean;
@@ -1741,6 +1991,24 @@ export type Database = {
       };
       is_admin: { Args: never; Returns: boolean };
       is_moderator: { Args: never; Returns: boolean };
+      list_my_conversations: {
+        Args: never;
+        Returns: {
+          created_at: string;
+          id: string;
+          initiator_id: string;
+          last_message_at: string | null;
+          last_message_preview: string | null;
+          last_sender_id: string | null;
+          other_avatar_url: string | null;
+          other_career_stage: Database["public"]["Enums"]["career_stage"] | null;
+          other_headline: string | null;
+          other_id: string;
+          other_name: string;
+          status: Database["public"]["Enums"]["conversation_status"];
+          unread: boolean;
+        }[];
+      };
       list_pending_public_questions: {
         Args: { p_limit?: number };
         Returns: {
@@ -1780,6 +2048,10 @@ export type Database = {
           stage: string | null;
           total_count: number;
         }[];
+      };
+      mark_conversation_read: {
+        Args: { p_conversation_id: string };
+        Returns: undefined;
       };
       moderate_delete_content: {
         Args: {
@@ -1821,6 +2093,10 @@ export type Database = {
         Args: { p_question_id: string; p_reason: string };
         Returns: undefined;
       };
+      respond_conversation_request: {
+        Args: { p_accept: boolean; p_conversation_id: string };
+        Returns: undefined;
+      };
       reveal_anonymous_author: {
         Args: {
           p_post_id?: string;
@@ -1842,6 +2118,7 @@ export type Database = {
         Args: { p_answer_id: string; p_hidden: boolean; p_reason?: string };
         Returns: boolean;
       };
+      start_direct_conversation: { Args: { p_other: string }; Returns: string };
       submit_public_question: {
         Args: { p_area_id?: number; p_body: string; p_stage?: string };
         Returns: string;
@@ -1871,6 +2148,7 @@ export type Database = {
         | "professor"
         | "industry";
       connection_status: "pending" | "accepted" | "declined";
+      conversation_status: "request" | "active" | "declined";
       edition_status: "draft" | "published" | "sent";
       meeting_format: "online" | "in_person" | "hybrid";
       mentorship_status: "pending" | "accepted" | "declined" | "cancelled" | "completed";
@@ -1894,6 +2172,7 @@ export type Database = {
       opportunity_status: "open" | "closed";
       portfolio_kind:
         "article" | "project" | "presentation" | "poster" | "thesis" | "award" | "course" | "other";
+      post_kind: "update" | "project" | "achievement" | "publication" | "event";
       reaction_kind: "support" | "useful" | "celebrate";
       report_reason:
         "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
@@ -2034,6 +2313,7 @@ export const Constants = {
         "industry",
       ],
       connection_status: ["pending", "accepted", "declined"],
+      conversation_status: ["request", "active", "declined"],
       edition_status: ["draft", "published", "sent"],
       meeting_format: ["online", "in_person", "hybrid"],
       mentorship_status: ["pending", "accepted", "declined", "cancelled", "completed"],
@@ -2066,6 +2346,7 @@ export const Constants = {
         "course",
         "other",
       ],
+      post_kind: ["update", "project", "achievement", "publication", "event"],
       reaction_kind: ["support", "useful", "celebrate"],
       report_reason: ["harassment", "spam", "misinformation", "offensive", "plagiarism", "other"],
       report_status: ["open", "resolved", "dismissed"],
