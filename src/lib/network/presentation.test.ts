@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   firstNameOf,
+  mutualSummary,
+  suggestionHighlights,
   networkCountItems,
   networkTabHref,
   parseNetworkTab,
@@ -100,5 +102,39 @@ describe("firstNameOf", () => {
     expect(firstNameOf("Dra. Marina Souza")).toBe("Marina");
     expect(firstNameOf("  ")).toBe("");
     expect(firstNameOf(null)).toBe("");
+  });
+});
+
+describe("conexões em comum com nome", () => {
+  it("um nome, ou um nome e mais N", () => {
+    expect(mutualSummary(["Marina Albuquerque"], 1)).toBe("Marina em comum");
+    expect(mutualSummary(["Marina Albuquerque", "Yasmin Oliveira"], 2)).toBe(
+      "Marina e mais 1 em comum",
+    );
+    // A RPC pode contar mais gente do que os nomes lidos.
+    expect(mutualSummary(["Dra. Marina Souza"], 4)).toBe("Marina e mais 3 em comum");
+    expect(mutualSummary([], 3)).toBeNull();
+    expect(mutualSummary(["  "], 1)).toBeNull();
+  });
+
+  it("o selo prefere o nome; os demais motivos seguem", () => {
+    expect(
+      suggestionHighlights({ shared_areas: 2, mutual_connections: 2, same_institution: true }, [
+        "Marina Albuquerque",
+        "Yasmin Oliveira",
+      ]),
+    ).toEqual({
+      main: "Marina e mais 1 em comum",
+      others: ["2 áreas em comum", "Mesma instituição"],
+    });
+  });
+
+  it("sem nomes, usa o primeiro motivo (ou o texto padrão)", () => {
+    expect(
+      suggestionHighlights({ shared_areas: 1, mutual_connections: 0, same_institution: true }),
+    ).toEqual({ main: "1 área em comum", others: ["Mesma instituição"] });
+    expect(
+      suggestionHighlights({ shared_areas: 0, mutual_connections: 0, same_institution: false }),
+    ).toEqual({ main: SUGGESTION_FALLBACK_REASON, others: [] });
   });
 });

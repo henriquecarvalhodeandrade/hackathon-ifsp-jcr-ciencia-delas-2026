@@ -1,18 +1,20 @@
-import { ExternalLink, Pencil, Pin, Trash2 } from "lucide-react";
-import { Badge, Button, ButtonLink, Card, Chip, ConfirmDialog } from "@/components/ui";
-import { deletePortfolioItemAction } from "@/lib/portfolio/actions";
+import { ExternalLink, Pin } from "lucide-react";
+import { Badge, Card, Chip } from "@/components/ui";
 import { linkHost, portfolioKindLabel, portfolioMeta } from "@/lib/portfolio/presentation";
 import type { PortfolioItem } from "@/lib/portfolio/queries";
 import { cn } from "@/lib/utils";
 import { PortfolioKindIcon } from "./kind-icon";
 import { PinButton } from "./pin-button";
+import { PortfolioItemMenu } from "./portfolio-item-menu";
 
 export interface PortfolioItemCardProps {
   item: PortfolioItem;
   /** "full" na /portfolio (com ações da dona); "compact" no perfil. */
   variant?: "full" | "compact";
-  /** Mostra Editar / Destacar / Apagar (só na /portfolio, para a dona). */
+  /** Mostra Destacar e o menu "⋯" (Editar, Compartilhar no feed, Apagar) — só na /portfolio. */
   editable?: boolean;
+  /** Publicações minhas no feed que anexam o item (opção de apagá-las junto). */
+  sharedPosts?: number;
   headingLevel?: "h3" | "h4";
   className?: string;
 }
@@ -45,6 +47,7 @@ export function PortfolioItemCard({
   item,
   variant = "full",
   editable = false,
+  sharedPosts = 0,
   headingLevel: Heading = "h3",
   className,
 }: PortfolioItemCardProps) {
@@ -62,7 +65,10 @@ export function PortfolioItemCard({
       padding={compact ? "sm" : "md"}
       className={cn(
         "flex min-w-0 scroll-mt-24 flex-col gap-3",
-        item.pinned && "border-primary/40",
+        // Anel do item recém-adicionado/editado (PortfolioFlash liga e desliga).
+        "ring-offset-2 ring-offset-bg transition-shadow duration-700 data-[flash=on]:ring-2 data-[flash=on]:ring-primary",
+        // Na /portfolio o estado do destaque está no botão "Destacar" (que não reordena a lista).
+        !editable && item.pinned && "border-primary/40",
         className,
       )}
     >
@@ -71,7 +77,7 @@ export function PortfolioItemCard({
           <PortfolioKindIcon kind={item.kind} />
           {portfolioKindLabel(item.kind)}
         </Badge>
-        {item.pinned && (
+        {!editable && item.pinned && (
           <Badge variant="primary">
             <Pin aria-hidden="true" />
             Em destaque
@@ -124,29 +130,9 @@ export function PortfolioItemCard({
       {item.url && <ItemLink url={item.url} title={item.title} />}
 
       {editable && (
-        <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-border pt-3">
-          <ButtonLink href={`/portfolio/${item.id}/editar`} variant="ghost" size="sm">
-            <Pencil aria-hidden="true" />
-            Editar
-            <span className="sr-only"> “{item.title}”</span>
-          </ButtonLink>
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
           <PinButton itemId={item.id} itemTitle={item.title} pinned={item.pinned} />
-          <ConfirmDialog
-            stateAction={deletePortfolioItemAction}
-            hiddenFields={{ item_id: item.id }}
-            trigger={
-              <Button variant="ghost" size="sm" className="text-danger hover:text-danger">
-                <Trash2 aria-hidden="true" />
-                Apagar
-                <span className="sr-only"> “{item.title}”</span>
-              </Button>
-            }
-            title="Apagar este item do portfólio?"
-            description={`“${item.title}” sai do seu portfólio e do seu perfil. Publicações do feed que o mostravam continuam, sem o anexo. Não dá para desfazer.`}
-            confirmLabel="Sim, apagar"
-            pendingLabel="Apagando…"
-            cancelLabel="Voltar"
-          />
+          <PortfolioItemMenu itemId={item.id} itemTitle={item.title} sharedPosts={sharedPosts} />
         </div>
       )}
     </Card>

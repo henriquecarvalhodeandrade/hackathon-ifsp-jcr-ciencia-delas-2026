@@ -17,6 +17,10 @@ export interface ActionMenuProps {
   children: React.ReactNode;
   /** Texto extra só para leitor de tela, depois do visível (ex.: ": opções da conexão"). */
   srSuffix?: string;
+  /** Nome acessível do botão quando ele é só um ícone (ex.: "Mais ações: “Título”"). */
+  label?: string;
+  /** Seta ao lado do texto (padrão true; botões só com ícone dispensam). */
+  showChevron?: boolean;
   items: readonly ActionMenuItem[];
   variant?: ButtonVariant;
   size?: Extract<ButtonSize, "sm" | "md">;
@@ -39,6 +43,8 @@ const itemClasses =
 export function ActionMenu({
   children,
   srSuffix,
+  label,
+  showChevron = true,
   items,
   variant = "outline",
   size = "md",
@@ -116,6 +122,7 @@ export function ActionMenu({
         ref={buttonRef}
         type="button"
         aria-haspopup="menu"
+        aria-label={label}
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((value) => !value)}
@@ -124,10 +131,12 @@ export function ActionMenu({
       >
         {children}
         {srSuffix && <span className="sr-only">{srSuffix}</span>}
-        <ChevronDown
-          aria-hidden="true"
-          className={cn("transition-transform duration-150", open && "rotate-180")}
-        />
+        {showChevron && (
+          <ChevronDown
+            aria-hidden="true"
+            className={cn("transition-transform duration-150", open && "rotate-180")}
+          />
+        )}
       </button>
       {open && (
         <div

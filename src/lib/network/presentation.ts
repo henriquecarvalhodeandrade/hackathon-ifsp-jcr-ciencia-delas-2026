@@ -85,6 +85,44 @@ export function suggestionReason(signals: SuggestionSignals): string {
   return parts.length > 0 ? parts.join(" · ") : SUGGESTION_FALLBACK_REASON;
 }
 
+/** Primeiro nome de uma conexão em comum ("Dra. Marina Souza" → "Marina"). */
+function shortName(fullName: string): string {
+  return firstNameOf(fullName) || fullName.trim();
+}
+
+/**
+ * Conexões em comum com nome: "Marina em comum", "Marina e mais 1 em comum". `total` é a contagem
+ * da RPC (pode ser maior que os nomes que conseguimos ler).
+ */
+export function mutualSummary(names: readonly string[], total: number): string | null {
+  const first = names.find((name) => name.trim() !== "");
+  if (!first) return null;
+  const rest = Math.max(Math.floor(total), names.length) - 1;
+  return rest > 0 ? `${shortName(first)} e mais ${rest} em comum` : `${shortName(first)} em comum`;
+}
+
+/**
+ * Motivo principal (o selo do cartão) e os demais (texto discreto ao lado, em telas maiores).
+ * Com nomes de conexões em comum, eles vêm primeiro: são o motivo mais concreto.
+ */
+export function suggestionHighlights(
+  signals: SuggestionSignals,
+  mutualNames: readonly string[] = [],
+): { main: string; others: string[] } {
+  const mutual = mutualSummary(mutualNames, Number(signals.mutual_connections ?? 0));
+  const parts = suggestionReasonParts(signals);
+  if (mutual) {
+    // A parte "N conexões em comum" vira o nome; as demais seguem.
+    const others = parts.filter((part) => !/conex(ão|ões) em comum$/.test(part));
+    return { main: mutual, others };
+  }
+  if (parts.length === 0) return { main: SUGGESTION_FALLBACK_REASON, others: [] };
+  return { main: parts[0]!, others: parts.slice(1) };
+}
+
+/** Sugestões que aparecem antes do "Ver mais". */
+export const SUGGESTIONS_VISIBLE = 6;
+
 // ---------------------------------------------------------------------------
 // Números da rede
 // ---------------------------------------------------------------------------

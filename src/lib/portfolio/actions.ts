@@ -108,7 +108,8 @@ export async function savePortfolioItemAction(
       };
     }
     revalidatePortfolio();
-    redirect(`/portfolio?aviso=atualizado#item-${data.id}`);
+    // Sem #âncora: a página mostra um aviso, rola até o item e o realça (PortfolioFlash).
+    redirect(`/portfolio?aviso=atualizado&item=${data.id}`);
   }
 
   const { data, error } = await supabase.from("portfolio_items").insert(row).select("id").single();
@@ -131,23 +132,48 @@ export async function savePortfolioItemAction(
   }
 
   revalidatePortfolio({ feed: notice === "compartilhado" });
-  redirect(`/portfolio?aviso=${notice}#item-${data.id}`);
+  // O item novo aparece primeiro e realçado na /portfolio (PortfolioFlash); o aviso vira toast.
+  redirect(`/portfolio?aviso=${notice}&item=${data.id}`);
 }
 
 // ---------------------------------------------------------------------------
-// Apagar (ConfirmDialog com stateAction)
+// Apagar (do menu "⋯" do cartão)
 // ---------------------------------------------------------------------------
 
-export async function deletePortfolioItemAction(
-  _prev: PortfolioActionResult | null,
-  formData: FormData,
-): Promise<PortfolioActionResult> {
-  const parsed = itemId.safeParse(formData.get("item_id"));
+/**
+ * Apaga um item. Com `deletePosts`, apaga ANTES as publicações minhas no feed que o anexam (as
+ * criadas por "Compartilhar no feed"): sem isso, elas ficariam no feed sem o anexo, com o texto
+ * "Adicionei ao meu portfólio: …" apontando para nada. O RLS deixa a autora apagar as próprias.
+ */
+export async function deletePortfolioItem(
+  id: string,
+  options: { deletePosts?: boolean } = {},
+): Promise<{ ok: true; deletedPosts: number } | { ok: false; error: string }> {
+  const parsed = itemId.safeParse(id);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
   const member = await getMemberId();
   if ("error" in member) return { ok: false, error: member.error };
 
   const supabase = await createClient();
+  let deletedPosts = 0;
+  if (options.deletePosts === true) {
+    const { data, error } = await supabase
+      .from("posts")
+      .delete()
+      .eq("portfolio_item_id", parsed.data)
+      .eq("author_id", member.userId)
+      .select("id");
+    if (error) {
+      logFailure("apagar publicações do item", error);
+      return {
+        ok: false,
+        error:
+          "Não conseguimos apagar a publicação no feed agora, então o item continua. Tente de novo em instantes.",
+      };
+    }
+    deletedPosts = (data ?? []).length;
+  }
+
   const { error } = await supabase
     .from("portfolio_items")
     .delete()
@@ -160,7 +186,46 @@ export async function deletePortfolioItemAction(
   }
   // Nenhuma linha apagada = o item já não existia: o resultado desejado já vale.
   revalidatePortfolio({ feed: true });
-  redirect("/portfolio?aviso=apagado");
+  return { ok: true, deletedPosts };
+}
+
+// ---------------------------------------------------------------------------
+// Compartilhar no feed um item que já existe
+// ---------------------------------------------------------------------------
+
+export async function sharePortfolioItemAction(id: string): Promise<PortfolioActionResult> {
+  const parsed = itemId.safeParse(id);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+  const member = await getMemberId();
+  if ("error" in member) return { ok: false, error: member.error };
+
+  const supabase = await createClient();
+  const { data: item, error: readError } = await supabase
+    .from("portfolio_items")
+    .select("id, kind, title")
+    .eq("id", parsed.data)
+    .eq("owner_id", member.userId)
+    .maybeSingle();
+  if (readError || !item) {
+    if (readError) logFailure("ler item para compartilhar", readError);
+    return { ok: false, error: "Não encontramos este item no seu portfólio. Recarregue a página." };
+  }
+  const { error } = await supabase.from("posts").insert({
+    kind: postKindForPortfolio(item.kind),
+    body: portfolioPostBody(item.title),
+    portfolio_item_id: item.id,
+  });
+  if (error) {
+    logFailure("compartilhar no feed", error);
+    return {
+      ok: false,
+      error: error.code?.startsWith("CD")
+        ? error.message
+        : "Não conseguimos publicar no feed agora. Tente de novo em instantes.",
+    };
+  }
+  revalidatePortfolio({ feed: true });
+  return { ok: true, message: "Publicado no feed, com o item anexado." };
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +257,8 @@ export async function togglePinnedAction(id: string, pinned: boolean): Promise<P
   if (!data) {
     return { ok: false, error: "Não encontramos este item no seu portfólio. Recarregue a página." };
   }
-  revalidatePortfolio();
+  // Sem revalidar: qualquer revalidação re-renderiza a /portfolio e o cartão pularia para o topo
+  // no meio do clique. A ordem nova vale na próxima visita (as páginas são dinâmicas) e o perfil
+  // já lê o destaque atualizado.
   return { ok: true, pinned: data.pinned };
 }

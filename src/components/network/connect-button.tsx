@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { Check, Clock, MailOpen, Quote, Send, UserMinus, UserPlus, X } from "lucide-react";
+import { Check, Clock, Quote, Send, UserMinus, UserPlus } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -9,10 +9,12 @@ import {
   FormMessage,
   SubmitButton,
   Textarea,
+  toast,
   type ButtonProps,
   type ButtonSize,
 } from "@/components/ui";
 import {
+  addInviteMessageAction,
   removeConnectionAction,
   respondConnectionAction,
   sendConnectionAction,
@@ -26,6 +28,7 @@ import {
 import { connectAcceptsExisting, type RelationshipState } from "@/lib/network/relationship";
 import { cn } from "@/lib/utils";
 import { ActionMenu } from "./action-menu";
+import { PendingInvite, RespondInviteButtons, TOUCH_TARGET } from "./invite-actions";
 
 export interface ConnectButtonProps {
   profileId: string;
@@ -36,13 +39,16 @@ export interface ConnectButtonProps {
    * antes: "Conectar" aceita o convite dela em vez de mandar outro.
    */
   connectionId?: string | null;
-  /** Nome da pessoa (títulos dos diálogos e nome acessível dos botões em listas). */
+  /** Nome da pessoa (títulos dos diálogos, avisos e nome acessível dos botões em listas). */
   personName?: string | null;
-  /** Recado do convite recebido, mostrado ao responder. */
-  inviteMessage?: string | null;
   size?: Extract<ButtonSize, "sm" | "md">;
   /**
-   * false = enviar o convite não re-renderiza a página (listas da /rede: o cartão fica no lugar com
+   * Listas (sugestões): "Conectar" envia o convite num toque, sem diálogo; o aviso oferece
+   * "Adicionar recado". No perfil (padrão), o diálogo com recado vem antes.
+   */
+  oneTap?: boolean;
+  /**
+   * false = convidar não re-renderiza a página (listas da /rede: o cartão fica no lugar com o selo
    * "Convite enviado"). Respostas e remoções sempre atualizam. Padrão: true.
    */
   revalidate?: boolean;
@@ -50,32 +56,50 @@ export interface ConnectButtonProps {
 }
 
 type Current = { state: RelationshipState; connectionId: string | null };
+type Size = Extract<ButtonSize, "sm" | "md">;
+
+async function safely(run: () => Promise<ConnectionResult>): Promise<ConnectionResult> {
+  try {
+    return await run();
+  } catch {
+    return { ok: false, error: NETWORK_CONNECTION_ERROR };
+  }
+}
+
+function connectedMessage(name: string) {
+  return name
+    ? `${name} já tinha convidado você: agora vocês estão conectadas.`
+    : "Ela já tinha convidado você: agora vocês estão conectadas.";
+}
 
 /**
- * Botão "Conectar" com os quatro estados da conexão (docs/18 §2.1):
- * - **Conectar** → diálogo com recado opcional (≤ 300); se ela já tinha me convidado, conecta na hora;
- * - **Convite enviado** → cancelar (o convite recusado também aparece assim: a recusa nunca é contada);
- * - **Responder convite** → Aceitar / Recusar;
+ * Botão "Conectar" com os estados da conexão (docs/18 §2.1):
+ * - **Conectar** → no perfil, diálogo com recado opcional (≤ 300); nas listas, um toque (o aviso
+ *   oferece "Adicionar recado"). Se ela já tinha me convidado, conecta na hora;
+ * - **Convite enviado** → selo + "Cancelar" (o recusado também aparece assim: a recusa nunca é
+ *   contada a quem convidou);
+ * - **Convite recebido** → Aceitar / Recusar;
  * - **Conectadas** → menu com "Remover conexão".
- * Cada ação relê o estado no servidor; o resultado é anunciado numa região `aria-live` e o foco
- * vai para o botão novo.
+ * O resultado aparece num aviso (`toast`) e o foco segue para o controle do novo estado.
  */
 export function ConnectButton({
   profileId,
   state,
   connectionId = null,
   personName,
-  inviteMessage = null,
   size = "md",
+  oneTap = false,
   revalidate = true,
   className,
 }: ConnectButtonProps) {
   const fromProps: Current = { state, connectionId: connectionId ?? null };
   const [current, setCurrent] = useState<Current>(fromProps);
   const [lastProps, setLastProps] = useState<Current>(fromProps);
-  const [announcement, setAnnouncement] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
   const wrapperRef = useRef<HTMLSpanElement>(null);
-  const previousState = useRef(current.state);
+  // Estado + id: o convite de um toque passa por "enviado sem id" (selo) antes do id chegar.
+  const stateKey = `${current.state}:${current.connectionId ?? ""}`;
+  const previousKey = useRef(stateKey);
 
   // Dados novos do servidor (revalidação depois da ação) substituem o estado local.
   if (lastProps.state !== fromProps.state || lastProps.connectionId !== fromProps.connectionId) {
@@ -83,23 +107,43 @@ export function ConnectButton({
     setCurrent(fromProps);
   }
 
-  // O botão troca de forma a cada estado: se o foco estava nele (ou se perdeu), segue para o novo.
+  // O controle troca de forma a cada estado: se o foco estava nele (ou se perdeu), segue para o novo.
   useEffect(() => {
-    if (previousState.current === current.state) return;
-    previousState.current = current.state;
+    if (previousKey.current === stateKey) return;
+    previousKey.current = stateKey;
     const active = document.activeElement;
     if (!active || active === document.body || wrapperRef.current?.contains(active)) {
-      wrapperRef.current?.querySelector<HTMLElement>("button")?.focus();
+      wrapperRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
     }
-  }, [current.state]);
+  }, [stateKey]);
 
   const name = firstNameOf(personName);
-  const her = name || "ela";
 
-  function apply(result: ConnectionResult) {
-    if (!result.ok) return;
+  function apply(result: Extract<ConnectionResult, { ok: true }>) {
     setCurrent({ state: result.state, connectionId: result.connectionId });
-    setAnnouncement(result.message);
+  }
+
+  /** Depois de convidar: aviso com "Adicionar recado" (ou "conectadas", se ela já tinha convidado). */
+  function invited(result: Extract<ConnectionResult, { ok: true }>, withNote: boolean) {
+    apply(result);
+    if (result.state === "connected") {
+      toast(connectedMessage(name));
+      return;
+    }
+    toast({
+      message: name ? `Convite enviado para ${name}.` : "Convite enviado.",
+      action:
+        withNote && result.connectionId
+          ? {
+              label: "Adicionar recado",
+              onClick: () => {
+                // O foco volta para cá (e não para o aviso, que some) quando o diálogo fechar.
+                wrapperRef.current?.querySelector<HTMLElement>("button")?.focus();
+                setNoteOpen(true);
+              },
+            }
+          : undefined,
+    });
   }
 
   let control: React.ReactNode;
@@ -115,39 +159,25 @@ export function ConnectButton({
     );
   } else if (current.state === "pending_received" && current.connectionId) {
     control = (
-      <RespondDialog
+      <RespondInviteButtons
         connectionId={current.connectionId}
-        name={name}
-        message={inviteMessage}
+        personName={personName}
         size={size}
-        className={className}
-        onDone={apply}
       />
     );
   } else if (current.state === "pending_sent" && current.connectionId) {
     control = (
-      <ConfirmActionDialog
-        title="Cancelar o convite?"
-        description={`${name ? `${name} não` : "Ela não"} recebe aviso do cancelamento. Se quiser, você pode convidar de novo depois.`}
-        trigger={
-          <Button variant="outline" size={size} className={className}>
-            <Clock aria-hidden="true" />
-            Convite enviado
-            <span className="sr-only">{name ? ` para ${name}` : ""}: cancelar convite</span>
-          </Button>
-        }
-        actions={[
-          {
-            label: "Cancelar convite",
-            pendingLabel: "Cancelando…",
-            variant: "danger",
-            run: () => removeConnectionAction(current.connectionId!),
-          },
-        ]}
-        cancelLabel="Voltar"
-        onDone={apply}
+      <PendingInvite
+        connectionId={current.connectionId}
+        profileId={profileId}
+        personName={personName}
+        size={size}
+        onChange={apply}
       />
     );
+  } else if (current.state === "pending_sent") {
+    // Convite de um toque a caminho (otimista): o selo aparece antes da resposta do servidor.
+    control = <SendingChip size={size} />;
   } else if (current.state === "none" && connectAcceptsExisting(current)) {
     control = (
       <AcceptDeclinedButton
@@ -158,16 +188,33 @@ export function ConnectButton({
         onDone={apply}
       />
     );
+  } else if (oneTap) {
+    control = (
+      <OneTapConnect
+        profileId={profileId}
+        name={name}
+        size={size}
+        revalidate={revalidate}
+        className={className}
+        onSending={() => setCurrent({ state: "pending_sent", connectionId: null })}
+        onDone={(result) => {
+          if (result.ok) invited(result, true);
+          else {
+            setCurrent({ state: "none", connectionId: null });
+            toast({ message: result.error, tone: "danger" });
+          }
+        }}
+      />
+    );
   } else {
     control = (
       <InviteDialog
         profileId={profileId}
         revalidate={revalidate}
         name={name}
-        her={her}
         size={size}
         className={className}
-        onDone={apply}
+        onDone={(result) => invited(result, false)}
       />
     );
   }
@@ -175,24 +222,137 @@ export function ConnectButton({
   return (
     <span ref={wrapperRef} className="contents">
       {control}
-      <span aria-live="polite" className="sr-only">
-        {announcement}
-      </span>
+      {current.state === "pending_sent" && current.connectionId && (
+        <NoteDialog
+          open={noteOpen}
+          onOpenChange={setNoteOpen}
+          connectionId={current.connectionId}
+          name={name}
+          revalidate={revalidate}
+          onDone={(result) => {
+            apply(result);
+            toast(
+              result.state === "connected"
+                ? connectedMessage(name)
+                : name
+                  ? `Recado enviado para ${name}.`
+                  : "Recado enviado.",
+            );
+          }}
+        />
+      )}
+    </span>
+  );
+}
+
+function SendingChip({ size }: { size: Size }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-pill bg-surface-2 px-3 font-semibold text-fg-muted [&_svg]:size-4",
+        size === "sm" ? "h-8 text-sm" : "h-10 text-[0.9375rem]",
+      )}
+    >
+      <Clock aria-hidden="true" />
+      Convite enviado
     </span>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Conectar (com recado opcional)
+// Conectar num toque (listas)
 // ---------------------------------------------------------------------------
 
-type InviteFormState = { error: string; message: string; nonce: number } | null;
+function OneTapConnect({
+  profileId,
+  name,
+  size,
+  revalidate,
+  className,
+  onSending,
+  onDone,
+}: {
+  profileId: string;
+  name: string;
+  size: Size;
+  revalidate: boolean;
+  className?: string;
+  onSending: () => void;
+  onDone: (result: ConnectionResult) => void;
+}) {
+  const [, startTransition] = useTransition();
+  return (
+    <Button
+      size={size}
+      className={cn(size === "sm" && TOUCH_TARGET, className)}
+      onClick={() => {
+        onSending();
+        startTransition(async () => {
+          const result = await safely(() => sendConnectionAction(profileId, null, { revalidate }));
+          onDone(result);
+        });
+      }}
+    >
+      <UserPlus aria-hidden="true" />
+      Conectar
+      {name && <span className="sr-only"> com {name}</span>}
+    </Button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Conectar (com recado opcional) — perfil
+// ---------------------------------------------------------------------------
+
+type NoteFormState = { error: string; message: string; nonce: number } | null;
+
+/** Campo do recado, com o texto de volta depois de um erro. */
+function NoteField({ state }: { state: NoteFormState }) {
+  return (
+    <div className="grid gap-3">
+      <FormMessage tone="error">{state?.error}</FormMessage>
+      <Field
+        label="Recado"
+        optional
+        hint="Conte de onde vocês se conhecem ou por que você quer se conectar."
+      >
+        <Textarea
+          key={state?.nonce ?? "novo"}
+          name="message"
+          rows={4}
+          maxLength={CONNECTION_MESSAGE_MAX}
+          showCount
+          defaultValue={state?.message ?? ""}
+          data-autofocus
+        />
+      </Field>
+    </div>
+  );
+}
+
+/** useActionState de um diálogo de recado: devolve o erro (com o texto) ou fecha no sucesso. */
+function useNoteForm(
+  send: (message: string) => Promise<ConnectionResult>,
+  onSuccess: (result: Extract<ConnectionResult, { ok: true }>) => void,
+) {
+  const [stale, setStale] = useState<NoteFormState>(null);
+  const [state, action] = useActionState<NoteFormState, FormData>(async (_prev, formData) => {
+    const raw = formData.get("message");
+    const message = typeof raw === "string" ? raw : "";
+    const result = await safely(() => send(message));
+    if (!result.ok) return { error: result.error, message, nonce: Date.now() };
+    // Depois de fechar (o foco volta ao botão), troca o botão pelo do novo estado.
+    requestAnimationFrame(() => onSuccess(result));
+    return null;
+  }, null);
+  // Erro de uma abertura anterior não reaparece quando o diálogo abre de novo.
+  return { state: state !== stale ? state : null, action, markStale: () => setStale(state) };
+}
 
 function InviteDialog({
   profileId,
   revalidate,
   name,
-  her,
   size,
   className,
   onDone,
@@ -200,45 +360,28 @@ function InviteDialog({
   profileId: string;
   revalidate: boolean;
   name: string;
-  her: string;
-  size: Extract<ButtonSize, "sm" | "md">;
+  size: Size;
   className?: string;
-  onDone: (result: ConnectionResult) => void;
+  onDone: (result: Extract<ConnectionResult, { ok: true }>) => void;
 }) {
   const [open, setOpen] = useState(false);
-  // Erro de uma abertura anterior não reaparece quando o diálogo abre de novo.
-  const [staleState, setStaleState] = useState<InviteFormState>(null);
-  const [formState, formAction] = useActionState<InviteFormState, FormData>(
-    async (_prev, formData) => {
-      const message =
-        typeof formData.get("message") === "string" ? String(formData.get("message")) : "";
-      let result: ConnectionResult;
-      try {
-        result = await sendConnectionAction(profileId, message, { revalidate });
-      } catch {
-        result = { ok: false, error: NETWORK_CONNECTION_ERROR };
-      }
-      if (!result.ok) return { error: result.error, message, nonce: Date.now() };
-      setOpen(false);
-      // Depois de fechar (o foco volta ao botão), troca o botão pelo do novo estado.
-      requestAnimationFrame(() => onDone(result));
-      return null;
-    },
-    null,
-  );
-  const visibleState = formState !== staleState ? formState : null;
+  const form = useNoteForm(async (message) => {
+    const result = await sendConnectionAction(profileId, message, { revalidate });
+    if (result.ok) setOpen(false);
+    return result;
+  }, onDone);
 
   return (
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value) setStaleState(formState);
+        if (value) form.markStale();
         setOpen(value);
       }}
       size="md"
       title={name ? `Conectar com ${name}` : "Enviar convite de conexão"}
-      description={`Se ${her} aceitar, vocês viram conexões e passam a se seguir: as publicações de uma aparecem no feed da outra.`}
-      formProps={{ action: formAction, noValidate: true }}
+      description={`Se ${name || "ela"} aceitar, vocês viram conexões e passam a se seguir: as publicações de uma aparecem no feed da outra.`}
+      formProps={{ action: form.action, noValidate: true }}
       trigger={
         <Button size={size} className={className}>
           <UserPlus aria-hidden="true" />
@@ -258,24 +401,56 @@ function InviteDialog({
         </>
       }
     >
-      <div className="grid gap-3">
-        <FormMessage tone="error">{visibleState?.error}</FormMessage>
-        <Field
-          label="Recado"
-          optional
-          hint="Conte de onde vocês se conhecem ou por que você quer se conectar."
-        >
-          <Textarea
-            key={visibleState?.nonce ?? "novo"}
-            name="message"
-            rows={4}
-            maxLength={CONNECTION_MESSAGE_MAX}
-            showCount
-            defaultValue={visibleState?.message ?? ""}
-            data-autofocus
-          />
-        </Field>
-      </div>
+      <NoteField state={form.state} />
+    </Dialog>
+  );
+}
+
+/** "Adicionar recado" a um convite já enviado (aberto pelo aviso do convite de um toque). */
+function NoteDialog({
+  open,
+  onOpenChange,
+  connectionId,
+  name,
+  revalidate,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  connectionId: string;
+  name: string;
+  revalidate: boolean;
+  onDone: (result: Extract<ConnectionResult, { ok: true }>) => void;
+}) {
+  const form = useNoteForm(async (message) => {
+    const result = await addInviteMessageAction(connectionId, message, { revalidate });
+    if (result.ok) onOpenChange(false);
+    return result;
+  }, onDone);
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (value) form.markStale();
+        onOpenChange(value);
+      }}
+      size="md"
+      title={name ? `Recado para ${name}` : "Adicionar recado"}
+      description="O convite é reenviado com o recado — ela recebe um único aviso."
+      formProps={{ action: form.action, noValidate: true }}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Agora não
+          </Button>
+          <SubmitButton pendingText="Enviando…">
+            <Send aria-hidden="true" />
+            Enviar recado
+          </SubmitButton>
+        </>
+      }
+    >
+      <NoteField state={form.state} />
     </Dialog>
   );
 }
@@ -293,112 +468,36 @@ function AcceptDeclinedButton({
 }: {
   connectionId: string;
   name: string;
-  size: Extract<ButtonSize, "sm" | "md">;
+  size: Size;
   className?: string;
-  onDone: (result: ConnectionResult) => void;
+  onDone: (result: Extract<ConnectionResult, { ok: true }>) => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
-    setError(null);
     startTransition(async () => {
-      let result: ConnectionResult;
-      try {
-        result = await respondConnectionAction(connectionId, true);
-      } catch {
-        result = { ok: false, error: NETWORK_CONNECTION_ERROR };
+      const result = await safely(() => respondConnectionAction(connectionId, true));
+      if (!result.ok) {
+        toast({ message: result.error, tone: "danger" });
+        return;
       }
-      if (result.ok) onDone(result);
-      else setError(result.error);
+      onDone(result);
+      toast(name ? `Agora você e ${name} estão conectadas.` : result.message);
     });
   }
 
   return (
-    <span className="relative inline-flex">
-      <Button
-        size={size}
-        className={className}
-        onClick={handleClick}
-        loading={isPending}
-        loadingText="Conectando…"
-      >
-        <UserPlus aria-hidden="true" />
-        Conectar
-        {name && <span className="sr-only"> com {name}</span>}
-      </Button>
-      <span aria-live="polite" className="sr-only">
-        {error ?? ""}
-      </span>
-      {error && (
-        <span
-          aria-hidden="true"
-          className="absolute top-full left-0 z-20 mt-1 w-60 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs font-medium text-danger-soft-fg shadow-overlay"
-        >
-          {error}
-        </span>
-      )}
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Responder convite (Aceitar / Recusar)
-// ---------------------------------------------------------------------------
-
-function RespondDialog({
-  connectionId,
-  name,
-  message,
-  size,
-  className,
-  onDone,
-}: {
-  connectionId: string;
-  name: string;
-  message: string | null;
-  size: Extract<ButtonSize, "sm" | "md">;
-  className?: string;
-  onDone: (result: ConnectionResult) => void;
-}) {
-  return (
-    <ConfirmActionDialog
-      title={name ? `Convite de ${name}` : "Convite de conexão"}
-      description="Aceitando, vocês viram conexões e passam a se seguir. Se recusar, ela não recebe aviso — e você pode aceitar depois."
-      trigger={
-        <Button size={size} className={className}>
-          <MailOpen aria-hidden="true" />
-          Responder convite
-          {name && <span className="sr-only"> de {name}</span>}
-        </Button>
-      }
-      actions={[
-        {
-          label: "Recusar",
-          pendingLabel: "Recusando…",
-          variant: "outline",
-          icon: <X aria-hidden="true" />,
-          run: () => respondConnectionAction(connectionId, false),
-        },
-        {
-          label: "Aceitar convite",
-          pendingLabel: "Aceitando…",
-          variant: "primary",
-          icon: <Check aria-hidden="true" />,
-          run: () => respondConnectionAction(connectionId, true),
-        },
-      ]}
-      cancelLabel={null}
-      onDone={onDone}
+    <Button
+      size={size}
+      className={cn(size === "sm" && TOUCH_TARGET, className)}
+      onClick={handleClick}
+      loading={isPending}
+      loadingText="Conectando…"
     >
-      {message ? (
-        <InviteQuote label={name ? `Recado de ${name}` : "Recado"}>{message}</InviteQuote>
-      ) : (
-        <p className="text-[0.9375rem] text-fg-muted">
-          {name || "Ela"} não deixou recado. Dê uma olhada no perfil antes de responder.
-        </p>
-      )}
-    </ConfirmActionDialog>
+      <UserPlus aria-hidden="true" />
+      Conectar
+      {name && <span className="sr-only"> com {name}</span>}
+    </Button>
   );
 }
 
@@ -430,159 +529,77 @@ function ConnectedMenu({
 }: {
   connectionId: string;
   name: string;
-  size: Extract<ButtonSize, "sm" | "md">;
+  size: Size;
   className?: string;
-  onDone: (result: ConnectionResult) => void;
+  onDone: (result: Extract<ConnectionResult, { ok: true }>) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function remove() {
+    setError(null);
+    startTransition(async () => {
+      const result = await safely(() => removeConnectionAction(connectionId));
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setConfirming(false);
+      requestAnimationFrame(() => onDone(result));
+      toast({
+        message: name ? `Conexão com ${name} removida.` : "Conexão removida.",
+        tone: "info",
+      });
+    });
+  }
+
   return (
     <>
       <ActionMenu
         size={size}
         variant="outline"
-        className={cn(
-          "border-secondary/40 bg-secondary-soft text-secondary-soft-fg hover:border-secondary hover:bg-secondary-soft",
-          className,
-        )}
+        className={cn(size === "sm" && TOUCH_TARGET, className)}
         srSuffix={name ? ` com ${name}: opções da conexão` : ": opções da conexão"}
         items={[
           {
             label: "Remover conexão",
             icon: <UserMinus aria-hidden="true" />,
             tone: "danger",
-            onSelect: () => setConfirming(true),
+            onSelect: () => {
+              setError(null);
+              setConfirming(true);
+            },
           },
         ]}
       >
         <Check aria-hidden="true" />
         Conectadas
       </ActionMenu>
-      <ConfirmActionDialog
+      <Dialog
         open={confirming}
         onOpenChange={setConfirming}
+        size="sm"
         title={name ? `Remover a conexão com ${name}?` : "Remover esta conexão?"}
         description="Ela não recebe aviso. Vocês continuam se seguindo — se quiser, deixe de seguir depois. Para voltar a ser conexões, uma de vocês manda um convite novo."
-        actions={[
-          {
-            label: "Remover conexão",
-            pendingLabel: "Removendo…",
-            variant: "danger",
-            run: () => removeConnectionAction(connectionId),
-          },
-        ]}
-        cancelLabel="Voltar"
-        onDone={onDone}
-      />
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Diálogo de confirmação com uma ou mais ações assíncronas
-// ---------------------------------------------------------------------------
-
-interface ConfirmAction {
-  label: string;
-  pendingLabel: string;
-  variant: ButtonProps["variant"];
-  icon?: React.ReactNode;
-  run: () => Promise<ConnectionResult>;
-}
-
-/**
- * Como o `ConfirmDialog`, mas com várias ações (Aceitar / Recusar) que chamam Server Actions
- * direto e pode ser aberto por fora (`open`). Erro `{ ok: false }` aparece dentro do diálogo, que
- * continua aberto; no sucesso ele fecha (o foco volta ao gatilho) e só então o botão troca.
- */
-function ConfirmActionDialog({
-  title,
-  description,
-  trigger,
-  open: openProp,
-  onOpenChange,
-  actions,
-  cancelLabel,
-  onDone,
-  children,
-}: {
-  title: string;
-  description: string;
-  trigger?: React.ReactElement;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  actions: readonly ConfirmAction[];
-  /** Botão "Voltar" (null = sem botão; o diálogo fecha pelo X e com Esc). */
-  cancelLabel: string | null;
-  onDone: (result: ConnectionResult) => void;
-  children?: React.ReactNode;
-}) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = openProp ?? internalOpen;
-  const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
-
-  function setOpen(value: boolean) {
-    if (value) setError(null);
-    if (openProp === undefined) setInternalOpen(value);
-    onOpenChange?.(value);
-  }
-
-  function handle(action: ConfirmAction) {
-    setError(null);
-    setRunning(action.label);
-    startTransition(async () => {
-      let result: ConnectionResult;
-      try {
-        result = await action.run();
-      } catch {
-        result = { ok: false, error: NETWORK_CONNECTION_ERROR };
-      }
-      setRunning(null);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      requestAnimationFrame(() => onDone(result));
-    });
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={setOpen}
-      size="sm"
-      title={title}
-      description={description}
-      trigger={trigger}
-      footer={
-        <>
-          {cancelLabel && (
-            <Button variant="ghost" onClick={() => setOpen(false)} disabled={running !== null}>
-              {cancelLabel}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirming(false)} disabled={isPending}>
+              Voltar
             </Button>
-          )}
-          {actions.map((action) => (
             <Button
-              key={action.label}
-              variant={action.variant}
-              onClick={() => handle(action)}
-              loading={running === action.label}
-              loadingText={action.pendingLabel}
-              disabled={running !== null && running !== action.label}
+              variant={"danger" satisfies ButtonProps["variant"]}
+              onClick={remove}
+              loading={isPending}
+              loadingText="Removendo…"
             >
-              {action.icon}
-              {action.label}
+              Remover conexão
             </Button>
-          ))}
-        </>
-      }
-    >
-      <div className="grid gap-3">
-        {children}
+          </>
+        }
+      >
         <FormMessage tone="error">{error}</FormMessage>
-      </div>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

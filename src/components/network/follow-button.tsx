@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useOptimistic, useState, useTransition } from "react";
-import { Check, Plus } from "lucide-react";
-import { buttonVariants, type ButtonSize } from "@/components/ui";
+import { useOptimistic, useState, useTransition } from "react";
+import { Check, Plus, UserMinus } from "lucide-react";
+import { buttonVariants, toast, type ButtonSize } from "@/components/ui";
 import { followAction, unfollowAction } from "@/lib/network/actions";
 import { firstNameOf, NETWORK_CONNECTION_ERROR } from "@/lib/network/presentation";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,8 @@ export interface FollowButtonProps {
   /** Nome da pessoa: completa o nome acessível ("Seguir Marina") em listas com vários botões. */
   personName?: string | null;
   size?: Extract<ButtonSize, "sm" | "md">;
+  /** Abaixo de `sm`, só o ícone (o texto continua no nome acessível). Para linhas compactas. */
+  iconOnlyOnMobile?: boolean;
   /**
    * false = não re-renderiza a página depois da ação (listas da /rede: o cartão fica no lugar e o
    * botão guarda o estado novo). Padrão: true (ex.: no perfil, os números se atualizam).
@@ -23,23 +25,24 @@ export interface FollowButtonProps {
 }
 
 /**
- * Seguir / deixar de seguir, com atualização otimista. É um botão de alternância: o nome é FIXO
- * ("Seguir") e o estado vem do `aria-pressed` (docs/02 §13) — ligado, ganha o visto e o fundo
- * violeta. O resultado é anunciado por uma região `aria-live`.
+ * Seguir / deixar de seguir, com atualização otimista. Exceção documentada em docs/02 §13: em vez
+ * de `aria-pressed` com nome fixo, o texto É o estado — "Seguir" → "Seguindo" — e, no hover ou no
+ * foco do teclado, vira a ação "Deixar de seguir". O nome acessível acompanha o texto visível
+ * (o rótulo escondido usa `visibility: hidden`, que sai da árvore de acessibilidade, e os dois
+ * ocupam a mesma célula: o botão não muda de largura).
  */
 export function FollowButton({
   profileId,
   following,
   personName,
   size = "md",
+  iconOnlyOnMobile = false,
   revalidate = true,
   className,
 }: FollowButtonProps) {
   const [confirmed, setConfirmed] = useState(following);
   const [lastProp, setLastProp] = useState(following);
-  const [error, setError] = useState<string | null>(null);
-  const [announcement, setAnnouncement] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   // Dados novos do servidor (revalidação) substituem o último estado confirmado.
   if (lastProp !== following) {
@@ -48,18 +51,11 @@ export function FollowButton({
   }
   const [optimistic, setOptimistic] = useOptimistic(confirmed, (_c, next: boolean) => next);
 
-  useEffect(() => {
-    if (!error) return;
-    const timer = window.setTimeout(() => setError(null), 6000);
-    return () => window.clearTimeout(timer);
-  }, [error]);
-
   const name = firstNameOf(personName);
-  const label = name ? `Seguir ${name}` : "Seguir";
+  const who = name || "esta pesquisadora";
 
   function handleClick() {
     const next = !optimistic;
-    setError(null);
     startTransition(async () => {
       setOptimistic(next);
       let result: Awaited<ReturnType<typeof followAction>>;
@@ -73,47 +69,61 @@ export function FollowButton({
       startTransition(() => {
         if (result.ok) {
           setConfirmed(result.following);
-          setAnnouncement(
-            result.following
-              ? `Você agora segue ${name || "esta pesquisadora"}.`
-              : `Você deixou de seguir ${name || "esta pesquisadora"}.`,
-          );
+          toast({
+            message: result.following
+              ? `Você agora segue ${who}. As publicações dela aparecem no seu feed.`
+              : `Você deixou de seguir ${who}.`,
+            tone: result.following ? "success" : "info",
+          });
         } else {
-          setError(result.error);
+          toast({ message: result.error, tone: "danger" });
         }
       });
     });
   }
 
-  return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={handleClick}
-        aria-pressed={optimistic}
-        aria-busy={isPending || undefined}
-        aria-label={name ? label : undefined}
-        className={cn(
-          buttonVariants({ variant: "outline", size }),
-          optimistic &&
-            "border-primary bg-primary-soft text-primary-soft-fg hover:border-primary hover:bg-primary-soft",
-          className,
-        )}
-      >
-        {optimistic ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}
-        Seguir
-      </button>
-      <span aria-live="polite" className="sr-only">
-        {error ?? announcement}
-      </span>
-      {error && (
-        <span
-          aria-hidden="true"
-          className="absolute top-full left-0 z-20 mt-1 w-56 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs font-medium text-danger-soft-fg shadow-overlay"
-        >
-          {error}
-        </span>
-      )}
+  const label = (text: string) => (
+    <span className={cn(iconOnlyOnMobile && "max-sm:sr-only")}>
+      {text}
+      {name && <span className="sr-only"> {name}</span>}
     </span>
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={cn(
+        buttonVariants({ variant: "outline", size }),
+        "group",
+        size === "sm" && "pointer-coarse:h-11 pointer-coarse:px-4",
+        iconOnlyOnMobile && (size === "sm" ? "max-sm:w-8 max-sm:px-0" : "max-sm:w-10 max-sm:px-0"),
+        iconOnlyOnMobile && size === "sm" && "max-sm:pointer-coarse:w-11",
+        optimistic &&
+          "hover:border-danger/50 hover:bg-danger-soft hover:text-danger-soft-fg focus-visible:border-danger/50 focus-visible:bg-danger-soft focus-visible:text-danger-soft-fg",
+        className,
+      )}
+    >
+      {optimistic ? (
+        <>
+          {/* Seguindo (repouso) e Deixar de seguir (hover/foco) na mesma célula da grade. */}
+          <span className="grid items-center justify-items-center">
+            <span className="inline-flex items-center gap-2 [grid-area:1/1] group-hover:invisible group-focus-visible:invisible">
+              <Check aria-hidden="true" />
+              {label("Seguindo")}
+            </span>
+            <span className="invisible inline-flex items-center gap-2 [grid-area:1/1] group-hover:visible group-focus-visible:visible">
+              <UserMinus aria-hidden="true" />
+              {label("Deixar de seguir")}
+            </span>
+          </span>
+        </>
+      ) : (
+        <>
+          <Plus aria-hidden="true" />
+          {label("Seguir")}
+        </>
+      )}
+    </button>
   );
 }

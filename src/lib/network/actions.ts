@@ -278,3 +278,69 @@ export async function removeConnectionAction(connectionId: string): Promise<Conn
         : "Convite apagado.",
   );
 }
+
+/**
+ * "Adicionar recado" a um convite já enviado (o convite de um toque das listas). Quem convidou
+ * não pode editar o convite (só o status muda, e só por quem recebeu), então o convite pendente
+ * é refeito com o recado: apaga e envia de novo. O aviso de convite da outra pessoa é trocado pelo
+ * novo (o do antigo some junto com ele). Se o convite não estiver mais pendente para mim, nada muda.
+ */
+export async function addInviteMessageAction(
+  connectionId: string,
+  message: string,
+  options: NetworkActionOptions = {},
+): Promise<ConnectionResult> {
+  const id = connectionIdSchema.safeParse(connectionId);
+  if (!id.success) return { ok: false, error: id.error.issues[0]!.message };
+  const member = await getMember();
+  if ("error" in member) return { ok: false, error: member.error };
+
+  const supabase = await createClient();
+  const { data: row, error: readError } = await supabase
+    .from("connections")
+    .select("id, requester_id, addressee_id, status, message")
+    .eq("id", id.data)
+    .eq("requester_id", member.userId)
+    .maybeSingle();
+  if (readError) {
+    logFailure("ler convite", readError);
+    return { ok: false, error: friendlyNetworkError(readError, "connect") };
+  }
+  const parsed = sendConnectionSchema.safeParse({ profile_id: row?.addressee_id, message });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+  if (!parsed.data.message) return { ok: false, error: "Escreva o recado antes de enviar." };
+
+  // Só um convite MEU e ainda pendente pode ser refeito (o recusado continua como está, sem
+  // contar a recusa: a mensagem abaixo vale para os dois casos).
+  const unchanged = {
+    ok: false as const,
+    error: "Não conseguimos adicionar o recado agora. O convite continua enviado.",
+  };
+  if (!row || row.status !== "pending") return unchanged;
+
+  const { data: deleted, error: deleteError } = await supabase
+    .from("connections")
+    .delete()
+    .eq("id", row.id)
+    .eq("status", "pending")
+    .select("id");
+  if (deleteError) {
+    logFailure("refazer convite (apagar)", deleteError);
+    return { ok: false, error: friendlyNetworkError(deleteError, "connect") };
+  }
+  if ((deleted ?? []).length === 0) return unchanged;
+
+  const { error } = await supabase
+    .from("connections")
+    .insert({ addressee_id: row.addressee_id, message: parsed.data.message });
+  if (error) {
+    logFailure("refazer convite (enviar)", error);
+    return { ok: false, error: friendlyNetworkError(error, "connect") };
+  }
+  if (options.revalidate !== false) revalidateNetwork();
+  return settledState(supabase, member.userId, row.addressee_id, (state) =>
+    state === "connected"
+      ? "Ela já tinha convidado você: agora vocês estão conectadas."
+      : "Recado enviado com o convite.",
+  );
+}

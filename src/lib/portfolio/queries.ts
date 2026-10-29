@@ -67,3 +67,31 @@ export async function getOwnPortfolioItem(
   }
   return data;
 }
+
+/**
+ * Quantas publicações MINHAS no feed anexam cada item (as de "Compartilhar no feed"). Usado no
+ * diálogo de apagar: "Apagar também a publicação no feed". Falhou? Mapa vazio (sem a opção).
+ */
+export async function loadSharedPostCounts(
+  supabase: ServerClient,
+  ownerId: string,
+  itemIds: readonly string[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (itemIds.length === 0) return counts;
+  const { data, error } = await supabase
+    .from("posts")
+    .select("portfolio_item_id")
+    .eq("author_id", ownerId)
+    .in("portfolio_item_id", [...itemIds]);
+  if (error) {
+    console.warn(`[portfólio] publicações — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
+    return counts;
+  }
+  for (const row of data ?? []) {
+    if (row.portfolio_item_id) {
+      counts.set(row.portfolio_item_id, (counts.get(row.portfolio_item_id) ?? 0) + 1);
+    }
+  }
+  return counts;
+}

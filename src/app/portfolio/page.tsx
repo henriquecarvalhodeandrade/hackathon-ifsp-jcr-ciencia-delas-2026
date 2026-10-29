@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Briefcase, Eye, Plus } from "lucide-react";
 import { Alert, ButtonLink, Container, EmptyState, PageHeader } from "@/components/ui";
+import { PortfolioFlash } from "@/components/portfolio/portfolio-flash";
 import { PortfolioItemCard } from "@/components/portfolio/portfolio-item-card";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { parsePortfolioNotice, PORTFOLIO_LIMITS } from "@/lib/portfolio/presentation";
-import { listPortfolioItems } from "@/lib/portfolio/queries";
+import { listPortfolioItems, loadSharedPostCounts } from "@/lib/portfolio/queries";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/utils";
 
@@ -31,14 +32,29 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Se
   }
 
   const me = await requireOnboardedProfile("/portfolio");
-  const notice = parsePortfolioNotice((await searchParams).aviso);
+  const params = await searchParams;
+  const notice = parsePortfolioNotice(params.aviso);
+  const flashId =
+    typeof params.item === "string" && /^[0-9a-f-]{36}$/i.test(params.item) ? params.item : null;
   const supabase = await createClient();
-  const { items, failed } = await listPortfolioItems(supabase, me.id);
+  const { items: sorted, failed } = await listPortfolioItems(supabase, me.id);
+  // Item recém-adicionado: aparece primeiro nesta visita (realçado pelo PortfolioFlash); na
+  // próxima, volta para a ordem de sempre (destacados, ano, criação).
+  const justAdded = notice && flashId && params.aviso !== "atualizado" ? flashId : null;
+  const items = justAdded
+    ? [...sorted.filter((i) => i.id === justAdded), ...sorted.filter((i) => i.id !== justAdded)]
+    : sorted;
+  const sharedPosts = await loadSharedPostCounts(
+    supabase,
+    me.id,
+    items.map((i) => i.id),
+  );
   const full = items.length >= PORTFOLIO_LIMITS.itemsMax;
 
   return (
     <Container className="pb-16">
       <PageHeader
+        compactOnMobile
         eyebrow="Portfólio"
         title="Meu portfólio"
         description="Artigos, projetos, apresentações, pôsteres, TCC, prêmios e cursos: o que você reunir aqui aparece no seu perfil para as membras da Artemis. Destaque os itens que quer mostrar primeiro."
@@ -59,11 +75,19 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Se
       />
 
       <div className="grid gap-6">
-        {notice && (
-          <Alert variant={notice.variant} title={notice.title} live>
-            {notice.body}
-          </Alert>
-        )}
+        {/* Avisos depois de adicionar/editar viram toast (e a URL é limpa). */}
+        <PortfolioFlash
+          notice={
+            notice
+              ? {
+                  title: notice.title,
+                  body: notice.body,
+                  tone: notice.variant === "success" ? "success" : "info",
+                }
+              : null
+          }
+          itemId={flashId}
+        />
 
         {failed ? (
           <Alert variant="danger" title="Não conseguimos carregar o seu portfólio agora">
@@ -84,7 +108,11 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Se
         ) : (
           <section aria-labelledby="itens-titulo" className="grid gap-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="itens-titulo" className="font-display text-xl font-semibold text-fg">
+              <h2
+                id="itens-titulo"
+                tabIndex={-1}
+                className="font-display text-xl font-semibold text-fg"
+              >
                 Seus itens
               </h2>
               <p className="text-sm text-fg-subtle">
@@ -99,7 +127,12 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Se
             )}
             <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {items.map((item) => (
-                <PortfolioItemCard key={item.id} item={item} editable />
+                <PortfolioItemCard
+                  key={item.id}
+                  item={item}
+                  editable
+                  sharedPosts={sharedPosts.get(item.id) ?? 0}
+                />
               ))}
             </ul>
             <p className="text-sm text-fg-muted">

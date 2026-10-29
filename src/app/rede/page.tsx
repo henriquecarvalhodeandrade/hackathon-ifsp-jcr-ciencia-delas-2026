@@ -9,7 +9,6 @@ import {
   type TabNavItem,
 } from "@/components/ui";
 import { ScrollActiveTab } from "@/components/mentorship/scroll-active-tab";
-import { NetworkAnnouncer } from "@/components/network/network-announcer";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
@@ -71,6 +70,7 @@ export default async function RedePage({ searchParams }: { searchParams: SearchP
   return (
     <Container>
       <PageHeader
+        compactOnMobile
         eyebrow="Comunidade"
         title="Minha rede"
         description="Conecte-se com pesquisadoras da sua área, responda convites e acompanhe quem você segue. As publicações de quem você segue aparecem no seu feed."
@@ -85,7 +85,6 @@ export default async function RedePage({ searchParams }: { searchParams: SearchP
         <ScrollActiveTab navLabel={TAB_NAV_LABEL} activeKey={tab} />
       </PageHeader>
 
-      <NetworkAnnouncer />
       <div className="grid gap-6 pb-14">
         {tab === "sugestoes" && <SuggestionsTab supabase={supabase} myId={me.id} />}
         {tab === "convites" && <InvitesTab supabase={supabase} myId={me.id} />}

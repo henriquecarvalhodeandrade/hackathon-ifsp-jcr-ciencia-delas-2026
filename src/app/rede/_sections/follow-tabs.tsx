@@ -59,7 +59,7 @@ export async function FollowingTab({ supabase, myId }: { supabase: ServerClient;
     <section aria-labelledby="seguindo-titulo" className="grid gap-5">
       <SectionTitle
         id="seguindo-titulo"
-        count={items.length}
+        compactOnMobile
         description="As publicações de quem você segue aparecem na aba “Seguindo” do feed. Seguir não precisa de aceite."
       >
         Quem você segue
@@ -95,7 +95,7 @@ export async function FollowersTab({ supabase, myId }: { supabase: ServerClient;
     <section aria-labelledby="seguidoras-titulo" className="grid gap-5">
       <SectionTitle
         id="seguidoras-titulo"
-        count={items.length}
+        compactOnMobile
         description="Pesquisadoras que acompanham as suas publicações. Siga de volta quem você também quer acompanhar."
       >
         Quem segue você

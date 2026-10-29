@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   BookOpen,
   Building2,
   CalendarDays,
@@ -19,8 +18,8 @@ import {
   Video,
 } from "lucide-react";
 import { RecentPosts } from "@/components/feed/recent-posts";
-import { MessageButton } from "@/components/messages/message-button";
 import { ReportButton } from "@/components/moderation/report-button";
+import { BackLink } from "@/components/network/back-link";
 import { ProfileNetwork } from "@/components/network/profile-network";
 import { PortfolioSection } from "@/components/portfolio/portfolio-section";
 import { MentorStatus } from "@/components/profile/mentor-status";
@@ -34,6 +33,7 @@ import { Chip, ChipLink } from "@/components/ui/chip";
 import { Container } from "@/components/ui/container";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireOnboardedProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import {
   CAREER_STAGES,
   LANGUAGES,
@@ -95,6 +95,16 @@ function ProfileSection({
   );
 }
 
+/** Quantas publicações ela tem no feed (só a contagem; o RLS decide o que é visível). */
+async function countPosts(authorId: string): Promise<number | null> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .eq("author_id", authorId);
+  return error ? null : (count ?? 0);
+}
+
 export default async function PesquisadoraPage({ params }: { params: Params }) {
   const { id } = await params;
   const me = await requireOnboardedProfile(`/pesquisadoras/${id}`);
@@ -102,7 +112,7 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
   if (!profile) notFound();
 
   const isSelf = profile.id === me.id;
-  const [papers, threads, availability, ownSlots, openRequest] = await Promise.all([
+  const [papers, threads, availability, ownSlots, openRequest, postCount] = await Promise.all([
     getMemberPapers(profile.id),
     getMemberThreads(profile.id),
     profile.is_mentor && !isSelf ? getMentorAvailability([profile.id]) : Promise.resolve(null),
@@ -110,6 +120,8 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
       ? getOwnOpenSlots(profile.id, profile.mentor_capacity)
       : Promise.resolve(null),
     isSelf ? Promise.resolve(null) : getOpenRequestBetween(me.id, profile.id),
+    // No perfil de outra pessoa, "Atividade" vazia vira uma linha discreta (sem estado vazio grande).
+    isSelf ? Promise.resolve(null) : countPosts(profile.id),
   ]);
   const mentorInfo = availability?.get(profile.id) ?? null;
   const openSlots = isSelf ? ownSlots : (mentorInfo?.openSlots ?? null);
@@ -122,6 +134,14 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
         ? { href: "/mentoria?aba=recebidas", label: "Responder ao pedido dela" }
         : { href: "/mentoria?aba=enviadas", label: "Acompanhar seu pedido" }
     : null;
+  // A ação de mentoria fica na seção "Como posso ajudar" (o cabeçalho tem um único botão
+  // principal, o da rede). Se ela não é mentora (ex.: eu sou a mentora dela), vai para o grupo de
+  // ações do cabeçalho, em contorno.
+  const mentorshipCta = requestCta
+    ? { ...requestCta, primary: false }
+    : canRequest
+      ? { href: `/mentoria?mentora=${profile.id}`, label: "Pedir mentoria", primary: true }
+      : null;
   const place = formatPlace(profile.city, profile.state);
   const firstName = profile.full_name.split(/\s+/)[0] || "Ela";
   // Trajetória (docs/17): só membras chegam aqui (requireOnboardedProfile + RLS).
@@ -132,17 +152,17 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
   return (
     <Container className="pb-16">
       <div className="pt-6 sm:pt-10">
-        <Link
-          href="/pesquisadoras"
-          className="inline-flex items-center gap-1.5 rounded-control text-sm font-semibold text-fg-muted transition-colors hover:text-primary"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Pesquisadoras
-        </Link>
+        <BackLink fallbackHref="/pesquisadoras" />
       </div>
 
       <header className="flex flex-col gap-5 py-6 sm:flex-row sm:items-start sm:gap-7 sm:py-8">
-        <Avatar name={profile.full_name} src={profile.avatar_url} seed={profile.id} size="2xl" />
+        <Avatar
+          name={profile.full_name}
+          src={profile.avatar_url}
+          seed={profile.id}
+          size="2xl"
+          className="max-sm:size-20 max-sm:text-2xl"
+        />
         <div className="grid min-w-0 flex-1 gap-3">
           <div className="grid gap-1.5">
             {profile.career_stage && (
@@ -190,32 +210,26 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
               </Badge>
             )}
           </div>
-          {/* Rede (docs/18): números e, no perfil de outra pessoa, Conectar, Seguir e Mensagem. */}
+          {/* Rede (docs/18): números e, no perfil de outra pessoa, UM botão principal escolhido pelo
+              estado (Aceitar convite, Enviar mensagem ou Conectar) e o resto em contorno. */}
           <ProfileNetwork profileId={profile.id} viewerId={me.id}>
-            <MessageButton profileId={profile.id} />
+            {mentorshipCta && !profile.is_mentor && (
+              <ButtonLink href={mentorshipCta.href} variant="outline">
+                <HeartHandshake aria-hidden="true" />
+                {mentorshipCta.label}
+              </ButtonLink>
+            )}
           </ProfileNetwork>
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-56 sm:flex-col sm:items-stretch">
-          {isSelf && (
+        {isSelf && (
+          <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-56 sm:flex-col sm:items-stretch">
             <ButtonLink href="/perfil">
               <Pencil aria-hidden="true" />
               Editar meu perfil
             </ButtonLink>
-          )}
-          {requestCta && (
-            <ButtonLink href={requestCta.href} variant="secondary">
-              <HeartHandshake aria-hidden="true" />
-              {requestCta.label}
-            </ButtonLink>
-          )}
-          {!requestCta && canRequest && (
-            <ButtonLink href={`/mentoria?mentora=${profile.id}`}>
-              <HeartHandshake aria-hidden="true" />
-              Pedir mentoria
-            </ButtonLink>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -315,6 +329,16 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
             </ProfileSection>
           )}
 
+          <ProfileSection id="atividade-titulo" title="Atividade" icon={<Newspaper />}>
+            {postCount === 0 ? (
+              <p className="text-fg-muted">{firstName} ainda não publicou no feed.</p>
+            ) : (
+              <RecentPosts authorId={profile.id} viewerId={me.id} />
+            )}
+          </ProfileSection>
+
+          <PortfolioSection ownerId={profile.id} isOwner={isSelf} ownerName={firstName} />
+
           {profile.is_mentor && (
             <ProfileSection
               id="mentoria-titulo"
@@ -371,6 +395,17 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                     </dd>
                   </div>
                 </dl>
+                {mentorshipCta && (
+                  <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+                    <ButtonLink
+                      href={mentorshipCta.href}
+                      variant={mentorshipCta.primary ? "secondary" : "outline"}
+                    >
+                      <HeartHandshake aria-hidden="true" />
+                      {mentorshipCta.label}
+                    </ButtonLink>
+                  </div>
+                )}
                 {!profile.mentor_available && (
                   <p className="text-sm text-fg-muted">
                     {isSelf
@@ -381,8 +416,6 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
               </div>
             </ProfileSection>
           )}
-
-          <PortfolioSection ownerId={profile.id} isOwner={isSelf} />
 
           <ProfileSection
             id="papers-titulo"
@@ -397,22 +430,18 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
             }
           >
             {papers.items.length === 0 ? (
-              <EmptyState
-                variant="compact"
-                headingLevel="h3"
-                icon={<BookOpen />}
-                title={isSelf ? "Você ainda não divulgou papers" : "Nenhum paper divulgado ainda"}
-                description={
-                  isSelf
-                    ? "Divulgue um trabalho seu (ou de outra pesquisadora) na Vitrine Delas."
-                    : "Quando ela divulgar trabalhos na Vitrine Delas, eles aparecem aqui."
-                }
-                action={
-                  isSelf ? (
-                    <ButtonLink href="/papers/novo">Divulgar um paper</ButtonLink>
-                  ) : undefined
-                }
-              />
+              isSelf ? (
+                <EmptyState
+                  variant="compact"
+                  headingLevel="h3"
+                  icon={<BookOpen />}
+                  title="Você ainda não divulgou papers"
+                  description="Divulgue um trabalho seu (ou de outra pesquisadora) na Vitrine Delas."
+                  action={<ButtonLink href="/papers/novo">Divulgar um paper</ButtonLink>}
+                />
+              ) : (
+                <p className="text-fg-muted">{firstName} ainda não divulgou papers na Vitrine.</p>
+              )
             ) : (
               <ul className="divide-y divide-border">
                 {papers.items.map((paper) => (
@@ -440,10 +469,6 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                 ))}
               </ul>
             )}
-          </ProfileSection>
-
-          <ProfileSection id="feed-titulo" title="No feed" icon={<Newspaper />}>
-            <RecentPosts authorId={profile.id} viewerId={me.id} />
           </ProfileSection>
 
           <ProfileSection id="forum-titulo" title="No fórum" icon={<MessagesSquare />}>

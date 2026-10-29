@@ -1,47 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-const EVENT = "artemis:rede-anuncio";
-
-type Detail = { message: string; focusId?: string };
-
 /**
- * Anuncia o resultado de uma ação das listas da /rede e leva o foco a um título estável.
- * Depois de aceitar, recusar ou remover, o cartão SOME da lista (a página é revalidada) — junto
- * com o botão focado e a região aria-live dele. Este anúncio mora fora da lista e não some.
+ * Passagem de foco depois de uma ação que tira o botão da tela (aceitar, recusar, remover…).
+ * O cartão (ou o aviso de convite do perfil) some — junto com o botão focado —, então o foco iria
+ * parar no <body>. Aqui ele vai para um elemento estável: o título da seção, ou, num grupo de
+ * ações, o botão principal (`[data-primary]`) — senão o primeiro botão. O resultado em si é
+ * anunciado pelo aviso (`toast`), cuja região `role="status"` fica no layout.
+ *
+ * Espera a página revalidada chegar: tenta por ~1,5 s enquanto o foco ainda está no botão que vai
+ * sumir. Se a pessoa já levou o foco para outro lugar, não mexe.
  */
-export function announceNetwork(message: string, focusId?: string) {
-  window.dispatchEvent(new CustomEvent<Detail>(EVENT, { detail: { message, focusId } }));
-}
+export function handOffFocus(
+  targetId: string | undefined,
+  options: {
+    waitForPrimary?: boolean;
+    /** Id do elemento que vai sumir: enquanto o foco estiver dentro dele, espera. */
+    leaving?: string;
+  } = {},
+) {
+  if (!targetId || typeof window === "undefined") return;
+  const id = targetId;
+  const origin = document.activeElement;
+  let tries = 0;
 
-/** Região aria-live da página (monte uma vez, fora das listas). */
-export function NetworkAnnouncer() {
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    let timer: number | undefined;
-    function onAnnounce(event: Event) {
-      const { message: text, focusId } = (event as CustomEvent<Detail>).detail;
-      // Limpa antes de escrever: a mesma frase duas vezes seguidas também é anunciada.
-      setMessage("");
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        setMessage(text);
-        // Depois que o diálogo fecha e devolve o foco (a um botão que pode ter sumido).
-        if (focusId) document.getElementById(focusId)?.focus({ preventScroll: false });
-      }, 150);
+  function attempt() {
+    tries += 1;
+    const active = document.activeElement;
+    const lost = !active || active === document.body || !active.isConnected;
+    if (!lost) {
+      // Ainda no botão de origem (ou no cartão que vai sumir): a página revalidada não chegou.
+      const leaving = options.leaving ? document.getElementById(options.leaving) : null;
+      const waiting = active === origin || Boolean(leaving?.contains(active));
+      if (waiting && tries < 15) window.setTimeout(attempt, 100);
+      return;
     }
-    window.addEventListener(EVENT, onAnnounce);
-    return () => {
-      window.removeEventListener(EVENT, onAnnounce);
-      window.clearTimeout(timer);
-    };
-  }, []);
+    const element = document.getElementById(id);
+    const primary = element?.querySelector<HTMLElement>(
+      "[data-primary] a[href], [data-primary] button",
+    );
+    // O grupo de ações do perfil ganha o botão principal só quando a página revalidada chega.
+    if (options.waitForPrimary && !primary && tries < 15) {
+      window.setTimeout(attempt, 100);
+      return;
+    }
+    if (!element) {
+      // A lista acabou (o título dela saiu junto): o foco vai para o título da página.
+      const heading = document.querySelector<HTMLElement>("main h1");
+      if (heading && !heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+      heading?.focus();
+      return;
+    }
+    const target =
+      primary ??
+      (element.matches("button, a[href], input, [tabindex]")
+        ? element
+        : element.querySelector<HTMLElement>("button:not([disabled]), a[href]"));
+    target?.focus();
+  }
 
-  return (
-    <p aria-live="polite" className="sr-only">
-      {message}
-    </p>
-  );
+  window.setTimeout(attempt, 150);
 }

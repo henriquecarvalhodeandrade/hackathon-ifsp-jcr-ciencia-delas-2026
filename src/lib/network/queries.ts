@@ -178,6 +178,72 @@ export interface SuggestionItem extends NetworkPerson {
   same_institution: boolean;
   /** Eu já sigo esta pessoa (sem convite nem conexão). */
   following: boolean;
+  /** Nomes das conexões em comum (as minhas conexões que também são dela). */
+  mutualNames: string[];
+}
+
+/**
+ * Nomes das conexões em comum de cada sugestão: as minhas conexões aceitas que também estão
+ * conectadas a ela. Conexões aceitas são visíveis a todas as membras (RLS), então duas leituras
+ * bastam. Falhou? Volta vazio — o cartão usa só a contagem da RPC.
+ */
+async function loadMutualNames(
+  supabase: ServerClient,
+  myId: string,
+  suggestionIds: readonly string[],
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  const ids = suggestionIds.filter(isGuid);
+  if (ids.length === 0 || !isGuid(myId)) return out;
+
+  const mine = await supabase
+    .from("connections")
+    .select(
+      `requester_id, addressee_id,
+      requester:profiles!connections_requester_id_fkey(full_name),
+      addressee:profiles!connections_addressee_id_fkey(full_name)`,
+    )
+    .eq("status", "accepted")
+    .or(`requester_id.eq.${myId},addressee_id.eq.${myId}`)
+    .limit(NETWORK_LIST_LIMIT);
+  if (mine.error) {
+    warn("conexões em comum (minhas)", mine.error);
+    return out;
+  }
+  const myConnections = new Map<string, string>();
+  for (const row of mine.data ?? []) {
+    const sentByMe = row.requester_id === myId;
+    const otherId = sentByMe ? row.addressee_id : row.requester_id;
+    const other = (sentByMe ? row.addressee : row.requester) as { full_name: string } | null;
+    if (other?.full_name) myConnections.set(otherId, other.full_name);
+  }
+  if (myConnections.size === 0) return out;
+
+  const list = ids.join(",");
+  const theirs = await supabase
+    .from("connections")
+    .select("requester_id, addressee_id")
+    .eq("status", "accepted")
+    .or(`requester_id.in.(${list}),addressee_id.in.(${list})`)
+    .limit(1000);
+  if (theirs.error) {
+    warn("conexões em comum (delas)", theirs.error);
+    return out;
+  }
+  const wanted = new Set(ids);
+  for (const row of theirs.data ?? []) {
+    for (const [suggestion, other] of [
+      [row.requester_id, row.addressee_id],
+      [row.addressee_id, row.requester_id],
+    ] as const) {
+      const name = myConnections.get(other);
+      if (!wanted.has(suggestion) || !name) continue;
+      const names = out.get(suggestion) ?? [];
+      if (!names.includes(name)) names.push(name);
+      out.set(suggestion, names);
+    }
+  }
+  return out;
 }
 
 export async function loadSuggestions(
@@ -191,11 +257,18 @@ export async function loadSuggestions(
     return { items: [], failed: true };
   }
   const rows = data ?? [];
-  const following = await loadFollowingSet(
-    supabase,
-    myId,
-    rows.map((r) => r.id),
-  );
+  const ids = rows.map((r) => r.id);
+  const [following, mutualNames] = await Promise.all([
+    loadFollowingSet(supabase, myId, ids),
+    // Só vale a leitura extra se alguma sugestão tem conexões em comum.
+    rows.some((r) => (r.mutual_connections ?? 0) > 0)
+      ? loadMutualNames(
+          supabase,
+          myId,
+          rows.filter((r) => (r.mutual_connections ?? 0) > 0).map((r) => r.id),
+        )
+      : Promise.resolve(new Map<string, string[]>()),
+  ]);
   return {
     failed: false,
     items: rows.map((row) => ({
@@ -204,6 +277,7 @@ export async function loadSuggestions(
       mutual_connections: row.mutual_connections ?? 0,
       same_institution: Boolean(row.same_institution),
       following: following.has(row.id),
+      mutualNames: mutualNames.get(row.id) ?? [],
     })),
   };
 }

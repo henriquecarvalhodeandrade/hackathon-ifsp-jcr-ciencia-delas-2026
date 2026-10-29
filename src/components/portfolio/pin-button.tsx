@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { Pin } from "lucide-react";
-import { buttonVariants } from "@/components/ui";
+import { buttonVariants, toast } from "@/components/ui";
 import { togglePinnedAction } from "@/lib/portfolio/actions";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +10,9 @@ const CONNECTION_ERROR =
   "Não conseguimos falar com o servidor. Confira sua conexão e tente de novo.";
 
 /**
- * "Destacar" um item do portfólio (aparece primeiro aqui e no perfil). Botão de alternância com
- * nome FIXO e `aria-pressed` (docs/02 §13); a lista se reordena depois da revalidação.
+ * "Destacar" um item do portfólio (aparece primeiro no perfil). Botão de alternância com nome
+ * FIXO e `aria-pressed` (docs/02 §13). O cartão NÃO muda de lugar agora (a ação não revalida a
+ * página): a ordem nova vale na próxima visita — e o aviso conta isso.
  */
 export function PinButton({
   itemId,
@@ -24,8 +25,6 @@ export function PinButton({
 }) {
   const [confirmed, setConfirmed] = useState(pinned);
   const [lastProp, setLastProp] = useState(pinned);
-  const [error, setError] = useState<string | null>(null);
-  const [announcement, setAnnouncement] = useState("");
   const [isPending, startTransition] = useTransition();
 
   if (lastProp !== pinned) {
@@ -34,15 +33,8 @@ export function PinButton({
   }
   const [optimistic, setOptimistic] = useOptimistic(confirmed, (_c, next: boolean) => next);
 
-  useEffect(() => {
-    if (!error) return;
-    const timer = window.setTimeout(() => setError(null), 6000);
-    return () => window.clearTimeout(timer);
-  }, [error]);
-
   function handleClick() {
     const next = !optimistic;
-    setError(null);
     startTransition(async () => {
       setOptimistic(next);
       let result: Awaited<ReturnType<typeof togglePinnedAction>>;
@@ -54,46 +46,34 @@ export function PinButton({
       startTransition(() => {
         if (result.ok) {
           setConfirmed(result.pinned);
-          setAnnouncement(
+          toast(
             result.pinned
-              ? "Item destacado: ele aparece primeiro no portfólio e no seu perfil."
-              : "Destaque removido.",
+              ? "Destacado — aparece primeiro no seu perfil."
+              : { message: "Destaque removido.", tone: "info" },
           );
         } else {
-          setError(result.error);
+          toast({ message: result.error, tone: "danger" });
         }
       });
     });
   }
 
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={handleClick}
-        aria-pressed={optimistic}
-        aria-busy={isPending || undefined}
-        aria-label={`Destacar “${itemTitle}”`}
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          optimistic &&
-            "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft hover:text-primary-soft-fg",
-        )}
-      >
-        <Pin aria-hidden="true" className={cn(optimistic && "fill-current")} />
-        Destacar
-      </button>
-      <span aria-live="polite" className="sr-only">
-        {error ?? announcement}
-      </span>
-      {error && (
-        <span
-          aria-hidden="true"
-          className="absolute top-full left-0 z-20 mt-1 w-56 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-xs font-medium text-danger-soft-fg shadow-overlay"
-        >
-          {error}
-        </span>
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-pressed={optimistic}
+      aria-busy={isPending || undefined}
+      aria-label={`Destacar “${itemTitle}”`}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "sm" }),
+        "pointer-coarse:h-11 pointer-coarse:px-4",
+        optimistic &&
+          "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft hover:text-primary-soft-fg",
       )}
-    </span>
+    >
+      <Pin aria-hidden="true" className={cn(optimistic && "fill-current")} />
+      Destacar
+    </button>
   );
 }
