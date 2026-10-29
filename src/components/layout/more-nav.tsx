@@ -24,7 +24,7 @@ export function MoreNav({
   const active = items.some((item) => isActivePath(pathname, item.href));
   return (
     <DropdownMenu
-      triggerLabel="Mais áreas da Artemis"
+      triggerLabel="Mais"
       trigger={
         <span className="inline-flex items-center gap-1">
           Mais
