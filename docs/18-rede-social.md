@@ -40,7 +40,7 @@ atualização periódica da página. Nenhum servidor de WebSocket próprio.
 
 Todas entram em `PROTECTED_PREFIXES` (`/feed`, `/rede`, `/portfolio`, `/ics`, `/mensagens`).
 
-## 2. Banco (migrations `20261029000000` a `20261029000600`)
+## 2. Banco (migrations `20261029000000` a `20261029000700`)
 
 Convenções de sempre (docs/03): RLS em tudo, `revoke all` + `grant` por coluna, funções
 `security definer` com `search_path = ''`, horários do servidor (o cliente não antedata nada),
@@ -263,6 +263,13 @@ com registro no Registro de moderação. Conversas diretas são privadas: denunc
 4. `/mensagens` → conversa nova da Marina e, em "Pedidos", o pedido de mensagem da Renata.
 5. Troque para a **Marina**: `/ics/minhas?aba=publicadas` → candidatura da Yasmin para responder;
    `/mensagens?aba=pedidos` → pedido da Gabriela.
+
+**Reiniciar entre ensaios:** rode de novo `supabase/seeds/50_rede_social.sql` (no SQL Editor, ou pelo
+`--with-demo-seed` do script de setup). Ele apaga o que foi criado nas contas
+`@demo.cienciadelas.dev`, refaz o conteúdo do seed que foi editado ou apagado, volta os dois convites,
+os dois pedidos de mensagem e as candidaturas ao estado inicial, restaura leituras e avisos e zera os
+limites anti-spam dessas contas. Como a plateia usa as mesmas personas, o roteiro do `/demo` aponta
+para ações que podem se repetir (curtir, comentar, seguir, abrir conversas).
 
 ## 7. Limitações conhecidas
 

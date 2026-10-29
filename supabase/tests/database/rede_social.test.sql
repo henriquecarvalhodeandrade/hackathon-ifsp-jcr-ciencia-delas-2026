@@ -360,6 +360,54 @@ $$;
 select pass('conectar: recusa sem refazer, aceitar depois, remover, desistir');
 
 -- =============================================================================
+-- 4b. Avisos que deixam de ser verdade somem (migration 20261029000700)
+-- =============================================================================
+do $$
+declare
+  v_id uuid;
+begin
+  -- Gabi segue a Clara e deixa de seguir: o aviso não lido some.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  insert into public.follows (followee_id) values ('e9000000-0000-4000-8000-000000000003');
+  perform cdtest.logout();
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000003', 'new_follower',
+      '/pesquisadoras/e9000000-0000-4000-8000-000000000007', true) = 1, 'aviso de seguir criado');
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  delete from public.follows where followee_id = 'e9000000-0000-4000-8000-000000000003';
+  perform cdtest.logout();
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000003', 'new_follower',
+      '/pesquisadoras/e9000000-0000-4000-8000-000000000007') = 0,
+    'deixar de seguir apaga o aviso não lido');
+
+  -- Gabi convida a Eva, a Eva aceita, a Gabi remove a conexão: o aviso de aceite (não lido) some.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  insert into public.connections (addressee_id) values ('e9000000-0000-4000-8000-000000000005')
+  returning id into v_id;
+  perform cdtest.login('e9000000-0000-4000-8000-000000000005');
+  update public.connections set status = 'accepted' where id = v_id;
+  perform cdtest.logout();
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000007', 'connection_accepted',
+      '/pesquisadoras/e9000000-0000-4000-8000-000000000005', true) = 1, 'aviso de aceite criado');
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  delete from public.connections where id = v_id;
+  perform cdtest.logout();
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000007', 'connection_accepted',
+      '/pesquisadoras/e9000000-0000-4000-8000-000000000005') = 0,
+    'remover a conexão apaga o aviso de aceite não lido');
+  -- Limpa o seguir mútuo criado pelo aceite (não interfere nos testes seguintes).
+  delete from public.follows
+  where (follower_id, followee_id) in (
+    ('e9000000-0000-4000-8000-000000000007'::uuid, 'e9000000-0000-4000-8000-000000000005'::uuid),
+    ('e9000000-0000-4000-8000-000000000005'::uuid, 'e9000000-0000-4000-8000-000000000007'::uuid));
+end
+$$;
+select pass('avisos de seguir e de aceite somem ao desfazer');
+
+-- =============================================================================
 -- 5. RPCs: números da rede e sugestões
 -- =============================================================================
 do $$

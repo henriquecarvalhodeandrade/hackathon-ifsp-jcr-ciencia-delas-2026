@@ -241,6 +241,10 @@ Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
   fictícias (pegue as novas de `admin@`/`moderacao@` no arquivo do `--write-env`); para voltar ao estado
   exato do começo (sem o que a banca escreveu), recrie o banco antes. Recriando o banco e colando o
   `seed.sql` no SQL Editor, as contas voltam com a senha pública: rode o script em seguida.
+- **Rede social:** rodar de novo só o `supabase/seeds/50_rede_social.sql` já volta feed, rede,
+  portfólio, ICs e mensagens das contas de demonstração ao estado inicial (apaga o que a plateia
+  criou, refaz convites, pedidos, candidaturas, leituras e avisos e zera os limites anti-spam) — ideal
+  entre um ensaio e a apresentação ([18 §6](18-rede-social.md#6-como-demonstrar-com-o-seed-supabaseseeds50_rede_socialsql)).
 
 ## 4. Dados de demonstração (`supabase/seeds/10_painel.sql`)
 

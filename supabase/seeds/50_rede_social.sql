@@ -18,9 +18,87 @@
 --
 -- UUIDs fixos: f1… publicações · f2… portfólio · f3… oportunidades · f4… candidaturas ·
 -- f5… conversas · f6… mensagens · f7… comentários · f8… conexões.
+--
+-- REPOSIÇÃO: rodar este arquivo de novo devolve a rede social ao estado da demonstração (ensaios e
+-- apresentação, em que a plateia usa as mesmas personas): apaga o que foi criado nas contas
+-- @demo.cienciadelas.dev fora destes UUIDs, refaz o conteúdo do seed que foi editado ou apagado,
+-- volta convites, pedidos de mensagem e candidaturas ao estado inicial, restaura as leituras e os
+-- avisos principais e zera os limites anti-spam dessas contas. Nada fora das contas de demonstração
+-- é tocado.
 -- Contexto confiável (postgres): os triggers não impõem autoria, datas nem limites, mas mantêm
 -- contadores, o "seguir" das conexões aceitas, os resumos das conversas e os avisos.
 -- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 0. Reposição: o que a plateia (ou um ensaio) criou nas contas de demonstração sai
+-- -----------------------------------------------------------------------------
+delete from public.direct_conversations c
+where c.id::text not like 'f5000000-%'
+  and c.user_a in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev')
+  and c.user_b in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+delete from public.direct_messages m
+where m.id::text not like 'f6000000-%'
+  and m.conversation_id::text like 'f5000000-%';
+
+delete from public.posts p
+where p.id::text not like 'f1000000-%'
+  and p.author_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+delete from public.post_comments c
+where c.id::text not like 'f7000000-%'
+  and c.author_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+delete from public.portfolio_items i
+where i.id::text not like 'f2000000-%'
+  and i.owner_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+delete from public.research_opportunities o
+where o.id::text not like 'f3000000-%'
+  and o.owner_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+delete from public.opportunity_applications a
+where a.id::text not like 'f4000000-%'
+  and a.applicant_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+delete from public.connections c
+where c.id::text not like 'f8000000-%'
+  and c.requester_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev')
+  and c.addressee_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+-- Avisos de mudança de status das candidaturas do seed ("em análise", "não aprovada"…): o banco
+-- refaz o certo quando o status volta ao do seed (e a seção 9 repõe o da aprovação).
+delete from public.notifications n
+where n.type = 'application_update'
+  and n.link like '/ics/f3000000-%'
+  and n.user_id in (select u.id from auth.users u where lower(u.email) like '%@demo.cienciadelas.dev');
+
+-- O seguir mútuo criado quando a plateia aceita os convites pendentes da demonstração.
+delete from public.follows f
+where (f.follower_id, f.followee_id) in (
+  ('d1000000-0000-4000-8000-000000000008'::uuid, 'd2000000-0000-4000-8000-000000000001'::uuid),
+  ('d2000000-0000-4000-8000-000000000001'::uuid, 'd1000000-0000-4000-8000-000000000008'::uuid),
+  ('d2000000-0000-4000-8000-000000000005'::uuid, 'd1000000-0000-4000-8000-000000000001'::uuid),
+  ('d1000000-0000-4000-8000-000000000001'::uuid, 'd2000000-0000-4000-8000-000000000005'::uuid)
+);
+
+-- Publicação do seed que perdeu o anexo (item ou vaga apagados) sai inteira e é refeita abaixo
+-- (o anexo de uma publicação não pode ser trocado depois).
+delete from public.posts p
+using (
+  values
+    ('f1000000-0000-4000-8000-000000000001'::uuid, null::uuid, 'f3000000-0000-4000-8000-000000000001'::uuid),
+    ('f1000000-0000-4000-8000-000000000002'::uuid, 'f2000000-0000-4000-8000-000000000003'::uuid, null::uuid),
+    ('f1000000-0000-4000-8000-000000000003'::uuid, 'f2000000-0000-4000-8000-000000000006'::uuid, null::uuid),
+    ('f1000000-0000-4000-8000-000000000004'::uuid, 'f2000000-0000-4000-8000-000000000004'::uuid, null::uuid),
+    ('f1000000-0000-4000-8000-000000000006'::uuid, 'f2000000-0000-4000-8000-000000000009'::uuid, null::uuid),
+    ('f1000000-0000-4000-8000-000000000007'::uuid, 'f2000000-0000-4000-8000-000000000007'::uuid, null::uuid),
+    ('f1000000-0000-4000-8000-000000000009'::uuid, null::uuid, 'f3000000-0000-4000-8000-000000000006'::uuid),
+    ('f1000000-0000-4000-8000-000000000010'::uuid, 'f2000000-0000-4000-8000-000000000008'::uuid, null::uuid)
+) as v (id, portfolio_item_id, opportunity_id)
+where p.id = v.id
+  and (p.portfolio_item_id is distinct from v.portfolio_item_id
+       or p.opportunity_id is distinct from v.opportunity_id);
 
 -- -----------------------------------------------------------------------------
 -- 1. Conexões (criadas pendentes e aceitas pelo fluxo normal → seguir nos dois sentidos)
@@ -63,6 +141,12 @@ where c.id in (
   'f8000000-0000-4000-8000-000000000009', 'f8000000-0000-4000-8000-000000000010'
 )
   and c.status = 'pending';
+
+-- Os dois convites da demonstração (Juliana → Larissa, Débora → Marina) voltam a esperar resposta.
+update public.connections c
+  set status = 'pending', responded_at = null
+where c.id in ('f8000000-0000-4000-8000-000000000011', 'f8000000-0000-4000-8000-000000000012')
+  and c.status <> 'pending';
 
 -- -----------------------------------------------------------------------------
 -- 2. Seguir (de um lado só) — além do seguir mútuo das conexões
@@ -135,7 +219,10 @@ from (
      null, 'Indústria aeroespacial do Vale do Paraíba', 2026, array['aeroespacial', 'satélites'], true, 7)
 ) as v (id, owner_id, kind, title, description, url, venue, year, tags, pinned, days_ago)
 where exists (select 1 from public.profiles p where p.id = v.owner_id)
-on conflict (id) do nothing;
+on conflict (id) do update set
+  kind = excluded.kind, title = excluded.title, description = excluded.description,
+  url = excluded.url, venue = excluded.venue, year = excluded.year, tags = excluded.tags,
+  pinned = excluded.pinned;
 
 -- -----------------------------------------------------------------------------
 -- 4. Oportunidades (Explorar ICs)
@@ -195,7 +282,14 @@ from (
 ) as v (id, owner_id, kind, title, description, requirements, area_slug, keywords, institution, city, state,
         modality, has_scholarship, scholarship_info, weekly_hours, vacancies, target_stages, deadline_days, status, days_ago)
 where exists (select 1 from public.profiles p where p.id = v.owner_id)
-on conflict (id) do nothing;
+on conflict (id) do update set
+  kind = excluded.kind, title = excluded.title, description = excluded.description,
+  requirements = excluded.requirements, area_id = excluded.area_id, keywords = excluded.keywords,
+  institution = excluded.institution, city = excluded.city, state = excluded.state,
+  modality = excluded.modality, has_scholarship = excluded.has_scholarship,
+  scholarship_info = excluded.scholarship_info, weekly_hours = excluded.weekly_hours,
+  vacancies = excluded.vacancies, target_stages = excluded.target_stages,
+  deadline = excluded.deadline, status = excluded.status;
 
 -- -----------------------------------------------------------------------------
 -- 5. Candidaturas (enviadas e respondidas pelo fluxo normal)
@@ -221,11 +315,23 @@ where exists (select 1 from public.research_opportunities o where o.id = v.oppor
   )
 on conflict do nothing;
 
+-- Estado do seed: a da Larissa na vaga da Marina aprovada (com recado); as outras enviadas. A troca
+-- de status marca responded_at; as enviadas voltam sem resposta.
 update public.opportunity_applications a
-  set status = 'accepted',
-      owner_note = 'Que alegria! Começamos na próxima segunda, às 14h, no laboratório 3. Traga o seu notebook.',
-      responded_at = a.created_at + interval '1 day'
-where a.id = 'f4000000-0000-4000-8000-000000000001' and a.status = 'submitted';
+  set status = v.status::public.application_status, owner_note = v.owner_note
+from (
+  values
+    ('f4000000-0000-4000-8000-000000000001'::uuid, 'accepted',
+     'Que alegria! Começamos na próxima segunda, às 14h, no laboratório 3. Traga o seu notebook.'),
+    ('f4000000-0000-4000-8000-000000000002'::uuid, 'submitted', null::text),
+    ('f4000000-0000-4000-8000-000000000003'::uuid, 'submitted', null::text)
+) as v (id, status, owner_note)
+where a.id = v.id
+  and (a.status::text <> v.status or a.owner_note is distinct from v.owner_note);
+
+update public.opportunity_applications a
+  set responded_at = case when a.status = 'submitted' then null else a.created_at + interval '1 day' end
+where a.id::text like 'f4000000-%';
 
 -- -----------------------------------------------------------------------------
 -- 6. Publicações, curtidas e comentários
@@ -275,7 +381,7 @@ from (
      null, null, null, 160)
 ) as v (id, author_id, kind, body, link_url, portfolio_item_id, opportunity_id, hours_ago)
 where exists (select 1 from public.profiles p where p.id = v.author_id)
-on conflict (id) do nothing;
+on conflict (id) do update set kind = excluded.kind, body = excluded.body, link_url = excluded.link_url;
 
 insert into public.post_likes (post_id, user_id, created_at)
 select v.post_id, v.user_id, now() - make_interval(hours => v.hours_ago)
@@ -333,7 +439,7 @@ from (
 ) as v (id, post_id, author_id, body, hours_ago)
 where exists (select 1 from public.posts p where p.id = v.post_id)
   and exists (select 1 from public.profiles p where p.id = v.author_id)
-on conflict (id) do nothing;
+on conflict (id) do update set body = excluded.body;
 
 -- -----------------------------------------------------------------------------
 -- 7. Mensagens diretas
@@ -390,12 +496,50 @@ from (
 where exists (select 1 from public.direct_conversations c where c.id = v.conversation_id)
 on conflict (id) do nothing;
 
--- Leituras: tudo lido até a véspera, menos o que a demonstração mostra como novo (a última da
--- Marina para a Larissa e os dois pedidos de mensagem).
+-- Estado das conversas, resumo da última mensagem e leituras do seed: tudo lido, menos o que a
+-- demonstração mostra como novo — as duas últimas da Marina para a Larissa (#1) e os dois pedidos
+-- de mensagem (#3 para a Larissa, #4 para a Marina).
 update public.direct_conversations c
-  set user_a_read_at = greatest(c.user_a_read_at, c.last_message_at),
-      user_b_read_at = greatest(c.user_b_read_at, c.last_message_at)
-where c.id in ('f5000000-0000-4000-8000-000000000002', 'f5000000-0000-4000-8000-000000000005');
+  set status = v.status::public.conversation_status
+from (
+  values
+    ('f5000000-0000-4000-8000-000000000001'::uuid, 'active'),
+    ('f5000000-0000-4000-8000-000000000002'::uuid, 'active'),
+    ('f5000000-0000-4000-8000-000000000003'::uuid, 'request'),
+    ('f5000000-0000-4000-8000-000000000004'::uuid, 'request'),
+    ('f5000000-0000-4000-8000-000000000005'::uuid, 'active')
+) as v (id, status)
+where c.id = v.id and c.status::text <> v.status;
+
+update public.direct_conversations c
+  set last_message_at = m.created_at,
+      last_message_preview = left(regexp_replace(m.body, '\s+', ' ', 'g'), 140),
+      last_sender_id = m.sender_id,
+      user_a_read_at = m.created_at,
+      user_b_read_at = m.created_at
+from (
+  select distinct on (dm.conversation_id) dm.conversation_id, dm.created_at, dm.body, dm.sender_id
+  from public.direct_messages dm
+  where dm.conversation_id::text like 'f5000000-%'
+  order by dm.conversation_id, dm.created_at desc
+) as m
+where c.id = m.conversation_id;
+
+-- #1: a Larissa leu até a resposta dela; #3 e #4: quem recebeu o pedido ainda não abriu.
+update public.direct_conversations c
+  set user_a_read_at = case when c.user_a = v.reader then v.read_at else c.user_a_read_at end,
+      user_b_read_at = case when c.user_b = v.reader then v.read_at else c.user_b_read_at end
+from (
+  select 'f5000000-0000-4000-8000-000000000001'::uuid as id,
+         'd2000000-0000-4000-8000-000000000001'::uuid as reader,
+         (select m.created_at from public.direct_messages m
+           where m.id = 'f6000000-0000-4000-8000-000000000002') as read_at
+  union all
+  select 'f5000000-0000-4000-8000-000000000003'::uuid, 'd2000000-0000-4000-8000-000000000001'::uuid, null::timestamptz
+  union all
+  select 'f5000000-0000-4000-8000-000000000004'::uuid, 'd1000000-0000-4000-8000-000000000001'::uuid, null::timestamptz
+) as v
+where c.id = v.id;
 
 -- Avisos de mensagem de conversas que a pessoa já leu até o fim ficam lidos.
 update public.notifications n
@@ -417,3 +561,59 @@ where n.read_at is null
     'new_follower', 'connection_request', 'connection_accepted', 'post_like', 'post_comment',
     'opportunity_application', 'application_update', 'direct_message'
   );
+
+-- -----------------------------------------------------------------------------
+-- 9. Reposição dos avisos que a demonstração mostra como novos (refeitos se a plateia os apagou)
+-- -----------------------------------------------------------------------------
+select private.notify(v.user_id, v.type::public.notification_type, v.title, v.body, v.link, now() - interval '1 hour')
+from (
+  values
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'connection_request',
+     'Juliana Ribeiro quer se conectar com você',
+     'Oi, Larissa! Vi seu projeto de visão computacional e adoraria acompanhar. Também trabalho com modelagem.',
+     '/pesquisadoras/d1000000-0000-4000-8000-000000000008'),
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'direct_message', 'Nova mensagem de Marina Albuquerque',
+     'Abra a conversa para ler e responder.', '/mensagens/f5000000-0000-4000-8000-000000000001'),
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'direct_message', 'Renata Carvalho quer conversar com você',
+     'É um pedido de mensagem: responda para aceitar ou recuse, se preferir.',
+     '/mensagens/f5000000-0000-4000-8000-000000000003'),
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'application_update',
+     'Sua candidatura para “IC em visão computacional para o agro do Vale do Paraíba” foi aprovada!',
+     'Que alegria! Começamos na próxima segunda, às 14h, no laboratório 3. Traga o seu notebook.',
+     '/ics/f3000000-0000-4000-8000-000000000001'),
+    ('d1000000-0000-4000-8000-000000000001'::uuid, 'connection_request', 'Débora Alves quer se conectar com você',
+     'Marina, gostei muito da sua fala sobre dados abertos no Boletim. Vamos nos conectar?',
+     '/pesquisadoras/d2000000-0000-4000-8000-000000000005'),
+    ('d1000000-0000-4000-8000-000000000001'::uuid, 'direct_message', 'Gabriela Lima quer conversar com você',
+     'É um pedido de mensagem: responda para aceitar ou recuse, se preferir.',
+     '/mensagens/f5000000-0000-4000-8000-000000000004'),
+    ('d1000000-0000-4000-8000-000000000001'::uuid, 'opportunity_application',
+     'Nova candidatura para “IC em visão computacional para o agro do Vale do Paraíba”',
+     'Yasmin Oliveira se candidatou. Abra para ler a carta de apresentação.',
+     '/ics/f3000000-0000-4000-8000-000000000001/candidaturas')
+) as v (user_id, type, title, body, link)
+where exists (select 1 from public.profiles p where p.id = v.user_id)
+  and not exists (
+    select 1 from public.notifications n
+    where n.user_id = v.user_id and n.type::text = v.type and n.link = v.link
+  );
+
+update public.notifications n
+  set read_at = null
+where n.read_at is not null
+  and (n.user_id, n.type::text, n.link) in (
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'connection_request', '/pesquisadoras/d1000000-0000-4000-8000-000000000008'),
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'direct_message', '/mensagens/f5000000-0000-4000-8000-000000000001'),
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'direct_message', '/mensagens/f5000000-0000-4000-8000-000000000003'),
+    ('d2000000-0000-4000-8000-000000000001'::uuid, 'application_update', '/ics/f3000000-0000-4000-8000-000000000001'),
+    ('d1000000-0000-4000-8000-000000000001'::uuid, 'connection_request', '/pesquisadoras/d2000000-0000-4000-8000-000000000005'),
+    ('d1000000-0000-4000-8000-000000000001'::uuid, 'direct_message', '/mensagens/f5000000-0000-4000-8000-000000000004'),
+    ('d1000000-0000-4000-8000-000000000001'::uuid, 'opportunity_application', '/ics/f3000000-0000-4000-8000-000000000001/candidaturas')
+  );
+
+-- -----------------------------------------------------------------------------
+-- 10. Limites anti-spam das contas de demonstração zerados (a plateia usa as mesmas contas)
+-- -----------------------------------------------------------------------------
+delete from private.rate_limit_events e
+using auth.users u
+where u.id = e.user_id and lower(u.email) like '%@demo.cienciadelas.dev';
