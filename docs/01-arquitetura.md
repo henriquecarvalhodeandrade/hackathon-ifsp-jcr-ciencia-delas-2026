@@ -75,7 +75,7 @@ newsletter (inscrição, envio, cron), backfill de embeddings e ações administ
 │   └── e2e/                   jornada completa e roteiros de cada funcionalidade (Playwright)
 ├── supabase/
 │   ├── config.toml            configuração local (auth, templates, storage)
-│   ├── migrations/            schema versionado (23 migrations)
+│   ├── migrations/            schema versionado (31 migrations)
 │   ├── seed.sql               dados fictícios de demonstração (contas, fórum, papers, mentorias)
 │   ├── seeds/                 seeds extras da demonstração (10_painel, 20_reconhecimento, ...)
 │   ├── templates/             e-mails de autenticação em pt-BR
@@ -162,7 +162,12 @@ template é usado. Detalhes, pesos e prompts: [`04-mentoria-com-ia.md`](04-mento
 | `/auth/confirm`, `/auth/callback`, `/auth/sair`, `/auth/erro`  | —                                            | Rotas técnicas de login/logout                                                                                               |
 | `/onboarding`                                                  | membra                                       | Perfil em 4 passos                                                                                                           |
 | `/perfil`                                                      | membra                                       | Editar perfil, avatar, consentimentos                                                                                        |
-| `/pesquisadoras`, `/pesquisadoras/[id]`                        | membra                                       | Diretório com filtros e perfil                                                                                               |
+| `/pesquisadoras`, `/pesquisadoras/[id]`                        | membra                                       | Diretório com filtros e perfil (com Conectar, Seguir, Mensagem, portfólio e publicações)                                     |
+| `/feed`, `/feed/p/[id]`                                        | membra                                       | Feed com curtidas e comentários ([18](18-rede-social.md))                                                                    |
+| `/rede`                                                        | membra                                       | Sugestões, convites, conexões, seguindo e seguidoras                                                                         |
+| `/portfolio`                                                   | membra                                       | O próprio portfólio                                                                                                          |
+| `/ics`, `/ics/[id]`, `/ics/nova`, `/ics/minhas`                | membra (publicar: mestrado em diante)        | Explorar ICs, candidatar-se, publicar vagas e responder candidaturas (`/ics/[id]/candidaturas`)                              |
+| `/mensagens`, `/mensagens/[id]`                                | membra (conversa: as duas participantes)     | Mensagens diretas ao vivo e pedidos de mensagem                                                                              |
 | `/forum`, `/forum/c/[slug]`, `/forum/t/[id]`, `/forum/novo`    | membra                                       | Fórum                                                                                                                        |
 | `/mentoria`                                                    | membra                                       | Sugestões por IA, pedidos enviados/recebidos, mentorias ativas                                                               |
 | `/mentoria/conversa/[id]`                                      | as duas participantes (demais: 404)          | Conversa da mentoria (somente leitura depois de concluída)                                                                   |

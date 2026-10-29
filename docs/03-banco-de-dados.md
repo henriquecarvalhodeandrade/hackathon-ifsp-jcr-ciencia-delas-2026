@@ -235,6 +235,30 @@ Detalhes completos (RLS, GRANTs, RPCs e testes) nos documentos de cada funcional
 | `public_answers`                   | Resposta pública de uma membra com cadastro completo.                                                | Identidade só com `show_identity`; sem contatos (`CD047`); 20 por hora (`CD045`); moderação oculta/reexibe; `hidden_by` fora do GRANT de leitura.                                                                                                                                       |
 | `profiles.trajectory_tags`         | Marcas opcionais de trajetória (8 slugs do catálogo).                                                | Só membras leem; só a dona altera (GRANT por coluna); fora do catálogo → `CD050`; nenhuma função de `anon` lê a coluna; nunca vai para a IA. [docs/17](17-afinidade-de-trajetoria.md)                                                                                                   |
 
+### Rede social (29/10): feed, rede, portfólio, ICs e mensagens
+
+Migrations `20261029000000` a `20261029000500`. Detalhes, códigos de erro (`CD060`–`CD089`) e o
+porquê de cada regra em [docs/18](18-rede-social.md); testes em
+`supabase/tests/database/rede_social.test.sql`.
+
+| Tabela                     | Para que serve                                       | Regras importantes                                                                                                                                                           |
+| -------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `follows`                  | Quem segue quem (de um lado só).                     | Membras leem; segue/deixa de seguir em nome próprio; 100/h (`CD063`); aviso `new_follower` agrupado.                                                                         |
+| `connections`              | Conexões (convite aceito pelas duas).                | Uma por par; aceitas são públicas para membras; só quem recebeu responde; convite de volta aceita o existente; aceite cria o seguir mútuo; recusado não é refeito (`CD061`). |
+| `portfolio_items`          | Portfólio de cada membra.                            | Membras leem; só a dona escreve; até 50 itens (`CD066`).                                                                                                                     |
+| `research_opportunities`   | Vagas de IC, IC júnior, TCC, extensão, voluntariado. | Mestrado em diante publica (`CD070`); `application_count` e `closed_at` pelo banco; `search_text` gerada (busca sem acento).                                                 |
+| `opportunity_applications` | Candidaturas com carta de apresentação.              | Só a candidata e a dona da vaga leem; vaga aberta e no prazo de Brasília (`CD071`); uma por vaga (`CD073`); candidata só desiste, dona responde (`CD074`).                   |
+| `posts`                    | Publicações do feed.                                 | Membras leem; anexos só do que é da autora (`CD080`); contadores pelo banco; autora ou moderação apagam.                                                                     |
+| `post_likes`               | Curtidas (uma por pessoa e publicação).              | Em nome próprio; aviso `post_like` agrupado por publicação.                                                                                                                  |
+| `post_comments`            | Comentários do feed.                                 | Autora edita; autora, dona da publicação ou moderação apagam; 30/h (`CD082`).                                                                                                |
+| `direct_conversations`     | Uma conversa direta por par (`user_a < user_b`).     | Só as duas leem; escrita só pelas RPCs; `request` sem vínculo (conexão, mentoria ou candidatura aprovada), `active` com vínculo.                                             |
+| `direct_messages`          | Mensagens das conversas diretas.                     | Só as duas leem; pedido = uma mensagem (`CD086`); ensino médio só recebe de conexões (`CD084`); 60/h (`CD088`); nada se edita ou apaga; na publicação do Realtime.           |
+
+RPCs novas: `get_network_counts`, `get_connection_suggestions`, `start_direct_conversation`,
+`respond_conversation_request`, `mark_conversation_read`, `list_my_conversations` e
+`count_unread_conversations` (todas só para `authenticated`). `report_target` ganhou `feed_post`,
+`feed_comment` e `opportunity`, aceitos por `moderate_delete_content`.
+
 ### Fórum
 
 | Tabela                                                        | Para que serve                                                                                       | Regras importantes                                                                                                                                                                               |

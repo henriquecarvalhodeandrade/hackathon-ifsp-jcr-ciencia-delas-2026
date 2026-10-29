@@ -22,21 +22,21 @@ atualização periódica da página. Nenhum servidor de WebSocket próprio.
 
 ## 1. Rotas
 
-| Rota                     | Quem                    | O quê                                                                                                   |
-| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| `/feed`                  | membra                  | Caixa de publicação + publicações (`?aba=todas` padrão, `?aba=seguindo`), 20 por vez (`?antes=<iso>`). |
-| `/feed/p/[id]`           | membra                  | Uma publicação com todos os comentários. Oculta/apagada → 404.                                          |
-| `/rede`                  | membra                  | Abas `convites` (recebidos e enviados), `conexoes`, `seguindo`, `seguidoras`, `sugestoes` (padrão).     |
-| `/portfolio`             | membra                  | O próprio portfólio: adicionar, editar, destacar e apagar itens.                                        |
-| `/pesquisadoras/[id]`    | membra                  | (já existia) + botões Conectar / Seguir / Mensagem, números da rede, portfólio e publicações recentes. |
-| `/ics`                   | membra                  | Explorar oportunidades: busca, filtros (área, tipo, bolsa, modalidade, etapa), só abertas por padrão.  |
-| `/ics/[id]`              | membra                  | Detalhe; candidatar-se (carta de apresentação) ou ver o andamento da própria candidatura.              |
+| Rota                     | Quem                     | O quê                                                                                                  |
+| ------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `/feed`                  | membra                   | Caixa de publicação + publicações (`?aba=todas` padrão, `?aba=seguindo`), 20 por vez (`?antes=<iso>`). |
+| `/feed/p/[id]`           | membra                   | Uma publicação com todos os comentários. Oculta/apagada → 404.                                         |
+| `/rede`                  | membra                   | Abas `convites` (recebidos e enviados), `conexoes`, `seguindo`, `seguidoras`, `sugestoes` (padrão).    |
+| `/portfolio`             | membra                   | O próprio portfólio: adicionar, editar, destacar e apagar itens.                                       |
+| `/pesquisadoras/[id]`    | membra                   | (já existia) + botões Conectar / Seguir / Mensagem, números da rede, portfólio e publicações recentes. |
+| `/ics`                   | membra                   | Explorar oportunidades: busca, filtros (área, tipo, bolsa, modalidade, etapa), só abertas por padrão.  |
+| `/ics/[id]`              | membra                   | Detalhe; candidatar-se (carta de apresentação) ou ver o andamento da própria candidatura.              |
 | `/ics/nova`              | pesquisadora (mestrado+) | Publicar oportunidade (com opção de compartilhar no feed).                                             |
-| `/ics/[id]/editar`       | dona da vaga            | Editar, encerrar ou reabrir.                                                                            |
-| `/ics/[id]/candidaturas` | dona da vaga            | Candidaturas recebidas: em análise, aprovar, não aprovar (com recado opcional).                        |
-| `/ics/minhas`            | membra                  | `?aba=candidaturas` (as minhas) e `?aba=publicadas` (as vagas que publiquei).                          |
-| `/mensagens`             | membra                  | Caixa de entrada (`?aba=conversas` padrão, `?aba=pedidos`).                                            |
-| `/mensagens/[id]`        | as duas participantes   | A conversa, ao vivo. Outras pessoas → 404.                                                              |
+| `/ics/[id]/editar`       | dona da vaga             | Editar, encerrar ou reabrir.                                                                           |
+| `/ics/[id]/candidaturas` | dona da vaga             | Candidaturas recebidas: em análise, aprovar, não aprovar (com recado opcional).                        |
+| `/ics/minhas`            | membra                   | `?aba=candidaturas` (as minhas) e `?aba=publicadas` (as vagas que publiquei).                          |
+| `/mensagens`             | membra                   | Caixa de entrada (`?aba=conversas` padrão, `?aba=pedidos`).                                            |
+| `/mensagens/[id]`        | as duas participantes    | A conversa, ao vivo. Outras pessoas → 404.                                                             |
 
 Todas entram em `PROTECTED_PREFIXES` (`/feed`, `/rede`, `/portfolio`, `/ics`, `/mensagens`).
 
@@ -69,7 +69,7 @@ connections (id uuid, requester_id uuid default auth.uid(), addressee_id uuid,
   `connection_accepted` → link `/pesquisadoras/<quem aceitou>`.
 - Conexões **aceitas** são visíveis a todas as membras; pendentes e recusadas, só às duas.
 - RPC `get_connection_suggestions(p_limit int default 8)` → `id, full_name, avatar_url, headline,
-  institution, career_stage, shared_areas int, mutual_connections int, same_institution bool` (sem
+institution, career_stage, shared_areas int, mutual_connections int, same_institution bool` (sem
   quem já tem convite/conexão comigo e sem eu mesma; ordem: pontuação desc).
 - RPC `get_network_counts(p_profile_id uuid)` → `followers int, following int, connections int`.
 
@@ -152,46 +152,46 @@ direct_messages (id, conversation_id, sender_id default auth.uid(), body 1–200
   espera (`CD086`). Quem recebeu aceita respondendo (ou pelo botão Aceitar) ou recusa; recusada,
   quem começou não manda mais nada e continua vendo "aguardando" (o mesmo `CD086`: a recusa nunca é
   revelada). `respond_conversation_request(p_conversation_id uuid,
-  p_accept boolean)`.
+p_accept boolean)`.
 - **Proteção de estudantes do ensino médio** (podem ter menos de 18 anos): quem tem
   `career_stage = 'high_school'` só recebe mensagem de conexões (`CD084` para as demais).
 - 60 mensagens por hora (`CD088`). Mensagens não são editadas nem apagadas (como na mentoria).
 - `mark_conversation_read(p_conversation_id uuid)` grava a leitura de quem chamou.
 - `list_my_conversations()` → `id, status, initiator_id, last_message_at, last_message_preview,
-  last_sender_id, unread bool, other_id, other_name, other_avatar_url, other_headline,
-  other_career_stage, created_at` (mais recentes primeiro).
+last_sender_id, unread bool, other_id, other_name, other_avatar_url, other_headline,
+other_career_stage, created_at` (mais recentes primeiro).
 - `count_unread_conversations() returns int` (sininho de mensagens do cabeçalho).
 - Aviso `direct_message` → link `/mensagens/<id>` (agrupado por conversa).
 - Realtime: `direct_messages` e `direct_conversations` estão na publicação `supabase_realtime`.
 
 ### 2.6 Códigos de erro novos
 
-| Código | Quando                                                                  |
-| ------ | ----------------------------------------------------------------------- |
-| CD060  | Perfil não encontrado ou sem cadastro completo (seguir, conectar, DM)    |
-| CD061  | Já existe convite ou conexão entre as duas                              |
+| Código | Quando                                                                     |
+| ------ | -------------------------------------------------------------------------- |
+| CD060  | Perfil não encontrado ou sem cadastro completo (seguir, conectar, DM)      |
+| CD061  | Já existe convite ou conexão entre as duas                                 |
 | CD062  | Só quem recebeu o convite responde; convite recusado não volta a ser feito |
-| CD063  | Muitos "seguir" na última hora (100/h)                                  |
-| CD064  | Muitos convites de conexão no dia (30/dia)                              |
-| CD065  | Não dá para seguir, conectar ou conversar consigo mesma                 |
-| CD066  | Portfólio cheio (50 itens)                                              |
-| CD067  | Muitos itens de portfólio na última hora (20/h)                         |
-| CD070  | Só pesquisadoras (mestrado em diante) publicam oportunidades            |
-| CD071  | Vaga encerrada ou fora do prazo                                         |
-| CD072  | Candidatura na própria vaga                                             |
-| CD073  | Já se candidatou a esta vaga                                            |
-| CD074  | Mudança de status de candidatura não permitida                          |
-| CD075  | Muitas vagas publicadas no dia (5/dia)                                  |
-| CD076  | Muitas candidaturas no dia (10/dia)                                     |
-| CD080  | Anexo que não é seu                                                     |
-| CD081  | Muitas publicações na última hora (20/h)                                |
-| CD082  | Muitos comentários na última hora (30/h)                                |
-| CD083  | Publicação não encontrada                                               |
-| CD084  | Estudante do ensino médio só recebe mensagens de conexões               |
-| CD085  | Conversa não encontrada                                                 |
-| CD086  | Pedido de mensagem: espere a resposta para mandar outra                 |
-| CD088  | Muitas mensagens na última hora (60/h)                                  |
-| CD089  | Muitas conversas novas no dia (20/dia)                                  |
+| CD063  | Muitos "seguir" na última hora (100/h)                                     |
+| CD064  | Muitos convites de conexão no dia (30/dia)                                 |
+| CD065  | Não dá para seguir, conectar ou conversar consigo mesma                    |
+| CD066  | Portfólio cheio (50 itens)                                                 |
+| CD067  | Muitos itens de portfólio na última hora (20/h)                            |
+| CD070  | Só pesquisadoras (mestrado em diante) publicam oportunidades               |
+| CD071  | Vaga encerrada ou fora do prazo                                            |
+| CD072  | Candidatura na própria vaga                                                |
+| CD073  | Já se candidatou a esta vaga                                               |
+| CD074  | Mudança de status de candidatura não permitida                             |
+| CD075  | Muitas vagas publicadas no dia (5/dia)                                     |
+| CD076  | Muitas candidaturas no dia (10/dia)                                        |
+| CD080  | Anexo que não é seu                                                        |
+| CD081  | Muitas publicações na última hora (20/h)                                   |
+| CD082  | Muitos comentários na última hora (30/h)                                   |
+| CD083  | Publicação não encontrada                                                  |
+| CD084  | Estudante do ensino médio só recebe mensagens de conexões                  |
+| CD085  | Conversa não encontrada                                                    |
+| CD086  | Pedido de mensagem: espere a resposta para mandar outra                    |
+| CD088  | Muitas mensagens na última hora (60/h)                                     |
+| CD089  | Muitas conversas novas no dia (20/dia)                                     |
 
 Erros de unicidade (`23505`) viram as mensagens de `CD061`/`CD073` no app.
 
