@@ -209,25 +209,30 @@ a situação não pôde ser consultada.
 campos permitidos, então colunas a mais nunca vazam. Seções com nomes em português; dentro delas,
 os nomes das colunas do banco (estáveis, documentados no [docs/03](03-banco-de-dados.md)).
 
-| Seção                                                   | Conteúdo                                                                                                                                                                   |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sobre`                                                 | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                                             |
-| `conta`                                                 | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                                        |
-| `perfil`, `areas_de_pesquisa`, `palavras_chave`         | todas as colunas do perfil dela (inclusive `role`, consentimento de IA e `trajectory_tags`), exceto `search_text`; áreas com slug e nome                                   |
-| `mentoria.pedidos_enviados` / `pedidos_recebidos`       | os dois papéis; mensagem, resposta, status, datas (inclusive `completed_at`), nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`) |
-| `mentoria.conversas`                                    | uma por mentoria com conversa: `request_id`, `papel` dela, `outra_participante` (só `{ id, full_name }`) e as `mensagens` (quem enviou, texto, envio, leitura)             |
-| `mentoria.sugestoes_salvas`                             | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                                           |
-| `forum.topicos` / `respostas` / `reacoes`               | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela                     |
-| `vitrine.papers_enviados` / `destaques` / `comentarios` | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                                       |
-| `retornos_de_mentoria`                                  | só os retornos que **ela** escreveu (nunca o da outra participante) — [docs/15](15-reconhecimento-da-mentoria.md)                                                          |
-| `declaracoes_de_mentoria`                               | declarações das mentorias dela, com o status derivado (`emitida`, `aguardando_autorizacao`, `revogada`, `cancelada`), sem quem pediu ou revogou                            |
-| `respostas_pergunte_a_uma_cientista`                    | respostas que ela escreveu no Pergunte a uma cientista (`show_identity`, `is_hidden`, `hidden_at`), sem `hidden_by`; perguntas não têm autora e nunca entram               |
-| `notificacoes`                                          | todas as notificações dela                                                                                                                                                 |
-| `denuncias_feitas`                                      | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                                      |
-| `newsletter`                                            | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }`               |
+| Seção                                                                              | Conteúdo                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sobre`                                                                            | `formato: "artemis-meus-dados"`, `versao: 1`, `gerado_em`, descrição e observações (o que não entra e por quê)                                                                                                                                                                                                                     |
+| `conta`                                                                            | id, e-mail, criação, confirmação do e-mail, último acesso (do Auth)                                                                                                                                                                                                                                                                |
+| `perfil`, `areas_de_pesquisa`, `palavras_chave`                                    | todas as colunas do perfil dela (inclusive `role`, consentimento de IA e `trajectory_tags`), exceto `search_text`; áreas com slug e nome                                                                                                                                                                                           |
+| `mentoria.pedidos_enviados` / `pedidos_recebidos`                                  | os dois papéis; mensagem, resposta, status, datas (inclusive `completed_at`), nota/motivo do match. Da **outra pessoa, só `{ id, full_name }`** (`mentora` / `mentoranda`)                                                                                                                                                         |
+| `mentoria.conversas`                                                               | uma por mentoria com conversa: `request_id`, `papel` dela, `outra_participante` (só `{ id, full_name }`) e as `mensagens` (quem enviou, texto, envio, leitura)                                                                                                                                                                     |
+| `mentoria.sugestoes_salvas`                                                        | sugestões de mentoras salvas para ela (nota, posição, motivo, sugestões de conversa, origem); da mentora, só `{ id, full_name }`                                                                                                                                                                                                   |
+| `forum.topicos` / `respostas` / `reacoes`                                          | o que ela assinou **e** o que publicou como anônima (achado pelas linhas dela em `forum_anonymous_authorship`), com `is_anonymous: true`; reações dela                                                                                                                                                                             |
+| `vitrine.papers_enviados` / `destaques` / `comentarios`                            | papers enviados (inclusive ocultos), votos dados (com o título do paper, `null` se ele estiver oculto) e comentários                                                                                                                                                                                                               |
+| `rede_social.seguindo` / `seguidoras` / `conexoes`                                 | quem ela segue e quem a segue (`pessoa` + data); convites e conexões dela com o `papel` (`enviou`/`recebeu`), o recado e a `outra_pessoa` só como `{ id, full_name }`. Convite que **ela** enviou e foi recusado sai como `pending`, sem `responded_at` (a recusa nunca é revelada a quem convidou — [docs/18](18-rede-social.md)) |
+| `rede_social.portfolio` / `publicacoes` / `curtidas` / `comentarios_no_feed`       | itens do portfólio dela; publicações do feed (com anexos e contadores), curtidas dadas e comentários que ela escreveu                                                                                                                                                                                                              |
+| `rede_social.oportunidades_publicadas` / `candidaturas` / `candidaturas_recebidas` | vagas de IC que ela publicou (sem `search_text`, com a área); candidaturas dela (carta, status, recado da dona e `opportunity_title`); candidaturas às vagas dela com a carta de apresentação (escrita para ela, como a mensagem de um pedido de mentoria) e a `candidata` só como `{ id, full_name }`                             |
+| `rede_social.mensagens_diretas`                                                    | uma por conversa com mensagens: `id`, `status`, `papel` (`iniciou`/`recebeu`), `outra_pessoa` (só `{ id, full_name }`) e as `mensagens` (quem enviou, texto, envio). Sem a prévia nem as marcas de leitura; pedido de mensagem que ela começou e foi recusado sai como `request`                                                   |
+| `retornos_de_mentoria`                                                             | só os retornos que **ela** escreveu (nunca o da outra participante) — [docs/15](15-reconhecimento-da-mentoria.md)                                                                                                                                                                                                                  |
+| `declaracoes_de_mentoria`                                                          | declarações das mentorias dela, com o status derivado (`emitida`, `aguardando_autorizacao`, `revogada`, `cancelada`), sem quem pediu ou revogou                                                                                                                                                                                    |
+| `respostas_pergunte_a_uma_cientista`                                               | respostas que ela escreveu no Pergunte a uma cientista (`show_identity`, `is_hidden`, `hidden_at`), sem `hidden_by`; perguntas não têm autora e nunca entram                                                                                                                                                                       |
+| `notificacoes`                                                                     | todas as notificações dela                                                                                                                                                                                                                                                                                                         |
+| `denuncias_feitas`                                                                 | alvo, motivo, relato, status e datas — **sem** `resolution_note` nem `resolved_by` (são da moderação)                                                                                                                                                                                                                              |
+| `newsletter`                                                                       | `{ disponivel: true, inscricao: { email, status, area_ids, consent_text, datas } \| null }` — sem tokens nem contadores — ou `{ disponivel: false, motivo }`                                                                                                                                                                       |
 
 Fica de fora: o embedding do perfil (representação numérica da IA, recalculável), anotações da
-moderação, registros técnicos dos provedores e qualquer dado privado de outras pessoas. O arquivo
+moderação, registros técnicos dos provedores, a recusa de convites e pedidos de mensagem que ela
+mesma enviou (a resposta é da outra pessoa) e qualquer dado privado de outras pessoas. O arquivo
 liga o nome dela às publicações anônimas — a tela e a `/privacidade` pedem para guardá-lo em lugar
 seguro.
 
@@ -380,12 +385,15 @@ auth, leitura do `FormData`, filtros do diretório e limpeza da busca, agrupamen
 validação da URL do avatar e a montagem do "Baixar meus dados" (`export.test.ts`: campos
 permitidos — nada de tokens, `search_text` ou notas da moderação mesmo se vierem na consulta —,
 outra pessoa só com id e nome, anônimos marcados pela autoria anônima, sem repetidos, newsletter
-indisponível e nome do arquivo no fuso de São Paulo) e o escopo das consultas
-(`export-data.test.ts`, com um cliente falso que grava cada consulta: toda leitura com a sessão
-filtra pelo id dela — necessário porque `forum_threads`, `forum_posts`, `forum_reactions`,
-`paper_votes`, `paper_comments` e `profile_research_areas` têm leitura aberta a qualquer membra —,
-anônimos só pelos ids da autoria dela, newsletter só pelo cliente admin e pelo e-mail dela,
-paginação de 1.000 e erro em qualquer consulta derrubando a exportação).
+indisponível, rede social com `papel` e recusa escondida de quem convidou/pediu, e nome do arquivo
+no fuso de São Paulo) e o escopo das consultas (`export-data.test.ts`, com um cliente falso que
+grava cada consulta: toda leitura com a sessão filtra pelo id dela — necessário porque
+`forum_threads`, `forum_posts`, `forum_reactions`, `paper_votes`, `paper_comments`,
+`profile_research_areas`, `follows`, `portfolio_items`, `research_opportunities`, `posts`,
+`post_likes` e `post_comments` têm leitura aberta a qualquer membra, e as `connections` aceitas
+também —, anônimos só pelos ids da autoria dela, mensagens diretas só pelos ids das conversas dela,
+candidaturas recebidas só pelos ids das vagas dela, newsletter só pelo cliente admin e pelo e-mail
+dela, paginação de 1.000 e erro em qualquer consulta derrubando a exportação).
 
 ### Manual (Supabase local + seed)
 
@@ -405,7 +413,10 @@ Contas de demonstração em `docs/03-banco-de-dados.md` §15 (senha `ciencia-del
 6. **Recuperação:** `/recuperar-senha` → Mailpit → `/redefinir-senha`.
 7. **Baixar meus dados:** como `larissa@…`, `/perfil#dados` → "Baixar meus dados (JSON)" baixa
    `artemis-meus-dados-<data>.json` e a página continua no perfil. Confira que da Marina só vêm
-   `id` e `full_name` e que o único e-mail no arquivo é o dela. Como `gabriela@…`, o tópico anônimo
+   `id` e `full_name` e que o único e-mail no arquivo é o dela; em `rede_social`, a candidatura
+   aprovada na vaga da Marina vem com `opportunity_title` e as conversas diretas trazem as
+   mensagens das duas. Como `marina@…`, `candidaturas_recebidas` traz as cartas com a `candidata`
+   só como `{ id, full_name }`. Como `gabriela@…`, o tópico anônimo
    dela em "Rede de apoio" aparece com `is_anonymous: true`. Sem login, `/perfil/exportar` leva ao
    `/entrar`. `/perfil?exportacao=erro#dados` mostra o aviso de falha.
 8. **Excluir conta:** `/perfil#conta` → digite algo diferente de EXCLUIR (erro) → EXCLUIR →

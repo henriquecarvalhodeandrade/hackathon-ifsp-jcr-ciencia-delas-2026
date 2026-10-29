@@ -81,6 +81,17 @@ function sources(overrides: Partial<ExportSources> = {}): ExportSources {
     notifications: [],
     reports: [],
     newsletter: { available: true, subscription: null },
+    follows: [],
+    connections: [],
+    portfolioItems: [],
+    feedPosts: [],
+    feedLikes: [],
+    feedComments: [],
+    opportunities: [],
+    applications: [],
+    receivedApplications: [],
+    directConversations: [],
+    directMessages: [],
     ...overrides,
   };
 }
@@ -608,6 +619,462 @@ describe("buildDataExport", () => {
     expect(data.palavras_chave).toEqual([]);
     expect(data.forum).toEqual({ topicos: [], respostas: [], reacoes: [] });
     expect(data.vitrine).toEqual({ papers_enviados: [], destaques: [], comentarios: [] });
+    expect(data.rede_social).toEqual({
+      seguindo: [],
+      seguidoras: [],
+      conexoes: [],
+      portfolio: [],
+      publicacoes: [],
+      curtidas: [],
+      comentarios_no_feed: [],
+      oportunidades_publicadas: [],
+      candidaturas: [],
+      candidaturas_recebidas: [],
+      mensagens_diretas: [],
+    });
+  });
+});
+
+describe("buildDataExport · rede social", () => {
+  const marina = { id: MARINA, full_name: "Marina Albuquerque" };
+  const bia = { id: BIA, full_name: "Bia" };
+  const larissa = { id: ME, full_name: "Larissa Gomes" };
+  // id menor que o dela: nas conversas diretas ela fica como user_b
+  const ANA = "0aaaaaaa-0000-4000-8000-000000000000";
+  const ana = { id: ANA, full_name: "Ana" };
+
+  it("traz quem ela segue e quem a segue, da outra pessoa só id e nome, mais antigas primeiro", () => {
+    const follow = (follower: string, followee: string, createdAt: string) => ({
+      follower_id: follower,
+      followee_id: followee,
+      created_at: createdAt,
+      follower: follower === ME ? larissa : follower === MARINA ? marina : bia,
+      followee: followee === ME ? larissa : followee === MARINA ? marina : bia,
+    });
+    const data = buildDataExport(
+      sources({
+        follows: [
+          follow(ME, BIA, T2),
+          {
+            ...follow(ME, MARINA, T0),
+            followee: { ...marina, email: "marina@x.dev", headline: "privada" } as never,
+          },
+          // repetida (as duas consultas podem trazer a mesma linha): entra uma vez
+          follow(ME, BIA, T2),
+          follow(BIA, ME, T1),
+          // perfil apagado/sem cadastro: fica o id
+          { ...follow(MARINA, ME, T0), follower: null },
+          // de outras pessoas (o RLS de follows é aberto): nunca entra
+          follow(MARINA, BIA, T0),
+        ],
+      }),
+    );
+    expect(data.rede_social.seguindo).toEqual([
+      { pessoa: marina, created_at: T0 },
+      { pessoa: bia, created_at: T2 },
+    ]);
+    expect(data.rede_social.seguidoras).toEqual([
+      { pessoa: { id: MARINA, full_name: null }, created_at: T0 },
+      { pessoa: bia, created_at: T1 },
+    ]);
+    expect(JSON.stringify(data.rede_social)).not.toMatch(/marina@x\.dev|privada|follower_id/);
+  });
+
+  it("traz as conexões dela com o papel e sem revelar a recusa de um convite que ela enviou", () => {
+    const connection = (
+      id: string,
+      requester: string,
+      addressee: string,
+      status: "pending" | "accepted" | "declined",
+      createdAt: string,
+      extra: object = {},
+    ) => ({
+      id,
+      requester_id: requester,
+      addressee_id: addressee,
+      status,
+      message: `Recado ${id}`,
+      created_at: createdAt,
+      responded_at: status === "pending" ? null : T2,
+      requester: requester === ME ? larissa : requester === MARINA ? marina : bia,
+      addressee: addressee === ME ? larissa : addressee === MARINA ? marina : bia,
+      ...extra,
+    });
+    const data = buildDataExport(
+      sources({
+        connections: [
+          connection("c-recusada-por-ela", BIA, ME, "declined", T2),
+          connection("c-aceita", ME, MARINA, "accepted", T0, {
+            addressee: { ...marina, email: "marina@x.dev" },
+          }),
+          connection("c-enviada-recusada", ME, BIA, "declined", T1),
+          connection("c-recebida", MARINA, ME, "pending", T1),
+          // conexão aceita entre outras duas (o RLS mostra a todas): fica de fora
+          connection("c-alheia", MARINA, BIA, "accepted", T0),
+        ],
+      }),
+    );
+    expect(data.rede_social.conexoes).toEqual([
+      {
+        id: "c-aceita",
+        status: "accepted",
+        message: "Recado c-aceita",
+        created_at: T0,
+        responded_at: T2,
+        papel: "enviou",
+        outra_pessoa: marina,
+      },
+      {
+        id: "c-enviada-recusada",
+        status: "pending",
+        message: "Recado c-enviada-recusada",
+        created_at: T1,
+        responded_at: null,
+        papel: "enviou",
+        outra_pessoa: bia,
+      },
+      {
+        id: "c-recebida",
+        status: "pending",
+        message: "Recado c-recebida",
+        created_at: T1,
+        responded_at: null,
+        papel: "recebeu",
+        outra_pessoa: marina,
+      },
+      {
+        id: "c-recusada-por-ela",
+        status: "declined",
+        message: "Recado c-recusada-por-ela",
+        created_at: T2,
+        responded_at: T2,
+        papel: "recebeu",
+        outra_pessoa: bia,
+      },
+    ]);
+    expect(JSON.stringify(data.rede_social.conexoes)).not.toMatch(
+      /marina@x\.dev|c-alheia|requester_id|addressee_id/,
+    );
+  });
+
+  it("traz portfólio, publicações, curtidas e comentários do feed só com os campos permitidos", () => {
+    const data = buildDataExport(
+      sources({
+        portfolioItems: [
+          {
+            id: "i2",
+            kind: "award",
+            title: "Prêmio",
+            description: null,
+            url: null,
+            venue: null,
+            year: 2026,
+            tags: [],
+            pinned: false,
+            created_at: T1,
+            updated_at: T1,
+          },
+          {
+            id: "i1",
+            kind: "article",
+            title: "Abelhas e visão computacional",
+            description: "Artigo",
+            url: "https://exemplo.org/a",
+            venue: "SBC",
+            year: 2025,
+            tags: ["abelhas"],
+            pinned: true,
+            created_at: T0,
+            updated_at: T2,
+            owner_id: ME,
+          } as never,
+        ],
+        feedPosts: [
+          {
+            id: "p1",
+            kind: "achievement",
+            body: "Consegui a bolsa!",
+            link_url: null,
+            portfolio_item_id: "i2",
+            opportunity_id: null,
+            like_count: 3,
+            comment_count: 1,
+            created_at: T1,
+            updated_at: T1,
+            author_id: ME,
+          } as never,
+        ],
+        feedLikes: [
+          { post_id: "p9", created_at: T2 },
+          { post_id: "p8", created_at: T0, user_id: ME } as never,
+        ],
+        feedComments: [
+          { id: "fc1", post_id: "p9", body: "Parabéns!", created_at: T2, updated_at: T2 },
+          { id: "fc1", post_id: "p9", body: "Parabéns!", created_at: T2, updated_at: T2 },
+        ],
+      }),
+    );
+    expect(data.rede_social.portfolio.map((i) => i.id)).toEqual(["i1", "i2"]);
+    expect(data.rede_social.portfolio[0]).toEqual({
+      id: "i1",
+      kind: "article",
+      title: "Abelhas e visão computacional",
+      description: "Artigo",
+      url: "https://exemplo.org/a",
+      venue: "SBC",
+      year: 2025,
+      tags: ["abelhas"],
+      pinned: true,
+      created_at: T0,
+      updated_at: T2,
+    });
+    expect(data.rede_social.publicacoes).toEqual([
+      {
+        id: "p1",
+        kind: "achievement",
+        body: "Consegui a bolsa!",
+        link_url: null,
+        portfolio_item_id: "i2",
+        opportunity_id: null,
+        like_count: 3,
+        comment_count: 1,
+        created_at: T1,
+        updated_at: T1,
+      },
+    ]);
+    expect(data.rede_social.curtidas).toEqual([
+      { post_id: "p8", created_at: T0 },
+      { post_id: "p9", created_at: T2 },
+    ]);
+    expect(data.rede_social.comentarios_no_feed).toHaveLength(1);
+    expect(JSON.stringify(data.rede_social)).not.toMatch(/owner_id|author_id|user_id/);
+  });
+
+  it("traz as vagas dela sem search_text, as candidaturas dela e as recebidas com a carta", () => {
+    const opportunity = (id: string, owner: string, createdAt: string) => ({
+      id,
+      owner_id: owner,
+      kind: "ic" as const,
+      title: `Vaga ${id}`,
+      description: "Descrição longa o bastante para a vaga de iniciação.",
+      requirements: null,
+      area_id: 2,
+      keywords: ["abelhas"],
+      institution: "IFSP",
+      city: "Jacareí",
+      state: "SP",
+      modality: "hybrid" as const,
+      has_scholarship: true,
+      scholarship_info: "PIBIC",
+      weekly_hours: 12,
+      vacancies: 2,
+      target_stages: ["undergraduate" as const],
+      deadline: "2026-12-01",
+      status: "open" as const,
+      application_count: 1,
+      created_at: createdAt,
+      updated_at: createdAt,
+      closed_at: null,
+      area: { slug: "ecologia", name: "Ecologia" },
+    });
+    const application = (
+      id: string,
+      opportunityId: string,
+      applicant: string,
+      createdAt: string,
+    ) => ({
+      id,
+      opportunity_id: opportunityId,
+      applicant_id: applicant,
+      message: `Carta ${id}`,
+      status: "in_review" as const,
+      owner_note: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      responded_at: null,
+    });
+    const data = buildDataExport(
+      sources({
+        opportunities: [
+          { ...opportunity("v2", ME, T1), search_text: "indice interno" } as never,
+          opportunity("v1", ME, T0),
+          // de outra dona (não deveria vir na consulta): nem ela nem as candidaturas dela entram
+          opportunity("v-alheia", MARINA, T0),
+        ],
+        applications: [
+          {
+            ...application("a1", "v-marina", ME, T1),
+            status: "accepted",
+            owner_note: "Bem-vinda!",
+            responded_at: T2,
+            opportunity: { title: "IC em ecologia" },
+          },
+          // vaga apagada ou sem acesso: título null
+          { ...application("a0", "v-sumiu", ME, T0), opportunity: null },
+          { ...application("a-alheia", "v-marina", BIA, T0), opportunity: null },
+        ],
+        receivedApplications: [
+          {
+            ...application("r2", "v1", BIA, T2),
+            applicant: { ...bia, email: "bia@x.dev", bio: "privada" } as never,
+          },
+          { ...application("r1", "v2", MARINA, T1), applicant: null },
+          // vaga que não é dela
+          { ...application("r-alheia", "v-alheia", BIA, T0), applicant: bia },
+        ],
+      }),
+    );
+    const { oportunidades_publicadas, candidaturas, candidaturas_recebidas } = data.rede_social;
+    expect(oportunidades_publicadas.map((o) => o.id)).toEqual(["v1", "v2"]);
+    expect(oportunidades_publicadas[0]).toMatchObject({
+      title: "Vaga v1",
+      has_scholarship: true,
+      target_stages: ["undergraduate"],
+      status: "open",
+      application_count: 1,
+      area: { slug: "ecologia", name: "Ecologia" },
+    });
+    expect(candidaturas).toEqual([
+      {
+        id: "a0",
+        opportunity_id: "v-sumiu",
+        message: "Carta a0",
+        status: "in_review",
+        owner_note: null,
+        created_at: T0,
+        updated_at: T0,
+        responded_at: null,
+        opportunity_title: null,
+      },
+      {
+        id: "a1",
+        opportunity_id: "v-marina",
+        message: "Carta a1",
+        status: "accepted",
+        owner_note: "Bem-vinda!",
+        created_at: T1,
+        updated_at: T1,
+        responded_at: T2,
+        opportunity_title: "IC em ecologia",
+      },
+    ]);
+    expect(candidaturas_recebidas).toEqual([
+      {
+        id: "r1",
+        opportunity_id: "v2",
+        message: "Carta r1",
+        status: "in_review",
+        owner_note: null,
+        created_at: T1,
+        updated_at: T1,
+        responded_at: null,
+        candidata: { id: MARINA, full_name: null },
+      },
+      {
+        id: "r2",
+        opportunity_id: "v1",
+        message: "Carta r2",
+        status: "in_review",
+        owner_note: null,
+        created_at: T2,
+        updated_at: T2,
+        responded_at: null,
+        candidata: bia,
+      },
+    ]);
+    expect(JSON.stringify(data.rede_social)).not.toMatch(
+      /search_text|indice interno|bia@x\.dev|privada|applicant_id|owner_id|alheia/,
+    );
+  });
+
+  it("traz as conversas diretas com mensagens, o papel dela e sem revelar a recusa de um pedido dela", () => {
+    const conversation = (
+      id: string,
+      other: string,
+      initiator: string,
+      status: "request" | "active" | "declined",
+      createdAt: string,
+    ) => {
+      const [a, b] = [ME, other].sort();
+      const ref = (pid: string) =>
+        ({ [ME]: larissa, [MARINA]: marina, [BIA]: bia, [ANA]: ana })[pid]!;
+      return {
+        id,
+        user_a: a!,
+        user_b: b!,
+        initiator_id: initiator,
+        status,
+        created_at: createdAt,
+        person_a: ref(a!),
+        person_b: ref(b!),
+      };
+    };
+    const message = (id: string, conversationId: string, sender: string, createdAt: string) => ({
+      id,
+      conversation_id: conversationId,
+      sender_id: sender,
+      body: `Mensagem ${id}`,
+      created_at: createdAt,
+    });
+    const data = buildDataExport(
+      sources({
+        directConversations: [
+          conversation("d-recusada-por-ela", ANA, ANA, "declined", T1),
+          {
+            ...conversation("d-ativa", MARINA, ME, "active", T0),
+            last_message_preview: "prévia interna",
+            user_a_read_at: T2,
+          } as never,
+          conversation("d-meu-pedido-recusado", BIA, ME, "declined", T2),
+          // aberta pela outra pessoa e sem mensagem: nada escrito, não entra
+          conversation("d-vazia", MARINA, MARINA, "request", T0),
+        ],
+        directMessages: [
+          message("m3", "d-ativa", ME, T2),
+          message("m1", "d-ativa", MARINA, T0),
+          // repetida (veio em duas páginas): entra uma vez
+          message("m1", "d-ativa", MARINA, T0),
+          message("m4", "d-recusada-por-ela", ANA, T1),
+          message("m5", "d-meu-pedido-recusado", ME, T2),
+          // de uma conversa que não é dela e de alguém de fora da conversa: ficam de fora
+          { ...message("x", "d-alheia", BIA, T0), body: "conversa alheia" },
+          { ...message("y", "d-ativa", BIA, T1), body: "intrusa" },
+        ],
+      }),
+    );
+    expect(data.rede_social.mensagens_diretas).toEqual([
+      {
+        id: "d-ativa",
+        status: "active",
+        created_at: T0,
+        papel: "iniciou",
+        outra_pessoa: marina,
+        mensagens: [
+          { id: "m1", sender_id: MARINA, body: "Mensagem m1", created_at: T0 },
+          { id: "m3", sender_id: ME, body: "Mensagem m3", created_at: T2 },
+        ],
+      },
+      {
+        id: "d-recusada-por-ela",
+        status: "declined",
+        created_at: T1,
+        papel: "recebeu",
+        outra_pessoa: ana,
+        mensagens: [{ id: "m4", sender_id: ANA, body: "Mensagem m4", created_at: T1 }],
+      },
+      {
+        id: "d-meu-pedido-recusado",
+        status: "request",
+        created_at: T2,
+        papel: "iniciou",
+        outra_pessoa: bia,
+        mensagens: [{ id: "m5", sender_id: ME, body: "Mensagem m5", created_at: T2 }],
+      },
+    ]);
+    expect(JSON.stringify(data.rede_social.mensagens_diretas)).not.toMatch(
+      /prévia interna|read_at|conversa alheia|intrusa|d-vazia|user_a|initiator_id/,
+    );
+    expect(data.sobre.observacoes.join(" ")).toMatch(/aparecem como pendentes/);
   });
 });
 

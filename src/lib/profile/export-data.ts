@@ -63,6 +63,11 @@ function chunks<T>(items: T[]): T[][] {
 const THREAD_COLUMNS =
   "id, category_id, title, body, tags, is_anonymous, is_pinned, is_locked, solution_post_id, reply_count, created_at, updated_at, edited_at, category:forum_categories(slug, name)";
 const POST_COLUMNS = "id, thread_id, body, is_anonymous, created_at, updated_at, edited_at";
+/** Os dois lados do "seguir" (dela, a própria; da outra pessoa, só id e nome). */
+const FOLLOW_COLUMNS =
+  "follower_id, followee_id, created_at, follower:profiles!follows_follower_id_fkey(id, full_name), followee:profiles!follows_followee_id_fkey(id, full_name)";
+const APPLICATION_COLUMNS =
+  "id, opportunity_id, applicant_id, message, status, owner_note, created_at, updated_at, responded_at";
 
 async function loadNewsletter(email: string | null | undefined): Promise<ExportNewsletterSource> {
   if (!isAdminConfigured()) return { available: false };
@@ -100,6 +105,16 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     feedback,
     publicAnswers,
     newsletter,
+    following,
+    followers,
+    connections,
+    portfolioItems,
+    feedPosts,
+    feedLikes,
+    feedComments,
+    opportunities,
+    applications,
+    directConversations,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -241,6 +256,113 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
         .range(from, to),
     ),
     loadNewsletter(user.email),
+    // Rede social (docs/18). follows, portfolio_items, posts, post_likes e post_comments têm
+    // leitura aberta a qualquer membra, e as conexões aceitas de todas são visíveis: o filtro pelo
+    // id dela é o que limita o arquivo ao que é DELA.
+    all("seguindo", (from, to) =>
+      supabase
+        .from("follows")
+        .select(FOLLOW_COLUMNS)
+        .eq("follower_id", uid)
+        .order("created_at")
+        .order("followee_id")
+        .range(from, to),
+    ),
+    all("seguidoras", (from, to) =>
+      supabase
+        .from("follows")
+        .select(FOLLOW_COLUMNS)
+        .eq("followee_id", uid)
+        .order("created_at")
+        .order("follower_id")
+        .range(from, to),
+    ),
+    all("conexoes", (from, to) =>
+      supabase
+        .from("connections")
+        .select(
+          "id, requester_id, addressee_id, status, message, created_at, responded_at, requester:profiles!connections_requester_id_fkey(id, full_name), addressee:profiles!connections_addressee_id_fkey(id, full_name)",
+        )
+        .or(`requester_id.eq.${uid},addressee_id.eq.${uid}`)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
+    all("portfolio", (from, to) =>
+      supabase
+        .from("portfolio_items")
+        .select(
+          "id, kind, title, description, url, venue, year, tags, pinned, created_at, updated_at",
+        )
+        .eq("owner_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
+    all("publicacoes", (from, to) =>
+      supabase
+        .from("posts")
+        .select(
+          "id, kind, body, link_url, portfolio_item_id, opportunity_id, like_count, comment_count, created_at, updated_at",
+        )
+        .eq("author_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
+    all("curtidas", (from, to) =>
+      supabase
+        .from("post_likes")
+        .select("post_id, created_at")
+        .eq("user_id", uid)
+        .order("created_at")
+        .order("post_id")
+        .range(from, to),
+    ),
+    all("comentarios_no_feed", (from, to) =>
+      supabase
+        .from("post_comments")
+        .select("id, post_id, body, created_at, updated_at")
+        .eq("author_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
+    // Sem search_text (coluna gerada para a busca).
+    all("oportunidades_publicadas", (from, to) =>
+      supabase
+        .from("research_opportunities")
+        .select(
+          "id, owner_id, kind, title, description, requirements, area_id, keywords, institution, city, state, modality, has_scholarship, scholarship_info, weekly_hours, vacancies, target_stages, deadline, status, application_count, created_at, updated_at, closed_at, area:research_areas(slug, name)",
+        )
+        .eq("owner_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
+    all("candidaturas", (from, to) =>
+      supabase
+        .from("opportunity_applications")
+        .select(
+          `${APPLICATION_COLUMNS}, opportunity:research_opportunities!opportunity_applications_opportunity_id_fkey(title)`,
+        )
+        .eq("applicant_id", uid)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
+    // Sem a prévia da última mensagem nem as marcas de leitura.
+    all("mensagens_diretas", (from, to) =>
+      supabase
+        .from("direct_conversations")
+        .select(
+          "id, user_a, user_b, initiator_id, status, created_at, person_a:profiles!direct_conversations_user_a_fkey(id, full_name), person_b:profiles!direct_conversations_user_b_fkey(id, full_name)",
+        )
+        .or(`user_a.eq.${uid},user_b.eq.${uid}`)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
   ]);
 
   // Conversas da mentoria: pelos ids dos pedidos DELA (o RLS também só mostra às participantes).
@@ -274,6 +396,39 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
       ),
     ),
   );
+
+  // Mensagens diretas: pelos ids das conversas DELA (o RLS também só mostra às participantes).
+  // Candidaturas recebidas: pelos ids das vagas DELA (o RLS mostra à dona da vaga).
+  const [directMessageChunks, receivedApplicationChunks] = await Promise.all([
+    Promise.all(
+      chunks(directConversations.map((c) => c.id)).map((ids) =>
+        all("mensagens_diretas", (from, to) =>
+          supabase
+            .from("direct_messages")
+            .select("id, conversation_id, sender_id, body, created_at")
+            .in("conversation_id", ids)
+            .order("created_at")
+            .order("id")
+            .range(from, to),
+        ),
+      ),
+    ),
+    Promise.all(
+      chunks(opportunities.map((o) => o.id)).map((ids) =>
+        all("candidaturas_recebidas", (from, to) =>
+          supabase
+            .from("opportunity_applications")
+            .select(
+              `${APPLICATION_COLUMNS}, applicant:profiles!opportunity_applications_applicant_id_fkey(id, full_name)`,
+            )
+            .in("opportunity_id", ids)
+            .order("created_at")
+            .order("id")
+            .range(from, to),
+        ),
+      ),
+    ),
+  ]);
 
   // Publicações anônimas: author_id é NULL, então vêm pelos ids da autoria (só as dela, pelo RLS).
   const anonThreadIds = anonymousAuthorship.flatMap((row) =>
@@ -328,6 +483,17 @@ export async function loadMyDataExport(user: User, now: Date = new Date()): Prom
     notifications,
     reports,
     newsletter,
+    follows: [...following, ...followers],
+    connections,
+    portfolioItems,
+    feedPosts,
+    feedLikes,
+    feedComments,
+    opportunities,
+    applications,
+    receivedApplications: receivedApplicationChunks.flat(),
+    directConversations,
+    directMessages: directMessageChunks.flat(),
   };
   return buildDataExport(sources);
 }

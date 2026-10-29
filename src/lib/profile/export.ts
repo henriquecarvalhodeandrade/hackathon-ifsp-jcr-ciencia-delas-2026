@@ -16,7 +16,13 @@ import type { Tables } from "@/lib/database.types";
  *     declarações: as das mentorias dela, com o status derivado (emitida, aguardando, revogada…);
  *   - Pergunte a uma cientista: só as respostas que ELA escreveu. As perguntas não têm autora no
  *     banco, então nada no arquivo liga uma pessoa a uma pergunta anônima;
- *   - marcas de trajetória (trajectory_tags) entram no perfil: são dados dela.
+ *   - marcas de trajetória (trajectory_tags) entram no perfil: são dados dela;
+ *   - rede social (docs/18): de outras pessoas, só `{ id, full_name }` de quem ela segue, de quem
+ *     a segue, das conexões, das candidatas às vagas dela e de quem conversou com ela — e o que
+ *     foi escrito PARA ela (recado do convite, carta de apresentação, mensagens diretas), como na
+ *     mentoria. A recusa de um convite de conexão ou de um pedido de mensagem que ELA enviou não
+ *     é revelada (a decisão é da outra pessoa; na tela também continua "pendente"/"aguardando");
+ *     conversas diretas sem nenhuma mensagem não entram (como as conversas da mentoria).
  *
  * Formato: seções com nomes em português; dentro de cada registro, os nomes das colunas do banco
  * (docs/03-banco-de-dados.md), que são estáveis e servem para importar em outro sistema.
@@ -242,6 +248,109 @@ const SUBSCRIPTION_FIELDS = [
   "updated_at",
 ] as const satisfies ReadonlyArray<keyof Tables<"newsletter_subscribers">>;
 
+// ── Rede social (docs/18) ────────────────────────────────────────────────────────────────────
+
+/** Convites de conexão: o recado é de quem convidou (dela, ou o que recebeu). */
+const CONNECTION_FIELDS = [
+  "id",
+  "status",
+  "message",
+  "created_at",
+  "responded_at",
+] as const satisfies ReadonlyArray<keyof Tables<"connections">>;
+
+const PORTFOLIO_FIELDS = [
+  "id",
+  "kind",
+  "title",
+  "description",
+  "url",
+  "venue",
+  "year",
+  "tags",
+  "pinned",
+  "created_at",
+  "updated_at",
+] as const satisfies ReadonlyArray<keyof Tables<"portfolio_items">>;
+
+const FEED_POST_FIELDS = [
+  "id",
+  "kind",
+  "body",
+  "link_url",
+  "portfolio_item_id",
+  "opportunity_id",
+  "like_count",
+  "comment_count",
+  "created_at",
+  "updated_at",
+] as const satisfies ReadonlyArray<keyof Tables<"posts">>;
+
+const FEED_LIKE_FIELDS = ["post_id", "created_at"] as const satisfies ReadonlyArray<
+  keyof Tables<"post_likes">
+>;
+
+const FEED_COMMENT_FIELDS = [
+  "id",
+  "post_id",
+  "body",
+  "created_at",
+  "updated_at",
+] as const satisfies ReadonlyArray<keyof Tables<"post_comments">>;
+
+/** Vagas que ela publicou: tudo o que ela preencheu + situação. Sem `search_text` (índice). */
+const OPPORTUNITY_FIELDS = [
+  "id",
+  "kind",
+  "title",
+  "description",
+  "requirements",
+  "area_id",
+  "keywords",
+  "institution",
+  "city",
+  "state",
+  "modality",
+  "has_scholarship",
+  "scholarship_info",
+  "weekly_hours",
+  "vacancies",
+  "target_stages",
+  "deadline",
+  "status",
+  "application_count",
+  "created_at",
+  "updated_at",
+  "closed_at",
+] as const satisfies ReadonlyArray<keyof Tables<"research_opportunities">>;
+
+/**
+ * Candidaturas: as que ela enviou (com o recado da dona da vaga) e as que recebeu nas vagas dela
+ * (com a carta de apresentação, escrita PARA ela — como a mensagem de um pedido de mentoria).
+ */
+const APPLICATION_FIELDS = [
+  "id",
+  "opportunity_id",
+  "message",
+  "status",
+  "owner_note",
+  "created_at",
+  "updated_at",
+  "responded_at",
+] as const satisfies ReadonlyArray<keyof Tables<"opportunity_applications">>;
+
+/** Sem prévia da última mensagem nem marcas de leitura (a prévia repete o texto das mensagens). */
+const DIRECT_CONVERSATION_FIELDS = ["id", "status", "created_at"] as const satisfies ReadonlyArray<
+  keyof Tables<"direct_conversations">
+>;
+
+const DIRECT_MESSAGE_FIELDS = [
+  "id",
+  "sender_id",
+  "body",
+  "created_at",
+] as const satisfies ReadonlyArray<keyof Tables<"direct_messages">>;
+
 type Fields<T, K extends readonly (keyof T)[]> = Pick<T, K[number]>;
 
 export type ExportProfile = Fields<Tables<"profiles">, typeof PROFILE_FIELDS>;
@@ -314,6 +423,75 @@ export type ExportSubscription = Fields<
 export type ExportNewsletterSource =
   { available: true; subscription: ExportSubscription | null } | { available: false };
 
+export type ExportFollowSource = Pick<
+  Tables<"follows">,
+  "follower_id" | "followee_id" | "created_at"
+> & {
+  follower: PersonRef | null;
+  followee: PersonRef | null;
+};
+export interface ExportFollow {
+  pessoa: PersonRef;
+  created_at: string;
+}
+export type ExportConnectionSource = Fields<Tables<"connections">, typeof CONNECTION_FIELDS> &
+  Pick<Tables<"connections">, "requester_id" | "addressee_id"> & {
+    requester: PersonRef | null;
+    addressee: PersonRef | null;
+  };
+export type ExportConnection = Fields<Tables<"connections">, typeof CONNECTION_FIELDS> & {
+  /** Se foi ela quem convidou ou quem recebeu o convite. */
+  papel: "enviou" | "recebeu";
+  outra_pessoa: PersonRef;
+};
+export type ExportPortfolioItem = Fields<Tables<"portfolio_items">, typeof PORTFOLIO_FIELDS>;
+export type ExportFeedPost = Fields<Tables<"posts">, typeof FEED_POST_FIELDS>;
+export type ExportFeedLike = Fields<Tables<"post_likes">, typeof FEED_LIKE_FIELDS>;
+export type ExportFeedComment = Fields<Tables<"post_comments">, typeof FEED_COMMENT_FIELDS>;
+export type ExportOpportunitySource = Fields<
+  Tables<"research_opportunities">,
+  typeof OPPORTUNITY_FIELDS
+> &
+  Pick<Tables<"research_opportunities">, "owner_id"> & {
+    area: { slug: string; name: string } | null;
+  };
+export type ExportOpportunity = Fields<
+  Tables<"research_opportunities">,
+  typeof OPPORTUNITY_FIELDS
+> & {
+  area: { slug: string; name: string } | null;
+};
+type ApplicationFields = Fields<Tables<"opportunity_applications">, typeof APPLICATION_FIELDS>;
+export type ExportApplicationSource = ApplicationFields &
+  Pick<Tables<"opportunity_applications">, "applicant_id"> & {
+    opportunity: { title: string } | null;
+  };
+export type ExportReceivedApplicationSource = ApplicationFields &
+  Pick<Tables<"opportunity_applications">, "applicant_id"> & { applicant: PersonRef | null };
+export type ExportDirectConversationSource = Fields<
+  Tables<"direct_conversations">,
+  typeof DIRECT_CONVERSATION_FIELDS
+> &
+  Pick<Tables<"direct_conversations">, "user_a" | "user_b" | "initiator_id"> & {
+    person_a: PersonRef | null;
+    person_b: PersonRef | null;
+  };
+export type ExportDirectMessageSource = Fields<
+  Tables<"direct_messages">,
+  typeof DIRECT_MESSAGE_FIELDS
+> &
+  Pick<Tables<"direct_messages">, "conversation_id">;
+export type ExportDirectMessage = Fields<Tables<"direct_messages">, typeof DIRECT_MESSAGE_FIELDS>;
+export interface ExportDirectConversation extends Fields<
+  Tables<"direct_conversations">,
+  typeof DIRECT_CONVERSATION_FIELDS
+> {
+  /** Se foi ela quem começou a conversa. */
+  papel: "iniciou" | "recebeu";
+  outra_pessoa: PersonRef;
+  mensagens: ExportDirectMessage[];
+}
+
 /** Tudo o que as consultas devolveram (com a sessão dela → RLS). */
 export interface ExportSources {
   generatedAt: Date;
@@ -342,6 +520,24 @@ export interface ExportSources {
   notifications: ExportNotification[];
   reports: ExportReport[];
   newsletter: ExportNewsletterSource;
+  /** Quem ela segue + quem a segue (o RLS de follows é aberto: as consultas filtram pelo id). */
+  follows: ExportFollowSource[];
+  /** Convites e conexões em que ela é uma das duas (aceitas de outras pessoas ficam de fora). */
+  connections: ExportConnectionSource[];
+  portfolioItems: ExportPortfolioItem[];
+  feedPosts: ExportFeedPost[];
+  feedLikes: ExportFeedLike[];
+  feedComments: ExportFeedComment[];
+  /** Vagas de IC publicadas por ela. */
+  opportunities: ExportOpportunitySource[];
+  /** Candidaturas que ela enviou. */
+  applications: ExportApplicationSource[];
+  /** Candidaturas às vagas dela (pelos ids das vagas). */
+  receivedApplications: ExportReceivedApplicationSource[];
+  /** Conversas diretas dela (o RLS só devolve às duas participantes). */
+  directConversations: ExportDirectConversationSource[];
+  /** Mensagens dessas conversas (pelos ids das conversas). */
+  directMessages: ExportDirectMessageSource[];
 }
 
 export interface DataExport {
@@ -388,6 +584,22 @@ export interface DataExport {
       Fields<Tables<"paper_votes">, typeof VOTE_FIELDS> & { paper_title: string | null }
     >;
     comentarios: ExportComment[];
+  };
+  /** Rede social (docs/18): rede, portfólio, feed, ICs e mensagens diretas. */
+  rede_social: {
+    seguindo: ExportFollow[];
+    seguidoras: ExportFollow[];
+    conexoes: ExportConnection[];
+    portfolio: ExportPortfolioItem[];
+    publicacoes: ExportFeedPost[];
+    curtidas: ExportFeedLike[];
+    comentarios_no_feed: ExportFeedComment[];
+    oportunidades_publicadas: ExportOpportunity[];
+    candidaturas: Array<ApplicationFields & { opportunity_title: string | null }>;
+    /** Nas vagas dela: a carta de apresentação entra (foi escrita para ela); da candidata, só id e nome. */
+    candidaturas_recebidas: Array<ApplicationFields & { candidata: PersonRef }>;
+    /** Conversas com pelo menos uma mensagem, mais antigas primeiro. */
+    mensagens_diretas: ExportDirectConversation[];
   };
   /** Retornos privados que ela deixou ao concluir mentorias (nunca o da outra participante). */
   retornos_de_mentoria: ExportFeedback[];
@@ -463,6 +675,132 @@ function buildConversations(
   });
 }
 
+/**
+ * Convites e conexões em que ela é uma das duas. Um convite que ELA enviou e foi recusado sai
+ * como "pending" e sem `responded_at`, como na tela (docs/18 §2.1: quem convidou nunca vê a
+ * recusa — a decisão é da outra pessoa).
+ */
+function buildConnections(rows: ExportConnectionSource[], me: string): ExportConnection[] {
+  return byCreatedAt(
+    uniqueBy(
+      rows.filter((c) => c.requester_id === me || c.addressee_id === me),
+      (c) => c.id,
+    ),
+  ).map((c) => {
+    const sent = c.requester_id === me;
+    const hideDecline = sent && c.status === "declined";
+    return {
+      ...pick(c, CONNECTION_FIELDS),
+      ...(hideDecline ? { status: "pending" as const, responded_at: null } : {}),
+      papel: sent ? "enviou" : "recebeu",
+      outra_pessoa: sent
+        ? person(c.addressee, c.addressee_id)
+        : person(c.requester, c.requester_id),
+    };
+  });
+}
+
+/**
+ * Uma entrada por conversa direta dela com pelo menos uma mensagem (uma conversa aberta sem
+ * mensagem não tem nada escrito). Mensagens de conversas que não são dela, ou de alguém de fora
+ * da conversa, ficam de fora. Pedido de mensagem que ELA começou e foi recusado sai como
+ * "request" (docs/18 §2.5: a recusa nunca é revelada a quem pediu).
+ */
+function buildDirectConversations(
+  conversations: ExportDirectConversationSource[],
+  messages: ExportDirectMessageSource[],
+  me: string,
+): ExportDirectConversation[] {
+  const byConversation = new Map<string, ExportDirectMessageSource[]>();
+  for (const message of uniqueBy(messages, (m) => m.id)) {
+    const list = byConversation.get(message.conversation_id) ?? [];
+    list.push(message);
+    byConversation.set(message.conversation_id, list);
+  }
+  const mine = uniqueBy(
+    conversations.filter((c) => c.user_a === me || c.user_b === me),
+    (c) => c.id,
+  );
+  return byCreatedAt(mine).flatMap((c) => {
+    const participants = new Set([c.user_a, c.user_b]);
+    const list = (byConversation.get(c.id) ?? []).filter((m) => participants.has(m.sender_id));
+    if (list.length === 0) return [];
+    const started = c.initiator_id === me;
+    const iAmA = c.user_a === me;
+    return [
+      {
+        ...pick(c, DIRECT_CONVERSATION_FIELDS),
+        status: started && c.status === "declined" ? "request" : c.status,
+        papel: started ? "iniciou" : "recebeu",
+        outra_pessoa: iAmA ? person(c.person_b, c.user_b) : person(c.person_a, c.user_a),
+        mensagens: byCreatedAt(list).map((m) => pick(m, DIRECT_MESSAGE_FIELDS)),
+      },
+    ];
+  });
+}
+
+function buildSocialNetwork(sources: ExportSources, me: string): DataExport["rede_social"] {
+  const follows = uniqueBy(sources.follows, (f) => `${f.follower_id}:${f.followee_id}`);
+  const opportunities = byCreatedAt(
+    uniqueBy(
+      sources.opportunities.filter((o) => o.owner_id === me),
+      (o) => o.id,
+    ),
+  );
+  const myOpportunityIds = new Set(opportunities.map((o) => o.id));
+
+  return {
+    seguindo: byCreatedAt(follows.filter((f) => f.follower_id === me && f.followee_id !== me)).map(
+      (f) => ({ pessoa: person(f.followee, f.followee_id), created_at: f.created_at }),
+    ),
+    seguidoras: byCreatedAt(
+      follows.filter((f) => f.followee_id === me && f.follower_id !== me),
+    ).map((f) => ({ pessoa: person(f.follower, f.follower_id), created_at: f.created_at })),
+    conexoes: buildConnections(sources.connections, me),
+    portfolio: byCreatedAt(
+      uniqueBy(sources.portfolioItems, (p) => p.id).map((p) => pick(p, PORTFOLIO_FIELDS)),
+    ),
+    publicacoes: byCreatedAt(
+      uniqueBy(sources.feedPosts, (p) => p.id).map((p) => pick(p, FEED_POST_FIELDS)),
+    ),
+    curtidas: byCreatedAt(
+      uniqueBy(sources.feedLikes, (l) => l.post_id).map((l) => pick(l, FEED_LIKE_FIELDS)),
+    ),
+    comentarios_no_feed: byCreatedAt(
+      uniqueBy(sources.feedComments, (c) => c.id).map((c) => pick(c, FEED_COMMENT_FIELDS)),
+    ),
+    oportunidades_publicadas: opportunities.map((o) => ({
+      ...pick(o, OPPORTUNITY_FIELDS),
+      area: o.area ? { slug: o.area.slug, name: o.area.name } : null,
+    })),
+    candidaturas: byCreatedAt(
+      uniqueBy(
+        sources.applications.filter((a) => a.applicant_id === me),
+        (a) => a.id,
+      ),
+    ).map((a) => ({
+      ...pick(a, APPLICATION_FIELDS),
+      opportunity_title: a.opportunity?.title ?? null,
+    })),
+    candidaturas_recebidas: byCreatedAt(
+      uniqueBy(
+        sources.receivedApplications.filter(
+          (a) => myOpportunityIds.has(a.opportunity_id) && a.applicant_id !== me,
+        ),
+        (a) => a.id,
+      ),
+    ).map((a) => ({
+      ...pick(a, APPLICATION_FIELDS),
+      candidata: person(a.applicant, a.applicant_id),
+    })),
+    mensagens_diretas: buildDirectConversations(
+      sources.directConversations,
+      sources.directMessages,
+      me,
+    ),
+  };
+}
+
 export function declarationExportStatus(
   row: Pick<ExportDeclarationSource, "issued_at" | "revoked_at">,
 ): DeclarationExportStatus {
@@ -486,7 +824,8 @@ export function buildDataExport(sources: ExportSources): DataExport {
 
   const observacoes = [
     "Tópicos e respostas que você publicou como anônima aparecem com is_anonymous = true. Este arquivo liga o seu nome a eles: guarde-o em lugar seguro e só compartilhe se quiser.",
-    "De outras pessoas, o arquivo traz só o id e o nome de quem participou das suas mentorias e das mentoras sugeridas a você, além das mensagens que vocês trocaram nas conversas da mentoria.",
+    "De outras pessoas, o arquivo traz só o id e o nome de quem participou das suas mentorias, das mentoras sugeridas a você e de quem está na sua rede (quem você segue, quem segue você, conexões, candidatas às suas vagas e quem conversou com você nas mensagens diretas), além do que foi escrito para você: as mensagens das conversas da mentoria e das mensagens diretas, os recados dos convites de conexão e as cartas de apresentação recebidas nas suas vagas.",
+    "Convites de conexão e pedidos de mensagem que você enviou e ainda não foram aceitos aparecem como pendentes (pending / request), como na tela: a resposta é da outra pessoa. Conversas diretas sem nenhuma mensagem não entram.",
     "Retornos de mentoria: só os que você escreveu. O retorno da outra participante é privado dela e não entra no seu arquivo.",
     "Pergunte a uma cientista: entram as respostas que você escreveu (show_identity diz se o seu nome aparece nelas). As perguntas não guardam quem as enviou, então nenhuma pergunta aparece como sua.",
     "Não entram aqui: a representação numérica do perfil usada pela IA (embedding, que pode ser recalculada), as anotações da moderação sobre as suas denúncias e os registros técnicos dos provedores.",
@@ -550,6 +889,7 @@ export function buildDataExport(sources: ExportSources): DataExport {
       })),
       comentarios: byCreatedAt(sources.comments.map((c) => pick(c, COMMENT_FIELDS))),
     },
+    rede_social: buildSocialNetwork(sources, me),
     retornos_de_mentoria: byCreatedAt(
       uniqueBy(
         sources.feedback.filter((f) => f.author_id === me && myRequestIds.has(f.request_id)),

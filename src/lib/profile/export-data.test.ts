@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Escopo das consultas do "Baixar meus dados". Várias tabelas têm RLS de leitura aberta a
  * qualquer membra (forum_threads, forum_posts, forum_reactions, paper_votes, paper_comments,
- * profile_research_areas): nelas, quem limita o arquivo ao que é DELA é o filtro pelo id. Estes
+ * profile_research_areas, follows, portfolio_items, research_opportunities, posts, post_likes,
+ * post_comments; em connections, as aceitas): nelas, quem limita o arquivo ao que é DELA é o
+ * filtro pelo id. Estes
  * testes gravam cada consulta (cliente falso) e falham se algum filtro sumir.
  */
 
@@ -108,6 +110,16 @@ describe("loadMyDataExport", () => {
       mentorship_feedback: ["eq", ["author_id", ME]],
       // Pergunte a uma cientista: só as respostas dela (perguntas não têm autora).
       public_answers: ["eq", ["author_id", ME]],
+      // Rede social: conexões aceitas de todas são visíveis; portfólio e feed são abertos.
+      connections: ["or", [`requester_id.eq.${ME},addressee_id.eq.${ME}`]],
+      portfolio_items: ["eq", ["owner_id", ME]],
+      posts: ["eq", ["author_id", ME]],
+      post_likes: ["eq", ["user_id", ME]],
+      post_comments: ["eq", ["author_id", ME]],
+      research_opportunities: ["eq", ["owner_id", ME]],
+      // Sem vagas dela, só a consulta das candidaturas que ELA enviou.
+      opportunity_applications: ["eq", ["applicant_id", ME]],
+      direct_conversations: ["or", [`user_a.eq.${ME},user_b.eq.${ME}`]],
     };
     const session = mocks.calls.filter((c) => c.client === "session");
     for (const [table, filter] of Object.entries(expected)) {
@@ -125,9 +137,76 @@ describe("loadMyDataExport", () => {
       expect(calls, table).toEqual([[["eq", ["author_id", ME]]], [["in", ["id", [anonId]]]]]);
     }
 
+    // Seguir: quem ela segue e quem a segue (follows é aberto a todas as membras).
+    expect(session.filter((c) => c.table === "follows").map(filters)).toEqual([
+      [["eq", ["follower_id", ME]]],
+      [["eq", ["followee_id", ME]]],
+    ]);
+
     // Nenhuma outra tabela é lida com a sessão; a newsletter nunca passa pela sessão.
-    const known = new Set([...Object.keys(expected), "forum_threads", "forum_posts"]);
+    const known = new Set([...Object.keys(expected), "forum_threads", "forum_posts", "follows"]);
     expect(session.filter((c) => !known.has(c.table))).toEqual([]);
+  });
+
+  it("busca as mensagens diretas só pelos ids das conversas dela, sem a prévia", async () => {
+    mocks.rows.direct_conversations = [
+      {
+        id: "d1",
+        user_a: ME,
+        user_b: "outra",
+        initiator_id: ME,
+        status: "active",
+        created_at: "2026-10-01T00:00:00Z",
+      },
+      {
+        id: "d2",
+        user_a: "outra",
+        user_b: ME,
+        initiator_id: "outra",
+        status: "request",
+        created_at: "2026-10-02T00:00:00Z",
+      },
+    ];
+    await loadMyDataExport(user);
+    const conversations = mocks.calls.filter((c) => c.table === "direct_conversations");
+    const conversationColumns = String(conversations[0]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(conversationColumns).not.toMatch(/last_message_preview|read_at|last_sender_id/);
+    const calls = mocks.calls.filter((c) => c.table === "direct_messages");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.client).toBe("session");
+    expect(filters(calls[0]!)).toEqual([["in", ["conversation_id", ["d1", "d2"]]]]);
+    const columns = String(calls[0]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(columns).toBe("id, conversation_id, sender_id, body, created_at");
+  });
+
+  it("busca as candidaturas recebidas só pelas vagas dela; da candidata, só id e nome", async () => {
+    mocks.rows.research_opportunities = [
+      { id: "v1", owner_id: ME, created_at: "2026-10-01T00:00:00Z" },
+    ];
+    await loadMyDataExport(user);
+    const vagas = mocks.calls.filter((c) => c.table === "research_opportunities");
+    const vagaColumns = String(vagas[0]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(vagaColumns).not.toMatch(/search_text/);
+    const calls = mocks.calls.filter((c) => c.table === "opportunity_applications");
+    expect(calls.map((c) => c.client)).toEqual(["session", "session"]);
+    expect(calls.map(filters)).toEqual([
+      [["eq", ["applicant_id", ME]]],
+      [["in", ["opportunity_id", ["v1"]]]],
+    ]);
+    const columns = String(calls[1]!.ops.find(([m]) => m === "select")![1][0]);
+    expect(columns).toMatch(
+      /applicant:profiles!opportunity_applications_applicant_id_fkey\(id, full_name\)$/,
+    );
+  });
+
+  it("sem vagas nem conversas, não consulta candidaturas recebidas nem mensagens diretas", async () => {
+    await loadMyDataExport(user);
+    expect(mocks.calls.filter((c) => c.table === "direct_messages")).toEqual([]);
+    expect(
+      mocks.calls.filter(
+        (c) => c.table === "opportunity_applications" && c.ops.some(([m]) => m === "in"),
+      ),
+    ).toEqual([]);
   });
 
   it("busca as mensagens da mentoria só pelos ids dos pedidos dela", async () => {
