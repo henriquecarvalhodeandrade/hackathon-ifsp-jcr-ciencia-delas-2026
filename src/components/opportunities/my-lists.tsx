@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarClock, MessageCircle, Pencil, Users } from "lucide-react";
+import { CalendarClock, Pencil, Users } from "lucide-react";
+import { MessageButton } from "@/components/messages/message-button";
 import { Badge, ButtonLink, Card } from "@/components/ui";
 import { firstName } from "@/lib/mentorship/presentation";
 import { opportunityKindLabel } from "@/lib/opportunities/labels";
@@ -55,7 +56,7 @@ export function MyApplicationCard({
         </div>
         <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
           <ApplicationStatusBadge status={application.status} />
-          <TimeAgo date={application.created_at} prefix="Enviada" />
+          <TimeAgo date={application.created_at} prefix="Você se candidatou" />
         </div>
       </div>
 
@@ -74,10 +75,12 @@ export function MyApplicationCard({
           </span>
         )}
         {application.status === "accepted" && o && (
-          <ButtonLink href={`/mensagens?com=${o.owner_id}`} variant="secondary" size="sm">
-            <MessageCircle aria-hidden="true" />
-            Mande uma mensagem para {OwnerName}
-          </ButtonLink>
+          <MessageButton
+            profileId={o.owner_id}
+            label="Enviar mensagem"
+            variant="outline"
+            size="sm"
+          />
         )}
         {o && (
           <Link

@@ -63,7 +63,7 @@ export default async function IcsPage({ searchParams }: { searchParams: SearchPa
       <PageHeader
         eyebrow="Oportunidades"
         title="Explorar ICs"
-        description="Vagas de iniciação científica, IC Júnior, TCC, extensão e voluntariado abertas por pesquisadoras da comunidade. Candidate-se aqui mesmo, com uma carta de apresentação."
+        description="Vagas de iniciação científica, IC Júnior, TCC, extensão e voluntariado abertas por pesquisadoras da comunidade. Candidate-se aqui mesmo."
         actions={
           <>
             <ButtonLink href="/ics/minhas" variant="outline">
@@ -78,19 +78,25 @@ export default async function IcsPage({ searchParams }: { searchParams: SearchPa
             )}
           </>
         }
-      >
-        <OpportunityFilters
-          key={JSON.stringify(filters)}
-          filters={filters}
-          areas={areas}
-          myStage={myStage}
-          hasActive={active}
-        />
-      </PageHeader>
+      />
+
+      {/* Fora do PageHeader: no celular a barra de busca fica fixa enquanto a lista rola. Sem
+          `key`: o formulário não remonta a cada filtro (o foco fica no campo que mudou). */}
+      <OpportunityFilters
+        filters={filters}
+        areas={areas}
+        myStage={myStage}
+        total={result.ok ? result.total : null}
+      />
 
       <Section spacing="sm" aria-labelledby="resultados-ics">
         <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-          <h2 id="resultados-ics" className="font-display text-xl font-semibold text-fg">
+          <h2
+            id="resultados-ics"
+            aria-live="polite"
+            aria-atomic="true"
+            className="font-display text-xl font-semibold text-fg"
+          >
             {!result.ok || outOfRange
               ? "Vagas"
               : result.total === 0
@@ -101,7 +107,7 @@ export default async function IcsPage({ searchParams }: { searchParams: SearchPa
           </h2>
           <div className="flex flex-wrap items-center gap-3">
             {myStageHref && (
-              <ChipLink href={myStageHref} icon={<Sparkles aria-hidden="true" />}>
+              <ChipLink href={myStageHref} scroll={false} icon={<Sparkles aria-hidden="true" />}>
                 Para a minha etapa
               </ChipLink>
             )}

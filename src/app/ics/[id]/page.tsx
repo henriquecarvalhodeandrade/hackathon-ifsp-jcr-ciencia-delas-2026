@@ -13,8 +13,11 @@ import {
 } from "lucide-react";
 import { ReportButton } from "@/components/moderation/report-button";
 import { AcademicLinks } from "@/components/opportunities/academic-links";
+import { ApplicationStrip } from "@/components/opportunities/application-strip";
+import { ApplyShortcut } from "@/components/opportunities/apply-shortcut";
 import { ApplyForm } from "@/components/opportunities/apply-form";
 import { MyApplication } from "@/components/opportunities/my-application";
+import { NoticeToast } from "@/components/opportunities/notice-toast";
 import { OwnerActions } from "@/components/opportunities/owner-actions";
 import { OpportunityStateBadge } from "@/components/opportunities/status-badges";
 import { Alert, Avatar, ButtonLink, Card, Chip, Container, PageHeader } from "@/components/ui";
@@ -34,7 +37,7 @@ import {
   vacanciesLabel,
   weeklyHoursLabel,
 } from "@/lib/opportunities/presentation";
-import { getMyApplication, getOpportunity } from "@/lib/opportunities/queries";
+import { getMyApplication, getOpportunity, hasOwnFeedPost } from "@/lib/opportunities/queries";
 import { formatDate, toIsoString, truncate } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
@@ -91,7 +94,10 @@ export default async function OpportunityPage({
 
   const now = new Date();
   const isOwner = opportunity.owner_id === me.id;
-  const myApplication = isOwner ? null : await getMyApplication(opportunity.id, me.id);
+  const [myApplication, hasFeedPost] = await Promise.all([
+    isOwner ? null : getMyApplication(opportunity.id, me.id),
+    isOwner ? hasOwnFeedPost(opportunity.id, me.id) : false,
+  ]);
   const state = opportunityState(opportunity, now);
   const notice = parseNotice(query.aviso);
 
@@ -118,11 +124,14 @@ export default async function OpportunityPage({
         description={[institution, place].filter(Boolean).join(" · ") || undefined}
       />
 
+      {notice && <NoticeToast notice={notice} />}
       <div className="mb-8 grid gap-3 empty:hidden">
-        {notice && (
-          <Alert variant={notice.variant} title={notice.title}>
-            {notice.body}
-          </Alert>
+        {myApplication && (
+          <ApplicationStrip
+            application={myApplication}
+            ownerId={opportunity.owner_id}
+            ownerName={OwnerName}
+          />
         )}
         {state !== "open" && (
           <Alert
@@ -179,8 +188,9 @@ export default async function OpportunityPage({
                 </Fact>
               )}
               <Fact icon={Users} label="Vagas">
-                {vacanciesLabel(opportunity.vacancies)} ·{" "}
-                {applicationCountLabel(opportunity.application_count)}
+                {vacanciesLabel(opportunity.vacancies)}
+                {opportunity.application_count > 0 &&
+                  ` · ${applicationCountLabel(opportunity.application_count)}`}
               </Fact>
               <Fact icon={Wallet} label="Bolsa">
                 {opportunity.has_scholarship
@@ -194,11 +204,7 @@ export default async function OpportunityPage({
                 {formatDate(opportunity.created_at)}
               </time>
             </p>
-            {!isOwner && !myApplication && state === "open" && (
-              <ButtonLink href="#candidatar" fullWidth>
-                Quero me candidatar
-              </ButtonLink>
-            )}
+            {!isOwner && !myApplication && state === "open" && <ApplyShortcut />}
           </Card>
         </section>
 
@@ -355,7 +361,7 @@ export default async function OpportunityPage({
                   interessar.
                 </p>
               )}
-              <OwnerActions opportunity={opportunity} now={now} />
+              <OwnerActions opportunity={opportunity} hasFeedPost={hasFeedPost} now={now} />
             </Card>
           )}
 

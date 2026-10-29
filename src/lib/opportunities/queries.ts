@@ -37,6 +37,35 @@ const DETAIL_COLUMNS = `${LIST_COLUMNS}, description, requirements, area_id, key
 const APPLICATION_COLUMNS =
   "id, opportunity_id, applicant_id, status, message, owner_note, created_at, updated_at, responded_at";
 
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Consulta de vagas com os filtros da URL. Padrão: só as abertas e dentro do prazo (São Paulo).
+ * `areaIds` já resolvido (grande área inclui as subáreas); `today` vem do servidor, nunca da URL.
+ */
+function filteredOpportunities(
+  supabase: ServerClient,
+  filters: OpportunityFilters,
+  areaIds: number[] | null,
+  today: string,
+  head: boolean,
+) {
+  let q = supabase.from("research_opportunities").select(LIST_COLUMNS, { count: "exact", head });
+  if (!filters.encerradas) {
+    q = q.eq("status", "open").or(`deadline.is.null,deadline.gte.${today}`);
+  }
+  // Sem acento e sem diferença de maiúsculas (coluna gerada `search_text`); cada palavra
+  // precisa aparecer.
+  q = applySearchText(q, filters.q);
+  if (areaIds) q = q.in("area_id", areaIds);
+  if (filters.tipo) q = q.eq("kind", filters.tipo);
+  if (filters.bolsa) q = q.eq("has_scholarship", true);
+  if (filters.modalidade) q = q.eq("modality", filters.modalidade);
+  // target_stages @> '{etapa}'
+  if (filters.etapa) q = q.contains("target_stages", [filters.etapa]);
+  return q;
+}
+
 /** Vagas por filtro, 12 por página. Padrão: só as abertas e dentro do prazo (São Paulo). */
 export async function listOpportunities(
   filters: OpportunityFilters,
@@ -48,34 +77,22 @@ export async function listOpportunities(
   if (filters.area && !areaIds) return { ok: true, items: [], total: 0 };
 
   const supabase = await createClient();
-  // `today` vem do servidor (AAAA-MM-DD), nunca da URL.
   const today = todayInSaoPaulo(now);
-  const filtered = (head: boolean) => {
-    let q = supabase.from("research_opportunities").select(LIST_COLUMNS, { count: "exact", head });
-    if (!filters.encerradas) {
-      q = q.eq("status", "open").or(`deadline.is.null,deadline.gte.${today}`);
-    }
-    // Sem acento e sem diferença de maiúsculas (coluna gerada `search_text`); cada palavra
-    // precisa aparecer.
-    q = applySearchText(q, filters.q);
-    if (areaIds) q = q.in("area_id", areaIds);
-    if (filters.tipo) q = q.eq("kind", filters.tipo);
-    if (filters.bolsa) q = q.eq("has_scholarship", true);
-    if (filters.modalidade) q = q.eq("modality", filters.modalidade);
-    // target_stages @> '{etapa}'
-    if (filters.etapa) q = q.contains("target_stages", [filters.etapa]);
-    return q;
-  };
-
   const { from, to } = pageRange(filters.page, OPPORTUNITIES_PAGE_SIZE);
-  const { data, error, count } = await filtered(false)
+  const { data, error, count } = await filteredOpportunities(
+    supabase,
+    filters,
+    areaIds,
+    today,
+    false,
+  )
     .order("created_at", { ascending: false })
     .order("id")
     .range(from, to);
 
   if (error?.code === "PGRST103") {
     // Página além do fim: o PostgREST responde 416 sem contagem — contamos à parte.
-    const counted = await filtered(true);
+    const counted = await filteredOpportunities(supabase, filters, areaIds, today, true);
     if (counted.error) return { ok: false, items: [], total: 0 };
     return { ok: true, items: [], total: counted.count ?? 0 };
   }
@@ -84,6 +101,29 @@ export async function listOpportunities(
     return { ok: false, items: [], total: 0 };
   }
   return { ok: true, total: count ?? 0, items: (data ?? []).map(toListItem) };
+}
+
+/** Quantas vagas esses filtros encontram (botão "Ver N vagas" dos filtros no celular). */
+export async function countOpportunities(
+  filters: OpportunityFilters,
+  areas: readonly AreaRow[],
+  now: Date = new Date(),
+): Promise<number | null> {
+  const areaIds = areaIdsForSlug(areas, filters.area || null);
+  if (filters.area && !areaIds) return 0;
+  const supabase = await createClient();
+  const { count, error } = await filteredOpportunities(
+    supabase,
+    filters,
+    areaIds,
+    todayInSaoPaulo(now),
+    true,
+  );
+  if (error) {
+    console.error("[ics] falha ao contar vagas", error.code, error.message);
+    return null;
+  }
+  return count ?? 0;
 }
 
 type ListRow = Omit<OpportunityListItem, "area" | "owner"> & {
@@ -96,7 +136,7 @@ function toListItem<T extends ListRow>(row: T): T & OpportunityListItem {
 }
 
 /**
- * Status das candidaturas da usuária nestas vagas (selo "Você se candidatou" nos cartões).
+ * Status das candidaturas da usuária nestas vagas (selo "Aprovada", "Em análise"… nos cartões).
  * Uma consulta só, nos ids visíveis.
  */
 export async function getMyApplicationStatuses(
@@ -231,4 +271,22 @@ export async function listMyOpportunities(userId: string): Promise<ListResult<My
   }
   const items = opportunities.map((o) => ({ ...o, new_applications: fresh.get(o.id) ?? 0 }));
   return { ok: true, items, total: items.length };
+}
+
+/**
+ * A dona tem publicação no feed que aponta para esta vaga (a de "Compartilhar no feed")? Decide se
+ * a exclusão oferece "Apagar também a publicação no feed".
+ */
+export async function hasOwnFeedPost(opportunityId: string, userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .eq("opportunity_id", opportunityId)
+    .eq("author_id", userId);
+  if (error) {
+    console.error("[ics] falha ao procurar a publicação da vaga no feed", error.code);
+    return false;
+  }
+  return (count ?? 0) > 0;
 }

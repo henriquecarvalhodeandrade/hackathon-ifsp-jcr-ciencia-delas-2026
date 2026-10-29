@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClipboardList, Megaphone, Plus, Search } from "lucide-react";
 import { MyApplicationCard, MyOpportunityCard } from "@/components/opportunities/my-lists";
+import { NoticeToast } from "@/components/opportunities/notice-toast";
 import {
   Alert,
   ButtonLink,
@@ -75,11 +76,7 @@ export default async function MyOpportunitiesPage({
         <TabNav label="Seções de minhas candidaturas e vagas" items={tabs} />
       </PageHeader>
 
-      {notice && (
-        <Alert variant={notice.variant} title={notice.title} className="mb-2">
-          {notice.body}
-        </Alert>
-      )}
+      {notice && <NoticeToast notice={notice} />}
 
       <Section spacing="sm" aria-labelledby="minhas-lista">
         <h2 id="minhas-lista" className="sr-only">

@@ -2,14 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { getCurrentProfile, getCurrentUser, type Profile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { firstName } from "@/lib/mentorship/presentation";
 import { createClient } from "@/lib/supabase/server";
+import { getResearchAreas } from "@/lib/papers/queries";
 import { friendlyOpportunityError } from "./errors";
 import { canPublishOpportunities, feedPostBody, type OwnerDecision } from "./labels";
-import { isUuid } from "./params";
+import { isUuid, parseOpportunityFilters } from "./params";
 import { isOpportunityOpen } from "./presentation";
+import { countOpportunities } from "./queries";
 import {
   applySchema,
   fieldErrorsOf,
@@ -207,18 +210,51 @@ export async function setOpportunityStatus(formData: FormData): Promise<SimpleRe
   return { ok: true };
 }
 
-/** A dona exclui a vaga (as candidaturas vão junto). Sucesso → "Vagas que publiquei". */
+/**
+ * A dona exclui a vaga (as candidaturas vão junto). Com "Apagar também a publicação no feed"
+ * (marcado por padrão), apaga antes as publicações dela que apontam para a vaga — depois da
+ * exclusão o `opportunity_id` vira null e o post ficaria órfão no feed de todo mundo.
+ * Sucesso → "Vagas que publiquei".
+ */
 export async function deleteOpportunity(formData: FormData): Promise<SimpleResult> {
   const parsed = opportunityIdSchema.safeParse({ opportunity_id: formData.get("opportunity_id") });
   if (!parsed.success) return { ok: false, error: "Vaga inválida. Recarregue a página." };
   const member = await getMember();
   if ("error" in member) return { ok: false, error: member.error };
+  const opportunityId = parsed.data.opportunity_id;
 
   const supabase = await createClient();
+  if (formData.get("delete_feed_post") === "on") {
+    const { data: owned } = await supabase
+      .from("research_opportunities")
+      .select("id")
+      .eq("id", opportunityId)
+      .eq("owner_id", member.profile.id)
+      .maybeSingle();
+    if (!owned) return { ok: false, error: "Só quem publicou a vaga pode excluí-la." };
+    const { error: postError } = await supabase
+      .from("posts")
+      .delete()
+      .eq("opportunity_id", opportunityId)
+      .eq("author_id", member.profile.id);
+    if (postError) {
+      console.error(
+        "[ics] falha ao apagar a publicação da vaga",
+        postError.code,
+        postError.message,
+      );
+      return {
+        ok: false,
+        error:
+          "Não conseguimos apagar a publicação no feed agora. Tente de novo ou desmarque a opção para excluir só a vaga.",
+      };
+    }
+  }
+
   const { data, error } = await supabase
     .from("research_opportunities")
     .delete()
-    .eq("id", parsed.data.opportunity_id)
+    .eq("id", opportunityId)
     .eq("owner_id", member.profile.id)
     .select("id");
   if (error) {
@@ -379,4 +415,28 @@ export async function respondToApplication(
   revalidateIcs();
   const name = firstName(row.applicant?.full_name) || "A candidata";
   return { ok: true, message: RESPONDED[decision](name), values };
+}
+
+// ---------------------------------------------------------------------------
+// Contagem para os filtros (leitura)
+// ---------------------------------------------------------------------------
+
+const countInput = z.record(z.string().max(20), z.string().max(200));
+
+export type CountResult = { ok: true; count: number } | { ok: false };
+
+/**
+ * Quantas vagas os filtros escolhidos na gaveta do celular encontram ("Ver N vagas"), antes de
+ * aplicar. Recebe os mesmos parâmetros da URL; tudo passa pela validação de `parseOpportunityFilters`.
+ */
+export async function countOpportunitiesAction(
+  query: Record<string, string>,
+): Promise<CountResult> {
+  const parsed = countInput.safeParse(query);
+  if (!parsed.success) return { ok: false };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const filters = parseOpportunityFilters(parsed.data);
+  const count = await countOpportunities(filters, await getResearchAreas());
+  return count === null ? { ok: false } : { ok: true, count };
 }

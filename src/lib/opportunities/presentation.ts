@@ -149,42 +149,27 @@ export function applicationCountLabel(count: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Avisos após uma ação (?aviso=) — só chaves conhecidas, nunca texto vindo da URL.
+// Avisos após uma ação (?aviso=, viram toast) — só chaves conhecidas, nunca texto da URL.
 // ---------------------------------------------------------------------------
 
 export interface OpportunityNotice {
-  variant: "success" | "info" | "warning";
-  title: string;
-  body?: string;
+  variant: "success" | "info";
+  message: string;
 }
 
 const NOTICES = {
-  publicada: {
-    variant: "success",
-    title: "Vaga publicada!",
-    body: "Ela já aparece no Explorar ICs. Você recebe uma notificação a cada candidatura.",
-  },
-  "publicada-feed": {
-    variant: "success",
-    title: "Vaga publicada e compartilhada no feed!",
-    body: "Ela já aparece no Explorar ICs e no feed de quem acompanha você. Você recebe uma notificação a cada candidatura.",
-  },
+  publicada: { variant: "success", message: "Vaga publicada! Ela já aparece no Explorar ICs." },
+  "publicada-feed": { variant: "success", message: "Vaga publicada e compartilhada no feed!" },
   "publicada-sem-feed": {
-    variant: "warning",
-    title: "Vaga publicada, mas não conseguimos compartilhá-la no feed.",
-    body: "Ela já aparece no Explorar ICs. Se quiser, divulgue o link desta página no feed com suas palavras.",
+    variant: "info",
+    message: "Vaga publicada, mas não conseguimos compartilhá-la no feed.",
   },
-  atualizada: { variant: "success", title: "Alterações salvas." },
+  atualizada: { variant: "success", message: "Alterações salvas." },
   "candidatura-enviada": {
     variant: "success",
-    title: "Candidatura enviada!",
-    body: "Você recebe uma notificação quando ela for analisada. Acompanhe tudo em Minhas candidaturas.",
+    message: "Candidatura enviada! Você recebe um aviso quando ela for analisada.",
   },
-  removida: {
-    variant: "success",
-    title: "Vaga excluída.",
-    body: "Ela e as candidaturas recebidas não aparecem mais na Artemis.",
-  },
+  removida: { variant: "success", message: "Vaga excluída." },
 } as const satisfies Record<string, OpportunityNotice>;
 
 export type OpportunityNoticeKey = keyof typeof NOTICES;
@@ -194,4 +179,11 @@ export function parseNotice(value: unknown): OpportunityNotice | null {
   return typeof v === "string" && Object.hasOwn(NOTICES, v)
     ? NOTICES[v as OpportunityNoticeKey]
     : null;
+}
+
+/** "Faltam 10 caracteres" / "Falta 1 caractere" enquanto o texto não chega ao mínimo (0 → null). */
+export function missingCharsLabel(length: number, min: number): string | null {
+  const missing = min - length;
+  if (length <= 0 || missing <= 0) return null;
+  return missing === 1 ? "Falta 1 caractere" : `Faltam ${missing} caracteres`;
 }

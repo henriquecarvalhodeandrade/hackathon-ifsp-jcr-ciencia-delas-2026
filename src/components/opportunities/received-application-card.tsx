@@ -1,19 +1,18 @@
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
-import { Avatar, ButtonLink, Card } from "@/components/ui";
+import { Avatar, Card } from "@/components/ui";
 import { firstName } from "@/lib/mentorship/presentation";
 import { careerStageLabel } from "@/lib/mentorship/view-models";
 import { locationLabel } from "@/lib/opportunities/presentation";
 import type { ReceivedApplication } from "@/lib/opportunities/types";
 import { AcademicLinks } from "./academic-links";
 import { QuotedMessage } from "./quoted-message";
-import { RespondApplicationForm } from "./respond-form";
+import { ApplicationDecision } from "./respond-form";
 import { ApplicationStatusBadge } from "./status-badges";
 import { TimeAgo } from "./time-ago";
 
 /**
- * Candidatura recebida (dona da vaga): quem é a candidata (→ perfil), a carta, o status e as
- * decisões. Aprovada, a conversa direta já está aberta — o atalho leva até ela.
+ * Candidatura recebida (dona da vaga): quem é a candidata (→ perfil), a carta, o status e a
+ * decisão (resumo + "Mudar decisão"). Aprovada, "Enviar mensagem" abre a conversa direta.
  */
 export function ReceivedApplicationCard({ application }: { application: ReceivedApplication }) {
   const person = application.applicant;
@@ -71,22 +70,12 @@ export function ReceivedApplicationCard({ application }: { application: Received
           {name} desistiu desta candidatura.
         </p>
       ) : (
-        <div className="grid gap-4 border-t border-border pt-4">
-          {application.status === "accepted" && person && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-success-soft p-3.5 text-success-soft-fg">
-              <p className="text-sm font-semibold">
-                Aprovada! Combine os próximos passos com {name}.
-              </p>
-              <ButtonLink href={`/mensagens?com=${person.id}`} variant="secondary" size="sm">
-                <MessageCircle aria-hidden="true" />
-                Mandar mensagem
-              </ButtonLink>
-            </div>
-          )}
-          <RespondApplicationForm
+        <div className="border-t border-border pt-4">
+          <ApplicationDecision
             applicationId={application.id}
             opportunityId={application.opportunity_id}
             status={application.status}
+            applicantId={person?.id ?? null}
             applicantName={name}
             currentNote={application.owner_note}
           />

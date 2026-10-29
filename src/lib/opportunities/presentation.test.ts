@@ -15,6 +15,7 @@ import {
   isDateOnly,
   isOpportunityOpen,
   locationLabel,
+  missingCharsLabel,
   modalityLabel,
   opportunityState,
   parseNotice,
@@ -138,9 +139,20 @@ describe("rótulos e regras", () => {
 describe("avisos (?aviso=)", () => {
   it("só chaves conhecidas", () => {
     expect(parseNotice("publicada")?.variant).toBe("success");
-    expect(parseNotice(["publicada-sem-feed"])?.variant).toBe("warning");
+    expect(parseNotice(["publicada-sem-feed"])?.variant).toBe("info");
+    expect(parseNotice("removida")?.message).toBe("Vaga excluída.");
     expect(parseNotice("<script>")).toBeNull();
     expect(parseNotice("toString")).toBeNull();
     expect(parseNotice(undefined)).toBeNull();
+  });
+});
+
+describe("ajuda do mínimo de caracteres", () => {
+  it("conta o que falta e some no mínimo (ou com o campo vazio)", () => {
+    expect(missingCharsLabel(0, 30)).toBeNull();
+    expect(missingCharsLabel(20, 30)).toBe("Faltam 10 caracteres");
+    expect(missingCharsLabel(29, 30)).toBe("Falta 1 caractere");
+    expect(missingCharsLabel(30, 30)).toBeNull();
+    expect(missingCharsLabel(400, 30)).toBeNull();
   });
 });

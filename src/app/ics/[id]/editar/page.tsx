@@ -10,7 +10,7 @@ import { Container, PageHeader } from "@/components/ui";
 import { requireOnboardedProfile } from "@/lib/auth";
 import { isUuid } from "@/lib/opportunities/params";
 import { opportunityState, todayInSaoPaulo } from "@/lib/opportunities/presentation";
-import { getOpportunity } from "@/lib/opportunities/queries";
+import { getOpportunity, hasOwnFeedPost } from "@/lib/opportunities/queries";
 import { opportunityToFormValues } from "@/lib/opportunities/schema";
 import { getResearchAreas } from "@/lib/papers/queries";
 
@@ -31,6 +31,7 @@ export default async function EditOpportunityPage({ params }: { params: Params }
   if (!opportunity || opportunity.owner_id !== profile.id) notFound();
 
   const now = new Date();
+  const hasFeedPost = await hasOwnFeedPost(opportunity.id, profile.id);
   return (
     <Container size="narrow" className="pb-16">
       <PageHeader
@@ -66,7 +67,11 @@ export default async function EditOpportunityPage({ params }: { params: Params }
           </p>
           <div className="flex flex-wrap gap-3">
             <OpportunityStatusButton opportunity={opportunity} now={now} />
-            <DeleteOpportunityButton opportunity={opportunity} triggerVariant="outline" />
+            <DeleteOpportunityButton
+              opportunity={opportunity}
+              hasFeedPost={hasFeedPost}
+              triggerVariant="outline"
+            />
           </div>
         </section>
       </div>

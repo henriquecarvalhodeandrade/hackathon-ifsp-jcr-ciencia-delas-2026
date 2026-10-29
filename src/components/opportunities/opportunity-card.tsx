@@ -1,13 +1,4 @@
-import {
-  CalendarClock,
-  CircleCheck,
-  Clock,
-  GraduationCap,
-  MapPin,
-  Undo2,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { CalendarClock, Clock, GraduationCap, MapPin, Users, Wallet } from "lucide-react";
 import { Badge, Card, CardLink } from "@/components/ui";
 import { opportunityKindLabel, type ApplicationStatus } from "@/lib/opportunities/labels";
 import {
@@ -21,10 +12,11 @@ import {
 } from "@/lib/opportunities/presentation";
 import type { OpportunityListItem } from "@/lib/opportunities/types";
 import { cn } from "@/lib/utils";
+import { ApplicationStatusBadge } from "./status-badges";
 
 export interface OpportunityCardProps {
   opportunity: OpportunityListItem;
-  /** Status da candidatura da usuária nesta vaga (selo "Você se candidatou"). */
+  /** Status da candidatura da usuária nesta vaga (selo "Aprovada", "Em análise"…). */
   myApplication?: ApplicationStatus | null;
   /** É a própria usuária quem publicou (selo "Sua vaga"). */
   isOwn?: boolean;
@@ -64,6 +56,9 @@ export function OpportunityCard({
       className={cn("flex h-full flex-col gap-3 p-4 sm:p-5", className)}
     >
       <div className="flex flex-wrap items-center gap-2">
+        {myApplication && (
+          <ApplicationStatusBadge status={myApplication} size="sm" srPrefix="Sua candidatura:" />
+        )}
         <Badge variant="primary">
           <GraduationCap aria-hidden="true" />
           {opportunityKindLabel(o.kind)}
@@ -76,18 +71,6 @@ export function OpportunityCard({
         )}
         {o.area && <Badge variant="outline">{o.area.name}</Badge>}
         {isOwn && <Badge variant="secondary">Sua vaga</Badge>}
-        {myApplication && myApplication !== "withdrawn" && (
-          <Badge variant="info">
-            <CircleCheck aria-hidden="true" />
-            Você se candidatou
-          </Badge>
-        )}
-        {myApplication === "withdrawn" && (
-          <Badge variant="neutral">
-            <Undo2 aria-hidden="true" />
-            Você desistiu
-          </Badge>
-        )}
       </div>
 
       <div className="grid gap-1">
@@ -124,7 +107,13 @@ export function OpportunityCard({
           <CalendarClock aria-hidden="true" className="size-4" />
           {deadlineLabel(o, now)}
         </span>
-        <span className="text-fg-subtle">{applicationCountLabel(o.application_count)}</span>
+        {o.application_count > 0 ? (
+          <span className="text-fg-subtle">{applicationCountLabel(o.application_count)}</span>
+        ) : (
+          state === "open" &&
+          !isOwn &&
+          !myApplication && <span className="text-fg-subtle">Seja a primeira a se candidatar</span>
+        )}
       </div>
     </Card>
   );

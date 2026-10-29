@@ -1,5 +1,6 @@
-import { MessageCircle, Undo2 } from "lucide-react";
-import { ButtonLink, ConfirmDialog } from "@/components/ui";
+import { Undo2 } from "lucide-react";
+import { MessageButton } from "@/components/messages/message-button";
+import { ConfirmDialog } from "@/components/ui";
 import { withdrawApplication } from "@/lib/opportunities/actions";
 import { canWithdraw, type ApplicationStatus } from "@/lib/opportunities/labels";
 import type { Application } from "@/lib/opportunities/types";
@@ -23,13 +24,27 @@ export function applicantStatusText(status: ApplicationStatus, ownerName: string
   }
 }
 
+/** Versão curta (uma linha) para a faixa de status no topo da vaga. */
+export function applicantStatusShort(status: ApplicationStatus, ownerName: string): string {
+  switch (status) {
+    case "submitted":
+      return `${ownerName} ainda não respondeu. Você recebe uma notificação quando ela responder.`;
+    case "in_review":
+      return `${ownerName} está analisando sua candidatura.`;
+    case "accepted":
+      return `${ownerName} aprovou sua candidatura! Combine os próximos passos por mensagem.`;
+    case "declined":
+      return "Desta vez não deu certo. Há outras vagas abertas esperando por você.";
+    case "withdrawn":
+      return "Você desistiu desta candidatura.";
+  }
+}
+
 export interface MyApplicationProps {
   application: Application;
   ownerId: string;
   /** Primeiro nome de quem publicou a vaga. */
   ownerName: string;
-  /** Mostra a carta enviada (no detalhe da vaga, sim; na lista, fica recolhida). */
-  headingLevel?: "h2" | "h3";
 }
 
 /**
@@ -42,7 +57,7 @@ export function MyApplication({ application, ownerId, ownerName }: MyApplication
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <ApplicationStatusBadge status={status} />
-        <TimeAgo date={application.created_at} prefix="Enviada" />
+        <TimeAgo date={application.created_at} prefix="Você se candidatou" />
       </div>
       <p className="text-[0.9375rem] text-fg-muted">{applicantStatusText(status, ownerName)}</p>
 
@@ -55,15 +70,12 @@ export function MyApplication({ application, ownerId, ownerName }: MyApplication
           <p className="text-sm font-semibold">
             Próximo passo: combine com {ownerName} como e quando vocês começam.
           </p>
-          <ButtonLink
-            href={`/mensagens?com=${ownerId}`}
-            variant="secondary"
+          <MessageButton
+            profileId={ownerId}
+            label="Enviar mensagem"
             size="sm"
             className="justify-self-start"
-          >
-            <MessageCircle aria-hidden="true" />
-            Mande uma mensagem para {ownerName}
-          </ButtonLink>
+          />
         </div>
       )}
 

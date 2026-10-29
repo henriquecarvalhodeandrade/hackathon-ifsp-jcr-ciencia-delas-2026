@@ -32,17 +32,24 @@ const APPLICATION_ICONS: Record<ApplicationStatus, LucideIcon> = {
 export function ApplicationStatusBadge({
   status,
   viewer = "applicant",
+  size = "md",
+  srPrefix,
   className,
 }: {
   status: ApplicationStatus;
   viewer?: "applicant" | "owner";
+  /** "sm" nos cartões da lista. */
+  size?: "sm" | "md";
+  /** Contexto só para leitores de tela, ex.: "Sua candidatura:" (nos cartões). */
+  srPrefix?: string;
   className?: string;
 }) {
   const Icon = APPLICATION_ICONS[status] ?? Hourglass;
   const labels = viewer === "owner" ? RECEIVED_STATUS_LABELS : APPLICATION_STATUS_LABELS;
   return (
-    <Badge variant={applicationStatusTone(status)} size="md" className={className}>
+    <Badge variant={applicationStatusTone(status)} size={size} className={className}>
       <Icon aria-hidden="true" />
+      {srPrefix && <span className="sr-only">{srPrefix} </span>}
       {labels[status] ?? status}
     </Badge>
   );
