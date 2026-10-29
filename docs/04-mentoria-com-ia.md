@@ -46,14 +46,14 @@ Decisão de arquitetura: [ADR 0003 — IA gratuita com cadeia de fallback e modo
 
 ## 1. Princípios
 
-| Princípio                                          | Como aparece no código                                                                                                                                                                     |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **A IA é opcional.** O app nunca quebra sem chave. | `generateJson` lança `AiUnavailableError`, `embedTexts` devolve `null` e todo chamador cai na heurística.                                                                                  |
-| **Consentimento antes de qualquer envio.**         | Sem `profiles.ai_consent = true`, nenhum dado da usuária sai do servidor — e ela recebe as sugestões da heurística. Mentoras sem consentimento entram no prompt só com dados de taxonomia. |
-| **Mínimo necessário.**                             | Só dados de pesquisa (etapa, áreas, palavras-chave, temas, objetivos). Nome, e-mail, instituição, cidade, links e foto **nunca** são enviados.                                             |
-| **A IA não decide sozinha.**                       | A nota final é 50% heurística + 50% IA, e a IA move a nota no máximo ±20 pontos. Ela não pode incluir mentoras fora da lista (ids inventados são descartados).                             |
-| **Tudo validado.**                                 | Toda resposta passa por `zod`. Textos são limpos (markdown, emojis, códigos) e cortados no tamanho máximo.                                                                                 |
-| **Sem SDKs.**                                      | Só `fetch` com timeout de 15 s. Provedores trocáveis por variável de ambiente.                                                                                                             |
+| Princípio                                          | Como aparece no código                                                                                                                                                                                    |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A IA é opcional.** O app nunca quebra sem chave. | `generateJson` lança `AiUnavailableError`, `embedTexts` devolve `null` e todo chamador cai na heurística.                                                                                                 |
+| **Consentimento antes de qualquer envio.**         | Sem `profiles.ai_consent = true`, nenhum dado da usuária sai do servidor — e ela recebe as sugestões da heurística. Mentoras sem consentimento entram no prompt só com dados de taxonomia.                |
+| **Mínimo necessário.**                             | Só dados de pesquisa (etapa, áreas, palavras-chave, temas, frase de apresentação, objetivos ou, para mentoras, como pode ajudar). Nome, e-mail, instituição, cidade, links e foto **nunca** são enviados. |
+| **A IA não decide sozinha.**                       | A nota final é 50% heurística + 50% IA, e a IA move a nota no máximo ±20 pontos. Ela não pode incluir mentoras fora da lista (ids inventados são descartados).                                            |
+| **Tudo validado.**                                 | Toda resposta passa por `zod`. Textos são limpos (markdown, emojis, códigos) e cortados no tamanho máximo.                                                                                                |
+| **Sem SDKs.**                                      | Só `fetch` com timeout de 15 s. Provedores trocáveis por variável de ambiente.                                                                                                                            |
 
 ---
 
@@ -505,7 +505,7 @@ sugestões com IA" de `/mentoria` (campo `ai_consent`; fonte no código:
 
 > **Quero ativar as sugestões de mentoria com inteligência artificial.**
 > Declaro que tenho 18 anos ou mais e autorizo a Artemis a enviar meus dados de pesquisa
-> (etapa da carreira, áreas, palavras-chave, temas e objetivos de mentoria, sem meu nome, e-mail
+> (etapa da carreira, áreas, palavras-chave, temas, frase de apresentação e objetivos de mentoria — ou, se eu for mentora, como posso ajudar —, sem meu nome, e-mail
 > ou contatos) a serviços de IA de terceiros (Google Gemini e, como reserva, Groq ou OpenRouter),
 > para analisar o sentido do meu perfil e explicar as sugestões de mentoria. Sei que, no plano
 > gratuito, o Google pode usar esses dados para melhorar os produtos dele e que posso retirar este

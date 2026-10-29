@@ -232,10 +232,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Dados mínimos e pseudonimizados.</strong> Enviamos etapa da carreira, áreas,
-            palavras-chave, temas e objetivos de mentoria, com contatos removidos do texto. Nunca
-            enviamos nome, e-mail, telefone, instituição, cidade, links, foto ou identificadores
-            reais: as candidatas aparecem para a IA como “c1”, “c2”… e o servidor faz a
-            correspondência depois.
+            palavras-chave, temas, frase de apresentação e objetivos de mentoria (ou, para mentoras,
+            como pode ajudar), com contatos removidos do texto. Nunca enviamos nome, e-mail,
+            telefone, instituição, cidade, links, foto ou identificadores reais: as candidatas
+            aparecem para a IA como “c1”, “c2”… e o servidor faz a correspondência depois.
           </li>
           <li>
             <strong>Mentoras sem consentimento</strong> entram na análise apenas com dados de

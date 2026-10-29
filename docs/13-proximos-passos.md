@@ -65,6 +65,23 @@
 
 ### 1. Supabase Cloud (grátis)
 
+> **Feito em 28/10/2026:** projeto `artemis` (South America · São Paulo, plano gratuito) na conta pessoal da equipe,
+> configurado pelo script com `--site-url=http://localhost:3000 --migrations-via-api --with-demo-seed
+--auto-confirm-email --write-env`: as 24 migrations, os dados de demonstração (senhas das contas fictícias trocadas
+> por aleatórias), o Auth (cadastro sem confirmar e-mail, login aceitando `localhost:3000`), o bucket de avatares e os
+> embeddings dos 19 perfis de demonstração (`npm run ai:backfill`). Testado com o app apontando para a nuvem: páginas,
+> `/demo` e sugestões com IA (Gemini). Para rodar no computador **sem Docker**: copiar as variáveis do `.env.cloud`
+> (URL, chave publicável, chave secreta, `CRON_SECRET`) mais `GEMINI_API_KEY` e `DEMO_MODE=true` para o `.env.local`
+> e rodar `npm run dev`.
+>
+> **Plano gratuito:** sem SMTP próprio o Supabase não aceita os modelos de e-mail em português; os e-mails de link
+> mágico e recuperação saem no modelo padrão (em inglês) até configurar SMTP (seção 1b).
+>
+> **Quando a Vercel existir:** rodar o script de novo com `--site-url=https://<app>.vercel.app
+--redirect-url='http://localhost:3000/**'` (com um token novo; o usado no setup deve ser revogado).
+
+O passo a passo abaixo serve para refazer em outro projeto.
+
 1. Criar conta e projeto em https://supabase.com/dashboard (região **South America (São Paulo)**).
    Anotar a **senha do banco** definida na criação.
 2. Criar um **Personal Access Token** em https://supabase.com/dashboard/account/tokens.
@@ -182,8 +199,10 @@ no banco da nuvem (`npm run ai:backfill`), confiro a IA no site publicado (já v
 
 ## Contas usadas até aqui
 
-- **Supabase:** nenhuma. Todo o desenvolvimento usou o Supabase **local** (Docker, `npx supabase start`), com as
-  chaves padrão de desenvolvimento que o CLI gera.
+- **Supabase:** o desenvolvimento e os testes usaram o Supabase **local** (Docker, `npx supabase start`), com as
+  chaves padrão do CLI. Em 28/10/2026 a equipe criou o projeto `artemis` na conta pessoal e passou um token de acesso,
+  usado só para configurá-lo (seção 1); o token deve ser revogado depois do setup. As chaves do projeto ficam só no
+  `.env.cloud` (fora do git).
 - **IA:** a chave do Gemini (plano gratuito) fornecida pela equipe em 28/10/2026, usada **só localmente** (no
   `.env.local`, fora do git e de qualquer arquivo versionado) e **só com os dados fictícios do seed**, para validar
   o caminho real da IA e calibrar o matching ([04 §15](04-mentoria-com-ia.md#15-validação-com-a-api-real-28102026)).

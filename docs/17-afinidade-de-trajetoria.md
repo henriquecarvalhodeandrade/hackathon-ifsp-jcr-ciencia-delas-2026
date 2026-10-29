@@ -258,7 +258,11 @@ BASE_URL=http://localhost:3804 node scripts/e2e/trajetoria.mjs
   especificação, um valor forjado recusado no grupo, o onboarding de uma conta nova e capturas
   claro/escuro × 1440/390 (cartão, grupo do perfil e do onboarding, diretório filtrado, perfil da
   Marina) com checagem de rolagem horizontal, contraste AA, console e hidratação. As marcas da
-  Larissa voltam ao valor original e a conta nova é apagada.
+  Larissa voltam ao valor original e a conta nova é apagada. Roda com e sem chave de IA: sem a
+  chave (como no CI), o passo 1 confere o motivo "Vocês têm em comum…" no cartão e na linha salva;
+  com a chave (a Larissa do seed autorizou a IA), o motivo é o texto da IA, e o passo confere o
+  selo de origem de cada cartão, o aviso "Texto gerado por IA…" e o modelo gravado. Os chips
+  **Em comum na trajetória** são conferidos nos dois casos.
 
 ---
 

@@ -54,7 +54,8 @@ export function AiConsentCard() {
               <ShieldCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success" />
               <span>
                 <strong className="text-fg">O que a IA recebe:</strong> etapa da carreira, áreas,
-                palavras-chave, temas e objetivos de mentoria, com códigos no lugar dos nomes.
+                palavras-chave, temas, frase de apresentação e objetivos de mentoria (ou, para
+                mentoras, como pode ajudar), com códigos no lugar dos nomes.
               </span>
             </li>
             <li className="flex gap-3 rounded-control bg-surface-2 p-3.5 text-sm text-fg-muted">
