@@ -27,7 +27,10 @@ const MARINA_PROFILE = "/pesquisadoras/d1000000-0000-4000-8000-000000000001";
 /** Declaração fictícia do seed (supabase/seeds/20_reconhecimento.sql), a mesma do slide. */
 const DEMO_DECLARATION = "/verificar/ART-7K2M-Q9XD-4HNP";
 
-/** Mesma ordem da história do pitch (docs/00): da primeira curiosidade à mentoria reconhecida. */
+/**
+ * Mesma ordem da história do pitch (docs/00): da primeira curiosidade à mentoria reconhecida,
+ * passando pela rede social (docs/18).
+ */
 const ROTEIRO: readonly RoteiroStep[] = [
   {
     id: "pergunte",
@@ -54,6 +57,27 @@ const ROTEIRO: readonly RoteiroStep[] = [
     href: "/painel",
     title: "Meu painel",
     description: "O início de quem já é da rede: próximos passos e o que está esperando por ela.",
+  },
+  {
+    id: "feed",
+    href: "/feed",
+    title: "Feed da rede",
+    description:
+      "O dia a dia da pesquisa: publicações com curtidas e comentários, vagas de IC e pessoas para conectar.",
+  },
+  {
+    id: "ics",
+    href: "/ics",
+    title: "Explorar ICs",
+    description:
+      "Vagas de iniciação científica com filtros por área, bolsa e etapa, e candidatura pela plataforma.",
+  },
+  {
+    id: "mensagens",
+    href: "/mensagens",
+    title: "Mensagens",
+    description:
+      "Conversa direta ao vivo; sem vínculo, a primeira mensagem vira um pedido que ela aceita ou recusa.",
   },
   {
     id: "declaracao",

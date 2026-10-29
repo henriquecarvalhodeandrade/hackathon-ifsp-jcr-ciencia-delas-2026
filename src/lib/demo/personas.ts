@@ -36,6 +36,7 @@ const PERSONAS: readonly DemoPersona[] = Object.freeze([
     description: "Graduanda em IC que procura mentora",
     highlights: Object.freeze([
       "Mentoria com a Marina já aceita, com conversa pela plataforma",
+      "Candidatura aprovada numa IC, convite de conexão e mensagens novas",
       "Próximos passos de quem está começando",
     ]),
     start: "/painel",
@@ -49,6 +50,7 @@ const PERSONAS: readonly DemoPersona[] = Object.freeze([
     description: "Professora e mentora com pedidos para responder",
     highlights: Object.freeze([
       "Um pedido de mentoria aguardando resposta",
+      "Vaga de IC com candidatura para responder e um pedido de mensagem",
       "Perguntas do fórum que combinam com a pesquisa dela",
     ]),
     start: "/painel",
@@ -63,6 +65,7 @@ const PERSONAS: readonly DemoPersona[] = Object.freeze([
     highlights: Object.freeze([
       "Mentoria com a Patrícia concluída, com retorno privado enviado",
       "Declaração de participação com QR code verificável",
+      "Conquista no feed com curtidas e comentários da rede",
     ]),
     start: "/mentoria?aba=ativas",
   }),
