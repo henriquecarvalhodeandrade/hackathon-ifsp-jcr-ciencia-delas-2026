@@ -62,6 +62,12 @@ jobs:
         with:
           version: 2.122.0
 
+      # As portas efêmeras do Linux (32768–60999) incluem as do Supabase local (54321–54329): enquanto o
+      # Docker baixa as imagens, uma conexão de saída pode ocupar a 54322 bem na hora em que o banco
+      # tenta usá-la ("address already in use", runs #19 e #21). Afasta a faixa efêmera dessas portas.
+      - name: Reservar as portas do Supabase
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 65535"
+
       # Só o Postgres: aplica as migrations e os seeds do config.toml ([db.seed] sql_paths:
       # supabase/seed.sql e depois supabase/seeds/*.sql).
       - name: Subir o banco local
@@ -91,6 +97,12 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.122.0
+
+      # As portas efêmeras do Linux (32768–60999) incluem as do Supabase local (54321–54329): enquanto o
+      # Docker baixa as imagens, uma conexão de saída pode ocupar a 54322 bem na hora em que o banco
+      # tenta usá-la ("address already in use", runs #19 e #21). Afasta a faixa efêmera dessas portas.
+      - name: Reservar as portas do Supabase
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 65535"
 
       # Stack local completa para o app (Postgres com migrations e os seeds do config.toml — seed.sql e
       # supabase/seeds/*.sql —, Auth, API, Storage e Mailpit), sem o que a jornada não usa.
