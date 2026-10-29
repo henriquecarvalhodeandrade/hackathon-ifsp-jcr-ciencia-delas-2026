@@ -380,6 +380,10 @@ begin
                                'e9000000-0000-4000-8000-000000000006')),
     'sugestões sem a própria, sem conexões e sem cadastro incompleto');
   perform cdtest.check(
+    not exists (select 1 from public.get_connection_suggestions(50) s
+                where s.id = 'e9000000-0000-4000-8000-000000000004'),
+    'sugestões sem as contas da equipe (moderação)');
+  perform cdtest.check(
     (select s.same_institution from public.get_connection_suggestions(50) s
       where s.id = 'e9000000-0000-4000-8000-000000000002'),
     'Bia sugerida por ser da mesma instituição');
