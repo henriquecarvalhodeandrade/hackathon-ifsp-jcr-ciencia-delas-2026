@@ -336,6 +336,20 @@ de dados pessoais protege contra descuido, não contra quem quer burlar (contato
   uma resposta (ataque n−1); só ruído estatístico resolveria. Detalhes em
   [docs/15 §4 e §10](15-reconhecimento-da-mentoria.md).
 
+## 7d. Rede social: feed, rede, ICs e mensagens diretas
+
+- **Mensagens diretas** são privadas (nem a moderação lê; denuncia-se o perfil). Sem vínculo
+  (conexão, mentoria ou candidatura aprovada), a primeira mensagem vira **pedido**: uma mensagem só
+  até a outra pessoa responder, e a recusa nunca é revelada a quem começou.
+- **Estudantes do ensino médio** só recebem mensagens de quem tem vínculo com elas (`CD084`), no mesmo
+  espírito do Pergunte a uma cientista: nenhum canal privado aberto por uma pessoa adulta
+  desconhecida.
+- **Denúncias:** publicações e comentários do feed e vagas de IC (`feed_post`, `feed_comment`,
+  `opportunity`); a moderação apaga pelo `/admin` ou direto na tela, sempre com registro.
+- **Anti-spam no banco:** seguir 100/h, convites 30/dia, portfólio 20/h, vagas 5/dia, candidaturas
+  10/dia, publicações 20/h, comentários 30/h, mensagens 60/h, conversas novas 20/dia.
+- Detalhes e testes: [docs/18](18-rede-social.md).
+
 ## 8. Trilha de auditoria
 
 Tabela `public.moderation_audit_log` (migration `20261028090000_integration.sql`, docs/03 §3):

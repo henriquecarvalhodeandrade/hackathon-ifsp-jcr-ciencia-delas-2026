@@ -200,3 +200,73 @@ Erros de unicidade (`23505`) viram as mensagens de `CD061`/`CD073` no app.
 `report_target` ganha `feed_post`, `feed_comment` e `opportunity`. O `<ReportButton />` aparece em
 publicações, comentários e vagas; `/admin` mostra e apaga esses alvos (`moderate_delete_content`),
 com registro no Registro de moderação. Conversas diretas são privadas: denuncia-se o **perfil**.
+
+## 3. Interface (onde mora cada coisa)
+
+| Área      | Lógica e consultas      | Componentes                    | Rotas               |
+| --------- | ----------------------- | ------------------------------ | ------------------- |
+| Feed      | `src/lib/feed`          | `src/components/feed`          | `src/app/feed`      |
+| Rede      | `src/lib/network`       | `src/components/network`       | `src/app/rede`      |
+| Portfólio | `src/lib/portfolio`     | `src/components/portfolio`     | `src/app/portfolio` |
+| ICs       | `src/lib/opportunities` | `src/components/opportunities` | `src/app/ics`       |
+| Mensagens | `src/lib/messages`      | `src/components/messages`      | `src/app/mensagens` |
+
+- **Cabeçalho:** Feed, Rede, ICs, Mentoria e Fórum na barra; o resto em "Mais" (no celular, a lista
+  inteira). Ícone de mensagens com o número de conversas com mensagem nova
+  (`count_unread_conversations`); Meu portfólio e Mensagens no menu da conta.
+- **Perfil (`/pesquisadoras/[id]`):** `ProfileNetwork` (números, Conectar, Seguir) com o
+  `MessageButton`, `PortfolioSection` e "No feed" (`RecentPosts`).
+- **Painel:** bloco "Na sua rede" (`src/components/painel/network-card.tsx`) com conversas novas,
+  convites para responder e candidaturas novas nas vagas dela, e o atalho para o feed.
+- **Ao vivo:** a conversa e a caixa de entrada assinam o Realtime do Supabase e chamam
+  `router.refresh()`; a atualização periódica fica como rede de segurança (5 s sem Realtime, 20 s
+  com ele; 30 s na caixa de entrada). As assinaturas não usam filtro no servidor: o canal abre antes
+  de o navegador ter a sessão e o Realtime recusa filtros com o papel `anon`
+  (`subscription_check_filters`); o RLS já limita os eventos às conversas dela e o filtro por
+  conversa é feito no navegador.
+
+## 4. LGPD
+
+- **Portabilidade:** "Baixar meus dados" tem a seção `rede_social` (seguindo, seguidoras, conexões,
+  portfólio, publicações, curtidas, comentários, vagas publicadas, candidaturas enviadas e recebidas e
+  mensagens diretas), com as outras pessoas reduzidas a id e nome
+  ([11](11-perfis-e-autenticacao.md)). Convites e pedidos de mensagem que ela enviou e foram
+  recusados saem como pendentes, como nas telas.
+- **Exclusão da conta:** tudo sai em cascata pelas FKs (seguir, conexões, itens, vagas e
+  candidaturas, publicações, curtidas, comentários, conversas e mensagens); os avisos de outras pessoas
+  que apontam para o perfil, as publicações, as vagas ou as conversas apagadas também somem
+  (triggers `*_after_delete`).
+- **Mensagens diretas são privadas:** nem a moderação lê. Denuncia-se o perfil.
+- **Estudantes do ensino médio** (podem ter menos de 18 anos) só recebem mensagem de quem tem vínculo
+  com elas (`CD084`): conexão aceita, mentoria ou candidatura aprovada.
+
+## 5. Testes
+
+- **Banco:** `supabase/tests/database/rede_social.test.sql` (11 grupos: estrutura, seguir, conectar,
+  recusa, RPCs, portfólio, vagas, candidaturas, feed, mensagens diretas, moderação). Como os outros,
+  roda dentro de `begin … rollback`.
+- **Sem Docker:** além de `scripts/db/validate-local.sh`, as migrations, os seeds e os testes foram
+  validados num Postgres embutido (PGlite) e depois no próprio Supabase Cloud — os sete arquivos de
+  `supabase/tests/database` passam lá (96 grupos). Na nuvem, o `rls.test.sql` só acusa a função
+  `public.rls_auto_enable`, criada pelo próprio Supabase (ver [13](13-proximos-passos.md)).
+- **Unidade (Vitest):** `src/lib/{feed,network,portfolio,opportunities,messages}/*.test.ts` e a
+  exportação em `src/lib/profile/export*.test.ts`.
+
+## 6. Como demonstrar (com o seed `supabase/seeds/50_rede_social.sql`)
+
+1. Entre como **Larissa** em `/demo` → o selo de mensagens mostra 2; `/feed` traz 12 publicações com
+   curtidas e comentários e as vagas de IC ao lado.
+2. `/ics` → filtros por área, bolsa e etapa; a vaga da Marina mostra a candidatura **aprovada** dela,
+   com o recado e o botão de mensagem.
+3. `/rede?aba=convites` → convite da Juliana para aceitar (o "seguir" mútuo aparece na hora).
+4. `/mensagens` → conversa nova da Marina e, em "Pedidos", o pedido de mensagem da Renata.
+5. Troque para a **Marina**: `/ics/minhas?aba=publicadas` → candidatura da Yasmin para responder;
+   `/mensagens?aba=pedidos` → pedido da Gabriela.
+
+## 7. Limitações conhecidas
+
+- Convite recusado: quem convidou não consegue apagá-lo (senão poderia convidar de novo em laço), e
+  continua vendo "Convite enviado"; "Cancelar convite" nesse caso não muda nada.
+- "Seguindo" no feed lê até 300 pessoas seguidas (os ids vão na URL da consulta); para redes maiores,
+  uma RPC ou view.
+- As sugestões de conexão incluem contas da equipe (coordenação e moderação), que também são membras.
