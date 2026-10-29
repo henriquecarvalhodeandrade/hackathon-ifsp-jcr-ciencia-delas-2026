@@ -1,26 +1,17 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { AreaSelect } from "@/components/papers/area-select";
-import {
-  Button,
-  ButtonLink,
-  Checkbox,
-  ChipLink,
-  Dialog,
-  Field,
-  Input,
-  Select,
-  Spinner,
-} from "@/components/ui";
+import { Button, Checkbox, ChipLink, Dialog, Field, Input, Select, Spinner } from "@/components/ui";
 import { CAREER_STAGE_OPTIONS, MEETING_FORMATS, type CareerStage } from "@/lib/constants";
 import { countOpportunitiesAction } from "@/lib/opportunities/actions";
 import { OPPORTUNITY_KIND_OPTIONS, MODALITY_ORDER } from "@/lib/opportunities/labels";
 import {
   activeFilterChips,
   filtersHref,
+  type OpportunityFilterKey,
   filtersToSearchParams,
   parseOpportunityFilters,
   parseSearch,
@@ -82,6 +73,11 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
   const [choices, setChoices] = useState<Choices>(() => choicesOf(filters));
   const [searchFocused, setSearchFocused] = useState(false);
   const searchTimer = useRef<number | undefined>(undefined);
+  const mobileSearch = useRef<HTMLInputElement>(null);
+  const desktopSearch = useRef<HTMLInputElement>(null);
+  // Para onde vai o foco quando a URL atualizar: o controle clicado (chip, "Limpar filtros") some
+  // da tela, e o foco não pode cair no <body>. Valor = chave de um chip ou "busca".
+  const focusAfter = useRef<OpportunityFilterKey | "busca" | null>(null);
 
   // A URL mudou por fora (chip removido, "Limpar filtros", voltar no histórico): os campos
   // acompanham. A busca só é trocada se a pessoa não estiver digitando nela.
@@ -101,6 +97,19 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
   const chips = activeFilterChips(filters, { area: areaName });
   const activeChoices = countChoices(choicesOf(filters));
 
+  useEffect(() => {
+    const target = focusAfter.current;
+    if (!target) return;
+    focusAfter.current = null;
+    const chip =
+      target === "busca" ? null : document.querySelector<HTMLElement>(`[data-filtro="${target}"]`);
+    // A busca visível: a da barra do celular ou a do formulário do computador.
+    const search = [desktopSearch.current, mobileSearch.current].find(
+      (el) => el && el.offsetParent !== null,
+    );
+    (chip ?? search)?.focus();
+  }, [key]);
+
   function navigate(next: Choices, nextQ: string) {
     window.clearTimeout(searchTimer.current);
     const href = filtersHref({ ...next, q: parseSearch(nextQ), page: 1 });
@@ -117,6 +126,29 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
     setQ(value);
     window.clearTimeout(searchTimer.current);
     searchTimer.current = window.setTimeout(() => navigate(choices, value), SEARCH_DELAY_MS);
+  }
+
+  /** "Limpar filtros": tudo volta ao padrão e o foco vai para a busca. */
+  function clearAll() {
+    setChoices(NO_CHOICES);
+    setQ("");
+    focusAfter.current = "busca";
+    navigate(NO_CHOICES, "");
+  }
+
+  /** Remove um chip; o foco vai para o chip seguinte (ou o anterior) e, sem chips, para a busca. */
+  function removeChip(index: number) {
+    const chip = chips[index]!;
+    const neighbor = chips[index + 1] ?? chips[index - 1];
+    focusAfter.current = neighbor?.key ?? "busca";
+    if (chip.key === "q") {
+      setQ("");
+      navigate(choices, "");
+    } else {
+      const next = { ...choices, [chip.key]: NO_CHOICES[chip.key] };
+      setChoices(next);
+      navigate(next, q);
+    }
   }
 
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
@@ -165,7 +197,7 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
           className="min-w-0 flex-1"
         >
           <Field label="Buscar vagas" hideLabel>
-            <Input {...searchProps} placeholder="Buscar vagas" />
+            <Input ref={mobileSearch} {...searchProps} placeholder="Buscar vagas" />
           </Field>
         </form>
         <FilterSheet
@@ -192,7 +224,11 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
       >
         <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-4">
           <Field label="Buscar" hint="Título, descrição, palavras-chave, instituição ou cidade">
-            <Input {...searchProps} placeholder="Ex.: abelhas, robótica, INPE" />
+            <Input
+              ref={desktopSearch}
+              {...searchProps}
+              placeholder="Ex.: abelhas, robótica, INPE"
+            />
           </Field>
           <Field label="Área de pesquisa" hint="Uma grande área inclui as subáreas">
             <AreaSelect
@@ -255,9 +291,9 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
           <div className="ml-auto flex items-center gap-3">
             {status}
             {(chips.length > 0 || q) && (
-              <ButtonLink href="/ics" variant="ghost">
+              <Button variant="ghost" onClick={clearAll}>
                 Limpar filtros
-              </ButtonLink>
+              </Button>
             )}
           </div>
         </div>
@@ -270,11 +306,17 @@ export function OpportunityFilters({ filters, areas, myStage, total }: Opportuni
             Filtros ativos:
           </p>
           <ul aria-labelledby="filtros-ativos-ics" className="flex min-w-0 flex-wrap gap-2">
-            {chips.map((chip) => (
+            {chips.map((chip, index) => (
               <li key={chip.key} className="max-w-full">
+                {/* Sem JavaScript é um link comum; com ele, remove sem recarregar e cuida do foco. */}
                 <ChipLink
                   href={chip.href}
                   scroll={false}
+                  data-filtro={chip.key}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    removeChip(index);
+                  }}
                   aria-label={`Remover filtro ${chip.label}`}
                   icon={<X aria-hidden="true" />}
                   className="flex-row-reverse"
