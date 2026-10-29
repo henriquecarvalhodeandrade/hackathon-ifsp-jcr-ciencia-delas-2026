@@ -52,7 +52,7 @@ export default async function PostPage({ params }: { params: Params }) {
     <Container size="narrow" className="pb-14">
       <PageHeader
         className="pt-6 pb-5 sm:pt-8 sm:pb-6"
-        back={{ href: "/feed", label: "Voltar ao feed" }}
+        back={{ href: "/feed", label: "Voltar ao feed", preferHistory: true }}
         title={post.isOwner ? "Sua publicação" : `Publicação de ${name}`}
       />
 

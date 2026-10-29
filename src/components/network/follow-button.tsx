@@ -70,13 +70,14 @@ export function FollowButton({
         if (result.ok) {
           setConfirmed(result.following);
           toast({
+            id: `seguir-${profileId}`,
             message: result.following
               ? `Você agora segue ${who}. As publicações dela aparecem no seu feed.`
               : `Você deixou de seguir ${who}.`,
             tone: result.following ? "success" : "info",
           });
         } else {
-          toast({ message: result.error, tone: "danger" });
+          toast({ id: `seguir-${profileId}`, message: result.error, tone: "danger" });
         }
       });
     });

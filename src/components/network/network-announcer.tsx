@@ -60,3 +60,29 @@ export function handOffFocus(
 
   window.setTimeout(attempt, 150);
 }
+
+/**
+ * Leva o foco a um elemento que ainda vai aparecer (ex.: o cartão que volta para a lista depois de
+ * "Desfazer", com outro id). Tenta por ~1,5 s; se não aparecer, usa `fallbackId` (título da lista).
+ * Só mexe se o foco se perdeu (o botão do aviso, que tinha o foco, já sumiu).
+ */
+export function focusWhenReady(selector: string, fallbackId?: string) {
+  if (typeof window === "undefined") return;
+  let tries = 0;
+  function attempt() {
+    tries += 1;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    const target = document.querySelector<HTMLElement>(selector);
+    if (target) {
+      target.focus();
+      return;
+    }
+    if (tries < 15) {
+      window.setTimeout(attempt, 100);
+      return;
+    }
+    handOffFocus(fallbackId);
+  }
+  window.setTimeout(attempt, 100);
+}

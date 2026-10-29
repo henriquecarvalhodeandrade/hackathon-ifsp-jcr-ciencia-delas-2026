@@ -11,7 +11,7 @@ import {
 } from "@/lib/network/actions";
 import { firstNameOf, NETWORK_CONNECTION_ERROR } from "@/lib/network/presentation";
 import { cn } from "@/lib/utils";
-import { handOffFocus } from "./network-announcer";
+import { focusWhenReady, handOffFocus } from "./network-announcer";
 import { useOptimisticList } from "./optimistic-list";
 
 /**
@@ -82,7 +82,11 @@ function useListAction() {
 async function acceptLater(connectionId: string, name: string, focusAfterId?: string) {
   const result = await safely(() => respondConnectionAction(connectionId, true));
   if (failed(result)) return;
-  toast({ message: name ? `Agora você e ${name} estão conectadas.` : result.message });
+  toast({
+    id: `convite-${connectionId}`,
+    message: name ? `Agora você e ${name} estão conectadas.` : result.message,
+  });
+  // O botão do aviso sumiu: o foco vai para o título da lista.
   handOffFocus(focusAfterId);
 }
 
@@ -116,7 +120,10 @@ export function RespondInviteButtons({
       () => respondConnectionAction(connectionId, true),
       (result) => {
         if (failed(result)) return;
-        toast({ message: name ? `Agora você e ${name} estão conectadas.` : result.message });
+        toast({
+          id: `convite-${connectionId}`,
+          message: name ? `Agora você e ${name} estão conectadas.` : result.message,
+        });
         focusAfter();
       },
     );
@@ -130,11 +137,15 @@ export function RespondInviteButtons({
       (result) => {
         if (failed(result)) return;
         toast({
+          id: `convite-${connectionId}`,
           message: name
             ? `Convite de ${name} recusado. Ela não recebe aviso.`
             : "Convite recusado. Ela não recebe aviso.",
           tone: "info",
-          action: { label: "Desfazer", onClick: () => acceptLater(connectionId, name) },
+          action: {
+            label: "Desfazer",
+            onClick: () => acceptLater(connectionId, name, focusAfterId),
+          },
         });
         focusAfter();
       },
@@ -206,6 +217,7 @@ export function PendingInvite({
         if (failed(result)) return;
         onChange?.(result);
         toast({
+          id: `convite-${profileId}`,
           message: name ? `Convite para ${name} cancelado.` : "Convite cancelado.",
           tone: "info",
           action: {
@@ -216,7 +228,20 @@ export function PendingInvite({
               );
               if (failed(again)) return;
               if (again.ok) onChange?.(again);
-              toast(name ? `Convite enviado de novo para ${name}.` : "Convite enviado de novo.");
+              toast({
+                id: `convite-${profileId}`,
+                message: name
+                  ? `Convite enviado de novo para ${name}.`
+                  : "Convite enviado de novo.",
+              });
+              // O botão do aviso sumiu. Numa lista, o cartão volta (com outro id de convite):
+              // o foco vai para o "Cancelar" dele; fora de lista, o ConnectButton cuida do foco.
+              if (!onChange && again.ok && again.connectionId) {
+                focusWhenReady(
+                  `[aria-labelledby="enviado-${again.connectionId}"] button`,
+                  focusAfterId,
+                );
+              }
             },
           },
         });
@@ -238,7 +263,7 @@ export function PendingInvite({
       </span>
       <Button
         size={size}
-        variant="ghost"
+        variant="outline"
         className={size === "sm" ? TOUCH_TARGET : undefined}
         onClick={cancel}
         loading={running === "cancel"}

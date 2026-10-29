@@ -124,7 +124,8 @@ export function SuggestionList({
 
   return (
     <div className="grid gap-4">
-      <ul className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
+      {/* Duas colunas no máximo: cabe "Convite enviado · Cancelar · Seguindo" numa linha só. */}
+      <ul className="grid gap-3 md:grid-cols-2 md:gap-4">
         {shown.map((item) => (
           <SuggestionRow key={item.id} item={item} onDismiss={() => dismiss(item)} />
         ))}
@@ -159,7 +160,7 @@ function SuggestionRow({ item, onDismiss }: { item: SuggestionItem; onDismiss: (
   return (
     <li
       aria-labelledby={headingId}
-      className="relative flex min-w-0 gap-3 rounded-card border border-border bg-surface p-3.5 shadow-card sm:p-4"
+      className="relative grid min-w-0 grid-cols-[3rem_minmax(0,1fr)] content-start gap-x-3 gap-y-3 rounded-card border border-border bg-surface p-3.5 shadow-card sm:p-4"
     >
       <Avatar
         name={item.full_name}
@@ -168,7 +169,8 @@ function SuggestionRow({ item, onDismiss }: { item: SuggestionItem; onDismiss: (
         size="md"
         className="size-12 shrink-0 text-base"
       />
-      <div className="grid min-w-0 flex-1 content-start gap-1 pr-8 pointer-coarse:pr-11">
+      {/* Espaço à direita só no texto (o "×" fica no canto); as ações usam a largura toda. */}
+      <div className="grid min-w-0 content-start gap-1 pr-8 pointer-coarse:pr-11">
         <h3
           id={headingId}
           className="font-display text-base leading-snug font-semibold break-words text-fg"
@@ -190,24 +192,26 @@ function SuggestionRow({ item, onDismiss }: { item: SuggestionItem; onDismiss: (
             <span className="text-xs text-fg-subtle max-sm:hidden">{others.join(" · ")}</span>
           )}
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <ConnectButton
-            profileId={item.id}
-            state="none"
-            personName={item.full_name}
-            size="sm"
-            oneTap
-            revalidate={false}
-          />
-          <FollowButton
-            profileId={item.id}
-            following={item.following}
-            personName={item.full_name}
-            size="sm"
-            iconOnlyOnMobile
-            revalidate={false}
-          />
-        </div>
+      </div>
+      <div
+        id={`sugestao-acoes-${item.id}`}
+        className="col-span-2 flex flex-wrap items-center gap-2"
+      >
+        <ConnectButton
+          profileId={item.id}
+          state="none"
+          personName={item.full_name}
+          size="sm"
+          oneTap
+          revalidate={false}
+        />
+        <FollowButton
+          profileId={item.id}
+          following={item.following}
+          personName={item.full_name}
+          size="sm"
+          revalidate={false}
+        />
       </div>
       <button
         type="button"

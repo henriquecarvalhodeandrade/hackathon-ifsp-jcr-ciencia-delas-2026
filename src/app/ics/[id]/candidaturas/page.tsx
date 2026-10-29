@@ -68,7 +68,7 @@ export default async function ReceivedApplicationsPage({
   return (
     <Container className="pb-16">
       <PageHeader
-        back={{ href: `/ics/${opportunity.id}`, label: "Voltar para a vaga" }}
+        back={{ href: `/ics/${opportunity.id}`, label: "Voltar para a vaga", preferHistory: true }}
         eyebrow={`Candidaturas · ${opportunityKindLabel(opportunity.kind)}`}
         title={opportunity.title}
         description={

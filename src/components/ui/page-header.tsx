@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BackLink } from "./back-link";
 
 export interface PageHeaderProps extends Omit<React.ComponentProps<"header">, "title"> {
   /** Texto pequeno acima do título (seção, categoria). */
@@ -9,8 +10,11 @@ export interface PageHeaderProps extends Omit<React.ComponentProps<"header">, "t
   description?: React.ReactNode;
   /** Botões à direita (no celular, vão para baixo do texto). */
   actions?: React.ReactNode;
-  /** Link de volta acima do título. */
-  back?: { href: string; label: string };
+  /**
+   * Link de volta acima do título. Com `preferHistory`, volta pelo histórico quando a pessoa veio
+   * da página do `href` (mantém rolagem e filtros, sem entrada nova no histórico) — <BackLink>.
+   */
+  back?: { href: string; label: string; preferHistory?: boolean };
   /** Conteúdo abaixo (ex.: <TabNav>, filtros). */
   children?: React.ReactNode;
   /** Elemento do título (padrão h1 — só um por página). */
@@ -40,15 +44,18 @@ export function PageHeader({
       className={cn("pt-8 pb-6 sm:pt-12 sm:pb-8", compactOnMobile && "pt-6 pb-4", className)}
       {...props}
     >
-      {back && (
-        <Link
-          href={back.href}
-          className="mb-4 inline-flex items-center gap-1.5 rounded-control text-sm font-semibold text-fg-muted transition-colors hover:text-primary"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          {back.label}
-        </Link>
-      )}
+      {back &&
+        (back.preferHistory ? (
+          <BackLink href={back.href} label={back.label} className="mb-4" />
+        ) : (
+          <Link
+            href={back.href}
+            className="mb-4 inline-flex items-center gap-1.5 rounded-control text-sm font-semibold text-fg-muted transition-colors hover:text-primary"
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            {back.label}
+          </Link>
+        ))}
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="grid max-w-3xl gap-2">
           {eyebrow && <p className="eyebrow text-primary">{eyebrow}</p>}

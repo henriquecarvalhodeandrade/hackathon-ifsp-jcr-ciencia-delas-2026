@@ -114,7 +114,7 @@ export default async function OpportunityPage({
   return (
     <Container className="pb-16">
       <PageHeader
-        back={{ href: "/ics", label: "Voltar para o Explorar ICs" }}
+        back={{ href: "/ics", label: "Voltar para o Explorar ICs", preferHistory: true }}
         eyebrow={
           opportunity.area
             ? `${opportunityKindLabel(opportunity.kind)} · ${opportunity.area.name}`

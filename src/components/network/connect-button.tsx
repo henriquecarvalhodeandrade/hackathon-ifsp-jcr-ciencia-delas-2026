@@ -118,6 +118,8 @@ export function ConnectButton({
   }, [stateKey]);
 
   const name = firstNameOf(personName);
+  // Um aviso por pessoa: enviado → cancelado → enviado de novo se substituem (não empilham).
+  const toastId = `convite-${profileId}`;
 
   function apply(result: Extract<ConnectionResult, { ok: true }>) {
     setCurrent({ state: result.state, connectionId: result.connectionId });
@@ -127,10 +129,11 @@ export function ConnectButton({
   function invited(result: Extract<ConnectionResult, { ok: true }>, withNote: boolean) {
     apply(result);
     if (result.state === "connected") {
-      toast(connectedMessage(name));
+      toast({ id: toastId, message: connectedMessage(name) });
       return;
     }
     toast({
+      id: toastId,
       message: name ? `Convite enviado para ${name}.` : "Convite enviado.",
       action:
         withNote && result.connectionId
@@ -201,7 +204,7 @@ export function ConnectButton({
           if (result.ok) invited(result, true);
           else {
             setCurrent({ state: "none", connectionId: null });
-            toast({ message: result.error, tone: "danger" });
+            toast({ id: toastId, message: result.error, tone: "danger" });
           }
         }}
       />
@@ -231,13 +234,15 @@ export function ConnectButton({
           revalidate={revalidate}
           onDone={(result) => {
             apply(result);
-            toast(
-              result.state === "connected"
-                ? connectedMessage(name)
-                : name
-                  ? `Recado enviado para ${name}.`
-                  : "Recado enviado.",
-            );
+            toast({
+              id: toastId,
+              message:
+                result.state === "connected"
+                  ? connectedMessage(name)
+                  : name
+                    ? `Recado enviado para ${name}.`
+                    : "Recado enviado.",
+            });
           }}
         />
       )}

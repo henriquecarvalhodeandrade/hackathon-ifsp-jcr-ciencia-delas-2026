@@ -35,7 +35,7 @@ export default async function EditOpportunityPage({ params }: { params: Params }
   return (
     <Container size="narrow" className="pb-16">
       <PageHeader
-        back={{ href: `/ics/${opportunity.id}`, label: "Voltar para a vaga" }}
+        back={{ href: `/ics/${opportunity.id}`, label: "Voltar para a vaga", preferHistory: true }}
         eyebrow="Explorar ICs"
         title="Editar vaga"
         description="As alterações aparecem assim que você salvar. As candidaturas recebidas continuam como estão."

@@ -19,13 +19,13 @@ import {
 } from "lucide-react";
 import { RecentPosts } from "@/components/feed/recent-posts";
 import { ReportButton } from "@/components/moderation/report-button";
-import { BackLink } from "@/components/network/back-link";
 import { ProfileNetwork } from "@/components/network/profile-network";
 import { PortfolioSection } from "@/components/portfolio/portfolio-section";
 import { MentorStatus } from "@/components/profile/mentor-status";
 import { formatPlace } from "@/components/profile/profile-card";
 import { ProfileLinks } from "@/components/profile/profile-links";
 import { Avatar } from "@/components/ui/avatar";
+import { BackLink } from "@/components/ui/back-link";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -152,7 +152,8 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
   return (
     <Container className="pb-16">
       <div className="pt-6 sm:pt-10">
-        <BackLink fallbackHref="/pesquisadoras" />
+        {/* Rótulo genérico: volta para qualquer página do site de onde a pessoa veio. */}
+        <BackLink href="/pesquisadoras" label="Voltar" match="any" />
       </div>
 
       <header className="flex flex-col gap-5 py-6 sm:flex-row sm:items-start sm:gap-7 sm:py-8">
