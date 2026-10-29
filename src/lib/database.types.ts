@@ -2177,7 +2177,15 @@ export type Database = {
       report_reason:
         "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
       report_status: "open" | "resolved" | "dismissed";
-      report_target: "thread" | "post" | "paper" | "paper_comment" | "profile";
+      report_target:
+        | "thread"
+        | "post"
+        | "paper"
+        | "paper_comment"
+        | "profile"
+        | "feed_post"
+        | "feed_comment"
+        | "opportunity";
       subscriber_status: "pending" | "active" | "unsubscribed";
       user_role: "member" | "moderator" | "admin";
     };
@@ -2350,7 +2358,16 @@ export const Constants = {
       reaction_kind: ["support", "useful", "celebrate"],
       report_reason: ["harassment", "spam", "misinformation", "offensive", "plagiarism", "other"],
       report_status: ["open", "resolved", "dismissed"],
-      report_target: ["thread", "post", "paper", "paper_comment", "profile"],
+      report_target: [
+        "thread",
+        "post",
+        "paper",
+        "paper_comment",
+        "profile",
+        "feed_post",
+        "feed_comment",
+        "opportunity",
+      ],
       subscriber_status: ["pending", "active", "unsubscribed"],
       user_role: ["member", "moderator", "admin"],
     },

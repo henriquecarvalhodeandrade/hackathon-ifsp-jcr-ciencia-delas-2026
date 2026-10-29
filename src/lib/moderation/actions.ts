@@ -36,6 +36,9 @@ async function targetExists(
     paper: "papers",
     paper_comment: "paper_comments",
     profile: "profiles",
+    feed_post: "posts",
+    feed_comment: "post_comments",
+    opportunity: "research_opportunities",
   } as const satisfies Record<ReportTarget, string>;
   const { data, error } = await supabase.from(table[type]).select("id").eq("id", id).maybeSingle();
   return !error && Boolean(data);

@@ -39,6 +39,9 @@ export const AUDIT_TARGET_TYPES = [
   "report",
   "public_question",
   "public_answer",
+  "feed_post",
+  "feed_comment",
+  "opportunity",
 ] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
@@ -71,6 +74,9 @@ export const AUDIT_TARGET_LABELS: Record<AuditTargetType, string> = {
   report: "Denúncia",
   public_question: "Pergunta pública",
   public_answer: "Resposta pública",
+  feed_post: "Publicação do feed",
+  feed_comment: "Comentário no feed",
+  opportunity: "Vaga de IC",
 };
 
 /** Ações que merecem destaque visual (afetam a privacidade ou o papel de alguém). */
@@ -106,6 +112,10 @@ export function auditTargetHref(type: AuditTargetType | null, id: string | null)
       return `/pergunte/${id}`;
     case "public_answer":
       return "/admin?aba=perguntas";
+    case "feed_post":
+      return `/feed/p/${id}`;
+    case "opportunity":
+      return `/ics/${id}`;
     default:
       return null;
   }

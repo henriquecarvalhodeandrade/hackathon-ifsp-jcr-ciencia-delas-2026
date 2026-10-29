@@ -792,5 +792,62 @@ end
 $$;
 select pass('mensagens diretas: vínculo, pedido, recusa sem revelar, ensino médio, leitura');
 
+-- =============================================================================
+-- 11. Moderação: denunciar publicação, comentário e vaga; apagar pelo painel com registro
+-- =============================================================================
+do $$
+declare
+  v_post uuid;
+  v_comment uuid;
+  v_report uuid;
+begin
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  insert into public.posts (body) values ('Publicação que vai ser denunciada no teste.') returning id into v_post;
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  insert into public.post_comments (post_id, body) values (v_post, 'Comentário que também vai ser denunciado.')
+  returning id into v_comment;
+
+  -- Clara denuncia a publicação, o comentário e a vaga.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  insert into public.reports (target_type, target_id, reason) values ('feed_post', v_post, 'spam')
+  returning id into v_report;
+  insert into public.reports (target_type, target_id, reason) values ('feed_comment', v_comment, 'offensive');
+  insert into public.reports (target_type, target_id, reason) values ('opportunity', cdtest.get('opp'), 'misinformation');
+  perform cdtest.throws(
+    format('insert into public.reports (target_type, target_id, reason) values (%L, %L, %L)',
+      'feed_post', '00000000-0000-4000-8000-000000000000', 'spam'),
+    'CD015', 'denúncia de publicação inexistente');
+  -- Membra comum não apaga a publicação alheia nem usa o painel.
+  perform cdtest.check(cdtest.affected(format('delete from public.posts where id = %L', v_post)) = 0,
+    'membra comum não apaga publicação alheia');
+  perform cdtest.throws(
+    format('select public.moderate_delete_content(%L, %L)', 'feed_post', v_post),
+    '42501', 'membra comum não usa o painel de moderação');
+  perform cdtest.logout();
+
+  -- Dora (moderação) apaga pelo painel, com motivo e denúncia: fica no Registro.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000004');
+  perform cdtest.check(
+    public.moderate_delete_content('feed_post', v_post, 'Spam repetido', v_report),
+    'moderação apaga a publicação pelo painel');
+  perform cdtest.check(
+    exists (select 1 from public.moderation_audit_log l
+            where l.action = 'delete_content' and l.target_type = 'feed_post' and l.target_id = v_post
+              and l.report_id = v_report and l.reason = 'Spam repetido'),
+    'exclusão registrada com motivo e denúncia');
+  update public.reports set status = 'resolved' where id = v_report;
+  perform cdtest.logout();
+
+  perform cdtest.check(
+    exists (select 1 from public.notifications n
+            where n.user_id = 'e9000000-0000-4000-8000-000000000003' and n.type = 'report_resolved'
+              and n.body like '%uma publicação do feed%'),
+    'quem denunciou recebe o aviso descrevendo o alvo');
+  perform cdtest.check(not exists (select 1 from public.post_comments where id = v_comment),
+    'comentários vão junto com a publicação');
+end
+$$;
+select pass('moderação: denúncias de feed e vagas, exclusão pelo painel com registro');
+
 select * from finish();
 rollback;

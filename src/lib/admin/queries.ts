@@ -57,6 +57,23 @@ export type ReportTargetPreview =
       role: UserRole;
       href: string;
     }
+  | { kind: "feed_post"; id: string; excerpt: string; authorName: string | null; href: string }
+  | {
+      kind: "feed_comment";
+      id: string;
+      postId: string;
+      excerpt: string;
+      authorName: string | null;
+      href: string;
+    }
+  | {
+      kind: "opportunity";
+      id: string;
+      title: string;
+      ownerName: string | null;
+      isOpen: boolean;
+      href: string;
+    }
   | { kind: "missing"; type: ReportTarget };
 
 export interface ReportView {
@@ -119,37 +136,61 @@ async function loadTargets(
   const paperIds = ids("paper");
   const commentIds = ids("paper_comment");
   const profileIds = ids("profile");
+  const feedPostIds = ids("feed_post");
+  const feedCommentIds = ids("feed_comment");
+  const opportunityIds = ids("opportunity");
 
-  const [threads, posts, papers, comments, profiles] = await Promise.all([
-    threadIds.length
-      ? supabase
-          .from("forum_threads")
-          .select(
-            "id, title, is_anonymous, is_locked, is_pinned, author:profiles(full_name), category:forum_categories(name)",
-          )
-          .in("id", threadIds)
-      : null,
-    postIds.length
-      ? supabase
-          .from("forum_posts")
-          .select(
-            "id, thread_id, body, is_anonymous, author:profiles(full_name), thread:forum_threads!forum_posts_thread_id_fkey(id, title)",
-          )
-          .in("id", postIds)
-      : null,
-    paperIds.length
-      ? supabase.from("papers").select("id, title, authors, is_hidden").in("id", paperIds)
-      : null,
-    commentIds.length
-      ? supabase
-          .from("paper_comments")
-          .select("id, paper_id, body, author:profiles(full_name), paper:papers(id, title)")
-          .in("id", commentIds)
-      : null,
-    profileIds.length
-      ? supabase.from("profiles").select("id, full_name, headline, role").in("id", profileIds)
-      : null,
-  ]);
+  const [threads, posts, papers, comments, profiles, feedPosts, feedComments, opportunities] =
+    await Promise.all([
+      threadIds.length
+        ? supabase
+            .from("forum_threads")
+            .select(
+              "id, title, is_anonymous, is_locked, is_pinned, author:profiles(full_name), category:forum_categories(name)",
+            )
+            .in("id", threadIds)
+        : null,
+      postIds.length
+        ? supabase
+            .from("forum_posts")
+            .select(
+              "id, thread_id, body, is_anonymous, author:profiles(full_name), thread:forum_threads!forum_posts_thread_id_fkey(id, title)",
+            )
+            .in("id", postIds)
+        : null,
+      paperIds.length
+        ? supabase.from("papers").select("id, title, authors, is_hidden").in("id", paperIds)
+        : null,
+      commentIds.length
+        ? supabase
+            .from("paper_comments")
+            .select("id, paper_id, body, author:profiles(full_name), paper:papers(id, title)")
+            .in("id", commentIds)
+        : null,
+      profileIds.length
+        ? supabase.from("profiles").select("id, full_name, headline, role").in("id", profileIds)
+        : null,
+      feedPostIds.length
+        ? supabase
+            .from("posts")
+            .select("id, body, author:profiles!posts_author_id_fkey(full_name)")
+            .in("id", feedPostIds)
+        : null,
+      feedCommentIds.length
+        ? supabase
+            .from("post_comments")
+            .select("id, post_id, body, author:profiles!post_comments_author_id_fkey(full_name)")
+            .in("id", feedCommentIds)
+        : null,
+      opportunityIds.length
+        ? supabase
+            .from("research_opportunities")
+            .select(
+              "id, title, status, owner:profiles!research_opportunities_owner_id_fkey(full_name)",
+            )
+            .in("id", opportunityIds)
+        : null,
+    ]);
 
   for (const t of threads?.data ?? []) {
     const category = Array.isArray(t.category) ? t.category[0] : t.category;
@@ -211,7 +252,46 @@ async function loadTargets(
     });
   }
 
-  for (const result of [threads, posts, papers, comments, profiles]) {
+  for (const p of feedPosts?.data ?? []) {
+    map.set(key("feed_post", p.id), {
+      kind: "feed_post",
+      id: p.id,
+      excerpt: truncate(p.body.replace(/\s+/g, " ").trim(), EXCERPT),
+      authorName: nameOf(p.author),
+      href: `/feed/p/${p.id}`,
+    });
+  }
+  for (const c of feedComments?.data ?? []) {
+    map.set(key("feed_comment", c.id), {
+      kind: "feed_comment",
+      id: c.id,
+      postId: c.post_id,
+      excerpt: truncate(c.body.replace(/\s+/g, " ").trim(), EXCERPT),
+      authorName: nameOf(c.author),
+      href: `/feed/p/${c.post_id}`,
+    });
+  }
+  for (const o of opportunities?.data ?? []) {
+    map.set(key("opportunity", o.id), {
+      kind: "opportunity",
+      id: o.id,
+      title: o.title,
+      ownerName: nameOf(o.owner),
+      isOpen: o.status === "open",
+      href: `/ics/${o.id}`,
+    });
+  }
+
+  for (const result of [
+    threads,
+    posts,
+    papers,
+    comments,
+    profiles,
+    feedPosts,
+    feedComments,
+    opportunities,
+  ]) {
     if (result?.error)
       console.error("[admin] falha ao carregar alvo de denúncia", result.error.code);
   }

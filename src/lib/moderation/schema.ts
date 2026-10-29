@@ -19,6 +19,9 @@ export const REPORT_TARGET_LABELS: Record<ReportTarget, string> = {
   paper: "este paper",
   paper_comment: "este comentário",
   profile: "este perfil",
+  feed_post: "esta publicação",
+  feed_comment: "este comentário",
+  opportunity: "esta vaga",
 };
 
 export type ReportValues = {

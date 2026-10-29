@@ -13,7 +13,8 @@ import type { ReportTargetPreview } from "@/lib/admin/queries";
 import { ActionForm, runInConfirmDialog } from "./action-form";
 import { RevealAuthorDialog } from "./reveal-author-dialog";
 
-type DeletableKind = "thread" | "post" | "paper" | "paper_comment";
+type DeletableKind =
+  "thread" | "post" | "paper" | "paper_comment" | "feed_post" | "feed_comment" | "opportunity";
 
 const DELETE_COPY: Record<DeletableKind, { trigger: string; title: string; description: string }> =
   {
@@ -40,6 +41,24 @@ const DELETE_COPY: Record<DeletableKind, { trigger: string; title: string; descr
       title: "Excluir este comentário?",
       description:
         "O comentário será apagado de vez. As denúncias abertas sobre ele serão encerradas.",
+    },
+    feed_post: {
+      trigger: "Excluir publicação",
+      title: "Excluir esta publicação do feed?",
+      description:
+        "A publicação, suas curtidas e comentários serão apagados de vez, e as denúncias abertas sobre eles, encerradas.",
+    },
+    feed_comment: {
+      trigger: "Excluir comentário",
+      title: "Excluir este comentário do feed?",
+      description:
+        "O comentário será apagado de vez. As denúncias abertas sobre ele serão encerradas.",
+    },
+    opportunity: {
+      trigger: "Excluir vaga",
+      title: "Excluir esta vaga de IC?",
+      description:
+        "A vaga e as candidaturas enviadas para ela serão apagadas de vez. As denúncias abertas sobre ela serão encerradas.",
     },
   };
 

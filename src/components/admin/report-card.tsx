@@ -128,6 +128,44 @@ function TargetPreview({ target }: { target: ReportTargetPreview }) {
           </div>
         </div>
       );
+    case "feed_post":
+      return (
+        <div className="grid gap-1.5">
+          <p className="eyebrow text-fg-subtle">Publicação do feed</p>
+          <blockquote className="border-l-2 border-border-strong pl-3 text-[0.9375rem] whitespace-pre-line text-fg">
+            {target.excerpt}
+          </blockquote>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-fg-muted">
+            <span>Por {target.authorName ?? "perfil removido"}</span>
+            {open}
+          </div>
+        </div>
+      );
+    case "feed_comment":
+      return (
+        <div className="grid gap-1.5">
+          <p className="eyebrow text-fg-subtle">Comentário no feed</p>
+          <blockquote className="border-l-2 border-border-strong pl-3 text-[0.9375rem] whitespace-pre-line text-fg">
+            {target.excerpt}
+          </blockquote>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-fg-muted">
+            <span>Por {target.authorName ?? "perfil removido"}</span>
+            {open}
+          </div>
+        </div>
+      );
+    case "opportunity":
+      return (
+        <div className="grid gap-1.5">
+          <p className="eyebrow text-fg-subtle">Vaga de IC</p>
+          <p className="font-display text-lg leading-snug font-semibold text-fg">{target.title}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-fg-muted">
+            <span>Publicada por {target.ownerName ?? "perfil removido"}</span>
+            {!target.isOpen && <Badge variant="neutral">Encerrada</Badge>}
+            {open}
+          </div>
+        </div>
+      );
     case "profile":
       return (
         <div className="grid gap-1.5">

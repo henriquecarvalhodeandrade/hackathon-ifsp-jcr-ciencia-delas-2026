@@ -71,6 +71,9 @@ export const REPORT_TARGET_LABELS: Record<ReportTarget, string> = {
   paper: "Paper da Vitrine",
   paper_comment: "Comentário em paper",
   profile: "Perfil",
+  feed_post: "Publicação do feed",
+  feed_comment: "Comentário no feed",
+  opportunity: "Vaga de IC",
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

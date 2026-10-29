@@ -134,7 +134,8 @@ export async function resolveReport(_prev: ActionState, formData: FormData): Pro
 }
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
-type DeletableTarget = "thread" | "post" | "paper" | "paper_comment";
+type DeletableTarget =
+  "thread" | "post" | "paper" | "paper_comment" | "feed_post" | "feed_comment" | "opportunity";
 
 /**
  * Fecha as denúncias abertas dos alvos depois que a moderação agiu sobre eles.
@@ -261,9 +262,10 @@ export async function setPaperVisibility(
 }
 
 const deleteSchema = z.object({
-  targetType: z.enum(["thread", "post", "paper", "paper_comment"], {
-    error: "Tipo de conteúdo inválido.",
-  }),
+  targetType: z.enum(
+    ["thread", "post", "paper", "paper_comment", "feed_post", "feed_comment", "opportunity"],
+    { error: "Tipo de conteúdo inválido." },
+  ),
   targetId: uuid("Conteúdo"),
   note: optionalNote,
   reportId: optionalReportId,
@@ -274,6 +276,9 @@ const DELETE_LABELS = {
   post: "Resposta excluída.",
   paper: "Paper excluído da Vitrine.",
   paper_comment: "Comentário excluído.",
+  feed_post: "Publicação excluída do feed (os comentários também).",
+  feed_comment: "Comentário excluído do feed.",
+  opportunity: "Vaga de IC excluída (as candidaturas também).",
 } as const;
 
 export async function deleteReportedContent(
@@ -313,12 +318,22 @@ export async function deleteReportedContent(
       .eq("id", targetId)
       .maybeSingle();
     if (data) parentPath = `/papers/${data.paper_id}`;
+  } else if (targetType === "feed_comment") {
+    const { data } = await supabase
+      .from("post_comments")
+      .select("post_id")
+      .eq("id", targetId)
+      .maybeSingle();
+    if (data) parentPath = `/feed/p/${data.post_id}`;
   } else if (targetType === "thread") {
     const { data } = await supabase.from("forum_posts").select("id").eq("thread_id", targetId);
     cascade = { type: "post", ids: (data ?? []).map((p) => p.id) };
-  } else {
+  } else if (targetType === "paper") {
     const { data } = await supabase.from("paper_comments").select("id").eq("paper_id", targetId);
     cascade = { type: "paper_comment", ids: (data ?? []).map((c) => c.id) };
+  } else if (targetType === "feed_post") {
+    const { data } = await supabase.from("post_comments").select("id").eq("post_id", targetId);
+    cascade = { type: "feed_comment", ids: (data ?? []).map((c) => c.id) };
   }
 
   // A RPC apaga com o RLS da moderadora e o trigger do banco grava `delete_content` (com o motivo
@@ -348,7 +363,9 @@ export async function deleteReportedContent(
       cascade.ids,
       targetType === "thread"
         ? "Resposta removida junto com o tópico excluído pela moderação."
-        : "Comentário removido junto com o paper excluído pela moderação.",
+        : targetType === "feed_post"
+          ? "Comentário removido junto com a publicação excluída pela moderação."
+          : "Comentário removido junto com o paper excluído pela moderação.",
     );
   }
 
@@ -359,6 +376,9 @@ export async function deleteReportedContent(
     revalidatePath("/ranking");
     revalidatePath("/");
   }
+  if (targetType === "feed_post" || targetType === "feed_comment")
+    revalidatePath("/feed", "layout");
+  if (targetType === "opportunity") revalidatePath("/ics", "layout");
   if (parentPath) revalidatePath(parentPath);
 
   if (!removed) {

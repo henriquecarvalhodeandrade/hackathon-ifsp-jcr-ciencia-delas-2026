@@ -31,24 +31,27 @@ describe("ações do registro de auditoria", () => {
     expect(isAuditTargetType("public_answer")).toBe(true);
   });
 
-  it("acompanha os CHECKs do banco (a última migration que repete as listas)", () => {
-    const sql = readFileSync(
-      fileURLToPath(
-        new URL(
-          "../../../supabase/migrations/20261028190100_public_questions.sql",
-          import.meta.url,
-        ),
-      ),
-      "utf8",
-    );
-    const list = (constraint: string) => {
+  it("acompanha os CHECKs do banco (a última migration que repete cada lista)", () => {
+    const migration = (file: string) =>
+      readFileSync(
+        fileURLToPath(new URL(`../../../supabase/migrations/${file}`, import.meta.url)),
+        "utf8",
+      );
+    const list = (sql: string, constraint: string) => {
       const match = new RegExp(`add constraint ${constraint} check \\(\\w+ in \\(([^)]*)\\)`).exec(
         sql,
       );
       return [...(match?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     };
-    expect(list("moderation_audit_log_action_check")).toEqual([...AUDIT_ACTIONS]);
-    expect(list("moderation_audit_log_target_type_check")).toEqual([...AUDIT_TARGET_TYPES]);
+    expect(
+      list(migration("20261028190100_public_questions.sql"), "moderation_audit_log_action_check"),
+    ).toEqual([...AUDIT_ACTIONS]);
+    expect(
+      list(
+        migration("20261029000500_moderacao_rede_social.sql"),
+        "moderation_audit_log_target_type_check",
+      ),
+    ).toEqual([...AUDIT_TARGET_TYPES]);
   });
 
   it("reconhece só ações e alvos conhecidos", () => {
@@ -67,11 +70,14 @@ describe("auditTargetHref", () => {
     expect(auditTargetHref("profile", "u1")).toBe("/pesquisadoras/u1");
     expect(auditTargetHref("public_question", "q1")).toBe("/pergunte/q1");
     expect(auditTargetHref("public_answer", "a1")).toBe("/admin?aba=perguntas");
+    expect(auditTargetHref("feed_post", "f1")).toBe("/feed/p/f1");
+    expect(auditTargetHref("opportunity", "o1")).toBe("/ics/o1");
   });
 
   it("sem link para respostas, comentários, denúncias ou alvo ausente", () => {
     expect(auditTargetHref("post", "x")).toBeNull();
     expect(auditTargetHref("paper_comment", "x")).toBeNull();
+    expect(auditTargetHref("feed_comment", "x")).toBeNull();
     expect(auditTargetHref("report", "x")).toBeNull();
     expect(auditTargetHref(null, "x")).toBeNull();
     expect(auditTargetHref("thread", null)).toBeNull();
