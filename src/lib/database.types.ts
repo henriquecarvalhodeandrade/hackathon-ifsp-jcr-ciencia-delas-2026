@@ -1,8 +1,91 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18";
+  };
   public: {
     Tables: {
+      connections: {
+        Row: {
+          addressee_id: string;
+          created_at: string;
+          id: string;
+          message: string | null;
+          requester_id: string;
+          responded_at: string | null;
+          status: Database["public"]["Enums"]["connection_status"];
+        };
+        Insert: {
+          addressee_id: string;
+          created_at?: string;
+          id?: string;
+          message?: string | null;
+          requester_id?: string;
+          responded_at?: string | null;
+          status?: Database["public"]["Enums"]["connection_status"];
+        };
+        Update: {
+          addressee_id?: string;
+          created_at?: string;
+          id?: string;
+          message?: string | null;
+          requester_id?: string;
+          responded_at?: string | null;
+          status?: Database["public"]["Enums"]["connection_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "connections_addressee_id_fkey";
+            columns: ["addressee_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "connections_requester_id_fkey";
+            columns: ["requester_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      follows: {
+        Row: {
+          created_at: string;
+          followee_id: string;
+          follower_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          followee_id: string;
+          follower_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          followee_id?: string;
+          follower_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "follows_followee_id_fkey";
+            columns: ["followee_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "follows_follower_id_fkey";
+            columns: ["follower_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       forum_anonymous_authorship: {
         Row: {
           created_at: string;
@@ -11,7 +94,6 @@ export type Database = {
           thread_id: string | null;
           user_id: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           id?: never;
@@ -61,7 +143,6 @@ export type Database = {
           slug: string;
           sort_order: number;
         };
-        ComputedFields: never;
         Insert: {
           allow_anonymous?: boolean;
           created_at?: string;
@@ -95,7 +176,6 @@ export type Database = {
           thread_id: string;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           author_id?: string | null;
           body: string;
@@ -142,7 +222,6 @@ export type Database = {
           thread_id: string | null;
           user_id: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           id?: never;
@@ -202,7 +281,6 @@ export type Database = {
           title: string;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           author_id?: string | null;
           body: string;
@@ -215,7 +293,7 @@ export type Database = {
           is_pinned?: boolean;
           last_activity_at?: string;
           reply_count?: number;
-          search_text?: never;
+          search_text?: string | null;
           solution_post_id?: string | null;
           tags?: string[];
           title: string;
@@ -233,7 +311,7 @@ export type Database = {
           is_pinned?: boolean;
           last_activity_at?: string;
           reply_count?: number;
-          search_text?: never;
+          search_text?: string | null;
           solution_post_id?: string | null;
           tags?: string[];
           title?: string;
@@ -275,7 +353,6 @@ export type Database = {
           score: number;
           source: string;
         };
-        ComputedFields: never;
         Insert: {
           conversation_starters?: string[];
           created_at?: string;
@@ -329,7 +406,6 @@ export type Database = {
           revoked_at: string | null;
           revoked_by: string | null;
         };
-        ComputedFields: never;
         Insert: {
           code: string;
           created_at?: string;
@@ -392,7 +468,6 @@ export type Database = {
           role: string;
           would_recommend: boolean | null;
         };
-        ComputedFields: never;
         Insert: {
           author_id?: string;
           created_at?: string;
@@ -441,7 +516,6 @@ export type Database = {
           request_id: string;
           sender_id: string;
         };
-        ComputedFields: never;
         Insert: {
           body: string;
           created_at?: string;
@@ -490,7 +564,6 @@ export type Database = {
           status: Database["public"]["Enums"]["mentorship_status"];
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           completed_at?: string | null;
           created_at?: string;
@@ -547,7 +620,6 @@ export type Database = {
           target_id: string | null;
           target_type: string | null;
         };
-        ComputedFields: never;
         Insert: {
           action: string;
           actor_id?: string | null;
@@ -593,7 +665,6 @@ export type Database = {
           sent_at: string | null;
           subscriber_id: string;
         };
-        ComputedFields: never;
         Insert: {
           edition_id: string;
           error?: string | null;
@@ -627,7 +698,7 @@ export type Database = {
       };
       newsletter_editions: {
         Row: {
-          content: NonNullable<Json>;
+          content: Json;
           created_at: string;
           id: string;
           period_end: string | null;
@@ -641,9 +712,8 @@ export type Database = {
           title: string;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
-          content?: NonNullable<Json>;
+          content?: Json;
           created_at?: string;
           id?: string;
           period_end?: string | null;
@@ -658,7 +728,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
-          content?: NonNullable<Json>;
+          content?: Json;
           created_at?: string;
           id?: string;
           period_end?: string | null;
@@ -692,7 +762,6 @@ export type Database = {
           unsubscribed_at: string | null;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           area_ids?: number[];
           confirm_token?: string;
@@ -748,7 +817,6 @@ export type Database = {
           type: Database["public"]["Enums"]["notification_type"];
           user_id: string;
         };
-        ComputedFields: never;
         Insert: {
           body?: string | null;
           created_at?: string;
@@ -788,7 +856,6 @@ export type Database = {
           paper_id: string;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           author_id?: string;
           body: string;
@@ -828,7 +895,6 @@ export type Database = {
           paper_id: string;
           user_id: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           paper_id: string;
@@ -880,7 +946,6 @@ export type Database = {
           women_authorship_confirmed: boolean;
           year: number | null;
         };
-        ComputedFields: never;
         Insert: {
           abstract: string;
           area_id?: number | null;
@@ -893,7 +958,7 @@ export type Database = {
           keywords?: string[];
           plain_summary?: string | null;
           plain_summary_source?: string | null;
-          search_text?: never;
+          search_text?: string | null;
           submitted_by?: string;
           submitter_relation: string;
           title: string;
@@ -916,7 +981,7 @@ export type Database = {
           keywords?: string[];
           plain_summary?: string | null;
           plain_summary_source?: string | null;
-          search_text?: never;
+          search_text?: string | null;
           submitted_by?: string;
           submitter_relation?: string;
           title?: string;
@@ -952,7 +1017,6 @@ export type Database = {
           profile_id: string;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           content_hash: string;
           embedding: string;
@@ -982,7 +1046,6 @@ export type Database = {
           area_id: number;
           profile_id: string;
         };
-        ComputedFields: never;
         Insert: {
           area_id: number;
           profile_id?: string;
@@ -1043,7 +1106,6 @@ export type Database = {
           updated_at: string;
           website_url: string | null;
         };
-        ComputedFields: never;
         Insert: {
           ai_consent?: boolean;
           ai_consent_at?: string | null;
@@ -1071,7 +1133,7 @@ export type Database = {
           orcid?: string | null;
           pronouns?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
-          search_text?: never;
+          search_text?: string | null;
           seeks_mentorship?: boolean;
           state?: string | null;
           trajectory_tags?: string[];
@@ -1105,7 +1167,7 @@ export type Database = {
           orcid?: string | null;
           pronouns?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
-          search_text?: never;
+          search_text?: string | null;
           seeks_mentorship?: boolean;
           state?: string | null;
           trajectory_tags?: string[];
@@ -1126,7 +1188,6 @@ export type Database = {
           question_id: string;
           show_identity: boolean;
         };
-        ComputedFields: never;
         Insert: {
           author_id?: string;
           body: string;
@@ -1187,7 +1248,6 @@ export type Database = {
           status: string;
           tracking_token_hash: string;
         };
-        ComputedFields: never;
         Insert: {
           area_id?: number | null;
           body: string;
@@ -1245,7 +1305,6 @@ export type Database = {
           target_id: string;
           target_type: Database["public"]["Enums"]["report_target"];
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           details?: string | null;
@@ -1297,7 +1356,6 @@ export type Database = {
           name: string;
           slug: string;
         };
-        ComputedFields: never;
         Insert: {
           big_area: string;
           created_at?: string;
@@ -1318,11 +1376,10 @@ export type Database = {
     Views: {
       forum_post_reaction_counts: {
         Row: {
-          kind: Database["public"]["Enums"]["reaction_kind"];
+          kind: Database["public"]["Enums"]["reaction_kind"] | null;
           post_id: string | null;
           total: number | null;
         };
-        ComputedFields: never;
         Relationships: [
           {
             foreignKeyName: "forum_reactions_post_id_fkey";
@@ -1335,11 +1392,10 @@ export type Database = {
       };
       forum_thread_reaction_counts: {
         Row: {
-          kind: Database["public"]["Enums"]["reaction_kind"];
+          kind: Database["public"]["Enums"]["reaction_kind"] | null;
           thread_id: string | null;
           total: number | null;
         };
-        ComputedFields: never;
         Relationships: [
           {
             foreignKeyName: "forum_reactions_thread_id_fkey";
@@ -1352,12 +1408,15 @@ export type Database = {
       };
     };
     Functions: {
-      claim_ai_matching_slot: { Args: Record<PropertyKey, never>; Returns: boolean };
+      claim_ai_matching_slot: { Args: never; Returns: boolean };
       consent_mentorship_declaration: {
         Args: { p_declaration_id: string };
         Returns: string | null;
       };
-      delete_public_question_by_token: { Args: { p_token: string }; Returns: boolean };
+      delete_public_question_by_token: {
+        Args: { p_token: string };
+        Returns: boolean;
+      };
       get_community_leaderboard: {
         Args: { p_limit?: number };
         Returns: {
@@ -1371,6 +1430,20 @@ export type Database = {
           profile_id: string;
           solutions: number;
           votes_received: number;
+        }[];
+      };
+      get_connection_suggestions: {
+        Args: { p_limit?: number };
+        Returns: {
+          avatar_url: string | null;
+          career_stage: Database["public"]["Enums"]["career_stage"] | null;
+          full_name: string;
+          headline: string | null;
+          id: string;
+          institution: string | null;
+          mutual_connections: number;
+          same_institution: boolean;
+          shared_areas: number;
         }[];
       };
       get_mentor_candidates: {
@@ -1409,9 +1482,22 @@ export type Database = {
           full_name: string;
         }[];
       };
-      get_mentorship_impact: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_mentorship_impact: { Args: never; Returns: Json };
+      get_network_counts: {
+        Args: { p_profile_id: string };
+        Returns: {
+          connections: number;
+          followers: number;
+          following: number;
+        }[];
+      };
       get_paper_ranking: {
-        Args: { p_area_slug?: string; p_limit?: number; p_offset?: number; p_period?: string };
+        Args: {
+          p_area_slug?: string;
+          p_limit?: number;
+          p_offset?: number;
+          p_period?: string;
+        };
         Returns: {
           area_id: number | null;
           area_name: string | null;
@@ -1433,7 +1519,7 @@ export type Database = {
         }[];
       };
       get_platform_stats: {
-        Args: Record<PropertyKey, never>;
+        Args: never;
         Returns: {
           members: number;
           mentors: number;
@@ -1453,8 +1539,8 @@ export type Database = {
           status: string;
         }[];
       };
-      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
-      is_moderator: { Args: Record<PropertyKey, never>; Returns: boolean };
+      is_admin: { Args: never; Returns: boolean };
+      is_moderator: { Args: never; Returns: boolean };
       list_pending_public_questions: {
         Args: { p_limit?: number };
         Returns: {
@@ -1505,7 +1591,12 @@ export type Database = {
         Returns: boolean;
       };
       moderate_paper: {
-        Args: { p_hidden: boolean; p_paper_id: string; p_reason?: string; p_report_id?: string };
+        Args: {
+          p_hidden: boolean;
+          p_paper_id: string;
+          p_reason?: string;
+          p_report_id?: string;
+        };
         Returns: undefined;
       };
       moderate_thread: {
@@ -1519,7 +1610,11 @@ export type Database = {
         Returns: undefined;
       };
       newsletter_reserve_confirmation: {
-        Args: { p_max_per_address?: number; p_max_per_day?: number; p_subscriber_id: string };
+        Args: {
+          p_max_per_address?: number;
+          p_max_per_day?: number;
+          p_subscriber_id: string;
+        };
         Returns: string;
       };
       remove_public_question: {
@@ -1527,7 +1622,12 @@ export type Database = {
         Returns: undefined;
       };
       reveal_anonymous_author: {
-        Args: { p_post_id?: string; p_reason?: string; p_report_id?: string; p_thread_id?: string };
+        Args: {
+          p_post_id?: string;
+          p_reason?: string;
+          p_report_id?: string;
+          p_thread_id?: string;
+        };
         Returns: string | null;
       };
       review_public_question: {
@@ -1569,6 +1669,7 @@ export type Database = {
         | "researcher"
         | "professor"
         | "industry";
+      connection_status: "pending" | "accepted" | "declined";
       edition_status: "draft" | "published" | "sent";
       meeting_format: "online" | "in_person" | "hybrid";
       mentorship_status: "pending" | "accepted" | "declined" | "cancelled" | "completed";
@@ -1579,7 +1680,15 @@ export type Database = {
         | "solution_marked"
         | "paper_comment"
         | "report_resolved"
-        | "mentorship_message";
+        | "mentorship_message"
+        | "new_follower"
+        | "connection_request"
+        | "connection_accepted"
+        | "post_like"
+        | "post_comment"
+        | "opportunity_application"
+        | "application_update"
+        | "direct_message";
       reaction_kind: "support" | "useful" | "celebrate";
       report_reason:
         "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
@@ -1608,7 +1717,9 @@ export type Tables<
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R;
@@ -1631,7 +1742,9 @@ export type TablesInsert<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I;
     }
@@ -1653,7 +1766,9 @@ export type TablesUpdate<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U;
     }
@@ -1675,7 +1790,9 @@ export type Enums<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -1689,7 +1806,9 @@ export type CompositeTypes<
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
@@ -1708,6 +1827,7 @@ export const Constants = {
         "professor",
         "industry",
       ],
+      connection_status: ["pending", "accepted", "declined"],
       edition_status: ["draft", "published", "sent"],
       meeting_format: ["online", "in_person", "hybrid"],
       mentorship_status: ["pending", "accepted", "declined", "cancelled", "completed"],
@@ -1719,6 +1839,14 @@ export const Constants = {
         "paper_comment",
         "report_resolved",
         "mentorship_message",
+        "new_follower",
+        "connection_request",
+        "connection_accepted",
+        "post_like",
+        "post_comment",
+        "opportunity_application",
+        "application_update",
+        "direct_message",
       ],
       reaction_kind: ["support", "useful", "celebrate"],
       report_reason: ["harassment", "spam", "misinformation", "offensive", "plagiarism", "other"],

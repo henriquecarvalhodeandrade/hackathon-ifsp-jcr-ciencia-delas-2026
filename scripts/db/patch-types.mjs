@@ -50,6 +50,8 @@ const NULLABLE_RETURN_COLUMNS = {
     "area_name",
     "plain_summary",
   ],
+  // Rede social (docs/18).
+  get_connection_suggestions: ["avatar_url", "headline", "institution", "career_stage"],
 };
 
 /** RPCs escalares cujo retorno pode ser NULL. */

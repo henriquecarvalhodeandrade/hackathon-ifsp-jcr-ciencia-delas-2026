@@ -16,6 +16,14 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   solution_marked: "Solução no fórum",
   paper_comment: "Comentário em paper",
   report_resolved: "Denúncia",
+  new_follower: "Nova seguidora",
+  connection_request: "Convite de conexão",
+  connection_accepted: "Nova conexão",
+  post_like: "Curtida",
+  post_comment: "Comentário no feed",
+  opportunity_application: "Candidatura em IC",
+  application_update: "Sua candidatura",
+  direct_message: "Mensagem",
 };
 
 export type NotificationFilter = "todas" | "nao-lidas";
