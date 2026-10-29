@@ -150,6 +150,18 @@ git), para validar a IA com os dados fictícios do seed. Falta:
 
 ### 4. Antes da apresentação
 
+- [ ] **Rede social (29/10/2026):** as migrations `20261029000000` a `20261029000500` e o seed
+      `supabase/seeds/50_rede_social.sql` já estão no Supabase Cloud (aplicados pela Management API, com
+      registro em `supabase_migrations`, como faz o `--migrations-via-api`). O token de acesso usado nisso foi
+      colado no chat: **revogar** em supabase.com/dashboard/account/tokens. Para refazer em outro projeto,
+      basta o script de setup de sempre (as migrations e os seeds novos entram sozinhos). Os testes das
+      verificações da Marina publicaram vagas de teste (já apagadas), mas contam no limite de 5 vagas por
+      dia dela até 24 h depois.
+- [ ] O teste `rls.test.sql` acusa, **só no Supabase Cloud**, a função `public.rls_auto_enable` (criada pelo
+      próprio Supabase para a opção "ativar RLS automaticamente em tabelas novas", com o event trigger
+      `ensure_rls`), executável por `PUBLIC`. Não vem das nossas migrations; localmente o teste passa. Se
+      quiserem, desliguem a opção no painel ou revoguem o `EXECUTE` dela.
+
 - [ ] Preencher contato da controladora/encarregada de dados em `/privacidade` e a equipe em `/sobre` (a
       equipe preenche: nada disso pode ser inventado).
 - [ ] Recriar o banco da apresentação logo antes do evento (`npx supabase db reset` no local, ou recriar o
