@@ -112,6 +112,7 @@ export {
 export { TabNav, type TabNavItem, type TabNavProps } from "./tab-nav";
 export { Tabs, type TabItem, type TabsProps } from "./tabs"; // (cliente)
 export { Textarea, type TextareaProps } from "./textarea"; // (cliente)
+export { toast, Toaster, type ToastOptions, type ToastTone } from "./toast"; // (cliente)
 export { Tooltip, type TooltipProps } from "./tooltip";
 export { VisuallyHidden } from "./visually-hidden";
 export { VoteButton, type VoteButtonProps } from "./vote-button";

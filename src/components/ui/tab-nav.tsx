@@ -13,13 +13,18 @@ export interface TabNavProps extends Omit<React.ComponentProps<"nav">, "children
   items: readonly TabNavItem[];
   /** Rótulo da navegação para leitores de tela, ex.: "Períodos do ranking". */
   label: string;
+  /**
+   * `false` = trocar de aba não rola a página para o topo (ex.: abas no meio de um feed).
+   * Opcional — sem ela, vale o comportamento padrão do <Link>.
+   */
+  scroll?: boolean;
 }
 
 /**
  * Abas baseadas em links (cada aba é uma URL). Funciona em Server Components:
  * calcule `active` a partir de searchParams/rota. Para painéis na mesma página use <Tabs>.
  */
-export function TabNav({ items, label, className, ...props }: TabNavProps) {
+export function TabNav({ items, label, scroll, className, ...props }: TabNavProps) {
   return (
     <nav
       aria-label={label}
@@ -31,6 +36,7 @@ export function TabNav({ items, label, className, ...props }: TabNavProps) {
           <li key={`${item.href}::${item.label}`}>
             <Link
               href={item.href}
+              scroll={scroll}
               aria-current={item.active ? "page" : undefined}
               className={cn(
                 "relative -mb-px inline-flex h-11 items-center gap-2 rounded-t-control border-b-2 px-3.5 text-[0.9375rem] font-semibold whitespace-nowrap transition-colors [&_svg]:size-4",

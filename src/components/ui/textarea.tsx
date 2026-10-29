@@ -7,6 +7,20 @@ import { controlClasses } from "./input";
 export interface TextareaProps extends React.ComponentProps<"textarea"> {
   /** Mostra "120/1.500" abaixo do campo (requer maxLength). */
   showCount?: boolean;
+  /**
+   * Cresce com o texto, de uma linha até ~metade da tela (`field-sizing: content`; sem suporte no
+   * navegador, a altura é ajustada via JS). Opcional — sem ela, o campo continua como antes.
+   */
+  autoGrow?: boolean;
+}
+
+const AUTO_GROW_MAX = 0.5;
+
+/** Fallback do autoGrow para navegadores sem `field-sizing`: altura = conteúdo, até 50vh. */
+function fitToContent(field: HTMLTextAreaElement) {
+  field.style.height = "auto";
+  const max = window.innerHeight * AUTO_GROW_MAX;
+  field.style.height = `${Math.min(field.scrollHeight + 2, max)}px`;
 }
 
 /**
@@ -19,6 +33,7 @@ export interface TextareaProps extends React.ComponentProps<"textarea"> {
 export function Textarea({
   className,
   showCount = false,
+  autoGrow = false,
   maxLength,
   defaultValue,
   value,
@@ -62,6 +77,23 @@ export function Textarea({
     };
   }, [counting, controlled]);
 
+  // autoGrow sem `field-sizing: content` (Safari/Firefox antigos): ajusta a altura via JS.
+  useEffect(() => {
+    const field = fieldRef.current;
+    if (!autoGrow || !field) return;
+    if (typeof CSS !== "undefined" && CSS.supports("field-sizing", "content")) return;
+    const sync = () => fitToContent(field);
+    const onReset = () => window.setTimeout(sync, 0);
+    const form = field.form;
+    field.addEventListener("input", sync);
+    form?.addEventListener("reset", onReset);
+    sync();
+    return () => {
+      field.removeEventListener("input", sync);
+      form?.removeEventListener("reset", onReset);
+    };
+  }, [autoGrow]);
+
   const describedBy =
     [props["aria-describedby"], counting ? counterId : undefined].filter(Boolean).join(" ") ||
     undefined;
@@ -82,6 +114,7 @@ export function Textarea({
         className={cn(
           controlClasses,
           "min-h-24 resize-y px-3.5 py-2.5 text-base leading-relaxed",
+          autoGrow && "field-sizing-content max-h-[50vh] min-h-11 resize-none",
           className,
         )}
         {...props}

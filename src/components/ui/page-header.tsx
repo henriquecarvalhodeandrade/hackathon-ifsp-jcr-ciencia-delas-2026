@@ -15,6 +15,11 @@ export interface PageHeaderProps extends Omit<React.ComponentProps<"header">, "t
   children?: React.ReactNode;
   /** Elemento do título (padrão h1 — só um por página). */
   titleAs?: "h1" | "h2" | "p";
+  /**
+   * Telas de uso frequente (rede, portfólio): abaixo de `sm` a descrição some e o conteúdo
+   * (abas, lista) sobe para a primeira dobra. Use só quando a descrição não é essencial.
+   */
+  compactOnMobile?: boolean;
 }
 
 /** Cabeçalho padrão de página: um único h1 por página. */
@@ -26,11 +31,15 @@ export function PageHeader({
   back,
   children,
   titleAs: Title = "h1",
+  compactOnMobile = false,
   className,
   ...props
 }: PageHeaderProps) {
   return (
-    <header className={cn("pt-8 pb-6 sm:pt-12 sm:pb-8", className)} {...props}>
+    <header
+      className={cn("pt-8 pb-6 sm:pt-12 sm:pb-8", compactOnMobile && "pt-6 pb-4", className)}
+      {...props}
+    >
       {back && (
         <Link
           href={back.href}
@@ -46,11 +55,15 @@ export function PageHeader({
           <Title className="font-display text-3xl leading-tight font-semibold tracking-[-0.025em] text-balance text-fg sm:text-4xl">
             {title}
           </Title>
-          {description && <p className="text-lg text-fg-muted">{description}</p>}
+          {description && (
+            <p className={cn("text-lg text-fg-muted", compactOnMobile && "max-sm:hidden")}>
+              {description}
+            </p>
+          )}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </div>
-      {children && <div className="mt-6">{children}</div>}
+      {children && <div className={compactOnMobile ? "mt-4 sm:mt-6" : "mt-6"}>{children}</div>}
     </header>
   );
 }
