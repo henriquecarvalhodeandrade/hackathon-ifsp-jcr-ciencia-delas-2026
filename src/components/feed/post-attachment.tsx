@@ -19,9 +19,12 @@ const eyebrowClass = "text-xs font-bold tracking-wide text-fg-subtle uppercase";
  */
 export function PostAttachment({
   attachment,
+  hideKind = false,
   className,
 }: {
   attachment: AttachmentView;
+  /** Esconde o tipo do item quando ele repete o tipo da publicação ("Projeto" · "Projeto"). */
+  hideKind?: boolean;
   className?: string;
 }) {
   if (attachment.type === "opportunity") {
@@ -76,8 +79,14 @@ export function PostAttachment({
       </span>
       <div className="grid min-w-0 flex-1 gap-1">
         <p className={eyebrowClass}>
-          <span className="sr-only">Do portfólio: </span>
-          {portfolioKindLabel(attachment.kind)}
+          {hideKind ? (
+            "Do portfólio"
+          ) : (
+            <>
+              <span className="sr-only">Do portfólio: </span>
+              {portfolioKindLabel(attachment.kind)}
+            </>
+          )}
         </p>
         <p className="leading-snug font-semibold text-pretty break-words text-fg">
           {attachment.title}

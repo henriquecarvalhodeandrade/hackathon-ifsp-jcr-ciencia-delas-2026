@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
-import { Pencil, Save } from "lucide-react";
+import { useActionState, useEffect, useRef } from "react";
+import { Save } from "lucide-react";
 import { Button, Field, FormMessage, Input, Select, SubmitButton, Textarea } from "@/components/ui";
 import { updatePostAction, type PostEditState } from "@/lib/feed/actions";
 import { POST_KIND_OPTIONS } from "@/lib/feed/presentation";
@@ -11,6 +11,8 @@ import {
   freshNonce,
   withConnectionFallback,
 } from "@/lib/forum/client-action";
+import { notifyPostChanged } from "./dom";
+import { useItem } from "./item-context";
 
 export interface EditablePostProps {
   postId: string;
@@ -18,74 +20,23 @@ export interface EditablePostProps {
   /** Texto original (Markdown) para o formulário de edição. */
   body: string;
   linkUrl: string | null;
-  canEdit: boolean;
   /** Corpo, link e anexo já renderizados no servidor. */
   children: React.ReactNode;
-  /** Curtir e comentários (lado esquerdo do rodapé). */
-  footer: React.ReactNode;
-  /** Demais ações (apagar, denunciar) — o botão "Editar" entra junto. */
-  actions?: React.ReactNode;
 }
 
-/** Publicação com edição no lugar (tipo, texto e link — só para a autora). */
-export function EditablePost({
-  postId,
-  kind,
-  body,
-  linkUrl,
-  canEdit,
-  children,
-  footer,
-  actions,
-}: EditablePostProps) {
-  const [editing, setEditing] = useState(false);
-  const editButton = useRef<HTMLButtonElement>(null);
-  const restoreFocus = useRef(false);
-
-  useEffect(() => {
-    if (!editing && restoreFocus.current) {
-      restoreFocus.current = false;
-      editButton.current?.focus();
-    }
-  }, [editing]);
-
-  const finishEditing = useCallback(() => {
-    restoreFocus.current = true;
-    setEditing(false);
-  }, []);
-
-  if (editing) {
-    return (
-      <PostEditForm
-        postId={postId}
-        initial={{ kind, body, linkUrl: linkUrl ?? "" }}
-        onDone={finishEditing}
-      />
-    );
-  }
-
+/**
+ * Corpo da publicação com edição no lugar (tipo, texto e link — só a autora). A edição é aberta
+ * pelo item "Editar" do menu "…" do cartão (estado compartilhado em <ItemProvider>).
+ */
+export function EditablePost({ postId, kind, body, linkUrl, children }: EditablePostProps) {
+  const { editing, stopEditing } = useItem();
+  if (!editing) return <>{children}</>;
   return (
-    <>
-      {children}
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-t border-border pt-2">
-        <div className="flex flex-wrap items-start gap-1">{footer}</div>
-        <div className="flex flex-wrap items-start gap-1">
-          {canEdit && (
-            <Button
-              ref={editButton}
-              variant="ghost"
-              size="sm"
-              className="text-fg-muted"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil aria-hidden="true" />
-              Editar
-            </Button>
-          )}
-          {actions}
-        </div>
-      </div>
-    </>
+    <PostEditForm
+      postId={postId}
+      initial={{ kind, body, linkUrl: linkUrl ?? "" }}
+      onDone={stopEditing}
+    />
   );
 }
 
@@ -113,6 +64,8 @@ function PostEditForm({
   // então o texto novo já aparece (sem piscar o antigo). Com erro, foca o primeiro campo inválido.
   useEffect(() => {
     if (state?.ok) {
+      // Cartões carregados com "Carregar mais" não vêm na página revalidada: pedem a versão nova.
+      notifyPostChanged({ postId });
       onDone();
       return;
     }
@@ -121,7 +74,7 @@ function PostEditForm({
       form?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
       (state ? null : form?.querySelector<HTMLElement>("textarea"));
     target?.focus();
-  }, [state, onDone]);
+  }, [state, onDone, postId]);
 
   const values = state && !state.ok ? state.values : initial;
   const errors = state && !state.ok ? state.fieldErrors : undefined;
@@ -137,7 +90,8 @@ function PostEditForm({
             defaultValue={values.body}
             maxLength={FEED_LIMITS.bodyMax}
             showCount
-            rows={5}
+            autoGrow
+            className="min-h-28"
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">

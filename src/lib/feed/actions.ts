@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentProfile, type Profile } from "@/lib/auth";
+import { getCurrentProfile, isModerator, type Profile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyFeedError } from "./errors";
+import { listRecentComments } from "./queries";
+import type { FeedCommentView } from "./types";
 import {
   attachmentColumns,
   createCommentSchema,
@@ -234,6 +236,8 @@ export async function deletePostAction(
 /**
  * Curte/descurte. Idempotente: `liked` é o estado desejado (a UI é otimista e cliques
  * repetidos ou fora de ordem não invertem o resultado). Devolve o total atualizado pelo trigger.
+ * NÃO revalida: o botão já confirma com o total devolvido, e revalidar baixaria o feed inteiro
+ * (~160 KB) a cada curtida. As páginas são dinâmicas: a próxima visita já lê o número novo.
  */
 export async function toggleLikeAction(postId: string, liked: boolean): Promise<LikeResult> {
   const parsed = likeSchema.safeParse({ postId, liked });
@@ -264,7 +268,6 @@ export async function toggleLikeAction(postId: string, liked: boolean): Promise<
     .maybeSingle();
   if (!data) return { ok: false, error: "Esta publicação não existe mais." };
 
-  revalidateFeed();
   return { ok: true, liked: parsed.data.liked, likeCount: data.like_count };
 }
 
@@ -386,4 +389,33 @@ export async function deleteCommentAction(
 
   revalidateFeed();
   return { ok: true, message: "Comentário apagado." };
+}
+
+export type RecentCommentsResult =
+  { ok: true; comments: FeedCommentView[] } | { ok: false; error: string };
+
+/**
+ * Os últimos comentários de uma publicação (mais antigos primeiro), para o painel de comentários
+ * dentro do cartão. Lido só quando a pessoa abre o painel — o feed não carrega comentários.
+ */
+export async function loadRecentCommentsAction(
+  postId: string,
+  limit = 2,
+): Promise<RecentCommentsResult> {
+  const parsed = z.guid().safeParse(postId);
+  if (!parsed.success) return { ok: false, error: "Não encontramos essa publicação." };
+
+  const member = await getMember();
+  if (!member.ok) return { ok: false, error: member.error };
+
+  try {
+    const comments = await listRecentComments(parsed.data, {
+      viewerId: member.profile.id,
+      viewerIsModerator: isModerator(member.profile),
+      limit: Math.min(Math.max(1, Math.trunc(limit) || 2), 10),
+    });
+    return { ok: true, comments };
+  } catch {
+    return { ok: false, error: "Não conseguimos carregar os comentários agora." };
+  }
 }

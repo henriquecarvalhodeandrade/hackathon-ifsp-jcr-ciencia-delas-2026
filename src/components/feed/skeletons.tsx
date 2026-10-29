@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /** Grade das três colunas do /feed (a mesma da página). */
 export const FEED_GRID =
-  "grid items-start gap-6 lg:grid-cols-[14rem_minmax(0,1fr)_17rem] xl:grid-cols-[15rem_minmax(0,1fr)_19rem]";
+  "grid grid-cols-1 items-start gap-6 lg:grid-cols-[14rem_minmax(0,1fr)_17rem] xl:grid-cols-[15rem_minmax(0,1fr)_19rem]";
 
 /** Publicação simulada (autora, texto e rodapé). */
 export function PostCardSkeleton({ className }: { className?: string }) {
@@ -71,17 +71,10 @@ export function FeedSkeleton() {
           ))}
         </div>
       </div>
-      <div className="grid min-w-0 gap-6">
-        <div className="rounded-card border border-border bg-surface p-4 shadow-card sm:p-5">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-8 rounded-full" />
-            <Skeleton className="h-5 w-48" />
-          </div>
-          <Skeleton className="mt-4 h-24 w-full" />
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Skeleton className="h-10" />
-            <Skeleton className="h-10" />
-          </div>
+      <div className="grid min-w-0 gap-4 md:mx-auto md:w-full md:max-w-2xl lg:max-w-none">
+        <div className="flex items-center gap-3 rounded-card border border-border bg-surface p-3 shadow-card sm:p-4">
+          <Skeleton className="size-10 shrink-0 rounded-full" />
+          <Skeleton className="h-11 flex-1 rounded-pill" />
         </div>
         <div className="flex gap-2 border-b border-border pb-2">
           <Skeleton className="h-8 w-20" />

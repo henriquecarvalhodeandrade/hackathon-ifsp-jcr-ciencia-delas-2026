@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
-import { Pencil, Save } from "lucide-react";
+import { useActionState, useEffect, useRef } from "react";
+import { Save } from "lucide-react";
 import { Button, Field, FormMessage, SubmitButton, Textarea } from "@/components/ui";
 import { updateCommentAction, type CommentEditState } from "@/lib/feed/actions";
 import { FEED_LIMITS, readCommentForm } from "@/lib/feed/schema";
@@ -10,73 +10,25 @@ import {
   freshNonce,
   withConnectionFallback,
 } from "@/lib/forum/client-action";
+import { useItem } from "./item-context";
 
 export interface EditableCommentProps {
   commentId: string;
   postId: string;
   /** Texto original (para o formulário de edição). */
   body: string;
-  canEdit: boolean;
   /** Corpo já renderizado no servidor. */
   children: React.ReactNode;
-  /** Demais ações (apagar, denunciar) — o botão "Editar" entra junto. */
-  actions?: React.ReactNode;
 }
 
-/** Corpo de um comentário com edição no lugar (só para a autora do comentário). */
-export function EditableComment({
-  commentId,
-  postId,
-  body,
-  canEdit,
-  children,
-  actions,
-}: EditableCommentProps) {
-  const [editing, setEditing] = useState(false);
-  const editButton = useRef<HTMLButtonElement>(null);
-  const restoreFocus = useRef(false);
-
-  useEffect(() => {
-    if (!editing && restoreFocus.current) {
-      restoreFocus.current = false;
-      editButton.current?.focus();
-    }
-  }, [editing]);
-
-  const finishEditing = useCallback(() => {
-    restoreFocus.current = true;
-    setEditing(false);
-  }, []);
-
-  if (editing) {
-    return (
-      <CommentEditForm commentId={commentId} postId={postId} body={body} onDone={finishEditing} />
-    );
-  }
-
-  const hasActions = canEdit || Boolean(actions);
-  return (
-    <>
-      {children}
-      {hasActions && (
-        <div className="mt-2 flex flex-wrap items-start justify-end gap-1">
-          {canEdit && (
-            <Button
-              ref={editButton}
-              variant="ghost"
-              size="sm"
-              className="text-fg-muted"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil aria-hidden="true" />
-              Editar
-            </Button>
-          )}
-          {actions}
-        </div>
-      )}
-    </>
-  );
+/**
+ * Corpo de um comentário com edição no lugar (só a autora). A edição é aberta pelo item "Editar"
+ * do menu "…" do comentário (estado compartilhado em <ItemProvider>).
+ */
+export function EditableComment({ commentId, postId, body, children }: EditableCommentProps) {
+  const { editing, stopEditing } = useItem();
+  if (!editing) return <>{children}</>;
+  return <CommentEditForm commentId={commentId} postId={postId} body={body} onDone={stopEditing} />;
 }
 
 function CommentEditForm({
@@ -121,7 +73,8 @@ function CommentEditForm({
           defaultValue={values.body}
           maxLength={FEED_LIMITS.commentMax}
           showCount
-          rows={3}
+          autoGrow
+          className="min-h-20"
         />
       </Field>
       <div className="flex flex-wrap gap-2">

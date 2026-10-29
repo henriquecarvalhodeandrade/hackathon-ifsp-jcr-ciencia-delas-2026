@@ -9,7 +9,8 @@ import type {
   Settled,
 } from "@/lib/feed/queries";
 import { opportunityKindLabel } from "@/lib/opportunities/labels";
-import { formatCompactNumber, pluralize } from "@/lib/utils";
+import { FollowButton } from "@/components/network/follow-button";
+import { cn, formatCompactNumber, pluralize } from "@/lib/utils";
 
 const footerLinkClass =
   "inline-flex items-center gap-1.5 rounded-control text-sm font-semibold text-primary underline-offset-4 hover:underline";
@@ -27,22 +28,30 @@ function Unavailable() {
 function SideSection({
   titleId,
   title,
+  headingAs: Heading = "h2",
   footer,
+  className,
   children,
 }: {
   titleId: string;
   title: string;
+  /** h2 na coluna lateral; h3 quando o bloco entra no meio das publicações (celular). */
+  headingAs?: "h2" | "h3";
   footer?: React.ReactNode;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="rounded-card border border-border bg-surface p-4 shadow-card sm:p-5"
+      className={cn(
+        "rounded-card border border-border bg-surface p-4 shadow-card sm:p-5",
+        className,
+      )}
     >
-      <h2 id={titleId} className="font-display text-lg leading-snug font-semibold text-fg">
+      <Heading id={titleId} className="font-display text-lg leading-snug font-semibold text-fg">
         {title}
-      </h2>
+      </Heading>
       <div className="mt-3">{children}</div>
       {footer && <div className="mt-4 border-t border-border pt-3">{footer}</div>}
     </section>
@@ -155,13 +164,20 @@ export function ProfileSummary({ profile, counts }: ProfileSummaryProps) {
 
 export function RecentOpportunitiesCard({
   opportunities,
+  inline = false,
+  className,
 }: {
   opportunities: Settled<RecentOpportunity[]>;
+  /** true = versão no meio das publicações (celular/tablet): título h3 e ids próprios. */
+  inline?: boolean;
+  className?: string;
 }) {
   return (
     <SideSection
-      titleId="vagas-recentes-titulo"
+      titleId={inline ? "vagas-recentes-titulo-lista" : "vagas-recentes-titulo"}
       title="Vagas de IC recentes"
+      headingAs={inline ? "h3" : "h2"}
+      className={className}
       footer={
         <Link href="/ics" className={footerLinkClass}>
           Ver todas as vagas
@@ -215,7 +231,13 @@ function suggestionReason(person: ConnectionSuggestion): string | null {
   return null;
 }
 
-export function SuggestionsCard({ suggestions }: { suggestions: Settled<ConnectionSuggestion[]> }) {
+export function SuggestionsCard({
+  suggestions,
+  limit = 4,
+}: {
+  suggestions: Settled<ConnectionSuggestion[]>;
+  limit?: number;
+}) {
   return (
     <SideSection
       titleId="sugestoes-titulo"
@@ -236,7 +258,7 @@ export function SuggestionsCard({ suggestions }: { suggestions: Settled<Connecti
         </p>
       ) : (
         <ul className="grid gap-3.5">
-          {suggestions.data.map((person) => {
+          {suggestions.data.slice(0, limit).map((person) => {
             const subtitle = person.headline || careerStageLabel(person.career_stage);
             const reason = suggestionReason(person);
             return (
@@ -257,6 +279,14 @@ export function SuggestionsCard({ suggestions }: { suggestions: Settled<Connecti
                   </Link>
                   {subtitle && <p className="line-clamp-2 text-xs text-fg-muted">{subtitle}</p>}
                   {reason && <p className="text-xs text-fg-subtle">{reason}</p>}
+                  <FollowButton
+                    profileId={person.id}
+                    following={person.following}
+                    personName={person.full_name}
+                    size="sm"
+                    revalidate={false}
+                    className="mt-1.5 w-fit pointer-coarse:h-11"
+                  />
                 </div>
               </li>
             );
@@ -264,5 +294,71 @@ export function SuggestionsCard({ suggestions }: { suggestions: Settled<Connecti
         </ul>
       )}
     </SideSection>
+  );
+}
+
+/**
+ * "Pessoas para conectar" no meio das publicações (abaixo de 1024 px, onde a coluna lateral só
+ * apareceria depois de todo o feed): faixa horizontal com rolagem, um cartão por pessoa.
+ */
+export function PeopleStrip({
+  suggestions,
+  className,
+}: {
+  suggestions: Settled<ConnectionSuggestion[]>;
+  className?: string;
+}) {
+  if (!suggestions.ok || suggestions.data.length === 0) return null;
+  return (
+    <section
+      aria-labelledby="sugestoes-titulo-lista"
+      className={cn(
+        "min-w-0 rounded-card border border-border bg-surface py-4 shadow-card sm:py-5",
+        className,
+      )}
+    >
+      <div className="flex items-baseline justify-between gap-3 px-4 sm:px-5">
+        <h3
+          id="sugestoes-titulo-lista"
+          className="font-display text-lg leading-snug font-semibold text-fg"
+        >
+          Pessoas para conectar
+        </h3>
+        <Link href="/rede?aba=sugestoes" className={cn(footerLinkClass, "shrink-0")}>
+          Ver mais
+          <span className="sr-only"> sugestões de pessoas</span>
+        </Link>
+      </div>
+      <ul className="mt-3 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 sm:scroll-px-5 sm:px-5">
+        {suggestions.data.map((person) => {
+          const subtitle = person.headline || careerStageLabel(person.career_stage);
+          const reason = suggestionReason(person);
+          return (
+            <li
+              key={person.id}
+              className="grid w-44 shrink-0 snap-start content-start justify-items-center gap-1 rounded-card border border-border p-3 text-center"
+            >
+              <Avatar name={person.full_name} src={person.avatar_url} seed={person.id} size="lg" />
+              <Link
+                href={`/pesquisadoras/${person.id}`}
+                className="mt-1 line-clamp-2 rounded-control text-sm leading-snug font-semibold text-fg underline-offset-4 hover:text-primary hover:underline"
+              >
+                {person.full_name}
+              </Link>
+              {subtitle && <p className="line-clamp-2 text-xs text-fg-muted">{subtitle}</p>}
+              {reason && <p className="text-xs text-fg-subtle">{reason}</p>}
+              <FollowButton
+                profileId={person.id}
+                following={person.following}
+                personName={person.full_name}
+                size="sm"
+                revalidate={false}
+                className="mt-1.5 pointer-coarse:h-11"
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

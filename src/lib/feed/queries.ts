@@ -144,6 +144,25 @@ export const getPostSummary = cache(async (id: string) => {
   return data ?? null;
 });
 
+/** Uma publicação (sem comentários) — para re-renderizar um cartão. null = não existe/oculta. */
+export async function getPost(
+  id: string,
+  viewerId: string,
+  viewerIsModerator = false,
+): Promise<FeedPostView | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Não foi possível carregar a publicação (${error.code ?? "erro"}).`);
+  const row: PostRow | null = data;
+  if (!row) return null;
+  const likedIds = await likedPostIds(supabase, viewerId, [row.id]);
+  return toPostView(row, { viewerId, likedIds, viewerIsModerator });
+}
+
 export type PostDetail = { post: FeedPostView; comments: FeedCommentView[] };
 
 /** Uma publicação com todos os comentários (mais antigos primeiro). null = não existe/oculta. */
@@ -179,6 +198,37 @@ export async function getPostDetail(
       toCommentView(comment, { viewerId, postAuthorId: row.author_id, viewerIsModerator }),
     ),
   };
+}
+
+/**
+ * Os `limit` comentários mais recentes de uma publicação, em ordem cronológica (painel de
+ * comentários do cartão). Lê junto a autora da publicação para saber quem pode apagar.
+ */
+export async function listRecentComments(
+  postId: string,
+  opts: { viewerId: string; viewerIsModerator?: boolean; limit?: number },
+): Promise<FeedCommentView[]> {
+  const supabase = await createClient();
+  const [postRes, commentsRes] = await Promise.all([
+    supabase.from("posts").select("author_id").eq("id", postId).maybeSingle(),
+    supabase
+      .from("post_comments")
+      .select(COMMENT_SELECT)
+      .eq("post_id", postId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(opts.limit ?? 2),
+  ]);
+  if (postRes.error || commentsRes.error)
+    throw new Error("Não foi possível carregar os comentários.");
+  const postAuthorId = postRes.data?.author_id ?? "";
+  return (commentsRes.data ?? []).reverse().map((comment) =>
+    toCommentView(comment, {
+      viewerId: opts.viewerId,
+      postAuthorId,
+      viewerIsModerator: opts.viewerIsModerator,
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -283,15 +333,37 @@ export type ConnectionSuggestion = {
   career_stage: string | null;
   mutualConnections: number;
   sharedAreas: number;
+  /** Eu já sigo esta pessoa (a sugestão é para conectar; seguir é de um lado só). */
+  following: boolean;
 };
 
-/** Pessoas para conectar (RPC get_connection_suggestions, já sem quem tem convite comigo). */
-export function listConnectionSuggestions(limit = 4): Promise<Settled<ConnectionSuggestion[]>> {
+/**
+ * Pessoas para conectar (RPC get_connection_suggestions, já sem quem tem convite comigo), com o
+ * estado do "Seguir" de cada uma (uma ida a mais, só pelos ids sugeridos).
+ */
+export function listConnectionSuggestions(
+  viewerId: string,
+  limit = 4,
+): Promise<Settled<ConnectionSuggestion[]>> {
   return settle(async () => {
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("get_connection_suggestions", { p_limit: limit });
     if (error) throw error;
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const followed = new Set<string>();
+    if (rows.length > 0) {
+      const { data: follows, error: followsError } = await supabase
+        .from("follows")
+        .select("followee_id")
+        .eq("follower_id", viewerId)
+        .in(
+          "followee_id",
+          rows.map((row) => row.id),
+        );
+      if (followsError) throw followsError;
+      for (const row of follows ?? []) followed.add(row.followee_id);
+    }
+    return rows.map((row) => ({
       id: row.id,
       full_name: row.full_name,
       avatar_url: row.avatar_url,
@@ -300,6 +372,7 @@ export function listConnectionSuggestions(limit = 4): Promise<Settled<Connection
       career_stage: row.career_stage,
       mutualConnections: row.mutual_connections,
       sharedAreas: row.shared_areas,
+      following: followed.has(row.id),
     }));
   });
 }

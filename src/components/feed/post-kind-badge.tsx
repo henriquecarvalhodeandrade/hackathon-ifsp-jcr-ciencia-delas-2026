@@ -3,7 +3,8 @@ import { Badge } from "@/components/ui";
 import { postKindLabel, postKindTone } from "@/lib/feed/presentation";
 import type { PostKind } from "@/lib/feed/schema";
 
-const KIND_ICONS: Record<PostKind, typeof PenLine> = {
+/** Ícone de cada tipo (selo, linha de metadados e chips do compositor). */
+export const KIND_ICONS: Record<PostKind, typeof PenLine> = {
   update: PenLine,
   project: FlaskConical,
   achievement: Trophy,

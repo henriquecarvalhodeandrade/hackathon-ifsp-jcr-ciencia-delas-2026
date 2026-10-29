@@ -58,13 +58,15 @@ export function CommentForm({ postId }: { postId: string }) {
           key={state?.nonce ?? "inicial"}
           name="body"
           rows={3}
+          autoGrow
+          className="min-h-24"
           maxLength={FEED_LIMITS.commentMax}
           showCount
           defaultValue={values.body}
         />
       </Field>
       <div>
-        <SubmitButton pendingText="Enviando…">
+        <SubmitButton pendingText="Enviando…" className="pointer-coarse:h-11">
           <Send aria-hidden="true" />
           Comentar
         </SubmitButton>

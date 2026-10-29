@@ -74,3 +74,6 @@ export type ComposerAttachments = {
   portfolio: AttachmentOption[];
   opportunities: AttachmentOption[];
 };
+
+/** Quem está vendo o feed (autora do comentário otimista, avatar do compositor). */
+export type FeedViewer = { id: string; name: string; avatarUrl: string | null };

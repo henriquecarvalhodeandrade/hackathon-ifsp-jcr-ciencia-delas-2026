@@ -80,7 +80,7 @@ export function LikeButton({ postId, liked, count, targetLabel, className }: Lik
         title={active ? "Remover curtida" : "Curtir"}
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
-          "gap-1.5",
+          "gap-1.5 pointer-coarse:h-11",
           active ? "text-primary hover:text-primary" : "text-fg-muted",
         )}
       >

@@ -5,7 +5,9 @@ import { z } from "zod";
 import { Card, Container, EmptyState, PageHeader } from "@/components/ui";
 import { CommentForm } from "@/components/feed/comment-form";
 import { CommentList } from "@/components/feed/comment-list";
+import { LIVE_REGION_ID } from "@/components/feed/dom";
 import { AUTHOR_FALLBACK, PostCard } from "@/components/feed/post-card";
+import { ScrollToHash } from "@/components/feed/scroll-to-hash";
 import { getCurrentUser, isModerator, requireOnboardedProfile } from "@/lib/auth";
 import { commentsLabel } from "@/lib/feed/presentation";
 import { getPostDetail, getPostSummary } from "@/lib/feed/queries";
@@ -54,10 +56,18 @@ export default async function PostPage({ params }: { params: Params }) {
         title={post.isOwner ? "Sua publicação" : `Publicação de ${name}`}
       />
 
+      <p id={LIVE_REGION_ID} aria-live="polite" className="sr-only" />
+      {/* Link "N comentários" do feed: leva ao # depois de montar (navegação pelo cliente). */}
+      <ScrollToHash key={post.id} />
+
       <PostCard post={post} context="detalhe" headingAs="h2" />
 
       <section id="comentarios" aria-labelledby="comentarios-titulo" className="scroll-mt-24 pt-10">
-        <h2 id="comentarios-titulo" className="font-display text-2xl font-semibold text-fg">
+        <h2
+          id="comentarios-titulo"
+          tabIndex={-1}
+          className="font-display text-2xl font-semibold text-fg"
+        >
           {comments.length > 0 ? commentsLabel(comments.length) : "Comentários"}
         </h2>
         <div className="mt-5 grid gap-6">
