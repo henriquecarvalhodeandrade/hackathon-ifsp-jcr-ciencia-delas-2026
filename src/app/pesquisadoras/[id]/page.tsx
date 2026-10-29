@@ -13,11 +13,16 @@ import {
   MapPin,
   MessageCircle,
   MessagesSquare,
+  Newspaper,
   Pencil,
   Star,
   Video,
 } from "lucide-react";
+import { RecentPosts } from "@/components/feed/recent-posts";
+import { MessageButton } from "@/components/messages/message-button";
 import { ReportButton } from "@/components/moderation/report-button";
+import { ProfileNetwork } from "@/components/network/profile-network";
+import { PortfolioSection } from "@/components/portfolio/portfolio-section";
 import { MentorStatus } from "@/components/profile/mentor-status";
 import { formatPlace } from "@/components/profile/profile-card";
 import { ProfileLinks } from "@/components/profile/profile-links";
@@ -185,6 +190,10 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
               </Badge>
             )}
           </div>
+          {/* Rede (docs/18): números e, no perfil de outra pessoa, Conectar, Seguir e Mensagem. */}
+          <ProfileNetwork profileId={profile.id} viewerId={me.id}>
+            <MessageButton profileId={profile.id} />
+          </ProfileNetwork>
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-56 sm:flex-col sm:items-stretch">
@@ -373,6 +382,8 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
             </ProfileSection>
           )}
 
+          <PortfolioSection ownerId={profile.id} isOwner={isSelf} />
+
           <ProfileSection
             id="papers-titulo"
             title="Papers na Vitrine"
@@ -429,6 +440,10 @@ export default async function PesquisadoraPage({ params }: { params: Params }) {
                 ))}
               </ul>
             )}
+          </ProfileSection>
+
+          <ProfileSection id="feed-titulo" title="No feed" icon={<Newspaper />}>
+            <RecentPosts authorId={profile.id} viewerId={me.id} />
           </ProfileSection>
 
           <ProfileSection id="forum-titulo" title="No fórum" icon={<MessagesSquare />}>
