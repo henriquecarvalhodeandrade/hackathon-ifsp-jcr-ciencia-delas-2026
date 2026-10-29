@@ -75,7 +75,7 @@ newsletter (inscrição, envio, cron), backfill de embeddings e ações administ
 │   └── e2e/                   jornada completa e roteiros de cada funcionalidade (Playwright)
 ├── supabase/
 │   ├── config.toml            configuração local (auth, templates, storage)
-│   ├── migrations/            schema versionado (31 migrations)
+│   ├── migrations/            schema versionado (30 migrations)
 │   ├── seed.sql               dados fictícios de demonstração (contas, fórum, papers, mentorias)
 │   ├── seeds/                 seeds extras da demonstração (10_painel, 20_reconhecimento, ...)
 │   ├── templates/             e-mails de autenticação em pt-BR
