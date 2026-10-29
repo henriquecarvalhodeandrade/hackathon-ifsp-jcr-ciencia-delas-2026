@@ -125,7 +125,7 @@ Só o que pede uma ação dela, cada linha levando direto ao lugar:
   “…”") → `/ics/<id>/candidaturas` (até 3 + resumo → `/ics/minhas?aba=publicadas`);
 - mentoranda: cada pedido enviado pendente ("Aguardando a resposta de Fernanda Okabe", "pedido
   enviado há 2 dias") → `/mentoria?aba=enviadas` (até 3, mais um resumo do resto);
-- as outras notificações não lidas → `/notificacoes` ("Curtidas, comentários, respostas e outros
+- as outras notificações não lidas → `/notificacoes` ("N outras notificações não lidas" quando há linhas da rede com nome acima — o número é menor que o do sino de propósito; senão "N notificações não lidas"; "Curtidas, comentários, respostas e outros
   avisos"). Os avisos de mensagem direta, convite e candidatura ficam fora dessa contagem
   (`NAMED_ELSEWHERE_TYPES`): já aparecem acima, com nome — nada é contado duas vezes.
 

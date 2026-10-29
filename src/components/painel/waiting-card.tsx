@@ -153,17 +153,23 @@ export function waitingItems(
   }
 
   // As mensagens diretas, os convites e as candidaturas já aparecem acima, com nome: esta contagem
-  // deixa esses tipos de fora (loadPainelData), para nada ser contado duas vezes.
+  // deixa esses tipos de fora (loadPainelData), para nada ser contado duas vezes. Com essas linhas
+  // na tela, o texto diz "outras" — senão o número (menor que o do sino) pareceria desatualizado.
+  const namedAbove =
+    network !== null &&
+    network.conversations.length + network.invites.length + network.applications.length > 0;
   if (waiting.unreadNotifications > 0) {
     items.push({
       key: "notificacoes",
       href: "/notificacoes",
       icon: <Bell />,
-      title: pluralize(
-        waiting.unreadNotifications,
-        "notificação não lida",
-        "notificações não lidas",
-      ),
+      title: namedAbove
+        ? pluralize(
+            waiting.unreadNotifications,
+            "outra notificação não lida",
+            "outras notificações não lidas",
+          )
+        : pluralize(waiting.unreadNotifications, "notificação não lida", "notificações não lidas"),
       detail: network ? "Curtidas, comentários, respostas e outros avisos" : undefined,
     });
   }
