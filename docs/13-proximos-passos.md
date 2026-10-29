@@ -150,7 +150,7 @@ git), para validar a IA com os dados fictícios do seed. Falta:
 
 ### 4. Antes da apresentação
 
-- [ ] **Rede social (29/10/2026):** as migrations `20261029000000` a `20261029000500` e o seed
+- [ ] **Rede social (29/10/2026):** as migrations `20261029000000` a `20261029000600` e o seed
       `supabase/seeds/50_rede_social.sql` já estão no Supabase Cloud (aplicados pela Management API, com
       registro em `supabase_migrations`, como faz o `--migrations-via-api`). O token de acesso usado nisso foi
       colado no chat: **revogar** em supabase.com/dashboard/account/tokens. Para refazer em outro projeto,

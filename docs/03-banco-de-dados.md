@@ -237,7 +237,7 @@ Detalhes completos (RLS, GRANTs, RPCs e testes) nos documentos de cada funcional
 
 ### Rede social (29/10): feed, rede, portfólio, ICs e mensagens
 
-Migrations `20261029000000` a `20261029000500`. Detalhes, códigos de erro (`CD060`–`CD089`) e o
+Migrations `20261029000000` a `20261029000600`. Detalhes, códigos de erro (`CD060`–`CD089`) e o
 porquê de cada regra em [docs/18](18-rede-social.md); testes em
 `supabase/tests/database/rede_social.test.sql`.
 

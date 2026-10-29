@@ -40,7 +40,7 @@ atualização periódica da página. Nenhum servidor de WebSocket próprio.
 
 Todas entram em `PROTECTED_PREFIXES` (`/feed`, `/rede`, `/portfolio`, `/ics`, `/mensagens`).
 
-## 2. Banco (migrations `20261029000000` a `20261029000500`)
+## 2. Banco (migrations `20261029000000` a `20261029000600`)
 
 Convenções de sempre (docs/03): RLS em tudo, `revoke all` + `grant` por coluna, funções
 `security definer` com `search_path = ''`, horários do servidor (o cliente não antedata nada),
@@ -70,7 +70,8 @@ connections (id uuid, requester_id uuid default auth.uid(), addressee_id uuid,
 - Conexões **aceitas** são visíveis a todas as membras; pendentes e recusadas, só às duas.
 - RPC `get_connection_suggestions(p_limit int default 8)` → `id, full_name, avatar_url, headline,
 institution, career_stage, shared_areas int, mutual_connections int, same_institution bool` (sem
-  quem já tem convite/conexão comigo e sem eu mesma; ordem: pontuação desc).
+  quem já tem convite/conexão comigo, sem eu mesma e sem as contas da equipe — `role = 'member'`,
+  migration `20261029000600`; ordem: pontuação desc).
 - RPC `get_network_counts(p_profile_id uuid)` → `followers int, following int, connections int`.
 
 ### 2.2 Portfólio — `portfolio_items`
@@ -269,4 +270,3 @@ com registro no Registro de moderação. Conversas diretas são privadas: denunc
   continua vendo "Convite enviado"; "Cancelar convite" nesse caso não muda nada.
 - "Seguindo" no feed lê até 300 pessoas seguidas (os ids vão na URL da consulta); para redes maiores,
   uma RPC ou view.
-- As sugestões de conexão incluem contas da equipe (coordenação e moderação), que também são membras.
