@@ -189,6 +189,7 @@ export function PostCard({
           targetLabel={targetLabel}
           context={context}
           viewer={viewer}
+          viewerOwnsPost={post.isOwner}
         />
       </article>
     </ItemProvider>

@@ -21,6 +21,8 @@ export interface PostSocialProps {
   context: "lista" | "detalhe";
   /** Sem quem está vendo (ex.: prévia), "Comentar" leva à página da publicação. */
   viewer: FeedViewer | null;
+  /** A usuária é a autora da publicação (apaga comentários das outras no painel). */
+  viewerOwnsPost?: boolean;
 }
 
 const actionClass = cn(
@@ -37,6 +39,7 @@ export function PostSocial({
   targetLabel,
   context,
   viewer,
+  viewerOwnsPost = false,
 }: PostSocialProps) {
   const { commentsOpen, setCommentsOpen } = useItem();
   const baseId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -86,7 +89,13 @@ export function PostSocial({
         )}
       </div>
       {commentsOpen && viewer && context === "lista" && (
-        <CommentPanel id={panelId} postId={postId} commentCount={commentCount} viewer={viewer} />
+        <CommentPanel
+          id={panelId}
+          postId={postId}
+          commentCount={commentCount}
+          viewer={viewer}
+          viewerOwnsPost={viewerOwnsPost}
+        />
       )}
     </div>
   );

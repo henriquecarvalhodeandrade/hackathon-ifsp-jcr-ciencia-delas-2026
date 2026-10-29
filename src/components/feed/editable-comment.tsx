@@ -17,18 +17,34 @@ export interface EditableCommentProps {
   postId: string;
   /** Texto original (para o formulário de edição). */
   body: string;
-  /** Corpo já renderizado no servidor. */
+  /** Corpo já renderizado (no servidor ou no painel do cartão). */
   children: React.ReactNode;
+  /** Depois de salvar, com o texto novo (o painel do cartão atualiza a própria lista). */
+  onSaved?: (body: string) => void;
 }
 
 /**
  * Corpo de um comentário com edição no lugar (só a autora). A edição é aberta pelo item "Editar"
  * do menu "…" do comentário (estado compartilhado em <ItemProvider>).
  */
-export function EditableComment({ commentId, postId, body, children }: EditableCommentProps) {
+export function EditableComment({
+  commentId,
+  postId,
+  body,
+  children,
+  onSaved,
+}: EditableCommentProps) {
   const { editing, stopEditing } = useItem();
   if (!editing) return <>{children}</>;
-  return <CommentEditForm commentId={commentId} postId={postId} body={body} onDone={stopEditing} />;
+  return (
+    <CommentEditForm
+      commentId={commentId}
+      postId={postId}
+      body={body}
+      onDone={stopEditing}
+      onSaved={onSaved}
+    />
+  );
 }
 
 function CommentEditForm({
@@ -36,11 +52,13 @@ function CommentEditForm({
   postId,
   body,
   onDone,
+  onSaved,
 }: {
   commentId: string;
   postId: string;
   body: string;
   onDone: () => void;
+  onSaved?: (body: string) => void;
 }) {
   const [state, formAction] = useActionState<CommentEditState, FormData>(
     withConnectionFallback(updateCommentAction, (formData) => ({
@@ -55,9 +73,11 @@ function CommentEditForm({
 
   // Fecha só depois do commit que traz o resultado (já com a página revalidada).
   useEffect(() => {
-    if (state?.ok) onDone();
-    else formRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
-  }, [state, onDone]);
+    if (state?.ok) {
+      onSaved?.(state.body);
+      onDone();
+    } else formRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+  }, [state, onDone, onSaved]);
 
   const values = state && !state.ok ? state.values : { body };
   const errors = state && !state.ok ? state.fieldErrors : undefined;

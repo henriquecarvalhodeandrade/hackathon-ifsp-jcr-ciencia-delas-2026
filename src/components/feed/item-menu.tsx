@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Flag, Link2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { ReportButton } from "@/components/moderation/report-button";
 import { ActionMenu, type ActionMenuItem } from "@/components/network/action-menu";
-import { ConfirmDialog } from "@/components/ui";
+import { ConfirmDialog, toast } from "@/components/ui";
 import type { SimpleActionState } from "@/lib/feed/actions";
 import { cn } from "@/lib/utils";
 import {
@@ -36,6 +36,12 @@ function DialogSlot({ request, children }: { request: number; children: React.Re
   );
 }
 
+/** redirect() do Next chega como erro com digest "NEXT_REDIRECT;…". */
+function isRedirect(error: unknown): boolean {
+  const digest = (error as { digest?: unknown } | null)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 type DeleteAction = (prev: SimpleActionState, formData: FormData) => Promise<SimpleActionState>;
 
 export interface ItemMenuProps {
@@ -50,8 +56,14 @@ export interface ItemMenuProps {
     hiddenFields: Record<string, string>;
     title: string;
     description: string;
-    /** "post": foca a publicação vizinha · "comment": foca o título dos comentários. */
-    after: { kind: "post"; postId: string } | { kind: "comment"; commentId: string };
+    /**
+     * "post": foca a publicação vizinha · "comment": foca o título dos comentários (página da
+     * publicação) · "panel-comment": o painel do cartão tira o comentário e cuida do foco.
+     */
+    after:
+      | { kind: "post"; postId: string }
+      | { kind: "comment"; commentId: string }
+      | { kind: "panel-comment"; commentId: string; onRemoved: () => void };
   };
   report?: { targetType: "feed_post" | "feed_comment"; targetId: string };
   className?: string;
@@ -104,8 +116,16 @@ export function ItemMenu({ label, permalink, canEdit, remove, report, className 
     if (!remove) return null;
     const after = remove.after;
     const neighbor = after.kind === "post" ? neighborPostId(after.postId) : null;
-    const result = await remove.action(prev, formData);
+    let result: SimpleActionState;
+    try {
+      result = await remove.action(prev, formData);
+    } catch (error) {
+      // Apagar na página da publicação volta para o feed (redirect): o aviso vai junto.
+      if (isRedirect(error)) toast("Publicação apagada.");
+      throw error;
+    }
     if (result?.ok) {
+      toast(after.kind === "post" ? "Publicação apagada." : "Comentário apagado.");
       if (after.kind === "post") {
         // Páginas carregadas com "Carregar mais" não são revalidadas: elas tiram o cartão.
         notifyPostChanged({ postId: after.postId, deleted: true });
@@ -113,6 +133,8 @@ export function ItemMenu({ label, permalink, canEdit, remove, report, className 
           if (!(neighbor && focusPost(neighbor))) focusFeedTabs();
           announce("Publicação apagada.");
         });
+      } else if (after.kind === "panel-comment") {
+        after.onRemoved();
       } else {
         waitForElement(`comentario-${after.commentId}`, false, () => {
           focusById("comentarios-titulo");

@@ -9,7 +9,7 @@ import type {
   Settled,
 } from "@/lib/feed/queries";
 import { opportunityKindLabel } from "@/lib/opportunities/labels";
-import { FollowButton } from "@/components/network/follow-button";
+import { ConnectButton } from "@/components/network/connect-button";
 import { cn, formatCompactNumber, pluralize } from "@/lib/utils";
 
 const footerLinkClass =
@@ -279,13 +279,14 @@ export function SuggestionsCard({
                   </Link>
                   {subtitle && <p className="line-clamp-2 text-xs text-fg-muted">{subtitle}</p>}
                   {reason && <p className="text-xs text-fg-subtle">{reason}</p>}
-                  <FollowButton
+                  <ConnectButton
                     profileId={person.id}
-                    following={person.following}
+                    state="none"
                     personName={person.full_name}
                     size="sm"
+                    oneTap
                     revalidate={false}
-                    className="mt-1.5 w-fit pointer-coarse:h-11"
+                    className="mt-1.5 w-fit"
                   />
                 </div>
               </li>
@@ -347,13 +348,14 @@ export function PeopleStrip({
               </Link>
               {subtitle && <p className="line-clamp-2 text-xs text-fg-muted">{subtitle}</p>}
               {reason && <p className="text-xs text-fg-subtle">{reason}</p>}
-              <FollowButton
+              <ConnectButton
                 profileId={person.id}
-                following={person.following}
+                state="none"
                 personName={person.full_name}
                 size="sm"
+                oneTap
                 revalidate={false}
-                className="mt-1.5 pointer-coarse:h-11"
+                className="mt-1.5"
               />
             </li>
           );

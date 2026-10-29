@@ -340,7 +340,7 @@ export function Composer({ viewer, attachments, autoOpen = false }: ComposerProp
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <span className="hidden text-xs text-fg-subtle sm:inline pointer-coarse:hidden">
+                <span className="hidden text-xs text-fg-subtle pointer-fine:inline">
                   <Kbd>Ctrl</Kbd> + <Kbd>Enter</Kbd> publica
                 </span>
                 <SubmitButton

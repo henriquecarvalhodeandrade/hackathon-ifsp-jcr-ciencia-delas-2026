@@ -74,7 +74,7 @@ export type CommentFormState =
   | null;
 
 export type CommentEditState =
-  | { ok: true; message: string; nonce: string }
+  | { ok: true; message: string; nonce: string; body: string }
   | {
       ok: false;
       error: string;
@@ -358,7 +358,7 @@ export async function updateCommentAction(
   if (!data) return fail("Você não pode editar este comentário — ou ele não existe mais.");
 
   revalidateFeed();
-  return { ok: true, message: "Comentário atualizado.", nonce: nonce() };
+  return { ok: true, message: "Comentário atualizado.", nonce: nonce(), body: parsed.data.body };
 }
 
 /** Apaga um comentário: a autora dele ou a autora da publicação (o RLS confere). */

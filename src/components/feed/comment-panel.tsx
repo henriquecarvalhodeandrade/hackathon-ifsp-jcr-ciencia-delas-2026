@@ -4,13 +4,20 @@ import { useEffect, useId, useOptimistic, useRef, useState, useTransition } from
 import Link from "next/link";
 import { RotateCw, SendHorizontal } from "lucide-react";
 import { Avatar, Button, Spinner, Textarea, buttonVariants } from "@/components/ui";
-import { createCommentAction, loadRecentCommentsAction } from "@/lib/feed/actions";
+import {
+  createCommentAction,
+  deleteCommentAction,
+  loadRecentCommentsAction,
+} from "@/lib/feed/actions";
 import { FEED_LIMITS } from "@/lib/feed/schema";
 import type { FeedCommentView, FeedViewer } from "@/lib/feed/types";
 import { CONNECTION_ERROR_KEEP_TEXT } from "@/lib/forum/client-action";
 import { markdownToPlainText } from "@/lib/forum/text";
 import { cn, formatDateTime, formatRelativeTime, pluralize, toIsoString } from "@/lib/utils";
-import { announce } from "./dom";
+import { announce, waitForElement } from "./dom";
+import { EditableComment } from "./editable-comment";
+import { ItemProvider } from "./item-context";
+import { ItemMenu } from "./item-menu";
 
 type PanelComment = FeedCommentView & { pending?: boolean };
 
@@ -21,6 +28,8 @@ export interface CommentPanelProps {
   /** Total de comentários (vem do servidor; a página revalidada o atualiza). */
   commentCount: number;
   viewer: FeedViewer;
+  /** A usuária é a autora da publicação (apaga comentários das outras). */
+  viewerOwnsPost: boolean;
 }
 
 const LOAD_ERROR = "Não conseguimos carregar os comentários agora.";
@@ -30,7 +39,13 @@ const LOAD_ERROR = "Não conseguimos carregar os comentários agora.";
  * uma linha que cresce com o texto. O comentário novo aparece na hora (otimista); se o envio
  * falhar, ele sai da lista, o texto volta para o campo e o erro aparece logo abaixo.
  */
-export function CommentPanel({ id, postId, commentCount, viewer }: CommentPanelProps) {
+export function CommentPanel({
+  id,
+  postId,
+  commentCount,
+  viewer,
+  viewerOwnsPost,
+}: CommentPanelProps) {
   const fieldId = useId();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [comments, setComments] = useState<PanelComment[]>([]);
@@ -98,6 +113,10 @@ export function CommentPanel({ id, postId, commentCount, viewer }: CommentPanelP
     };
     setError(null);
     setDraft("");
+    // O foco fica no campo (como na conversa): no celular, o teclado continua aberto e a barra
+    // inferior não volta a cobrir o campo e o botão.
+    fieldRef.current?.focus();
+    requestAnimationFrame(() => fieldRef.current?.scrollIntoView({ block: "nearest" }));
     startTransition(async () => {
       addOptimistic(temp);
       const result = await createCommentAction(null, formData).catch(() => null);
@@ -132,7 +151,6 @@ export function CommentPanel({ id, postId, commentCount, viewer }: CommentPanelP
 
   const shown = optimistic.length;
   const hiddenCount = Math.max(0, commentCount - Math.min(shown, commentCount));
-  const hintId = `${fieldId}-dica`;
   const errorId = `${fieldId}-erro`;
   const empty = !draft.trim();
 
@@ -173,7 +191,25 @@ export function CommentPanel({ id, postId, commentCount, viewer }: CommentPanelP
       {optimistic.length > 0 && (
         <ol aria-label="Comentários recentes" className="grid gap-3">
           {optimistic.map((comment) => (
-            <PanelCommentItem key={comment.id} comment={comment} />
+            <PanelCommentItem
+              key={comment.id}
+              comment={comment}
+              postId={postId}
+              viewerOwnsPost={viewerOwnsPost}
+              onEdited={(commentId, body) =>
+                setComments((list) =>
+                  list.map((c) => (c.id === commentId ? { ...c, body, edited: true } : c)),
+                )
+              }
+              onRemoved={(commentId) => {
+                setComments((list) => list.filter((c) => c.id !== commentId));
+                announce("Comentário apagado.");
+                // O foco vai para o campo depois que o diálogo de confirmação fecha.
+                waitForElement(`painel-comentario-${commentId}`, false, () =>
+                  fieldRef.current?.focus(),
+                );
+              }}
+            />
           ))}
         </ol>
       )}
@@ -216,14 +252,12 @@ export function CommentPanel({ id, postId, commentCount, viewer }: CommentPanelP
             maxLength={FEED_LIMITS.commentMax}
             placeholder="Escreva um comentário…"
             aria-invalid={error ? true : undefined}
-            aria-describedby={[error ? errorId : null, hintId].filter(Boolean).join(" ")}
+            aria-describedby={error ? errorId : undefined}
             className="text-[0.9375rem]"
           />
-          <p id={hintId} className="text-xs text-fg-subtle">
-            <span className="pointer-coarse:hidden">
-              Enter envia · Shift + Enter quebra a linha
-            </span>
-            <span className="hidden pointer-coarse:inline">Ctrl + Enter também envia</span>
+          {/* Dica de teclado só com mouse/trackpad (no celular não há Shift nem Ctrl). */}
+          <p className="hidden text-xs text-fg-subtle pointer-fine:block">
+            Enter envia · Shift + Enter quebra a linha
           </p>
           <p
             id={errorId}
@@ -250,48 +284,109 @@ export function CommentPanel({ id, postId, commentCount, viewer }: CommentPanelP
   );
 }
 
-function PanelCommentItem({ comment }: { comment: PanelComment }) {
+function deleteDescription(comment: PanelComment, name: string, viewerOwnsPost: boolean) {
+  if (comment.isOwner) return "Ele some da conversa para todas. Essa ação não pode ser desfeita.";
+  if (viewerOwnsPost)
+    return `O comentário de ${name} some da sua publicação. Essa ação não pode ser desfeita.`;
+  return "Você está apagando como moderação (fica no Registro). Essa ação não pode ser desfeita.";
+}
+
+/**
+ * Um comentário do painel, com o mesmo menu "…" da página da publicação: a autora edita e apaga,
+ * a autora da publicação apaga, as demais denunciam. A lista do painel se atualiza no lugar.
+ */
+function PanelCommentItem({
+  comment,
+  postId,
+  viewerOwnsPost,
+  onEdited,
+  onRemoved,
+}: {
+  comment: PanelComment;
+  postId: string;
+  viewerOwnsPost: boolean;
+  onEdited: (commentId: string, body: string) => void;
+  onRemoved: (commentId: string) => void;
+}) {
   const name = comment.author?.full_name || "Pesquisadora";
   return (
     <li
       id={comment.pending ? undefined : `painel-comentario-${comment.id}`}
       className={cn("flex items-start gap-2.5", comment.pending && "opacity-70")}
     >
-      <Avatar
-        name={name}
-        src={comment.author?.avatar_url}
-        seed={comment.author?.id ?? comment.id}
-        size="sm"
-      />
-      <div className="grid min-w-0 flex-1 gap-0.5 rounded-control bg-surface-2 px-3 py-2">
-        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-          {comment.author ? (
-            <Link
-              href={`/pesquisadoras/${comment.author.id}`}
-              className="font-semibold text-fg underline-offset-4 hover:text-primary hover:underline"
-            >
-              {name}
-            </Link>
-          ) : (
-            <span className="font-semibold text-fg-muted">{name}</span>
-          )}
-          <span className="text-xs text-fg-subtle">
-            {comment.pending ? (
-              "Enviando…"
-            ) : (
-              <time
-                dateTime={toIsoString(comment.createdAt)}
-                title={formatDateTime(comment.createdAt)}
-              >
-                {formatRelativeTime(comment.createdAt)}
-              </time>
+      <ItemProvider>
+        <Avatar
+          name={name}
+          src={comment.author?.avatar_url}
+          seed={comment.author?.id ?? comment.id}
+          size="sm"
+        />
+        <div className="grid min-w-0 flex-1 gap-0.5 rounded-control bg-surface-2 px-3 py-2">
+          <div className="flex items-start justify-between gap-2">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
+              {comment.author ? (
+                <Link
+                  href={`/pesquisadoras/${comment.author.id}`}
+                  className="font-semibold text-fg underline-offset-4 hover:text-primary hover:underline"
+                >
+                  {name}
+                </Link>
+              ) : (
+                <span className="font-semibold text-fg-muted">{name}</span>
+              )}
+              <span className="text-xs text-fg-subtle">
+                {comment.pending ? (
+                  "Enviando…"
+                ) : (
+                  <time
+                    dateTime={toIsoString(comment.createdAt)}
+                    title={formatDateTime(comment.createdAt)}
+                  >
+                    {formatRelativeTime(comment.createdAt)}
+                  </time>
+                )}
+                {comment.edited && " · editado"}
+              </span>
+            </p>
+            {!comment.pending && (
+              <ItemMenu
+                label={`Mais ações: comentário de ${name}`}
+                permalink={`/feed/p/${postId}#comentario-${comment.id}`}
+                canEdit={comment.isOwner}
+                remove={
+                  comment.canDelete
+                    ? {
+                        action: deleteCommentAction,
+                        hiddenFields: { commentId: comment.id, postId },
+                        title: "Apagar este comentário?",
+                        description: deleteDescription(comment, name, viewerOwnsPost),
+                        after: {
+                          kind: "panel-comment",
+                          commentId: comment.id,
+                          onRemoved: () => onRemoved(comment.id),
+                        },
+                      }
+                    : undefined
+                }
+                report={
+                  comment.isOwner ? undefined : { targetType: "feed_comment", targetId: comment.id }
+                }
+                className="-mt-1.5 -mr-2"
+              />
             )}
-          </span>
-        </p>
-        <p className="line-clamp-4 text-[0.9375rem] leading-relaxed break-words whitespace-pre-line text-fg">
-          {markdownToPlainText(comment.body) || comment.body}
-        </p>
-      </div>
+          </div>
+          <EditableComment
+            commentId={comment.id}
+            postId={postId}
+            body={comment.body}
+            onSaved={(body) => onEdited(comment.id, body)}
+          >
+            <p className="line-clamp-4 text-[0.9375rem] leading-relaxed break-words whitespace-pre-line text-fg">
+              {markdownToPlainText(comment.body) || comment.body}
+            </p>
+          </EditableComment>
+        </div>
+      </ItemProvider>
     </li>
   );
 }

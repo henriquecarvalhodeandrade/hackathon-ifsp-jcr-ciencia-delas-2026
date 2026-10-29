@@ -64,13 +64,18 @@ export function focusFeedTabs(): boolean {
 
 /**
  * Espera um elemento aparecer (`present`) ou sumir (`!present`) do DOM — a página revalidada
- * chega logo depois da resposta da action. Desiste em ~2 s e chama `done` mesmo assim.
+ * chega logo depois da resposta da action — e o diálogo de confirmação fechar (ao fechar, ele
+ * devolve o foco a quem o abriu; só depois disso movemos o foco). Desiste em ~2 s e chama `done`.
  */
 export function waitForElement(id: string, present: boolean, done: () => void) {
   let frames = 0;
   const tick = () => {
     const exists = document.getElementById(id) !== null;
-    if (exists === present || frames++ > 120) return done();
+    const dialogOpen = document.querySelector("dialog[open]") !== null;
+    if ((exists === present && !dialogOpen) || frames++ > 120) {
+      window.setTimeout(done, 0);
+      return;
+    }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);

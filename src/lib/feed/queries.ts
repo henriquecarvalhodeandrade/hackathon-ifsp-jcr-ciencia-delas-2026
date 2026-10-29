@@ -333,13 +333,12 @@ export type ConnectionSuggestion = {
   career_stage: string | null;
   mutualConnections: number;
   sharedAreas: number;
-  /** Eu já sigo esta pessoa (a sugestão é para conectar; seguir é de um lado só). */
-  following: boolean;
 };
 
 /**
- * Pessoas para conectar (RPC get_connection_suggestions, já sem quem tem convite comigo), com o
- * estado do "Seguir" de cada uma (uma ida a mais, só pelos ids sugeridos).
+ * Pessoas para conectar (RPC get_connection_suggestions, já sem quem tem convite ou conexão
+ * comigo). Tira também quem eu já sigo — o bloco convida a conectar com gente nova (uma ida a
+ * mais, só pelos ids sugeridos). Pede um pouco além do `limit` para compensar as retiradas.
  */
 export function listConnectionSuggestions(
   viewerId: string,
@@ -347,7 +346,9 @@ export function listConnectionSuggestions(
 ): Promise<Settled<ConnectionSuggestion[]>> {
   return settle(async () => {
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("get_connection_suggestions", { p_limit: limit });
+    const { data, error } = await supabase.rpc("get_connection_suggestions", {
+      p_limit: limit + 6,
+    });
     if (error) throw error;
     const rows = data ?? [];
     const followed = new Set<string>();
@@ -363,16 +364,18 @@ export function listConnectionSuggestions(
       if (followsError) throw followsError;
       for (const row of follows ?? []) followed.add(row.followee_id);
     }
-    return rows.map((row) => ({
-      id: row.id,
-      full_name: row.full_name,
-      avatar_url: row.avatar_url,
-      headline: row.headline,
-      institution: row.institution,
-      career_stage: row.career_stage,
-      mutualConnections: row.mutual_connections,
-      sharedAreas: row.shared_areas,
-      following: followed.has(row.id),
-    }));
+    return rows
+      .filter((row) => !followed.has(row.id))
+      .slice(0, limit)
+      .map((row) => ({
+        id: row.id,
+        full_name: row.full_name,
+        avatar_url: row.avatar_url,
+        headline: row.headline,
+        institution: row.institution,
+        career_stage: row.career_stage,
+        mutualConnections: row.mutual_connections,
+        sharedAreas: row.shared_areas,
+      }));
   });
 }
