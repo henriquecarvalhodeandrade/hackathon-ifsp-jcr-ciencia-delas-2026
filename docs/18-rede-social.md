@@ -150,7 +150,8 @@ direct_messages (id, conversation_id, sender_id default auth.uid(), body 1–200
   aprovada entre si; senão `request`. 20 conversas novas por dia (`CD089`).
 - **Pedido de mensagem:** enquanto a conversa é `request`, quem começou manda **uma** mensagem e
   espera (`CD086`). Quem recebeu aceita respondendo (ou pelo botão Aceitar) ou recusa; recusada,
-  quem começou não manda mais nada (`CD087`). `respond_conversation_request(p_conversation_id uuid,
+  quem começou não manda mais nada e continua vendo "aguardando" (o mesmo `CD086`: a recusa nunca é
+  revelada). `respond_conversation_request(p_conversation_id uuid,
   p_accept boolean)`.
 - **Proteção de estudantes do ensino médio** (podem ter menos de 18 anos): quem tem
   `career_stage = 'high_school'` só recebe mensagem de conexões (`CD084` para as demais).
@@ -189,7 +190,6 @@ direct_messages (id, conversation_id, sender_id default auth.uid(), body 1–200
 | CD084  | Estudante do ensino médio só recebe mensagens de conexões               |
 | CD085  | Conversa não encontrada                                                 |
 | CD086  | Pedido de mensagem: espere a resposta para mandar outra                 |
-| CD087  | Conversa recusada                                                       |
 | CD088  | Muitas mensagens na última hora (60/h)                                  |
 | CD089  | Muitas conversas novas no dia (20/dia)                                  |
 
