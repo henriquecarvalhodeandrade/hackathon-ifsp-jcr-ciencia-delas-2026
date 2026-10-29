@@ -250,11 +250,11 @@ qualquer branch) e também sob demanda (_Actions → CI → Run workflow_; o bot
 chega ao branch padrão, `main`). Um push novo no mesmo branch (ou PR) cancela a execução anterior. O selo no topo
 do README mostra o resultado da última execução no branch padrão (`main`), não a do seu branch.
 
-| Job               | O que roda (na ordem)                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22)                                                                                                                                                                                                                                                                                                       |
-| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations, `seed.sql` e `supabase/seeds/*.sql`) → `supabase test db`                                                                                                                                                                                                                                                                                                                           |
-| **Jornada E2E**   | Só depois do App passar: `npm ci` → CLI do Supabase 2.122.0 → `supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor` → `.env.local` gerado de `supabase status -o env` → `npx next build` → `DEMO_MODE=true npx next start -p 3000` → `npx playwright install --with-deps chromium` → `BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs` → os roteiros `painel-demo.mjs` (com `DEMO=1`), `reconhecimento.mjs`, `pergunte.mjs` e `trajetoria.mjs` |
+| Job               | O que roda (na ordem)                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App**           | `npm ci` → `npx prettier --check .` → `npx eslint --max-warnings 0` → `npx tsc --noEmit` → `npx vitest run` → `node --test scripts/deploy/*.test.mjs` → `npx next build` (Node 22)                                                                                                                                                                                                                                                                                              |
+| **Banco (pgTAP)** | CLI do Supabase 2.122.0 (`supabase/setup-cli`) → `supabase db start` (só o Postgres, com migrations, `seed.sql` e `supabase/seeds/*.sql`) → `supabase test db`                                                                                                                                                                                                                                                                                                                  |
+| **Jornada E2E**   | Só depois do App passar: `npm ci` → CLI do Supabase 2.122.0 → `supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor` → `.env.local` gerado de `supabase status -o env` → `npx next build` → `DEMO_MODE=true npx next start -p 3000` → `npx playwright install --with-deps chromium` → `BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs` → os roteiros `painel-demo.mjs` (com `DEMO=1`), `reconhecimento.mjs`, `pergunte.mjs` e `trajetoria.mjs` |
 
 - O build do job App roda **sem nenhuma variável do app** de propósito: garante que a Artemis compila sem
   Supabase, IA ou e-mail configurados (as páginas mostram o aviso de configuração). Nenhum segredo é necessário no
@@ -272,9 +272,10 @@ cadastro com confirmação por e-mail, onboarding, mentoria e a conversa da ment
 telas claro/escuro × 1440/390 px) num build de produção, contra um Supabase local completo no runner. Tem limite
 de 30 minutos.
 
-- **Stack:** `supabase start` sem Studio, imgproxy, Edge Functions, Logflare, Vector, Realtime e Supavisor (o app
-  não usa nenhum deles): ficam Postgres (migrations + `seed.sql` + `supabase/seeds/*.sql`), Auth, API, Storage e
-  Mailpit. A CLI baixa as imagens do registro padrão.
+- **Stack:** `supabase start` sem Studio, imgproxy, Edge Functions, Logflare, Vector e Supavisor (o app não usa
+  nenhum deles): ficam Postgres (migrations + `seed.sql` + `supabase/seeds/*.sql`), Auth, API, Storage, Realtime
+  (selos do cabeçalho e mensagens diretas ao vivo, [18](18-rede-social.md)) e Mailpit. A CLI baixa as imagens do
+  registro padrão.
 - **Modo demonstração:** o `next start` do job roda com `DEMO_MODE=true`, para o `painel-demo.mjs` testar o
   `/demo`. Os outros roteiros usam contas separadas (reconhecimento: gabriela@ e aline@; Pergunte: visitante,
   moderacao@ e marina@; trajetória: larissa@, cujas marcas são restauradas no fim) e apagam ou restauram o que
@@ -308,7 +309,7 @@ de 30 minutos.
   enviado de verdade):
 
   ```bash
-  npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor
+  npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
   npx playwright install chromium   # uma vez por versão do Playwright
   MAILPIT_URL=http://127.0.0.1:54324 npx next build
   DEMO_MODE=true MAILPIT_URL=http://127.0.0.1:54324 npx next start -p 3000   # deixe rodando; o resto em outro terminal

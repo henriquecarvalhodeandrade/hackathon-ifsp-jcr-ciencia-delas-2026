@@ -105,9 +105,11 @@ jobs:
         run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 65535"
 
       # Stack local completa para o app (Postgres com migrations e os seeds do config.toml — seed.sql e
-      # supabase/seeds/*.sql —, Auth, API, Storage e Mailpit), sem o que a jornada não usa.
+      # supabase/seeds/*.sql —, Auth, API, Storage, Realtime e Mailpit), sem o que a jornada não usa.
+      # Realtime fica: o cabeçalho das membras e as mensagens diretas abrem o WebSocket em toda página
+      # (sem ele, o navegador registra "WebSocket … 503" no console e a jornada acusa).
       - name: Subir o Supabase local
-        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
 
       # As chaves são as da stack local recém-criada (não há segredo do GitHub envolvido). O site_url do
       # Auth local é http://localhost:3000 (supabase/config.toml), por isso o app roda na porta 3000.
