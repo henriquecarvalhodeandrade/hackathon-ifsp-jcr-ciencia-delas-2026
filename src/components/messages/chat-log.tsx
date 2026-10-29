@@ -1,10 +1,19 @@
 import { Check, CheckCheck, CircleAlert, Clock3, MessageSquareHeart } from "lucide-react";
 import { groupRuns, type DirectMessage, type PendingMessage } from "@/lib/messages/conversation";
 import { groupByDay } from "@/lib/mentorship/conversation";
-import { cn, formatDate, formatNumber, formatRelativeTime, toIsoString } from "@/lib/utils";
+import { cn, formatDate, formatNumber, toIsoString } from "@/lib/utils";
 
 function fullDate(date: string): string {
   return formatDate(date, { dateStyle: "long", timeStyle: "short" });
+}
+
+/**
+ * "14:32" (fuso de São Paulo). Embaixo de um separador de dia ("Ontem", "terça-feira, 27 de
+ * outubro"), o horário relativo contradizia o dia ("ontem" sob terça, "há 4 horas" sob Ontem):
+ * o dia vem do separador, a hora vem da mensagem.
+ */
+function clockTime(date: string): string {
+  return formatDate(date, { hour: "2-digit", minute: "2-digit" });
 }
 
 export interface FailedMessage extends PendingMessage {
@@ -21,8 +30,8 @@ const bubble =
 
 /**
  * Conteúdo da conversa: mensagens por dia (fuso de São Paulo) e, dentro do dia, em blocos de
- * mensagens seguidas da mesma pessoa — horário e recibo ("Enviada"/"Lida", com ícone e texto,
- * nunca só cor) uma vez por bloco. No fim: as provisórias ("Enviando…"), as que falharam ("Não
+ * mensagens seguidas da mesma pessoa — hora ("14:32"; o dia vem do separador, a data completa
+ * fica no `title`) e recibo ("Enviada"/"Lida", com ícone e texto, nunca só cor) uma vez por bloco. No fim: as provisórias ("Enviando…"), as que falharam ("Não
  * enviada · Tentar de novo", com o texto guardado) e as linhas de sistema (pedido aceito, pedido
  * aguardando resposta…).
  */
@@ -97,7 +106,6 @@ export function ChatLog({
                   last={index === run.items.length - 1}
                   otherName={otherName}
                   readReceipts={readReceipts}
-                  now={now}
                 />
               ))}
             </ol>
@@ -174,14 +182,12 @@ function MessageBubble({
   last,
   otherName,
   readReceipts,
-  now,
 }: {
   message: DirectMessage;
   /** Última do bloco: leva o horário e o recibo. */
   last: boolean;
   otherName: string;
   readReceipts: boolean;
-  now: Date;
 }) {
   const { mine } = message;
   const read = readReceipts && message.read_at !== null;
@@ -207,7 +213,7 @@ function MessageBubble({
       {last && (
         <p className="flex flex-wrap items-center gap-x-1.5 px-1 text-xs text-fg-muted">
           <time dateTime={toIsoString(message.created_at)} title={fullDate(message.created_at)}>
-            {formatRelativeTime(message.created_at, now)}
+            {clockTime(message.created_at)}
           </time>
           {mine && (
             <>

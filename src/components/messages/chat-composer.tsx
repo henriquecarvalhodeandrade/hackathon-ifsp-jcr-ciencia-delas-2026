@@ -167,10 +167,22 @@ export function ChatComposer({
       </div>
 
       <div className="flex items-center justify-between gap-3 text-xs text-fg-muted">
+        {/* A dica segue o aparelho: com mouse/trackpad Enter envia; no toque, Enter quebra a linha.
+            O trecho do outro aparelho fica `display: none` (fora também do leitor de tela). */}
         <p id={hintId} className="sr-only lg:not-sr-only">
-          {canSend
-            ? "Enter envia · Shift + Enter quebra a linha · As mensagens ficam só entre vocês duas."
-            : (waitingText ?? "")}
+          {canSend ? (
+            <>
+              <span className="hidden pointer-fine:inline">
+                Enter envia · Shift + Enter quebra a linha ·{" "}
+              </span>
+              <span className="hidden pointer-coarse:inline">
+                Toque em “{sendLabel}” para mandar; Enter quebra a linha ·{" "}
+              </span>
+              As mensagens ficam só entre vocês duas.
+            </>
+          ) : (
+            (waitingText ?? "")
+          )}
         </p>
         {showCount && (
           <p id={countId} className="ml-auto tabular">
