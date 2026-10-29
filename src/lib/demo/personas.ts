@@ -35,9 +35,9 @@ const PERSONAS: readonly DemoPersona[] = Object.freeze([
     firstName: "Larissa",
     description: "Graduanda em IC que procura mentora",
     highlights: Object.freeze([
+      "Feed, rede e mensagens: curta, comente, siga e converse",
       "Mentoria com a Marina já aceita, com conversa pela plataforma",
-      "Candidatura aprovada numa IC, convite de conexão e mensagens novas",
-      "Próximos passos de quem está começando",
+      "Candidatura aprovada numa IC e os próximos passos de quem está começando",
     ]),
     start: "/painel",
   }),

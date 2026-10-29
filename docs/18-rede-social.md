@@ -217,8 +217,16 @@ com registro no Registro de moderação. Conversas diretas são privadas: denunc
   (`count_unread_conversations`); Meu portfólio e Mensagens no menu da conta.
 - **Perfil (`/pesquisadoras/[id]`):** `ProfileNetwork` (números, Conectar, Seguir) com o
   `MessageButton`, `PortfolioSection` e "No feed" (`RecentPosts`).
-- **Painel:** bloco "Na sua rede" (`src/components/painel/network-card.tsx`) com conversas novas,
-  convites para responder e candidaturas novas nas vagas dela, e o atalho para o feed.
+- **Painel:** "O que está esperando você" traz os itens da rede pelo nome ("Juliana Ribeiro quer se
+  conectar", "Renata Carvalho quer conversar", "Yasmin Oliveira se candidatou…"; leitor em
+  `src/lib/painel/network.ts`, fora das 6 leituras do painel) e o cartão "Da sua rede"
+  (`src/components/painel/network-posts-card.tsx`) mostra as 2 publicações mais recentes de quem ela
+  segue, com curtir, comentar e "Compartilhar novidade" ([14 §2.6](14-painel-e-modo-demo.md)).
+- **Celular:** barra de abas fixa embaixo (Início, Feed, Rede, ICs, Mensagens com contador;
+  `src/components/layout/mobile-tab-bar.tsx`), escondida dentro das conversas e com o teclado aberto;
+  a gaveta continua com tudo, "Sua conta" primeiro.
+- **Avisos:** `toast()` de `src/components/ui/toast.tsx` (um `<Toaster />` no layout raiz) confirma as
+  ações (convite enviado, vaga publicada, item destacado…), sem `?aviso=` na URL.
 - **Ao vivo:** a conversa e a caixa de entrada assinam o Realtime do Supabase e chamam
   `router.refresh()`; a atualização periódica fica como rede de segurança (5 s sem Realtime, 20 s
   com ele; 30 s na caixa de entrada). As assinaturas não usam filtro no servidor: o canal abre antes

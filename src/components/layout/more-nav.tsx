@@ -8,8 +8,20 @@ import type { NavItem } from "./nav-items";
 import { isActivePath } from "./nav-link";
 
 /**
+ * Páginas que marcam o "Mais". Perfis (/pesquisadoras/<id>) ficam de fora: a gente chega neles
+ * pelo feed, pela rede, pelas ICs… e marcar "Mais" ali dava a impressão de estar em outra área.
+ */
+export function isMoreNavActive(pathname: string | null, items: readonly NavItem[]): boolean {
+  return items.some((item) =>
+    item.href === "/pesquisadoras"
+      ? pathname === item.href
+      : isActivePath(pathname, item.href) !== false,
+  );
+}
+
+/**
  * "Mais" da navegação desktop: as áreas que não cabem na barra. Fica marcado (o "nó" da
- * constelação embaixo) quando a página atual é uma delas.
+ * constelação embaixo) quando a página atual é uma delas (ver isMoreNavActive).
  */
 export function MoreNav({
   items,
@@ -21,7 +33,7 @@ export function MoreNav({
   activeClassName: string;
 }) {
   const pathname = usePathname();
-  const active = items.some((item) => isActivePath(pathname, item.href));
+  const active = isMoreNavActive(pathname, items);
   return (
     <DropdownMenu
       triggerLabel="Mais"

@@ -93,7 +93,13 @@ function StepItem({
             step.title
           )}
         </h3>
-        <p className={cn("text-sm", state === "done" ? "text-fg-subtle" : "text-fg-muted")}>
+        {/* No celular, passos feitos ficam só com o título: a lista encurta e o que falta sobe. */}
+        <p
+          className={cn(
+            "text-sm",
+            state === "done" ? "text-fg-subtle max-sm:hidden" : "text-fg-muted",
+          )}
+        >
           {step.description}
         </p>
         {current && step.href && (

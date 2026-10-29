@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bell, MessageCircle } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn, formatNumber } from "@/lib/utils";
 import { MobileNav } from "./mobile-nav";
 import { MoreNav } from "./more-nav";
@@ -45,6 +46,16 @@ const desktopActive = "text-fg after:bg-primary";
 /** Ícone do cabeçalho com selo de não lidas (notificações, mensagens). */
 const headerIcon =
   "relative inline-flex size-10 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg [&_svg]:size-5";
+/** Na própria página (Mensagens, Notificações), o ícone fica preenchido de violeta. */
+const headerIconActive =
+  "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft hover:text-primary-soft-fg";
+
+/**
+ * Dica dos ícones (projetor/desktop). No celular não aparece (o toque "gruda" o hover); e depois de
+ * um clique de mouse também não fica pendurada — só com o ponteiro em cima ou com foco de teclado.
+ */
+const iconTooltip =
+  "max-lg:[&>[role=tooltip]]:hidden! [&:not(:hover):not(:has(:focus-visible))>[role=tooltip]]:hidden!";
 
 function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -108,24 +119,43 @@ export function SiteHeaderView({
 
           {account ? (
             <>
-              <Link href="/mensagens" className={headerIcon}>
-                <MessageCircle aria-hidden="true" />
-                <span className="sr-only">
-                  Mensagens
-                  {account.unreadMessages > 0
-                    ? ` (${formatNumber(account.unreadMessages)} ${account.unreadMessages === 1 ? "conversa nova" : "conversas novas"})`
-                    : ""}
-                </span>
-                <UnreadBadge count={account.unreadMessages} />
-              </Link>
-              <Link href="/notificacoes" className={headerIcon}>
-                <Bell aria-hidden="true" />
-                <span className="sr-only">
-                  Notificações
-                  {account.unread > 0 ? ` (${formatNumber(account.unread)} não lidas)` : ""}
-                </span>
-                <UnreadBadge count={account.unread} />
-              </Link>
+              {/* Separa o tema dos ícones que têm contador (no projetor pareciam a mesma coisa). */}
+              <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-border sm:block" />
+              {/* No celular, Mensagens fica na barra de abas de baixo (MemberTabBar). */}
+              <Tooltip
+                content="Mensagens"
+                side="bottom"
+                className={cn("hidden lg:inline-flex", iconTooltip)}
+              >
+                <NavLink
+                  href="/mensagens"
+                  className={headerIcon}
+                  activeClassName={headerIconActive}
+                >
+                  <MessageCircle aria-hidden="true" />
+                  <span className="sr-only">
+                    Mensagens
+                    {account.unreadMessages > 0
+                      ? ` (${formatNumber(account.unreadMessages)} ${account.unreadMessages === 1 ? "conversa nova" : "conversas novas"})`
+                      : ""}
+                  </span>
+                  <UnreadBadge count={account.unreadMessages} />
+                </NavLink>
+              </Tooltip>
+              <Tooltip content="Notificações" side="bottom" className={iconTooltip}>
+                <NavLink
+                  href="/notificacoes"
+                  className={headerIcon}
+                  activeClassName={headerIconActive}
+                >
+                  <Bell aria-hidden="true" />
+                  <span className="sr-only">
+                    Notificações
+                    {account.unread > 0 ? ` (${formatNumber(account.unread)} não lidas)` : ""}
+                  </span>
+                  <UnreadBadge count={account.unread} />
+                </NavLink>
+              </Tooltip>
               <div className="hidden lg:block">
                 <UserMenu
                   name={account.name}

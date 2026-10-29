@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BellOff, MessagesSquare } from "lucide-react";
+import { BellOff, Newspaper } from "lucide-react";
 import { NotificationBulkActions } from "@/components/notifications/notification-actions";
 import { NotificationList } from "@/components/notifications/notification-list";
 import { Alert, ButtonLink, Container, EmptyState, PageHeader, TabNav } from "@/components/ui";
@@ -26,7 +26,7 @@ export default async function NotificationsPage({
       <PageHeader
         eyebrow="Sua conta"
         title="Notificações"
-        description="Respostas nos seus tópicos, pedidos de mentoria, comentários nos seus papers e o resultado das denúncias que você fez."
+        description="Curtidas e comentários nas suas publicações, convites e conexões, mensagens, candidaturas, respostas no fórum e mentoria."
         actions={
           page.error || page.total === 0 ? undefined : (
             <NotificationBulkActions unread={page.unread} read={page.read} />
@@ -73,11 +73,11 @@ export default async function NotificationsPage({
           <EmptyState
             icon={<BellOff />}
             title="Nenhuma notificação ainda"
-            description="Quando alguém responder a um tópico seu, pedir sua mentoria ou comentar um paper que você divulgou — ou quando a moderação concluir uma denúncia sua —, o aviso aparece aqui."
+            description="Quando alguém curtir ou comentar uma publicação sua, te convidar para se conectar, mandar uma mensagem, responder a uma candidatura, a um tópico do fórum ou a um pedido de mentoria, o aviso aparece aqui."
             action={
-              <ButtonLink href="/forum">
-                <MessagesSquare aria-hidden="true" />
-                Ir para o fórum
+              <ButtonLink href="/feed">
+                <Newspaper aria-hidden="true" />
+                Ir para o feed
               </ButtonLink>
             }
           />

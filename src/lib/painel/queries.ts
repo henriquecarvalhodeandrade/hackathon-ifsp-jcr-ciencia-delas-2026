@@ -1,5 +1,6 @@
 import "server-only";
 import type { Profile } from "@/lib/auth";
+import type { Enums } from "@/lib/database.types";
 import { hasConversation } from "@/lib/mentorship/conversation";
 import { createClient } from "@/lib/supabase/server";
 import type { NextStepsInput } from "./next-steps";
@@ -17,7 +18,8 @@ import {
  *
  *   1. o próprio perfil com as relações embutidas (áreas, sugestões, mensagens enviadas,
  *      apresentação no fórum, respostas recentes, autoria anônima própria, papers, votos e
- *      notificações não lidas) — tudo o que os "próximos passos" precisam;
+ *      notificações não lidas — menos as da rede que o painel já mostra com nome) — tudo o que
+ *      os "próximos passos" precisam;
  *   2. os pedidos de mentoria dela, com o nome da outra pessoa e as mensagens não lidas;
  *   3. tópicos recentes sem resposta (candidatos a "Perguntas esperando por você");
  *   4. papers enviados nos últimos 7 dias;
@@ -29,6 +31,9 @@ import {
  *
  * Cada bloco falha sozinho: um erro vira `failed` no bloco (a página mostra um aviso calmo) e os
  * demais continuam. Nada aqui lança exceção.
+ *
+ * As pendências da rede social (mensagens diretas, convites, candidaturas) e "Da sua rede" têm
+ * leitores próprios (network.ts, NetworkPostsCard), chamados em paralelo pela página.
  */
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -37,6 +42,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_REPLY_DAYS = 30;
 const NEW_PAPER_DAYS = 7;
 const NEW_MEMBER_DAYS = 14;
+
+/**
+ * Tipos de aviso que o painel já mostra com nome (pendências da rede social, network.ts) e por
+ * isso ficam fora de "N notificações não lidas".
+ */
+export const NAMED_ELSEWHERE_TYPES = [
+  "direct_message",
+  "connection_request",
+  "opportunity_application",
+] as const satisfies readonly Enums<"notification_type">[];
 
 /** Limites de cada lista (o banco nunca devolve mais do que isso). */
 export const PAINEL_LIMITS = {
@@ -205,6 +220,9 @@ async function loadSelf(
     .gte("anon.created_at", since)
     .limit(PAINEL_LIMITS.ownAnonymous, { referencedTable: "anon" })
     .is("unread.read_at", null)
+    // Mensagens diretas, convites e candidaturas aparecem com nome em "O que está esperando você"
+    // (src/lib/painel/network.ts): fora da contagem de avisos, para não contar duas vezes.
+    .not("unread.type", "in", `(${NAMED_ELSEWHERE_TYPES.join(",")})`)
     .maybeSingle();
 
   if (error || !data) {

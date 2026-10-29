@@ -1,7 +1,10 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import {
   Bell,
   FolderOpen,
-  LayoutDashboard,
+  House,
   LogOut,
   MessageCircle,
   ShieldCheck,
@@ -9,7 +12,11 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { DropdownMenu, type DropdownItem } from "@/components/ui/dropdown-menu";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
+import { isActivePath } from "./nav-link";
+
+/** Páginas "da conta": nelas o avatar ganha o anel de item ativo. */
+const ACCOUNT_PAGES = ["/painel", "/perfil", "/portfolio"] as const;
 
 export interface UserMenuProps {
   name: string;
@@ -24,7 +31,8 @@ export interface UserMenuProps {
 
 /**
  * Menu da conta (avatar → Meu painel, Meu perfil, Meu portfólio, Mensagens, Notificações,
- * Moderação, Sair).
+ * Moderação, Sair). Em Meu painel, Meu perfil e Meu portfólio o avatar fica com o anel violeta
+ * (a página atual é "da conta"), como o nó embaixo dos itens ativos da barra.
  */
 export function UserMenu({
   name,
@@ -35,8 +43,10 @@ export function UserMenu({
   unreadMessages,
   isModerator,
 }: UserMenuProps) {
+  const pathname = usePathname();
+  const onAccountPage = ACCOUNT_PAGES.some((href) => isActivePath(pathname, href) !== false);
   const items: DropdownItem[] = [
-    { href: "/painel", label: "Meu painel", icon: <LayoutDashboard aria-hidden="true" /> },
+    { href: "/painel", label: "Meu painel", icon: <House aria-hidden="true" /> },
     { href: "/perfil", label: "Meu perfil", icon: <UserRound aria-hidden="true" /> },
     { href: "/portfolio", label: "Meu portfólio", icon: <FolderOpen aria-hidden="true" /> },
     {
@@ -89,7 +99,10 @@ export function UserMenu({
     <DropdownMenu
       triggerLabel={`Menu da conta de ${name || "você"}`}
       trigger={<Avatar name={name} src={avatarUrl} seed={profileId} size="sm" />}
-      triggerClassName="ring-2 ring-transparent hover:ring-border-strong aria-expanded:ring-primary"
+      triggerClassName={cn(
+        "ring-2 ring-transparent hover:ring-border-strong aria-expanded:ring-primary",
+        onAccountPage && "ring-primary hover:ring-primary",
+      )}
       header={
         <div className="grid gap-0.5">
           <p className="truncate font-semibold text-fg">{name || "Pesquisadora"}</p>

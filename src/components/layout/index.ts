@@ -1,4 +1,11 @@
 export { MobileNav, type MobileNavProps } from "./mobile-nav";
+// MemberTabBar (async, só servidor) NÃO sai por aqui — importe de "@/components/layout/member-tab-bar".
+export {
+  MobileTabBar,
+  TAB_BAR_ITEMS,
+  isTabBarHidden,
+  type MobileTabBarProps,
+} from "./mobile-tab-bar";
 export { MEMBER_NAV, PUBLIC_NAV, type NavItem } from "./nav-items";
 export { NavLink, isActivePath, type NavLinkProps } from "./nav-link";
 export { SiteFooter } from "./site-footer";

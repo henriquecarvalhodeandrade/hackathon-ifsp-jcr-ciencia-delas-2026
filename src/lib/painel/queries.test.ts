@@ -233,6 +233,11 @@ describe("loadPainelData", () => {
       .sort();
     expect(referencedLimits).toEqual(["anon", "areas", "intro"]);
     expect(self.methods).toContainEqual(["eq", ["id", ME]]);
+    // Avisos da rede que o painel já lista com nome não entram em "N notificações não lidas".
+    expect(self.methods).toContainEqual([
+      "not",
+      ["unread.type", "in", "(direct_message,connection_request,opportunity_application)"],
+    ]);
 
     const threads = state.calls.find((c) => c.table === "forum_threads")!;
     expect(threads.methods).toContainEqual(["eq", ["reply_count", 0]]);

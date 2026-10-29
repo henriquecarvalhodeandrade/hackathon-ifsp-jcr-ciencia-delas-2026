@@ -6,11 +6,13 @@ import {
   Newsreader,
 } from "next/font/google";
 import { DemoBanner } from "@/components/demo/demo-banner";
+import { MemberTabBar } from "@/components/layout/member-tab-bar";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { SupabaseSetupNotice } from "@/components/layout/supabase-setup-notice";
 import { THEME_COLORS, THEME_SCRIPT } from "@/components/layout/theme";
+import { Toaster } from "@/components/ui/toast";
 import { SITE } from "@/lib/constants";
 import { getSiteUrl } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -101,7 +103,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      className={cn(display.variable, sans.variable, serif.variable, mono.variable)}
+      className={cn(
+        display.variable,
+        sans.variable,
+        serif.variable,
+        mono.variable,
+        // Com a barra de abas do celular, o foco/âncoras não param escondidos atrás dela.
+        "max-lg:has-[[data-tab-bar]]:scroll-pb-[calc(4.5rem+env(safe-area-inset-bottom))]",
+      )}
     >
       <head>
         {/* Aplica o tema salvo antes da primeira pintura (sem flash). */}
@@ -117,6 +126,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <SiteFooter />
+        {/* Barra de abas do celular (membras): Início, Feed, Rede, ICs, Mensagens. */}
+        <MemberTabBar />
+        {/* Avisos rápidos (toast) — um só, acima da barra de abas no celular. */}
+        <Toaster />
       </body>
     </html>
   );

@@ -33,7 +33,8 @@ hora — nenhum e-mail sai, nenhuma senha é digitada, nenhum segredo vai para o
 `/painel` e `/demo` têm `robots: noindex` (e estão no `robots.txt`). O `/painel` está em
 `PROTECTED_PREFIXES`: o proxy manda a visitante para `/entrar?next=%2Fpainel` com um 307 de verdade;
 `/demo` **não** é protegido — é a porta de entrada. Login sem destino (senha, link mágico, Google)
-cai no `/painel`; no celular, "Meu painel" é o primeiro item de "Sua conta" no menu.
+cai no `/painel`; no celular, o painel é a aba "Início" da barra de abas de baixo e "Meu painel" é o
+primeiro item de "Sua conta", que abre a gaveta do menu (§2.6).
 
 ## 2. Os blocos do `/painel`
 
@@ -42,24 +43,31 @@ A página (`src/app/painel/page.tsx`) chama `requireOnboardedProfile("/painel")`
 independente em `src/components/painel/` que recebe os próprios dados; se uma leitura falhar, só
 aquele bloco mostra "Não conseguimos carregar esta parte agora" e os outros continuam.
 
-Layout: duas colunas a partir de 1024 px (principal: passos + pendências; lateral: perguntas +
-novidades) e uma coluna no celular. Dois blocos de outras funcionalidades fazem a própria leitura e
-somem quando não há nada: depois de "O que está esperando você", `<RecognitionTodos />` ("Para
-fechar suas mentorias", [docs/15](15-reconhecimento-da-mentoria.md)); depois das perguntas,
-`<AwaitingQuestionsCard />` ("Estudantes perguntando", [docs/16](16-pergunte-a-uma-cientista.md)).
+Layout: duas colunas a partir de 1024 px (principal: pendências, "Da sua rede" e passos; lateral:
+perguntas + novidades) e uma coluna no celular. **Ordem da coluna principal:** quando há algo
+esperando por ela, "O que está esperando você" abre a página e "Da sua rede" vem logo depois — no
+celular, é o que aparece na primeira tela (antes, a parte social ficava abaixo de um cartão de passos
+de ~900 px); sem pendências, "Seus próximos passos" abre. No celular, os passos já feitos mostram só o
+título (a descrição volta do `sm` em diante). Blocos com leitura própria (fora das 6 idas):
+"Da sua rede" (`NetworkPostsCard`, §2.5) e dois de outras funcionalidades, que somem quando não há
+nada: depois dos passos, `<RecognitionTodos />` ("Para fechar suas mentorias",
+[docs/15](15-reconhecimento-da-mentoria.md)); depois das perguntas, `<AwaitingQuestionsCard />`
+("Estudantes perguntando", [docs/16](16-pergunte-a-uma-cientista.md)). As pendências da rede social
+(`loadNetworkWaiting`, `src/lib/painel/network.ts`: caixa de entrada, convites e candidaturas — 3 idas)
+são lidas em paralelo com o `loadPainelData` e entram em "O que está esperando você".
 
 ### 2.1 Leituras (6 idas ao Supabase, um único `Promise.all`)
 
 Todas com o cliente da **sessão** (o RLS decide o que ela vê) e com limite explícito.
 
-| #   | Leitura                                                    | Para quê                                                                                                                                                                                                | Limite                                                |
-| --- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 1   | `profiles` (ela) com relações embutidas                    | áreas, nº de sugestões, mensagens enviadas, apresentação com nome em `apresente-se`, respostas nos últimos 30 dias, a própria autoria anônima, papers enviados, destaques dados, notificações não lidas | 1 linha; áreas 20, apresentação 1, autoria anônima 50 |
-| 2   | `mentorship_requests` em que ela participa                 | nome da outra pessoa e mensagens não lidas por conversa (mesma regra de `loadUnreadCounts`, embutida para não custar outra ida)                                                                         | 100                                                   |
-| 3   | `forum_threads` sem resposta, abertos, dos últimos 30 dias | candidatos a "Perguntas esperando por você" (`author_id` nulo **ou** diferente do dela)                                                                                                                 | 40                                                    |
-| 4   | `papers` visíveis dos últimos 7 dias                       | Novidades: papers nas áreas dela (ou os mais destacados da semana)                                                                                                                                      | 30 (mostra 3)                                         |
-| 5   | `profiles` que terminaram o cadastro nos últimos 14 dias   | Novidades: "Chegaram à rede" (quem divide área com ela primeiro)                                                                                                                                        | 40 (mostra 3)                                         |
-| 6   | `newsletter_editions` publicada/enviada mais recente       | Novidades: último Boletim Delas (filtro de status explícito: admins enxergam rascunhos pelo RLS)                                                                                                        | 1                                                     |
+| #   | Leitura                                                    | Para quê                                                                                                                                                                                                                                                                                                          | Limite                                                |
+| --- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 1   | `profiles` (ela) com relações embutidas                    | áreas, nº de sugestões, mensagens enviadas, apresentação com nome em `apresente-se`, respostas nos últimos 30 dias, a própria autoria anônima, papers enviados, destaques dados, notificações não lidas (menos `direct_message`, `connection_request` e `opportunity_application`, que o bloco já lista com nome) | 1 linha; áreas 20, apresentação 1, autoria anônima 50 |
+| 2   | `mentorship_requests` em que ela participa                 | nome da outra pessoa e mensagens não lidas por conversa (mesma regra de `loadUnreadCounts`, embutida para não custar outra ida)                                                                                                                                                                                   | 100                                                   |
+| 3   | `forum_threads` sem resposta, abertos, dos últimos 30 dias | candidatos a "Perguntas esperando por você" (`author_id` nulo **ou** diferente do dela)                                                                                                                                                                                                                           | 40                                                    |
+| 4   | `papers` visíveis dos últimos 7 dias                       | Novidades: papers nas áreas dela (ou os mais destacados da semana)                                                                                                                                                                                                                                                | 30 (mostra 3)                                         |
+| 5   | `profiles` que terminaram o cadastro nos últimos 14 dias   | Novidades: "Chegaram à rede" (quem divide área com ela primeiro)                                                                                                                                                                                                                                                  | 40 (mostra 3)                                         |
+| 6   | `newsletter_editions` publicada/enviada mais recente       | Novidades: último Boletim Delas (filtro de status explícito: admins enxergam rascunhos pelo RLS)                                                                                                                                                                                                                  | 1                                                     |
 
 O perfil dela (palavras-chave, temas, disponibilidade) já vem de `requireOnboardedProfile`, que é
 memoizado por requisição e compartilhado com o cabeçalho — não conta como leitura extra.
@@ -105,12 +113,24 @@ que o RLS só entrega para ela).
 
 Só o que pede uma ação dela, cada linha levando direto ao lugar:
 
-- conversas de mentoria com mensagens não lidas → `/mentoria/conversa/<id>` ("N mensagens novas");
+- conversas de mentoria com mensagens não lidas → `/mentoria/conversa/<id>` ("N mensagens novas na
+  mentoria");
+- rede social ([docs/18](18-rede-social.md)), com nome e rosto da pessoa: pedidos de mensagem que ela
+  recebeu, lidos ou não ("Renata Carvalho quer conversar") e conversas aceitas com mensagem nova →
+  `/mensagens/<id>` (até 3, mais "E mais N conversas…" → `/mensagens`);
 - mentora: pedidos recebidos pendentes, com a idade do mais antigo ("chegou há 3 dias") →
   `/mentoria?aba=recebidas`;
+- convites de conexão para ela ("Juliana Ribeiro quer se conectar") → `/rede?aba=convites` (até 3 + resumo);
+- candidaturas novas (`submitted`) nas vagas que ela publicou ("Yasmin Oliveira se candidatou", "À vaga
+  “…”") → `/ics/<id>/candidaturas` (até 3 + resumo → `/ics/minhas?aba=publicadas`);
 - mentoranda: cada pedido enviado pendente ("Aguardando a resposta de Fernanda Okabe", "pedido
   enviado há 2 dias") → `/mentoria?aba=enviadas` (até 3, mais um resumo do resto);
-- notificações não lidas → `/notificacoes`.
+- as outras notificações não lidas → `/notificacoes` ("Curtidas, comentários, respostas e outros
+  avisos"). Os avisos de mensagem direta, convite e candidatura ficam fora dessa contagem
+  (`NAMED_ELSEWHERE_TYPES`): já aparecem acima, com nome — nada é contado duas vezes.
+
+Sem link de ação embutida (aceitar, recusar): cada linha leva à tela que já tem os botões. Se só a
+parte da rede falhar, o bloco mostra o que veio da mentoria e um aviso calmo no fim.
 
 Vazio: "Nada pendente agora. Que tal ver as conversas do fórum?".
 
@@ -141,23 +161,55 @@ Título "Perguntas esperando por você" (mentora) ou "Sem resposta ainda: talvez
   "Dê as boas-vindas" → `/pesquisadoras/<id>`.
 - **Boletim Delas:** a última edição publicada → `/newsletter/<slug>`.
 
+**Da sua rede** (`src/components/painel/network-posts-card.tsx`, leitura própria com `listPosts` do
+feed): as 2 publicações mais recentes de quem ela segue (sem as dela), com autora, tipo, quando, o
+começo do texto, **Curtir** (o mesmo `LikeButton` do feed), **Comentar** e "Ver publicação"; se
+ninguém que ela segue publicou, as mais recentes da rede. Botão "Compartilhar novidade" → `/feed` e
+"Ver mais no feed". Substitui o antigo bloco "Na sua rede" (as pendências dele foram para "O que está
+esperando você", com nome).
+
 Rodapé: "Ver a página pública da Artemis" → `/?visao=publica`.
+
+### 2.6 Navegação no celular e no projetor
+
+- **Barra de abas** (abaixo de 1024 px, só membras com cadastro completo; `MemberTabBar` no layout
+  raiz → `MobileTabBar`): `<nav aria-label="Navegação rápida">` fixa embaixo, 56 px + a área segura do
+  iPhone (`env(safe-area-inset-bottom)`), com Início (`/painel`), Feed, Rede, ICs e Mensagens (selo
+  de conversas novas); ícone + rótulo de 12 px e `aria-current` no item ativo. Um espaçador no fim da
+  página evita que o rodapé fique escondido, e o `<html>` ganha `scroll-padding-bottom` enquanto ela
+  existe. Some nas telas de conversa (`/mensagens/<id>`, `/mentoria/conversa/<id>`) e enquanto um
+  campo de texto está em foco (teclado aberto). Lê a mesma sessão memoizada do cabeçalho
+  (`loadHeaderSession`): nenhuma ida extra ao banco. Os avisos rápidos (`<Toaster />`) ficam ~72 px
+  acima do fundo, por cima dela.
+- **Gaveta** (`MobileNav`): "Sua conta" primeiro (Meu painel, Meu perfil, Meu portfólio, Mensagens,
+  Notificações) e depois "Explorar" com todas as áreas (Feed, Rede, ICs, Mentoria, Fórum,
+  Pesquisadoras, Papers, Pergunte, Ranking, Newsletter); tema e Sair no rodapé. Feed usa o ícone de
+  jornal (`Newspaper`, o mesmo da página) e a Newsletter o envelope (`Mail`, como o Boletim no
+  painel) — a casa (`House`) é do Início/Meu painel.
+- **Cabeçalho:** no celular, só o sino e o menu (Mensagens está na barra). No desktop, os ícones de
+  Mensagens e Notificações têm dica (`Tooltip`, embaixo; só com o ponteiro em cima ou foco de
+  teclado — depois de um clique ela não fica pendurada) e ficam preenchidos de violeta na própria
+  página; o tema fica separado deles por um traço; o avatar ganha o anel violeta em Meu painel, Meu
+  perfil e Meu portfólio; "Mais" só fica marcado nas páginas dele (não em perfis
+  `/pesquisadoras/<id>`).
+- **Sino:** não conta `direct_message` (o ícone/aba de Mensagens já conta essas conversas); os
+  avisos continuam listados em `/notificacoes`.
 
 ## 3. Modo demonstração
 
 ### 3.1 Como funciona
 
-| Peça                                                  | O que faz                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `env.demoMode` (`src/lib/env.ts`)                     | `true` **só** com `DEMO_MODE=true` exatamente. `env.demoPassword` lê `DEMO_PASSWORD` (opcional, só servidor). Nenhuma variável `NEXT_PUBLIC_`.                                                                                                                                                                                                                                                                         |
-| `src/lib/demo/personas.ts`                            | Lista fixa e pura: `larissa`, `marina` e `debora` (ids e e-mails do seed). `getPersona`, `listPersonas`, `isDemoEmail`, `personaByEmail`.                                                                                                                                                                                                                                                                              |
-| `/demo` (`src/app/demo/page.tsx`)                     | `notFound()` sem o modo; um cartão por persona com "Entrar como …"; aviso honesto; "Roteiro de 3 minutos" com 9 links (na ordem do pitch: Pergunte, sugestões com "Vocês têm em comum", perfil da Marina, painel, feed, Explorar ICs, mensagens, declaração verificável, Vitrine) e "Já vi" no navegador; QR code de `<site>/demo` (gerado no servidor, `renderQrSvg`) para o slide e para a plateia abrir no celular. |
-| `enterDemoPersona` (`src/app/demo/actions.ts`)        | Confere de novo o modo e a lista (zod + `getPersona`); recusa slug desconhecido; abre a sessão; `revalidatePath("/", "layout")`; vai para o painel.                                                                                                                                                                                                                                                                    |
-| `openDemoSession` (`src/lib/demo/session.ts`)         | Ver 3.2.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `DemoBanner` (`src/components/demo/`)                 | Faixa acima do cabeçalho: "Modo demonstração · você está como Marina (perfil fictício) · Trocar persona · Sair".                                                                                                                                                                                                                                                                                                       |
-| Cartão no `/entrar`                                   | "Só quer conhecer? Entre como uma pessoa fictícia" → `/demo` (só com o modo ligado).                                                                                                                                                                                                                                                                                                                                   |
-| Trava de exclusão (`src/lib/profile/account.ts`)      | Com o modo ligado, contas `@demo.cienciadelas.dev` não se excluem.                                                                                                                                                                                                                                                                                                                                                     |
-| Trava de senha (`src/app/redefinir-senha/actions.ts`) | Com o modo ligado, contas `@demo.cienciadelas.dev` não trocam de senha por `/redefinir-senha` (`DEMO_PASSWORD_REFUSED`).                                                                                                                                                                                                                                                                                               |
+| Peça                                                  | O que faz                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `env.demoMode` (`src/lib/env.ts`)                     | `true` **só** com `DEMO_MODE=true` exatamente. `env.demoPassword` lê `DEMO_PASSWORD` (opcional, só servidor). Nenhuma variável `NEXT_PUBLIC_`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `src/lib/demo/personas.ts`                            | Lista fixa e pura: `larissa`, `marina` e `debora` (ids e e-mails do seed). `getPersona`, `listPersonas`, `isDemoEmail`, `personaByEmail`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/demo` (`src/app/demo/page.tsx`)                     | `notFound()` sem o modo; a escolha da persona primeiro, em cartões compactos (no celular, dois "Entrar como …" já na primeira tela; o que cada uma mostra abre em "O que você vai ver"); com a sessão de uma persona, o cartão dela fica marcado ("Você está aqui · Ir para o painel") e o botão dela vira secundário, sem sumir; aviso honesto em uma frase + "Saiba mais"; "Roteiro de 3 minutos" com 9 links que abrem com a rede social em ação e só pedem ações que a plateia inteira pode repetir com a mesma persona (curtir, comentar, seguir, abrir conversa — nunca aceitar o convite da Juliana, responder um pedido ou se candidatar): Curta e comente uma publicação (`/feed`), Perfil e portfólio da Marina, Sua rede (`/rede`), Mensagens, Explorar ICs, Mentoria (sugestões com "Vocês têm em comum"), Pergunte, declaração verificável e Vitrine, com "Já vi" no navegador; QR code de `<site>/demo` (gerado no servidor, `renderQrSvg`) para o slide e para a plateia abrir no celular. |
+| `enterDemoPersona` (`src/app/demo/actions.ts`)        | Confere de novo o modo e a lista (zod + `getPersona`); recusa slug desconhecido; abre a sessão; `revalidatePath("/", "layout")`; vai para o painel.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `openDemoSession` (`src/lib/demo/session.ts`)         | Ver 3.2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `DemoBanner` (`src/components/demo/`)                 | Faixa acima do cabeçalho: "Modo demonstração · você está como Marina (perfil fictício) · Trocar persona · Sair". No celular, uma linha só ("Demonstração · Marina · Trocar · Sair"); a frase completa e o nome "Trocar persona" continuam para leitores de tela.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Cartão no `/entrar`                                   | "Só quer conhecer? Entre como uma pessoa fictícia" → `/demo` (só com o modo ligado).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Trava de exclusão (`src/lib/profile/account.ts`)      | Com o modo ligado, contas `@demo.cienciadelas.dev` não se excluem.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Trava de senha (`src/app/redefinir-senha/actions.ts`) | Com o modo ligado, contas `@demo.cienciadelas.dev` não trocam de senha por `/redefinir-senha` (`DEMO_PASSWORD_REFUSED`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### 3.2 Abrindo a sessão sem senha e sem e-mail
 
@@ -260,9 +312,11 @@ O prefixo `c1000000-…-0000000001xx` já é usado pelo `20_reconhecimento.sql`;
 `c1a00000-…`.
 
 O que cada persona vê no seed: **Larissa** — 4 de 5 passos, próximo "Mande a primeira mensagem" (mentoria
-aceita com a Marina), as duas perguntas. **Marina** — 2 de 5, próximo "Responda aos pedidos", o pedido
-da Yasmin e as notificações não lidas em "O que está esperando você", as duas perguntas com
-"Fala de: python" e "Fala de: carreira acadêmica".
+aceita com a Marina); em "O que está esperando você", o pedido de mensagem da Renata e o convite da
+Juliana (seed `50_rede_social.sql`); as duas perguntas. **Marina** — 2 de 5, próximo "Responda aos
+pedidos"; em "O que está esperando você", o pedido de mensagem da Gabriela, o pedido de mentoria da
+Yasmin, o convite da Débora, a candidatura da Yasmin e os outros avisos não lidos; as duas perguntas
+com "Fala de: python" e "Fala de: carreira acadêmica".
 
 ## 5. Testes
 
@@ -270,7 +324,8 @@ da Yasmin e as notificações não lidas em "O que está esperando você", as du
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/lib/painel/next-steps.test.ts`        | ordem e "feito" da mentoranda; variante sem mentoria; trilha da mentora; tudo feito; mensagem travada até o aceite; nunca cobra campos opcionais                                                                                                                                      |
 | `src/lib/painel/questions-for-you.test.ts` | "Estatistica" × "estatística"; título/corpo como palavra inteira; área e tema; exclui o tópico dela (inclusive o anônimo dela); trancados e antigos; mais recentes; máximo 3                                                                                                          |
-| `src/lib/painel/queries.test.ts`           | no máximo 6 idas, todas com limite (inclusive listas embutidas); filtros de segurança; montagem; um bloco falhando sozinho                                                                                                                                                            |
+| `src/lib/painel/queries.test.ts`           | no máximo 6 idas, todas com limite (inclusive listas embutidas); filtros de segurança (inclusive os avisos já listados com nome fora da contagem); montagem; um bloco falhando sozinho                                                                                                |
+| `src/lib/painel/network.test.ts`           | quais conversas diretas entram nas pendências (pedidos recebidos, lidos ou não; conversas aceitas com mensagem nova) e a ordem                                                                                                                                                        |
 | `src/lib/demo/personas.test.ts`            | slug desconhecido → null; `isDemoEmail`; admin e moderação nunca na lista; lista imutável                                                                                                                                                                                             |
 | `src/lib/demo/gate.test.ts`                | modo desligado → `/demo` 404, action recusa sem abrir sessão, faixa sem chamada ao Supabase; ligado → personas, slug forjado recusado, redirecionamento, faixa                                                                                                                        |
 | `src/lib/demo/session.test.ts`             | link mágico sem e-mail, `signOut` local, conta inexistente não é criada, conferência antes de deslogar, persona promovida a moderadora/admin recusada, corrida (até 3 tentativas), plano B por senha (com a mesma conferência), sem configuração; exclusão de conta fictícia recusada |

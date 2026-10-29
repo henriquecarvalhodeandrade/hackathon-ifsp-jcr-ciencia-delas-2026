@@ -10,8 +10,8 @@ import {
   HeartHandshake,
   House,
   Info,
-  LayoutDashboard,
   LogOut,
+  Mail,
   Menu,
   MessageCircle,
   MessageCircleQuestion,
@@ -35,7 +35,8 @@ const ICONS: Record<
   string,
   React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
 > = {
-  "/feed": House,
+  // Início (o painel) é a casa; o feed é o "jornal" da rede (mesmo ícone da página /feed).
+  "/feed": Newspaper,
   "/rede": Network,
   "/ics": FlaskConical,
   "/forum": MessagesSquare,
@@ -43,7 +44,8 @@ const ICONS: Record<
   "/pesquisadoras": Users,
   "/papers": BookOpen,
   "/ranking": Trophy,
-  "/newsletter": Newspaper,
+  // A newsletter usa o envelope (como o Boletim Delas no painel) para não repetir o do feed.
+  "/newsletter": Mail,
   "/pergunte": MessageCircleQuestion,
   "/sobre": Info,
 };
@@ -64,7 +66,11 @@ const linkClasses =
 const activeClasses =
   "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft [&_svg]:text-primary-soft-fg";
 
-/** Gaveta de navegação para telas pequenas (<dialog> nativo: foco preso, Esc fecha). */
+/**
+ * Gaveta de navegação para telas pequenas (<dialog> nativo: foco preso, Esc fecha). Para membras,
+ * "Sua conta" vem primeiro e depois a lista completa ("Explorar"); Feed, Rede, ICs e Mensagens
+ * também estão na barra de abas de baixo (MobileTabBar).
+ */
 export function MobileNav({ items, account }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
@@ -122,29 +128,13 @@ export function MobileNav({ items, account }: MobileNavProps) {
             </div>
 
             <nav aria-label="Principal" className="flex-1 overflow-y-auto p-3">
-              <ul className="grid gap-1">
-                {items.map((item) => {
-                  const Icon = ICONS[item.href];
-                  return (
-                    <li key={item.href}>
-                      <NavLink
-                        href={item.href}
-                        className={linkClasses}
-                        activeClassName={activeClasses}
-                        onClick={() => setOpen(false)}
-                      >
-                        {Icon && <Icon aria-hidden={true} />}
-                        {item.label}
-                      </NavLink>
-                    </li>
-                  );
-                })}
-              </ul>
-
+              {/* A conta vem primeiro: no celular, as áreas do dia a dia já estão na barra de baixo. */}
               {account && (
                 <>
-                  <p className="mt-6 mb-2 px-3 eyebrow text-fg-subtle">Sua conta</p>
-                  <ul className="grid gap-1">
+                  <p id="gaveta-conta" className="mt-1 mb-2 px-3 eyebrow text-fg-subtle">
+                    Sua conta
+                  </p>
+                  <ul aria-labelledby="gaveta-conta" className="grid gap-1">
                     <li>
                       <NavLink
                         href="/painel"
@@ -152,7 +142,7 @@ export function MobileNav({ items, account }: MobileNavProps) {
                         activeClassName={activeClasses}
                         onClick={() => setOpen(false)}
                       >
-                        <LayoutDashboard aria-hidden="true" />
+                        <House aria-hidden="true" />
                         Meu painel
                       </NavLink>
                     </li>
@@ -228,8 +218,29 @@ export function MobileNav({ items, account }: MobileNavProps) {
                       </li>
                     )}
                   </ul>
+                  <p id="gaveta-explorar" className="mt-6 mb-2 px-3 eyebrow text-fg-subtle">
+                    Explorar
+                  </p>
                 </>
               )}
+              <ul aria-labelledby={account ? "gaveta-explorar" : undefined} className="grid gap-1">
+                {items.map((item) => {
+                  const Icon = ICONS[item.href];
+                  return (
+                    <li key={item.href}>
+                      <NavLink
+                        href={item.href}
+                        className={linkClasses}
+                        activeClassName={activeClasses}
+                        onClick={() => setOpen(false)}
+                      >
+                        {Icon && <Icon aria-hidden={true} />}
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  );
+                })}
+              </ul>
             </nav>
 
             <div className="grid gap-3 border-t border-border p-4">
