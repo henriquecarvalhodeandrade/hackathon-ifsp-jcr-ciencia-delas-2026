@@ -484,7 +484,7 @@ from (
      'Oi, Larissa! Vi seu projeto de visão computacional no feed. Estamos procurando alguém para ajudar a classificar imagens do CubeSat. Topa conversar?', 230),
     -- Pedido de mensagem: Gabriela → Marina
     ('f6000000-0000-4000-8000-000000000009'::uuid, 'f5000000-0000-4000-8000-000000000004'::uuid, 'd2000000-0000-4000-8000-000000000002'::uuid,
-     'Olá, Marina! Sou mestranda em engenharia civil e queria usar visão computacional para detectar fissuras em concreto. Você teria 15 minutos para me indicar por onde começar?', 350),
+     'Olá, Marina! Sou mestranda em engenharia de materiais e queria usar visão computacional para detectar fissuras em concreto. Você teria 15 minutos para me indicar por onde começar?', 350),
     -- Débora ↔ Patrícia
     ('f6000000-0000-4000-8000-000000000010'::uuid, 'f5000000-0000-4000-8000-000000000005'::uuid, 'd2000000-0000-4000-8000-000000000005'::uuid,
      'Patrícia, qualifiquei! Queria te agradecer de novo por tudo.', 2390),
@@ -494,7 +494,7 @@ from (
      'Vamos! Quinta à tarde fica bom para você?', 2280)
 ) as v (id, conversation_id, sender_id, body, mins_ago)
 where exists (select 1 from public.direct_conversations c where c.id = v.conversation_id)
-on conflict (id) do nothing;
+on conflict (id) do update set body = excluded.body;
 
 -- Estado das conversas, resumo da última mensagem e leituras do seed: tudo lido, menos o que a
 -- demonstração mostra como novo — as duas últimas da Marina para a Larissa (#1) e os dois pedidos
