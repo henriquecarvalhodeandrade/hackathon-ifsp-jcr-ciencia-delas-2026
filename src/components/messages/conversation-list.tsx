@@ -5,7 +5,6 @@ import { careerStageLabel } from "@/lib/mentorship/view-models";
 import { cn, formatDateTime, formatRelativeTime, toIsoString } from "@/lib/utils";
 
 const BADGE_VARIANTS: Record<Exclude<InboxBadge, null>, BadgeVariant> = {
-  draft: "neutral",
   waiting: "neutral",
   request: "primary",
   "declined-by-me": "warning",

@@ -6,7 +6,7 @@ import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { conversationHref } from "@/lib/messages/conversation";
 import { fallbackMessage, friendlyMessagesError, SESSION_EXPIRED } from "@/lib/messages/errors";
-import { startDirectConversation } from "@/lib/messages/queries";
+import { getUnreadConversationCount, startDirectConversation } from "@/lib/messages/queries";
 import {
   conversationIdSchema,
   directMessageSchema,
@@ -14,19 +14,15 @@ import {
   respondConversationSchema,
   startConversationSchema,
 } from "@/lib/messages/schema";
-import type {
-  DirectMessageState,
-  DirectMessageValues,
-  MarkReadResult,
-  MessagesActionState,
-} from "@/lib/messages/types";
+import type { HeaderCounts, MarkReadResult, SendResult } from "@/lib/messages/types";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * Server Actions das mensagens diretas. Cada uma confere a sessão e o perfil no servidor (o proxy
  * é só uma checagem otimista), valida com zod e deixa o RLS + triggers + RPCs do banco garantirem
  * as regras (participantes, pedido de mensagem, ensino médio, anti-spam). Quem envia é sempre a
- * usuária da sessão; os avisos (`direct_message`) são criados por trigger.
+ * usuária da sessão; os avisos (`direct_message`) são criados por trigger. São chamadas direto do
+ * cliente (envio otimista), com argumentos simples — nunca recebem o id de quem envia.
  */
 
 const INBOX = "/mensagens";
@@ -43,133 +39,128 @@ async function getMemberId(): Promise<{ userId: string } | { error: string }> {
   return { userId: user.id };
 }
 
-function str(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
-
-function nonce(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-/**
- * Começa (ou reabre) a conversa com uma pesquisadora e leva até ela. Falhou (perfil incompleto,
- * ensino médio sem conexão, limite do dia…): `{ ok: false, error }` para o botão mostrar.
- */
-export async function startConversationAction(
-  _prev: MessagesActionState,
-  formData: FormData,
-): Promise<MessagesActionState> {
-  const member = await getMemberId();
-  if ("error" in member) return { ok: false, error: member.error };
-
-  const parsed = startConversationSchema.safeParse({ profile_id: str(formData, "profile_id") });
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: fieldErrorsOf(parsed.error).profile_id?.[0] ?? fallbackMessage("start"),
-    };
+function warnUnexpected(what: string, error: { code?: string; message: string }) {
+  if (!error.code?.startsWith("CD")) {
+    console.warn(`[mensagens] ${what} — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
   }
+}
 
-  const supabase = await createClient();
-  const result = await startDirectConversation(supabase, parsed.data.profile_id);
-  if (!result.ok) return { ok: false, error: result.error };
-
-  revalidatePath(INBOX);
-  redirect(conversationHref(result.id));
+/** Primeiro erro de validação (zod) da mensagem, em pt-BR. */
+function invalidMessage(error: Parameters<typeof fieldErrorsOf>[0], fallback: string): string {
+  const fieldErrors = fieldErrorsOf(error);
+  return (
+    fieldErrors.body?.[0] ??
+    fieldErrors.conversation_id?.[0] ??
+    fieldErrors.profile_id?.[0] ??
+    fallback
+  );
 }
 
 /**
  * Envia uma mensagem. O banco decide se pode (participante — CD085; pedido de mensagem sem
  * resposta ou recusado — CD086, com o mesmo texto: a recusa nunca é revelada; ensino médio —
  * CD084; limite — CD088) e avisa a outra participante. Responder a um pedido recebido aceita o
- * pedido; responder a um pedido recusado reabre a conversa.
+ * pedido; responder a um pedido recusado reabre a conversa. A resposta já traz a página nova
+ * (revalidatePath): a mensagem provisória da tela dá lugar à do servidor no mesmo passo.
  */
 export async function sendDirectMessageAction(
-  _prev: DirectMessageState,
-  formData: FormData,
-): Promise<DirectMessageState> {
-  const values: DirectMessageValues = { body: str(formData, "body") };
+  conversationId: string,
+  body: string,
+): Promise<SendResult> {
   const member = await getMemberId();
-  if ("error" in member) return { ok: false, error: member.error, values, nonce: nonce() };
+  if ("error" in member) return { ok: false, error: member.error };
 
-  const parsed = directMessageSchema.safeParse({
-    conversation_id: str(formData, "conversation_id"),
-    body: values.body,
-  });
+  const parsed = directMessageSchema.safeParse({ conversation_id: conversationId, body });
   if (!parsed.success) {
-    const fieldErrors = fieldErrorsOf(parsed.error);
-    return {
-      ok: false,
-      error: fieldErrors.body?.[0] ?? fieldErrors.conversation_id?.[0] ?? fallbackMessage("send"),
-      fieldErrors,
-      values,
-      nonce: nonce(),
-    };
+    return { ok: false, error: invalidMessage(parsed.error, fallbackMessage("send")) };
   }
-  const { conversation_id: conversationId, body } = parsed.data;
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("direct_messages")
-    .insert({ conversation_id: conversationId, body });
+    .insert({ conversation_id: parsed.data.conversation_id, body: parsed.data.body });
   if (error) {
-    if (!error.code?.startsWith("CD")) {
-      console.warn(`[mensagens] mensagem — ${error.code ?? ""} ${error.message.slice(0, 160)}`);
-    }
-    return { ok: false, error: friendlyMessagesError(error, "send"), values, nonce: nonce() };
+    warnUnexpected("mensagem", error);
+    return { ok: false, error: friendlyMessagesError(error, "send") };
   }
 
-  revalidatePath(conversationHref(conversationId));
-  revalidatePath(INBOX);
-  return { ok: true, message: "Mensagem enviada.", nonce: nonce() };
+  revalidatePath(INBOX, "layout");
+  return { ok: true };
 }
 
-/** Aceita ou recusa um pedido de mensagem recebido (`respond_conversation_request`). */
+/**
+ * Primeira mensagem de um rascunho (`/mensagens/nova?com=<perfil>`): só agora a conversa é criada
+ * (`start_direct_conversation` — perfil completo CD060, não consigo mesma CD065, ensino médio
+ * CD084 e limite diário CD089 são conferidos ANTES de criar qualquer linha) e a mensagem entra
+ * logo em seguida. Deu certo: leva até a conversa. Assim, abrir "Mensagem" e desistir não deixa
+ * conversas vazias (que não dá para apagar) nem gasta o limite de conversas novas do dia.
+ */
+export async function sendFirstMessageAction(profileId: string, body: string): Promise<SendResult> {
+  const member = await getMemberId();
+  if ("error" in member) return { ok: false, error: member.error };
+
+  const target = startConversationSchema.safeParse({ profile_id: profileId });
+  if (!target.success) {
+    return { ok: false, error: invalidMessage(target.error, fallbackMessage("start")) };
+  }
+  // Valida o texto antes de criar a conversa: mensagem inválida não pode deixar conversa vazia.
+  const message = directMessageSchema.shape.body.safeParse(body);
+  if (!message.success) {
+    return {
+      ok: false,
+      error: message.error.issues[0]?.message ?? fallbackMessage("send"),
+    };
+  }
+
+  const supabase = await createClient();
+  const started = await startDirectConversation(supabase, target.data.profile_id);
+  if (!started.ok) return { ok: false, error: started.error };
+
+  const { error } = await supabase
+    .from("direct_messages")
+    .insert({ conversation_id: started.id, body: message.data });
+  if (error) {
+    // A conversa (vazia) já existe: some da lista, e o próximo envio cai nela.
+    warnUnexpected("primeira mensagem", error);
+    return { ok: false, error: friendlyMessagesError(error, "send") };
+  }
+
+  revalidatePath(INBOX, "layout");
+  redirect(conversationHref(started.id));
+}
+
+/**
+ * Aceita ou recusa um pedido de mensagem recebido (`respond_conversation_request`). Recusado
+ * também pode ser aceito depois (o banco aceita declined → active).
+ */
 export async function respondConversationAction(
-  _prev: MessagesActionState,
-  formData: FormData,
-): Promise<MessagesActionState> {
+  conversationId: string,
+  accept: boolean,
+): Promise<SendResult> {
   const member = await getMemberId();
   if ("error" in member) return { ok: false, error: member.error };
 
   const parsed = respondConversationSchema.safeParse({
-    conversation_id: str(formData, "conversation_id"),
-    accept: str(formData, "accept"),
+    conversation_id: conversationId,
+    accept: accept ? "true" : "false",
   });
   if (!parsed.success) {
-    const fieldErrors = fieldErrorsOf(parsed.error);
-    return {
-      ok: false,
-      error:
-        fieldErrors.conversation_id?.[0] ?? fieldErrors.accept?.[0] ?? fallbackMessage("respond"),
-    };
+    return { ok: false, error: invalidMessage(parsed.error, fallbackMessage("respond")) };
   }
-  const { conversation_id: conversationId, accept } = parsed.data;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("respond_conversation_request", {
-    p_conversation_id: conversationId,
-    p_accept: accept,
+    p_conversation_id: parsed.data.conversation_id,
+    p_accept: parsed.data.accept,
   });
   if (error) {
-    if (!error.code?.startsWith("CD")) {
-      console.warn(
-        `[mensagens] responder pedido — ${error.code ?? ""} ${error.message.slice(0, 160)}`,
-      );
-    }
+    warnUnexpected("responder pedido", error);
     return { ok: false, error: friendlyMessagesError(error, "respond") };
   }
 
-  revalidatePath(conversationHref(conversationId));
   // A caixa de entrada (abas e contagem de pedidos) e o selo do cabeçalho mudam.
   revalidatePath("/", "layout");
-  return {
-    ok: true,
-    message: accept
-      ? "Pedido aceito. Agora vocês podem conversar."
-      : "Pedido recusado. Ela não recebe aviso da recusa.",
-  };
+  return { ok: true };
 }
 
 /**
@@ -193,4 +184,25 @@ export async function markReadAction(conversationId: string): Promise<MarkReadRe
   // O selo de mensagens e o sino do cabeçalho (layout raiz) mostram as contagens.
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/**
+ * Contagens dos selos do cabeçalho (para o `HeaderLive` decidir se vale atualizar a página). Os
+ * avisos de mensagem direta ficam fora do sino — o ícone de mensagens já conta as conversas (o
+ * mesmo critério do cabeçalho). Sem sessão ou com erro: zeros.
+ */
+export async function headerCountsAction(): Promise<HeaderCounts> {
+  const user = await getCurrentUser();
+  if (!user) return { messages: 0, notifications: 0 };
+  const supabase = await createClient();
+  const [messages, notifications] = await Promise.all([
+    getUnreadConversationCount(),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .is("read_at", null)
+      .neq("type", "direct_message"),
+  ]);
+  return { messages, notifications: notifications.error ? 0 : (notifications.count ?? 0) };
 }

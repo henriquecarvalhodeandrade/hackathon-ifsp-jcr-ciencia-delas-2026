@@ -1,78 +1,76 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { useState, useTransition } from "react";
 import { Check, X } from "lucide-react";
 import { Button, FormMessage } from "@/components/ui";
 import { respondConversationAction } from "@/app/mensagens/actions";
-import { CONNECTION_ERROR, withConnectionFallback } from "@/lib/forum/client-action";
-import type { MessagesActionState } from "@/lib/messages/types";
-
-/** Os dois botões no mesmo formulário: só o que foi clicado mostra o carregamento. */
-function RespondButtons() {
-  const { pending, data } = useFormStatus();
-  const choice = pending ? data?.get("accept") : null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        type="submit"
-        name="accept"
-        value="true"
-        size="sm"
-        disabled={pending}
-        loading={choice === "true"}
-        loadingText="Aceitando…"
-      >
-        <Check aria-hidden="true" />
-        Aceitar
-      </Button>
-      <Button
-        type="submit"
-        name="accept"
-        value="false"
-        size="sm"
-        variant="outline"
-        disabled={pending}
-        loading={choice === "false"}
-        loadingText="Recusando…"
-      >
-        <X aria-hidden="true" />
-        Recusar
-      </Button>
-    </div>
-  );
-}
+import { CONNECTION_ERROR } from "@/lib/forum/client-action";
 
 /**
- * Aceitar ou recusar um pedido de mensagem recebido (`respond_conversation_request`). Deu certo:
- * a página volta já no estado novo (o aviso some) e o foco vai para o campo da mensagem, que
- * continua lá nos dois casos.
+ * Aceitar (e, num pedido novo, recusar) um pedido de mensagem recebido
+ * (`respond_conversation_request`; recusado também pode ser aceito depois). Deu certo: avisa a
+ * conversa (`onDone`), que mostra a linha de sistema, anuncia na região ao vivo da página e cuida
+ * do foco — este aviso some com o estado novo.
  */
-export function RequestResponse({ conversationId }: { conversationId: string }) {
-  const [state, formAction] = useActionState<MessagesActionState, FormData>(
-    withConnectionFallback(
-      async (prev: MessagesActionState, formData: FormData) => {
-        const result = await respondConversationAction(prev, formData);
-        if (result?.ok) {
-          window.requestAnimationFrame(() =>
-            document.getElementById(`mensagem-${conversationId}`)?.focus(),
-          );
-        }
-        return result;
-      },
-      () => ({ ok: false, error: CONNECTION_ERROR }),
-    ),
-    null,
-  );
+export function RequestResponse({
+  conversationId,
+  mode,
+  onDone,
+}: {
+  conversationId: string;
+  /** "respond" = Aceitar e Recusar · "accept" = só Aceitar (pedido que eu já recusei). */
+  mode: "respond" | "accept";
+  onDone: (accepted: boolean) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [choice, setChoice] = useState<boolean | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function respond(accept: boolean) {
+    setError(null);
+    setChoice(accept);
+    startTransition(async () => {
+      let result: Awaited<ReturnType<typeof respondConversationAction>>;
+      try {
+        result = await respondConversationAction(conversationId, accept);
+      } catch {
+        result = { ok: false, error: CONNECTION_ERROR };
+      }
+      if (result.ok) onDone(accept);
+      else setError(result.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="grid gap-2">
-      <input type="hidden" name="conversation_id" value={conversationId} />
-      <RespondButtons />
-      <FormMessage tone="error">{state && !state.ok ? state.error : null}</FormMessage>
-      <p role="status" aria-live="polite" className="sr-only">
-        {state?.ok ? state.message : ""}
-      </p>
-    </form>
+    <div className="grid gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          onClick={() => respond(true)}
+          disabled={pending}
+          loading={pending && choice === true}
+          loadingText="Aceitando…"
+          className="pointer-coarse:h-11"
+        >
+          <Check aria-hidden="true" />
+          Aceitar
+        </Button>
+        {mode === "respond" && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => respond(false)}
+            disabled={pending}
+            loading={pending && choice === false}
+            loadingText="Recusando…"
+            className="pointer-coarse:h-11"
+          >
+            <X aria-hidden="true" />
+            Recusar
+          </Button>
+        )}
+      </div>
+      <FormMessage tone="error">{error}</FormMessage>
+    </div>
   );
 }

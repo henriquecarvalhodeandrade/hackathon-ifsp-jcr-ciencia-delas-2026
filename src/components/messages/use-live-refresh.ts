@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect } from "react";
+import { startTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -10,12 +10,12 @@ export function isPageVisible(): boolean {
 }
 
 /**
- * Tabela observada pelo Realtime (as duas estão na publicação `supabase_realtime`). Sem filtro no
+ * Tabela observada pelo Realtime (todas na publicação `supabase_realtime`). Sem filtro no
  * servidor: o Realtime do projeto recusa filtros nestas tabelas ("invalid column for filter …"),
- * e o RLS já limita os eventos às minhas conversas. `match` filtra aqui no navegador.
+ * e o RLS já limita os eventos às linhas da usuária. `match` filtra aqui no navegador.
  */
 export interface LiveTable {
-  table: "direct_messages" | "direct_conversations";
+  table: "direct_messages" | "direct_conversations" | "notifications";
   event: "INSERT" | "*";
   /** Só reage quando a linha nova (ou antiga) tem este valor nesta coluna. */
   match?: { column: string; value: string };
@@ -30,24 +30,23 @@ function matches(payload: unknown, match: LiveTable["match"]): boolean {
   return next?.[match.column] === match.value || old?.[match.column] === match.value;
 }
 
-/** Junta rajadas de eventos (mensagem + conversa atualizada) num pedido só. */
+/** Junta rajadas de eventos (mensagem + conversa atualizada) num sinal só. */
 const DEBOUNCE_MS = 300;
 
 /**
- * Mantém a página atualizada sem recarregar (`router.refresh()` — o texto que está sendo digitado
- * e a rolagem continuam):
- *  - Realtime do Supabase (respeita o RLS): qualquer mudança nas tabelas observadas pede a página
- *    de novo na hora;
- *  - atualização periódica, só com a aba visível: `pollMs` enquanto o Realtime não está conectado
- *    (ou caiu) e `subscribedPollMs` com ele conectado — fica só como rede de segurança;
- *  - ao voltar para a aba, atualiza na hora.
- * O canal é fechado ao sair da página.
+ * Sinal de "algo mudou" para atualizar a tela, só com a aba visível:
+ *  - Realtime do Supabase (respeita o RLS): mudança numa das tabelas observadas → sinal na hora;
+ *  - atualização periódica: `pollMs` enquanto o Realtime não está conectado (ou caiu) e
+ *    `subscribedPollMs` com ele conectado — fica só como rede de segurança;
+ *  - ao voltar para a aba (ou quando a conexão volta), sinal na hora; sem rede, nenhum sinal.
+ * O canal é fechado ao sair (ou quando as tabelas mudam).
  */
-export function useLiveRefresh({
+export function useLiveSignal({
   channel: channelName,
   tables,
   pollMs,
   subscribedPollMs,
+  onSignal,
   enabled = true,
 }: {
   /** Prefixo do canal (o sufixo aleatório evita reaproveitar um canal que está fechando). */
@@ -55,9 +54,13 @@ export function useLiveRefresh({
   tables: readonly LiveTable[];
   pollMs: number;
   subscribedPollMs: number;
+  onSignal: () => void;
   enabled?: boolean;
 }) {
-  const router = useRouter();
+  const signal = useRef(onSignal);
+  useEffect(() => {
+    signal.current = onSignal;
+  }, [onSignal]);
   // Dependência estável para o efeito (o array costuma ser recriado a cada renderização).
   const tablesKey = JSON.stringify(tables);
 
@@ -69,8 +72,11 @@ export function useLiveRefresh({
     let debounce: number | undefined;
     let disposed = false;
 
-    const refresh = () => {
-      if (!disposed && isPageVisible()) startTransition(() => router.refresh());
+    // Sem rede, nada de sinal: um `router.refresh()` que falha faz o Next cair numa navegação
+    // completa do navegador (a página recarrega offline e perde o que estava na tela, como uma
+    // mensagem "Não enviada"). Quando a conexão volta, um sinal na hora.
+    const fire = () => {
+      if (!disposed && isPageVisible() && navigator.onLine) signal.current();
     };
     const stop = () => {
       if (timer !== undefined) window.clearInterval(timer);
@@ -78,11 +84,11 @@ export function useLiveRefresh({
     };
     const start = () => {
       stop();
-      if (isPageVisible()) timer = window.setInterval(refresh, interval);
+      if (isPageVisible()) timer = window.setInterval(fire, interval);
     };
     const onVisibilityChange = () => {
       if (isPageVisible()) {
-        refresh();
+        fire();
         start();
       } else {
         stop();
@@ -97,7 +103,7 @@ export function useLiveRefresh({
       const onChange = (payload: unknown, match: LiveTable["match"]) => {
         if (!matches(payload, match)) return;
         window.clearTimeout(debounce);
-        debounce = window.setTimeout(refresh, DEBOUNCE_MS);
+        debounce = window.setTimeout(fire, DEBOUNCE_MS);
       };
       for (const { table, event, match } of watched) {
         if (event === "INSERT") {
@@ -126,12 +132,26 @@ export function useLiveRefresh({
 
     start();
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", fire);
     return () => {
       disposed = true;
       stop();
       window.clearTimeout(debounce);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", fire);
       if (supabase && channel) void supabase.removeChannel(channel);
     };
-  }, [enabled, channelName, tablesKey, pollMs, subscribedPollMs, router]);
+  }, [enabled, channelName, tablesKey, pollMs, subscribedPollMs]);
+}
+
+/**
+ * Mantém a página atualizada sem recarregar: a cada sinal (`useLiveSignal`), pede a página de
+ * novo ao servidor (`router.refresh()` — o texto que está sendo digitado e a rolagem continuam).
+ */
+export function useLiveRefresh(options: Omit<Parameters<typeof useLiveSignal>[0], "onSignal">) {
+  const router = useRouter();
+  useLiveSignal({
+    ...options,
+    onSignal: () => startTransition(() => router.refresh()),
+  });
 }

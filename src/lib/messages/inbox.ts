@@ -49,19 +49,20 @@ export function hasMessages(
 
 /**
  * Aba da conversa para quem está logada, ou null (não aparece na lista):
- *  - Pedidos: pedido (`request`) que outra pessoa me mandou;
- *  - Conversas: as aceitas; as que eu comecei e ainda esperam resposta — inclusive as recusadas,
- *    que para quem pediu continuam "aguardando" (a interface nunca conta que foi recusado); e as
- *    que eu recusei (responder reabre — continuam ao alcance, com o selo "Você recusou");
- *  - nenhuma: conversa vazia que outra pessoa abriu e ainda não escreveu (não há o que ler).
+ *  - Pedidos: pedido (`request`) que outra pessoa me mandou e, no grupo recolhido "Recusados", os
+ *    que eu recusei (aceitar ou responder reabre — continuam ao alcance);
+ *  - Conversas: as aceitas e as que eu comecei e ainda esperam resposta — inclusive as recusadas,
+ *    que para quem pediu continuam "aguardando" (a interface nunca conta que foi recusado);
+ *  - nenhuma: conversa ainda sem mensagens, de qualquer uma das duas (não há o que ler; as que eu
+ *    abri e não escrevi não viram linhas "fantasma" — e não dá para apagar conversas).
  */
 export function inboxTabOf(
   row: Pick<InboxRow, "status" | "initiator_id" | "last_sender_id" | "last_message_preview">,
   userId: string,
 ): InboxTab | null {
+  if (!hasMessages(row)) return null;
   const mine = row.initiator_id === userId;
-  if (!mine && !hasMessages(row)) return null;
-  if (row.status === "request" && !mine) return "pedidos";
+  if (row.status !== "active" && !mine) return "pedidos";
   return "conversas";
 }
 
@@ -69,7 +70,7 @@ export function inboxTabOf(
  * Situação mostrada na linha (selo). Recusa só aparece para quem recusou; para quem pediu, um
  * pedido recusado continua "Aguardando resposta".
  */
-export type InboxBadge = "draft" | "waiting" | "request" | "declined-by-me" | null;
+export type InboxBadge = "waiting" | "request" | "declined-by-me" | null;
 
 export interface InboxItem {
   id: string;
@@ -101,20 +102,15 @@ export function previewText(
 }
 
 export function inboxBadge(
-  row: Pick<InboxRow, "status" | "initiator_id" | "last_sender_id" | "last_message_preview">,
+  row: Pick<InboxRow, "status" | "initiator_id">,
   userId: string,
 ): InboxBadge {
   if (row.status === "active") return null;
-  if (row.initiator_id === userId) {
-    // Pedido aberto por mim e ainda sem a mensagem: falta escrever. Recusado cai sempre em
-    // "aguardando", tenha ou não mensagem.
-    return row.status === "request" && !hasMessages(row) ? "draft" : "waiting";
-  }
+  if (row.initiator_id === userId) return "waiting";
   return row.status === "request" ? "request" : "declined-by-me";
 }
 
 export const INBOX_BADGE_LABELS: Record<Exclude<InboxBadge, null>, string> = {
-  draft: "Pedido não enviado",
   waiting: "Aguardando resposta",
   request: "Pedido de mensagem",
   "declined-by-me": "Você recusou",
@@ -144,31 +140,46 @@ export function toInboxItem(row: InboxRow, userId: string): InboxItem | null {
 
 export interface Inbox {
   conversas: InboxItem[];
+  /** Pedidos recebidos esperando resposta (a contagem da aba). */
   pedidos: InboxItem[];
+  /** Pedidos que eu recusei (grupo recolhido na aba Pedidos). */
+  recusados: InboxItem[];
   /** Conversas (aba "Conversas") com mensagem nova. */
   unreadConversations: number;
 }
 
-/** Separa as linhas nas duas abas, mais recentes primeiro. */
+/** Separa as linhas nas duas abas (e o grupo dos recusados), mais recentes primeiro. */
 export function buildInbox(rows: readonly InboxRow[], userId: string): Inbox {
   const items = rows
     .map((row) => toInboxItem(row, userId))
     .filter((item): item is InboxItem => item !== null)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   const conversas = items.filter((item) => item.tab === "conversas");
+  const received = items.filter((item) => item.tab === "pedidos");
   return {
     conversas,
-    pedidos: items.filter((item) => item.tab === "pedidos"),
+    pedidos: received.filter((item) => item.badge === "request"),
+    recusados: received.filter((item) => item.badge === "declined-by-me"),
     unreadConversations: conversas.filter((item) => item.unread).length,
   };
 }
 
 /**
- * Aba aberta por padrão: a pedida; sem pedido na URL, "Conversas" — exceto quando ainda não há
- * conversas e há pedidos esperando.
+ * Aba aberta: a pedida na URL; senão a da conversa aberta (lista lateral); senão "Conversas" —
+ * exceto quando ainda não há conversas e há pedidos esperando.
  */
-export function resolveInboxTab(requested: InboxTab | null, inbox: Inbox): InboxTab {
+export function resolveInboxTab(
+  requested: InboxTab | null,
+  inbox: Inbox,
+  currentId: string | null = null,
+): InboxTab {
   if (requested) return requested;
+  if (currentId) {
+    const current = [...inbox.conversas, ...inbox.pedidos, ...inbox.recusados].find(
+      (item) => item.id === currentId,
+    );
+    if (current) return current.tab;
+  }
   if (inbox.conversas.length === 0 && inbox.pedidos.length > 0) return "pedidos";
   return "conversas";
 }

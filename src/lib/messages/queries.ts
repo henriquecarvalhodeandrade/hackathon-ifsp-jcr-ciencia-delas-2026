@@ -153,6 +153,71 @@ export const getInbox = cache(async () => {
   return loadInbox(supabase);
 });
 
+export type DraftTarget =
+  /** Já existe a conversa do par: a página leva até ela. */
+  | { kind: "existing"; conversationId: string }
+  | { kind: "draft"; person: ConversationPerson; connected: boolean; highSchool: boolean }
+  | { kind: "self" }
+  | { kind: "not-found" }
+  | { kind: "error" };
+
+/**
+ * Rascunho de conversa (`/mensagens/nova?com=<perfil>`), só leitura — nada é criado aqui (a
+ * conversa nasce na primeira mensagem, em `sendFirstMessageAction`). Procura a conversa do par
+ * (o RLS deixa ler as minhas), o perfil da pessoa e se já somos conexões.
+ */
+export async function loadDraftTarget(
+  supabase: ServerClient,
+  userId: string,
+  profileId: string,
+): Promise<DraftTarget> {
+  if (profileId === userId) return { kind: "self" };
+  const [userA, userB] = userId < profileId ? [userId, profileId] : [profileId, userId];
+  const [existing, person, connection] = await Promise.all([
+    supabase
+      .from("direct_conversations")
+      .select("id")
+      .eq("user_a", userA)
+      .eq("user_b", userB)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select(`${PERSON_COLUMNS}, onboarded_at`)
+      .eq("id", profileId)
+      .maybeSingle(),
+    supabase
+      .from("connections")
+      .select("id")
+      .eq("status", "accepted")
+      .or(
+        `and(requester_id.eq.${userId},addressee_id.eq.${profileId}),and(requester_id.eq.${profileId},addressee_id.eq.${userId})`,
+      )
+      .limit(1),
+  ]);
+  if (existing.error || person.error) {
+    warn("rascunho", (existing.error ?? person.error)!);
+    return { kind: "error" };
+  }
+  if (existing.data) return { kind: "existing", conversationId: existing.data.id };
+  const row = person.data;
+  if (!row || !row.onboarded_at) return { kind: "not-found" };
+  if (connection.error) warn("rascunho (conexão)", connection.error);
+  return {
+    kind: "draft",
+    person: {
+      id: row.id,
+      full_name: row.full_name || "Pesquisadora",
+      avatar_url: row.avatar_url ?? null,
+      headline: row.headline ?? null,
+      institution: row.institution ?? null,
+      state: row.state ?? null,
+      career_stage: row.career_stage ?? null,
+    },
+    connected: (connection.data ?? []).length > 0,
+    highSchool: row.career_stage === "high_school",
+  };
+}
+
 /**
  * Acha ou cria a conversa com outra pesquisadora (`start_direct_conversation`). O banco decide se
  * pode (perfil completo — CD060; não consigo mesma — CD065; ensino médio só com conexões — CD084;

@@ -66,54 +66,23 @@ describe("inboxTabOf", () => {
     );
   });
 
-  it("pedido que eu recusei continua ao alcance em Conversas (responder reabre)", () => {
-    expect(inboxTabOf(row({ status: "declined", initiator_id: HER }), ME)).toBe("conversas");
+  it("pedido que eu recusei continua em Pedidos (grupo Recusados: aceitar ou responder reabre)", () => {
+    expect(inboxTabOf(row({ status: "declined", initiator_id: HER }), ME)).toBe("pedidos");
   });
 
-  it("conversa vazia aberta pela outra pessoa não aparece; a minha aparece", () => {
+  it("conversa sem mensagens não aparece, de quem quer que seja (nada de linhas fantasma)", () => {
     const empty = { last_message_at: null, last_message_preview: null, last_sender_id: null };
     expect(inboxTabOf(row({ ...empty, initiator_id: HER }), ME)).toBeNull();
     expect(inboxTabOf(row({ ...empty, status: "request", initiator_id: HER }), ME)).toBeNull();
-    expect(inboxTabOf(row({ ...empty, initiator_id: ME }), ME)).toBe("conversas");
-    expect(inboxTabOf(row({ ...empty, status: "request", initiator_id: ME }), ME)).toBe(
-      "conversas",
-    );
+    expect(inboxTabOf(row({ ...empty, initiator_id: ME }), ME)).toBeNull();
+    expect(inboxTabOf(row({ ...empty, status: "request", initiator_id: ME }), ME)).toBeNull();
   });
 });
 
 describe("inboxBadge", () => {
   it("quem pediu nunca vê 'recusado'", () => {
-    expect(inboxBadge(row({ status: "request", initiator_id: ME, last_sender_id: ME }), ME)).toBe(
-      "waiting",
-    );
-    expect(inboxBadge(row({ status: "declined", initiator_id: ME, last_sender_id: ME }), ME)).toBe(
-      "waiting",
-    );
-    expect(
-      inboxBadge(
-        row({
-          status: "declined",
-          initiator_id: ME,
-          last_sender_id: null,
-          last_message_preview: null,
-        }),
-        ME,
-      ),
-    ).toBe("waiting");
-  });
-
-  it("pedido aberto por mim sem mensagem: falta escrever", () => {
-    expect(
-      inboxBadge(
-        row({
-          status: "request",
-          initiator_id: ME,
-          last_sender_id: null,
-          last_message_preview: null,
-        }),
-        ME,
-      ),
-    ).toBe("draft");
+    expect(inboxBadge(row({ status: "request", initiator_id: ME }), ME)).toBe("waiting");
+    expect(inboxBadge(row({ status: "declined", initiator_id: ME }), ME)).toBe("waiting");
   });
 
   it("quem recebeu vê o pedido e a própria recusa; conversa aceita não tem selo", () => {
@@ -156,16 +125,7 @@ describe("toInboxItem / buildInbox", () => {
     expect(toInboxItem(row({ unread: true, last_sender_id: ME }), ME)?.unread).toBe(false);
   });
 
-  it("sem mensagem, usa a criação como horário", () => {
-    const item = toInboxItem(
-      row({ last_message_at: null, last_sender_id: null, last_message_preview: null }),
-      ME,
-    );
-    expect(item?.at).toBe("2026-10-27T10:00:00Z");
-    expect(item?.preview).toBeNull();
-  });
-
-  it("separa as abas, ordena pelas mais recentes e conta as não lidas", () => {
+  it("separa as abas e o grupo dos recusados, ordena pelas mais recentes e conta as não lidas", () => {
     const inbox = buildInbox(
       [
         row({ id: "old", last_message_at: "2026-10-20T10:00:00Z", unread: true }),
@@ -173,31 +133,43 @@ describe("toInboxItem / buildInbox", () => {
         row({ id: "new", last_message_at: "2026-10-28T12:00:00Z" }),
         row({
           id: "hidden",
-          initiator_id: HER,
+          initiator_id: ME,
           last_message_at: null,
           last_sender_id: null,
           last_message_preview: null,
         }),
         row({ id: "mine-declined", status: "declined", initiator_id: ME, last_sender_id: ME }),
+        row({ id: "i-declined", status: "declined", initiator_id: HER }),
       ],
       ME,
     );
     expect(inbox.conversas.map((i) => i.id)).toEqual(["new", "mine-declined", "old"]);
     expect(inbox.pedidos.map((i) => i.id)).toEqual(["req"]);
+    expect(inbox.recusados.map((i) => i.id)).toEqual(["i-declined"]);
     expect(inbox.unreadConversations).toBe(1);
   });
 });
 
 describe("resolveInboxTab", () => {
-  const empty = { conversas: [], pedidos: [], unreadConversations: 0 };
+  const empty = { conversas: [], pedidos: [], recusados: [], unreadConversations: 0 };
   const withRequest = buildInbox([row({ status: "request", initiator_id: HER })], ME);
+  const mixed = buildInbox(
+    [row({ id: "a" }), row({ id: "r", status: "declined", initiator_id: HER })],
+    ME,
+  );
 
   it("respeita a aba pedida", () => {
     expect(resolveInboxTab("pedidos", empty)).toBe("pedidos");
     expect(resolveInboxTab("conversas", withRequest)).toBe("conversas");
   });
 
-  it("sem aba na URL: Conversas, ou Pedidos quando só há pedidos", () => {
+  it("sem aba na URL: a da conversa aberta", () => {
+    expect(resolveInboxTab(null, mixed, "r")).toBe("pedidos");
+    expect(resolveInboxTab(null, mixed, "a")).toBe("conversas");
+    expect(resolveInboxTab(null, mixed, "nao-existe")).toBe("conversas");
+  });
+
+  it("sem aba nem conversa: Conversas, ou Pedidos quando só há pedidos", () => {
     expect(resolveInboxTab(null, empty)).toBe("conversas");
     expect(resolveInboxTab(null, withRequest)).toBe("pedidos");
   });

@@ -2,52 +2,22 @@
 
 import { startTransition, useEffect, useRef } from "react";
 import { markReadAction } from "@/app/mensagens/actions";
-import {
-  CONVERSATION_REFRESH_MS,
-  CONVERSATION_REFRESH_SUBSCRIBED_MS,
-} from "@/lib/messages/conversation";
-import { isPageVisible, useLiveRefresh } from "./use-live-refresh";
+import { CONVERSATION_REFRESH_SUBSCRIBED_MS } from "@/lib/messages/conversation";
+import { isPageVisible } from "./use-live-refresh";
 
 /**
- * Mantém a conversa direta atualizada sem recarregar a página (como a da mentoria):
- *  - Realtime: mensagem nova nesta conversa (INSERT em `direct_messages`) ou mudança numa das
- *    minhas conversas (aceite, leitura da outra pessoa, mensagem nova em outra — a lista lateral)
- *    pede a página de novo na hora;
- *  - atualização periódica com a aba visível: a cada 5 s sem o Realtime, a cada 20 s com ele;
- *  - marca como lidas as mensagens recebidas quando a conversa está de fato na tela (não na
- *    renderização no servidor: pré-busca de link ou aba em segundo plano não contam).
- * Não desenha nada.
+ * Marca como lidas as mensagens recebidas quando a conversa está de fato na tela (não na
+ * renderização no servidor: pré-busca de link ou aba em segundo plano não contam). Sem conexão,
+ * tenta de novo daqui a pouco e ao voltar para a aba. A atualização ao vivo da página fica com o
+ * `MessagesLive` do layout.
  */
-export function DirectConversationLive({
-  conversationId,
-  latestUnreadId,
-}: {
-  conversationId: string;
-  /** Id da mensagem não lida mais recente da outra pessoa (ou null). */
-  latestUnreadId: string | null;
-}) {
+export function useMarkRead(conversationId: string | null, latestUnreadId: string | null) {
   const marking = useRef(false);
   /** markRead do efeito mais recente (null sem não lidas): chamado se outro envio estava no ar. */
   const latestMark = useRef<(() => void) | null>(null);
 
-  useLiveRefresh({
-    channel: `conversa-${conversationId}`,
-    tables: [
-      {
-        table: "direct_messages",
-        event: "INSERT",
-        match: { column: "conversation_id", value: conversationId },
-      },
-      // Qualquer uma das minhas conversas (o RLS limita): aceite, leitura da outra pessoa e a
-      // lista lateral.
-      { table: "direct_conversations", event: "*" },
-    ],
-    pollMs: CONVERSATION_REFRESH_MS,
-    subscribedPollMs: CONVERSATION_REFRESH_SUBSCRIBED_MS,
-  });
-
   useEffect(() => {
-    if (!latestUnreadId) {
+    if (!conversationId || !latestUnreadId) {
       latestMark.current = null;
       return;
     }
@@ -88,6 +58,4 @@ export function DirectConversationLive({
       document.removeEventListener("visibilitychange", markRead);
     };
   }, [conversationId, latestUnreadId]);
-
-  return null;
 }

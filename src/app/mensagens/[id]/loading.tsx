@@ -1,38 +1,38 @@
-import { Container, Skeleton } from "@/components/ui";
+import { Skeleton } from "@/components/ui";
 
-/** Carregamento da conversa: cabeçalho, lista lateral (telas largas) e algumas mensagens. */
+/**
+ * Carregamento da conversa (só o painel da direita; a lista fica no layout). Tem o formato do chat
+ * e, no celular, já ocupa a tela toda (`data-chat-open`): nada pula quando a conversa chega.
+ */
 export default function Loading() {
   return (
-    <Container className="pt-8 pb-14 sm:pt-12" aria-busy="true">
+    <div
+      data-chat-open=""
+      aria-busy="true"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface lg:rounded-card lg:border lg:border-border lg:shadow-card"
+    >
       <p role="status" className="sr-only">
         Carregando conversa…
       </p>
-      <div aria-hidden="true">
-        <Skeleton className="h-4 w-44" />
-        <Skeleton className="mt-6 h-3 w-20" />
-        <Skeleton className="mt-3 h-9 w-full max-w-sm" />
-        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
-          <Skeleton className="hidden h-96 rounded-card lg:block" />
-          <div className="rounded-card border border-border bg-surface">
-            <div className="flex items-center gap-4 border-b border-border p-4 sm:p-5">
-              <Skeleton className="size-10 rounded-full" />
-              <div className="grid flex-1 gap-2">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="h-4 w-64 max-w-full" />
-              </div>
-            </div>
-            <div className="grid gap-4 p-4 sm:p-5">
-              <Skeleton className="h-14 w-3/5 rounded-card" />
-              <Skeleton className="ml-auto h-10 w-2/5 rounded-card" />
-              <Skeleton className="h-20 w-2/3 rounded-card" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-card" />
-            </div>
-            <div className="border-t border-border p-4 sm:p-5">
-              <Skeleton className="h-24 w-full rounded-control" />
-            </div>
+      <div aria-hidden="true" className="contents">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2.5 lg:px-5">
+          <Skeleton className="size-10 rounded-full" />
+          <div className="grid flex-1 gap-1.5">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-56 max-w-full" />
           </div>
         </div>
+        <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 px-4 py-4 lg:px-6">
+          <Skeleton className="h-14 w-3/5 rounded-card" />
+          <Skeleton className="ml-auto h-10 w-2/5 rounded-card" />
+          <Skeleton className="h-12 w-1/2 rounded-card" />
+          <Skeleton className="ml-auto h-10 w-1/3 rounded-card" />
+        </div>
+        <div className="flex shrink-0 items-end gap-2 border-t border-border px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:px-6 lg:pb-4">
+          <Skeleton className="h-11 flex-1 rounded-control" />
+          <Skeleton className="size-11 rounded-full" />
+        </div>
       </div>
-    </Container>
+    </div>
   );
 }

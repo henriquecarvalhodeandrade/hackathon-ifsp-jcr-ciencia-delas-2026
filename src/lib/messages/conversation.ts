@@ -1,11 +1,14 @@
 /**
- * Conversa direta (/mensagens/<id>): regras de apresentação puras, sem rede nem banco — cobertas
- * por conversation.test.ts. As regras de verdade (quem lê, quem envia, pedido de mensagem, limite
- * anti-spam, proteção do ensino médio) estão no banco (docs/18-rede-social.md §2.5).
+ * Conversa direta (/mensagens/<id> e o rascunho /mensagens/nova?com=<perfil>): regras de
+ * apresentação puras, sem rede nem banco — cobertas por conversation.test.ts. As regras de verdade
+ * (quem lê, quem envia, pedido de mensagem, limite anti-spam, proteção do ensino médio) estão no
+ * banco (docs/18-rede-social.md §2.5).
  */
 
 /** Tamanho máximo de uma mensagem (igual ao CHECK do banco). */
 export const MESSAGE_MAX = 2000;
+/** O contador do campo só aparece perto do limite (80%). */
+export const MESSAGE_COUNTER_FROM = Math.floor(MESSAGE_MAX * 0.8);
 /** Quantas mensagens (as mais recentes) a página carrega. */
 export const CONVERSATION_MESSAGE_LIMIT = 300;
 /** Atualização periódica da conversa enquanto a aba está visível (sem o Realtime). */
@@ -14,6 +17,8 @@ export const CONVERSATION_REFRESH_MS = 5_000;
 export const CONVERSATION_REFRESH_SUBSCRIBED_MS = 20_000;
 /** Caixa de entrada: atualização periódica (com ou sem Realtime, a lista muda pouco). */
 export const INBOX_REFRESH_MS = 30_000;
+/** Mensagens seguidas da mesma pessoa com até este intervalo formam um bloco (horário uma vez). */
+export const MESSAGE_RUN_GAP_MS = 5 * 60 * 1000;
 
 export type ConversationStatus = "request" | "active" | "declined";
 
@@ -21,9 +26,13 @@ export function conversationHref(conversationId: string): string {
   return `/mensagens/${conversationId}`;
 }
 
-/** Conversa com uma pessoa (cria ou reaproveita a do par): `/mensagens?com=<perfil>`. */
+/**
+ * Começar a conversar com uma pessoa: abre a conversa do par, se já existir, ou um rascunho — a
+ * conversa só é criada no banco quando a primeira mensagem é enviada. Só leitura: seguro para
+ * `<Link>` (a pré-busca não cria nada).
+ */
 export function startConversationHref(profileId: string): string {
-  return `/mensagens?com=${profileId}`;
+  return `/mensagens/nova?com=${profileId}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -31,13 +40,13 @@ export function startConversationHref(profileId: string): string {
 // ---------------------------------------------------------------------------
 
 export type ConversationBannerKind =
+  /** Rascunho (a conversa ainda não existe): a primeira mensagem pode ir como pedido. */
+  | "draft"
   /** Eu comecei, ela ainda não é conexão: a primeira mensagem vai como pedido. */
   | "first-request"
-  /** Eu comecei e já mandei a minha mensagem (ou ela recusou — nunca contamos): esperar. */
-  | "waiting"
   /** Ela começou: aceitar, recusar ou responder (responder também aceita). */
   | "incoming-request"
-  /** Eu recusei: responder reabre a conversa. */
+  /** Eu recusei: aceitar agora ou responder reabre a conversa. */
   | "declined-by-me";
 
 export interface ConversationBanner {
@@ -45,10 +54,12 @@ export interface ConversationBanner {
   variant: "info" | "warning";
   title: string;
   body: string;
+  /** Botões no aviso: Aceitar e Recusar, só Aceitar, ou nenhum. */
+  actions: "respond" | "accept" | null;
 }
 
 export interface ConversationState {
-  /** Mostra o campo de envio (o banco confere de novo: CD086 — pedido sem resposta ou recusado). */
+  /** O campo de envio está ativo (o banco confere de novo: CD086 — pedido sem resposta ou recusado). */
   canSend: boolean;
   banner: ConversationBanner | null;
   /**
@@ -56,6 +67,17 @@ export interface ConversationState {
    * a quem pediu que a outra pessoa viu e não respondeu (ou recusou).
    */
   showReadReceipts: boolean;
+  /**
+   * Pedido enviado (ou recusado — nunca contamos): o campo continua no lugar, desativado, com
+   * `placeholder`, e `note` aparece como linha de sistema no fim da conversa.
+   */
+  waiting: { placeholder: string; note: string } | null;
+  /** Nome do botão de enviar ("Enviar pedido" quando a mensagem vai como pedido). */
+  sendLabel: string;
+}
+
+function otherOrFallback(otherFirstName: string): string {
+  return otherFirstName || "ela";
 }
 
 export function conversationState({
@@ -71,56 +93,106 @@ export function conversationState({
   mySentCount: number;
   otherFirstName: string;
 }): ConversationState {
-  const other = otherFirstName || "ela";
-  if (status === "active") return { canSend: true, banner: null, showReadReceipts: true };
+  const other = otherOrFallback(otherFirstName);
+  const open = { canSend: true, waiting: null, sendLabel: "Enviar" } as const;
+  if (status === "active") return { ...open, banner: null, showReadReceipts: true };
 
   if (iAmInitiator) {
     // Recusada aparece para quem pediu exatamente como um pedido ainda sem resposta.
     if (status === "request" && mySentCount === 0) {
       return {
-        canSend: true,
+        ...open,
+        sendLabel: "Enviar pedido",
         showReadReceipts: false,
         banner: {
           kind: "first-request",
           variant: "info",
           title: "Sua primeira mensagem vai como pedido",
-          body: `Vocês ainda não são conexões: ${other} recebe um pedido de mensagem e decide se quer conversar. Você manda uma mensagem e espera a resposta — capriche na apresentação.`,
+          body: `Vocês ainda não são conexões: ${other} recebe um pedido de mensagem e decide se quer conversar. Você manda uma mensagem e espera a resposta.`,
+          actions: null,
         },
       };
     }
     return {
       canSend: false,
+      banner: null,
       showReadReceipts: false,
-      banner: {
-        kind: "waiting",
-        variant: "info",
-        title: "Pedido de mensagem enviado",
-        body: `Seu pedido de mensagem foi enviado. Você poderá mandar mais mensagens quando ${other} responder.`,
+      sendLabel: "Enviar",
+      waiting: {
+        placeholder: `Aguardando a resposta de ${other}`,
+        note: `Seu pedido de mensagem foi enviado. Você poderá mandar mais mensagens quando ${other} responder.`,
       },
     };
   }
 
   if (status === "request") {
     return {
-      canSend: true,
+      ...open,
       showReadReceipts: false,
       banner: {
         kind: "incoming-request",
         variant: "info",
         title: `${other} quer conversar com você`,
-        body: "Vocês ainda não são conexões. Aceite para conversar ou recuse: ela não fica sabendo da recusa. Responder também aceita o pedido.",
+        body: "Vocês ainda não são conexões. Responder também aceita o pedido; se recusar, ela não fica sabendo.",
+        actions: "respond",
       },
     };
   }
 
   return {
-    canSend: true,
+    ...open,
     showReadReceipts: false,
     banner: {
       kind: "declined-by-me",
       variant: "warning",
       title: "Pedido recusado",
-      body: "Você recusou este pedido. Responder reabre a conversa.",
+      body: "Você recusou este pedido. Aceitar ou responder reabre a conversa.",
+      actions: "accept",
+    },
+  };
+}
+
+/**
+ * Rascunho (`/mensagens/nova?com=<perfil>`): a conversa ainda não existe e só é criada na primeira
+ * mensagem. Não dá para saber de antemão se ela nasce aceita (o vínculo que dispensa o pedido —
+ * conexão, mentoria, IC aprovada — é decidido no banco); com conexão aceita, com certeza nasce.
+ */
+export function draftState({
+  otherFirstName,
+  connected,
+  highSchool,
+}: {
+  otherFirstName: string;
+  /** Conexão aceita entre as duas (aí a conversa nasce aceita). */
+  connected: boolean;
+  /** A outra pessoa está no ensino médio (só recebe mensagens de quem tem vínculo com ela). */
+  highSchool: boolean;
+}): ConversationState {
+  const other = otherOrFallback(otherFirstName);
+  const base = { canSend: true, waiting: null, showReadReceipts: false } as const;
+  if (connected) return { ...base, banner: null, sendLabel: "Enviar" };
+  if (highSchool) {
+    return {
+      ...base,
+      sendLabel: "Enviar",
+      banner: {
+        kind: "draft",
+        variant: "warning",
+        title: "Estudante do ensino médio",
+        body: `Para proteger quem tem menos de 18 anos, ${other} só recebe mensagens de quem já tem vínculo com ela na plataforma, como uma conexão. Se ainda não for o seu caso, envie um convite de conexão.`,
+        actions: null,
+      },
+    };
+  }
+  return {
+    ...base,
+    sendLabel: "Enviar",
+    banner: {
+      kind: "draft",
+      variant: "info",
+      title: "Nova conversa",
+      body: `Se vocês ainda não têm vínculo na plataforma (conexão, mentoria ou IC), a sua primeira mensagem chega para ${other} como pedido: você manda uma e espera a resposta.`,
+      actions: null,
     },
   };
 }
@@ -191,6 +263,80 @@ export function latestUnreadFromOther(messages: readonly DirectMessage[]): Direc
     if (!message.mine && message.read_at === null) return message;
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Blocos de mensagens seguidas (horário e recibo uma vez por bloco)
+// ---------------------------------------------------------------------------
+
+export interface MessageRun<T> {
+  /** Id da primeira mensagem do bloco. */
+  key: string;
+  mine: boolean;
+  items: T[];
+}
+
+/**
+ * Junta mensagens seguidas (já em ordem cronológica, do mesmo dia) da mesma pessoa, com no máximo
+ * `gapMs` entre uma e outra, num bloco: a interface mostra o horário e o recibo só na última.
+ */
+export function groupRuns<T extends { id: string; mine: boolean; created_at: string }>(
+  items: readonly T[],
+  gapMs: number = MESSAGE_RUN_GAP_MS,
+): MessageRun<T>[] {
+  const runs: MessageRun<T>[] = [];
+  let lastTime = Number.NaN;
+  for (const item of items) {
+    const at = new Date(item.created_at).getTime();
+    const run = runs.at(-1);
+    if (run && run.mine === item.mine && at - lastTime <= gapMs) {
+      run.items.push(item);
+    } else {
+      runs.push({ key: item.id, mine: item.mine, items: [item] });
+    }
+    lastTime = at;
+  }
+  return runs;
+}
+
+// ---------------------------------------------------------------------------
+// Envio otimista: a mensagem aparece na hora e some quando a do servidor chega
+// ---------------------------------------------------------------------------
+
+export interface PendingMessage {
+  /** Id provisório (só no navegador). */
+  tempId: string;
+  body: string;
+  /** Horário local do envio (só para ordenar; o do servidor vale). */
+  created_at: string;
+  /** Id da última mensagem que já estava na tela quando ela foi enviada (ou null). */
+  afterId: string | null;
+}
+
+/**
+ * Tira da lista as mensagens provisórias que o servidor já devolveu: para cada uma (em ordem),
+ * procura uma mensagem minha com o mesmo texto DEPOIS da última que estava na tela no envio —
+ * casando uma a uma, para "ok" mandado duas vezes continuar aparecendo duas vezes. A comparação
+ * ignora espaços nas pontas (o banco apara o texto).
+ */
+export function unconfirmedPending(
+  pending: readonly PendingMessage[],
+  messages: readonly Pick<DirectMessage, "id" | "body" | "mine">[],
+): PendingMessage[] {
+  const used = new Set<string>();
+  const indexById = new Map(messages.map((m, i) => [m.id, i]));
+  return pending.filter((item) => {
+    const start = item.afterId === null ? 0 : (indexById.get(item.afterId) ?? -1) + 1;
+    const body = item.body.trim();
+    for (let i = start; i < messages.length; i++) {
+      const message = messages[i]!;
+      if (message.mine && !used.has(message.id) && message.body.trim() === body) {
+        used.add(message.id);
+        return false;
+      }
+    }
+    return true;
+  });
 }
 
 // ---------------------------------------------------------------------------
