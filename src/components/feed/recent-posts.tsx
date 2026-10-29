@@ -65,7 +65,8 @@ export async function RecentPosts({ authorId, viewerId, limit = 3 }: RecentPosts
   return (
     <ul className="grid gap-3">
       {posts.map((post) => (
-        <li key={post.id}>
+        // min-w-0: o título do anexo (truncate) não pode alargar a coluna do perfil no celular.
+        <li key={post.id} className="min-w-0">
           <CompactPostCard post={post} />
         </li>
       ))}
@@ -83,7 +84,7 @@ export function CompactPostCard({ post }: { post: FeedPostView }) {
   return (
     <article
       aria-labelledby={headingId}
-      className="rounded-card border border-border bg-surface p-4 shadow-card"
+      className="min-w-0 rounded-card border border-border bg-surface p-4 shadow-card"
     >
       <h3 id={headingId} className="flex flex-wrap items-center gap-2 font-sans text-sm">
         <PostKindBadge kind={post.kind} />
@@ -100,7 +101,7 @@ export function CompactPostCard({ post }: { post: FeedPostView }) {
         <p className="mt-2 flex items-center gap-1.5 text-sm text-fg-muted">
           <Paperclip aria-hidden="true" className="size-4 shrink-0" />
           <span className="sr-only">Anexo: </span>
-          <span className="truncate">{post.attachment.title}</span>
+          <span className="min-w-0 truncate">{post.attachment.title}</span>
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-t border-border pt-2">
