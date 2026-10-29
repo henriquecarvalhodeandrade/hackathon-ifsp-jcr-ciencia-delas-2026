@@ -397,5 +397,211 @@ end
 $$;
 select pass('rede: get_network_counts e get_connection_suggestions');
 
+-- =============================================================================
+-- 6. Portfólio: só a dona escreve, todas leem, limite de 50 itens
+-- =============================================================================
+do $$
+declare
+  v_id uuid;
+begin
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  insert into public.portfolio_items (kind, title, url, year, tags)
+  values ('article', '  Ciência aberta no IFSP  ', 'https://example.test/artigo', 2025, array['Ciência Aberta', 'ciência aberta', ' IFSP '])
+  returning id into v_id;
+  perform cdtest.put('portfolio_bia', v_id);
+  perform cdtest.check(
+    (select title = 'Ciência aberta no IFSP' and tags = array['ciência aberta', 'ifsp']
+       from public.portfolio_items where id = v_id),
+    'título aparado e tags normalizadas');
+  perform cdtest.throws(
+    $q$insert into public.portfolio_items (owner_id, kind, title)
+       values ('e9000000-0000-4000-8000-000000000001', 'project', 'Projeto alheio')$q$,
+    'CD013', 'adicionar item ao portfólio de outra pessoa');
+  perform cdtest.throws(
+    format('update public.portfolio_items set owner_id = %L where id = %L', 'e9000000-0000-4000-8000-000000000001', v_id),
+    '42501', 'a dona do item não é atualizável (GRANT por coluna)');
+  perform cdtest.logout();
+
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  perform cdtest.check((select count(*) from public.portfolio_items where id = v_id) = 1, 'membras leem o portfólio');
+  perform cdtest.check(
+    cdtest.affected(format('update public.portfolio_items set title = %L where id = %L', 'Invadido', v_id)) = 0
+    and cdtest.affected(format('delete from public.portfolio_items where id = %L', v_id)) = 0,
+    'outra membra não edita nem apaga');
+  perform cdtest.logout();
+
+  perform cdtest.login_anon();
+  perform cdtest.throws('select count(*) from public.portfolio_items', '42501', 'visitante não lê portfólios');
+  perform cdtest.logout();
+
+  -- 49 itens criados pelo banco (sem limite) + o da Bia = 50 → o próximo dela é recusado.
+  insert into public.portfolio_items (owner_id, kind, title)
+  select 'e9000000-0000-4000-8000-000000000002', 'other', 'Item ' || g from generate_series(1, 49) g;
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  perform cdtest.throws(
+    $q$insert into public.portfolio_items (kind, title) values ('course', 'Mais um curso')$q$,
+    'CD066', 'portfólio cheio (50 itens)');
+  perform cdtest.logout();
+  delete from public.portfolio_items where owner_id = 'e9000000-0000-4000-8000-000000000002' and title like 'Item %';
+end
+$$;
+select pass('portfólio: autoria, leitura, limite');
+
+-- =============================================================================
+-- 7. Oportunidades: quem publica, quem edita, contador protegido
+-- =============================================================================
+do $$
+declare
+  v_id uuid;
+begin
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  perform cdtest.throws(
+    $q$insert into public.research_opportunities (title, description)
+       values ('IC em robótica educacional', 'Descrição longa o bastante para passar na checagem de tamanho.')$q$,
+    'CD070', 'graduanda não publica oportunidade');
+  perform cdtest.logout();
+
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  insert into public.research_opportunities (
+    title, description, state, has_scholarship, scholarship_info, target_stages, keywords, deadline
+  )
+  values (
+    'IC em robótica educacional', 'Projeto de iniciação científica com robôs de baixo custo nas escolas públicas.',
+    'sp', false, 'não deveria ficar', array['undergraduate', 'high_school', 'undergraduate']::public.career_stage[],
+    array['Robótica', 'robótica'], (now() at time zone 'America/Sao_Paulo')::date + 10
+  )
+  returning id into v_id;
+  perform cdtest.put('opp', v_id);
+  perform cdtest.check(
+    (select state = 'SP' and scholarship_info is null and keywords = array['robótica']
+            and target_stages = array['high_school', 'undergraduate']::public.career_stage[]
+            and search_text like '%robotica educacional%'
+       from public.research_opportunities where id = v_id),
+    'normalização: UF, bolsa sem detalhe, palavras-chave, etapas e busca sem acento');
+  perform cdtest.throws(
+    format('update public.research_opportunities set application_count = 99 where id = %L', v_id),
+    '42501', 'contador não é atualizável pela membra');
+  perform cdtest.logout();
+
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  perform cdtest.check(
+    cdtest.affected(format('update public.research_opportunities set title = %L where id = %L', 'Invadida', v_id)) = 0,
+    'outra membra não edita a vaga');
+  perform cdtest.logout();
+end
+$$;
+select pass('oportunidades: publicar (mestrado em diante), normalização, contador protegido');
+
+-- =============================================================================
+-- 8. Candidaturas: regras, privacidade, transições, contador e avisos
+-- =============================================================================
+do $$
+declare
+  v_opp uuid := cdtest.get('opp');
+  v_app uuid;
+  v_clara uuid;
+  v_closed uuid;
+begin
+  -- Ana se candidata.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000001');
+  insert into public.opportunity_applications (opportunity_id, message)
+  values (v_opp, 'Olá! Tenho muito interesse em robótica e já participei de olimpíadas.')
+  returning id into v_app;
+  perform cdtest.put('app_ana', v_app);
+  perform cdtest.throws(
+    format('insert into public.opportunity_applications (opportunity_id, message) values (%L, %L)',
+      v_opp, 'Mandando de novo a mesma candidatura para ver se passa.'),
+    'CD073', 'segunda candidatura na mesma vaga');
+  perform cdtest.throws(
+    format('update public.opportunity_applications set status = %L where id = %L', 'accepted', v_app),
+    'CD074', 'candidata não aprova a própria candidatura');
+  perform cdtest.logout();
+
+  -- Clara também.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  insert into public.opportunity_applications (opportunity_id, message)
+  values (v_opp, 'Oi! Quero aprender robótica e tenho tempo livre à tarde.')
+  returning id into v_clara;
+  perform cdtest.check((select count(*) from public.opportunity_applications where id = v_app) = 0,
+    'uma candidata não vê a candidatura da outra');
+  perform cdtest.logout();
+
+  perform cdtest.check(
+    (select application_count from public.research_opportunities where id = v_opp) = 2,
+    'contador com duas candidaturas');
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000002', 'opportunity_application',
+      '/ics/' || v_opp || '/candidaturas') = 1,
+    'dona recebe um aviso agrupado pelas duas candidaturas');
+
+  -- A dona não se candidata à própria vaga.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  perform cdtest.throws(
+    format('insert into public.opportunity_applications (opportunity_id, message) values (%L, %L)',
+      v_opp, 'Candidatura da própria dona da vaga, que não deveria passar.'),
+    'CD072', 'candidatura na própria vaga');
+  perform cdtest.check((select count(*) from public.opportunity_applications where opportunity_id = v_opp) = 2,
+    'a dona vê todas as candidaturas da vaga');
+  -- Dona aprova Ana com recado; não volta "enviada".
+  update public.opportunity_applications set status = 'accepted', owner_note = 'Bem-vinda ao grupo!' where id = v_app;
+  perform cdtest.throws(
+    format('update public.opportunity_applications set status = %L where id = %L', 'submitted', v_app),
+    'CD074', 'dona não volta a candidatura para enviada');
+  perform cdtest.throws(
+    format('update public.opportunity_applications set message = %L where id = %L', 'Carta trocada pela dona da vaga!', v_app),
+    '42501', 'carta não é atualizável (GRANT por coluna)');
+  perform cdtest.logout();
+
+  perform cdtest.check(
+    cdtest.notifications('e9000000-0000-4000-8000-000000000001', 'application_update', '/ics/' || v_opp) = 1,
+    'Ana recebe o aviso da aprovação');
+  perform cdtest.check(
+    (select responded_at is not null from public.opportunity_applications where id = v_app),
+    'responded_at preenchido na resposta');
+
+  -- Clara desiste: contador cai; não se candidata de novo.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000003');
+  update public.opportunity_applications set status = 'withdrawn' where id = v_clara;
+  perform cdtest.throws(
+    format('insert into public.opportunity_applications (opportunity_id, message) values (%L, %L)',
+      v_opp, 'Mudei de ideia e quero me candidatar de novo nesta vaga.'),
+    'CD073', 'quem desistiu não se candidata de novo');
+  perform cdtest.logout();
+  perform cdtest.check(
+    (select application_count from public.research_opportunities where id = v_opp) = 1,
+    'desistência sai do contador');
+
+  -- Vaga encerrada e vaga com prazo vencido não aceitam candidaturas.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  insert into public.research_opportunities (title, description, deadline)
+  values ('IC em química verde', 'Projeto sobre solventes alternativos em laboratório didático.', (now() at time zone 'America/Sao_Paulo')::date - 1)
+  returning id into v_closed;
+  perform cdtest.logout();
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  perform cdtest.throws(
+    format('insert into public.opportunity_applications (opportunity_id, message) values (%L, %L)',
+      v_closed, 'Quero participar do projeto de química verde, por favor.'),
+    'CD071', 'prazo vencido');
+  perform cdtest.logout();
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  update public.research_opportunities set deadline = null, status = 'closed' where id = v_closed;
+  perform cdtest.check((select closed_at is not null from public.research_opportunities where id = v_closed),
+    'encerrar marca closed_at');
+  perform cdtest.logout();
+  perform cdtest.login('e9000000-0000-4000-8000-000000000007');
+  perform cdtest.throws(
+    format('insert into public.opportunity_applications (opportunity_id, message) values (%L, %L)',
+      v_closed, 'Quero participar do projeto de química verde, por favor.'),
+    'CD071', 'vaga encerrada');
+  perform cdtest.logout();
+
+  -- Apagar a vaga leva candidaturas e avisos.
+  perform cdtest.login('e9000000-0000-4000-8000-000000000002');
+  delete from public.research_opportunities where id = v_closed;
+  perform cdtest.logout();
+end
+$$;
+select pass('candidaturas: regras, privacidade, transições, contador e avisos');
+
 select * from finish();
 rollback;

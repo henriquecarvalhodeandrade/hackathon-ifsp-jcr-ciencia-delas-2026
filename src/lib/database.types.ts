@@ -847,6 +847,57 @@ export type Database = {
           },
         ];
       };
+      opportunity_applications: {
+        Row: {
+          applicant_id: string;
+          created_at: string;
+          id: string;
+          message: string;
+          opportunity_id: string;
+          owner_note: string | null;
+          responded_at: string | null;
+          status: Database["public"]["Enums"]["application_status"];
+          updated_at: string;
+        };
+        Insert: {
+          applicant_id?: string;
+          created_at?: string;
+          id?: string;
+          message: string;
+          opportunity_id: string;
+          owner_note?: string | null;
+          responded_at?: string | null;
+          status?: Database["public"]["Enums"]["application_status"];
+          updated_at?: string;
+        };
+        Update: {
+          applicant_id?: string;
+          created_at?: string;
+          id?: string;
+          message?: string;
+          opportunity_id?: string;
+          owner_note?: string | null;
+          responded_at?: string | null;
+          status?: Database["public"]["Enums"]["application_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_applications_applicant_id_fkey";
+            columns: ["applicant_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "opportunity_applications_opportunity_id_fkey";
+            columns: ["opportunity_id"];
+            isOneToOne: false;
+            referencedRelation: "research_opportunities";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       paper_comments: {
         Row: {
           author_id: string;
@@ -1003,6 +1054,59 @@ export type Database = {
           {
             foreignKeyName: "papers_submitted_by_fkey";
             columns: ["submitted_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      portfolio_items: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["portfolio_kind"];
+          owner_id: string;
+          pinned: boolean;
+          tags: string[];
+          title: string;
+          updated_at: string;
+          url: string | null;
+          venue: string | null;
+          year: number | null;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["portfolio_kind"];
+          owner_id?: string;
+          pinned?: boolean;
+          tags?: string[];
+          title: string;
+          updated_at?: string;
+          url?: string | null;
+          venue?: string | null;
+          year?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["portfolio_kind"];
+          owner_id?: string;
+          pinned?: boolean;
+          tags?: string[];
+          title?: string;
+          updated_at?: string;
+          url?: string | null;
+          venue?: string | null;
+          year?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_items_owner_id_fkey";
+            columns: ["owner_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -1372,6 +1476,102 @@ export type Database = {
         };
         Relationships: [];
       };
+      research_opportunities: {
+        Row: {
+          application_count: number;
+          area_id: number | null;
+          city: string | null;
+          closed_at: string | null;
+          created_at: string;
+          deadline: string | null;
+          description: string;
+          has_scholarship: boolean;
+          id: string;
+          institution: string | null;
+          keywords: string[];
+          kind: Database["public"]["Enums"]["opportunity_kind"];
+          modality: Database["public"]["Enums"]["meeting_format"];
+          owner_id: string;
+          requirements: string | null;
+          scholarship_info: string | null;
+          search_text: string | null;
+          state: string | null;
+          status: Database["public"]["Enums"]["opportunity_status"];
+          target_stages: Database["public"]["Enums"]["career_stage"][];
+          title: string;
+          updated_at: string;
+          vacancies: number;
+          weekly_hours: number | null;
+        };
+        Insert: {
+          application_count?: number;
+          area_id?: number | null;
+          city?: string | null;
+          closed_at?: string | null;
+          created_at?: string;
+          deadline?: string | null;
+          description: string;
+          has_scholarship?: boolean;
+          id?: string;
+          institution?: string | null;
+          keywords?: string[];
+          kind?: Database["public"]["Enums"]["opportunity_kind"];
+          modality?: Database["public"]["Enums"]["meeting_format"];
+          owner_id?: string;
+          requirements?: string | null;
+          scholarship_info?: string | null;
+          search_text?: string | null;
+          state?: string | null;
+          status?: Database["public"]["Enums"]["opportunity_status"];
+          target_stages?: Database["public"]["Enums"]["career_stage"][];
+          title: string;
+          updated_at?: string;
+          vacancies?: number;
+          weekly_hours?: number | null;
+        };
+        Update: {
+          application_count?: number;
+          area_id?: number | null;
+          city?: string | null;
+          closed_at?: string | null;
+          created_at?: string;
+          deadline?: string | null;
+          description?: string;
+          has_scholarship?: boolean;
+          id?: string;
+          institution?: string | null;
+          keywords?: string[];
+          kind?: Database["public"]["Enums"]["opportunity_kind"];
+          modality?: Database["public"]["Enums"]["meeting_format"];
+          owner_id?: string;
+          requirements?: string | null;
+          scholarship_info?: string | null;
+          search_text?: string | null;
+          state?: string | null;
+          status?: Database["public"]["Enums"]["opportunity_status"];
+          target_stages?: Database["public"]["Enums"]["career_stage"][];
+          title?: string;
+          updated_at?: string;
+          vacancies?: number;
+          weekly_hours?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_opportunities_area_id_fkey";
+            columns: ["area_id"];
+            isOneToOne: false;
+            referencedRelation: "research_areas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_opportunities_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       forum_post_reaction_counts: {
@@ -1660,6 +1860,7 @@ export type Database = {
       };
     };
     Enums: {
+      application_status: "submitted" | "in_review" | "accepted" | "declined" | "withdrawn";
       career_stage:
         | "high_school"
         | "undergraduate"
@@ -1689,6 +1890,10 @@ export type Database = {
         | "opportunity_application"
         | "application_update"
         | "direct_message";
+      opportunity_kind: "ic" | "ic_junior" | "tcc" | "extension" | "volunteer";
+      opportunity_status: "open" | "closed";
+      portfolio_kind:
+        "article" | "project" | "presentation" | "poster" | "thesis" | "award" | "course" | "other";
       reaction_kind: "support" | "useful" | "celebrate";
       report_reason:
         "harassment" | "spam" | "misinformation" | "offensive" | "plagiarism" | "other";
@@ -1817,6 +2022,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      application_status: ["submitted", "in_review", "accepted", "declined", "withdrawn"],
       career_stage: [
         "high_school",
         "undergraduate",
@@ -1847,6 +2053,18 @@ export const Constants = {
         "opportunity_application",
         "application_update",
         "direct_message",
+      ],
+      opportunity_kind: ["ic", "ic_junior", "tcc", "extension", "volunteer"],
+      opportunity_status: ["open", "closed"],
+      portfolio_kind: [
+        "article",
+        "project",
+        "presentation",
+        "poster",
+        "thesis",
+        "award",
+        "course",
+        "other",
       ],
       reaction_kind: ["support", "useful", "celebrate"],
       report_reason: ["harassment", "spam", "misinformation", "offensive", "plagiarism", "other"],
