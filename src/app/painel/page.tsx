@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Globe } from "lucide-react";
 import { firstName } from "@/components/landing/featured";
+import { NetworkCard } from "@/components/painel/network-card";
 import { NewsCard } from "@/components/painel/news-card";
 import { NextStepsCard } from "@/components/painel/next-steps-card";
 import { QuestionsCard } from "@/components/painel/questions-card";
@@ -24,7 +25,8 @@ export const metadata: Metadata = {
  * Cada bloco é um Server Component independente que recebe os próprios dados; as leituras do
  * painel saem de um único Promise.all em loadPainelData (6 idas ao Supabase, com RLS). Os blocos
  * das outras funcionalidades (RecognitionTodos, AwaitingQuestionsCard) leem por conta própria
- * e não aparecem quando não há nada para mostrar.
+ * e não aparecem quando não há nada para mostrar; NetworkCard (rede social) também lê por conta
+ * própria, mas fica sempre, com o atalho para o feed.
  */
 export default async function PainelPage() {
   const profile = await requireOnboardedProfile("/painel");
@@ -49,6 +51,8 @@ export default async function PainelPage() {
         <div className="grid min-w-0 gap-6">
           <NextStepsCard result={steps} failed={data.stepsFailed} />
           <WaitingCard waiting={data.waiting} failed={data.waitingFailed} now={now} />
+          {/* Rede social: mensagens diretas, convites e candidaturas (docs/18). */}
+          <NetworkCard userId={profile.id} />
           {/* Pendências das mentorias concluídas (retorno e declaração; docs/15). */}
           <RecognitionTodos userId={profile.id} />
         </div>
