@@ -1,0 +1,124 @@
+/**
+ * Impacto agregado da mentoria (puro, testado): lê o JSON de `get_mentorship_impact()` e aplica
+ * DE NOVO a supressão (defesa em profundidade — mesmo que o banco mandasse números a mais, a
+ * interface não os mostraria):
+ *   - nenhum resultado com menos de K_MIN (5) retornos de mentorandas;
+ *   - opção marcada por menos de CELL_MIN (3) pessoas aparece como "menos de 3".
+ * Os resultados vêm em BLOCOS de 5 (`published_feedback`: os floor(n / 5) × 5 retornos mais
+ * antigos), para que ninguém deduza uma resposta comparando os números antes e depois de um
+ * retorno novo. As porcentagens são sobre esse bloco publicado, não sobre o total.
+ */
+import { z } from "zod";
+import { formatNumber } from "@/lib/utils";
+import { MENTEE_OUTCOMES, outcomeImpactLabel } from "./outcomes";
+
+export const K_MIN = 5;
+export const CELL_MIN = 3;
+export const SUPPRESSED_LABEL = "menos de 3";
+
+const count = z.coerce.number().int().min(0).catch(0);
+
+const impactSchema = z.object({
+  completed: count,
+  mentee_feedback: count,
+  /** Retornos que entram nos resultados (blocos de 5). Ausente → nada é mostrado. */
+  published_feedback: count.optional(),
+  outcomes: z
+    .array(z.object({ slug: z.string(), count: z.number().int().min(0).nullable().catch(null) }))
+    .nullable()
+    .catch(null),
+  helpfulness_avg: z.coerce.number().min(1).max(5).nullable().catch(null),
+  declarations_issued: count,
+  k_min: z.coerce.number().int().min(K_MIN).catch(K_MIN),
+  is_demo: z.boolean().catch(false),
+});
+
+export interface ImpactOutcome {
+  slug: string;
+  label: string;
+  /** null = suprimido ("menos de 3"). */
+  count: number | null;
+  /** 0–100, parte de quem respondeu; null quando suprimido. */
+  percent: number | null;
+}
+
+export interface ImpactData {
+  completed: number;
+  menteeFeedback: number;
+  /** Retornos usados nos resultados (múltiplo de 5, ≤ menteeFeedback); 0 quando não há. */
+  publishedFeedback: number;
+  declarationsIssued: number;
+  /** Mínimo de retornos para mostrar resultados (o maior entre o do banco e K_MIN). */
+  kMin: number;
+  /** true quando há retornos suficientes para mostrar opções e média. */
+  allowed: boolean;
+  outcomes: ImpactOutcome[];
+  helpfulnessAvg: number | null;
+  isDemo: boolean;
+}
+
+/** null quando o JSON não tem o formato esperado (a seção some em vez de mostrar lixo). */
+export function parseImpact(json: unknown): ImpactData | null {
+  const parsed = impactSchema.safeParse(json);
+  if (!parsed.success) return null;
+  const raw = parsed.data;
+  const kMin = Math.max(K_MIN, raw.k_min);
+  // Nunca mais do que o total; sem o campo (banco antigo), não arriscamos mostrar resultados.
+  const published = Math.min(raw.published_feedback ?? 0, raw.mentee_feedback);
+  const allowed = published >= kMin && raw.outcomes !== null;
+  const bySlug = new Map((raw.outcomes ?? []).map((o) => [o.slug, o.count]));
+
+  const outcomes: ImpactOutcome[] = allowed
+    ? MENTEE_OUTCOMES.map(({ slug }) => {
+        const value = bySlug.get(slug) ?? null;
+        const shown = value !== null && value >= CELL_MIN ? value : null;
+        return {
+          slug,
+          label: outcomeImpactLabel(slug) ?? slug,
+          count: shown,
+          percent: shown === null ? null : sharePercent(shown, published),
+        };
+      })
+    : [];
+
+  return {
+    completed: raw.completed,
+    menteeFeedback: raw.mentee_feedback,
+    publishedFeedback: allowed ? published : 0,
+    declarationsIssued: raw.declarations_issued,
+    kMin,
+    allowed,
+    outcomes,
+    helpfulnessAvg: allowed ? raw.helpfulness_avg : null,
+    isDemo: raw.is_demo,
+  };
+}
+
+/** Porcentagem inteira (0–100) de `part` em `total`. */
+export function sharePercent(part: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((part / total) * 100)));
+}
+
+/** "80% (4 de 5)" ou "menos de 3". */
+export function outcomeValueLabel(outcome: ImpactOutcome, total: number): string {
+  if (outcome.count === null || outcome.percent === null) return SUPPRESSED_LABEL;
+  return `${formatNumber(outcome.percent)}% (${formatNumber(outcome.count)} de ${formatNumber(total)})`;
+}
+
+/** "4,6". */
+export function formatAverage(value: number): string {
+  return formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+/** Retornos já recebidos que ainda esperam completar um bloco para entrar nos resultados. */
+export function pendingForNextBlock(
+  data: Pick<ImpactData, "menteeFeedback" | "publishedFeedback" | "allowed">,
+): number {
+  return data.allowed ? Math.max(0, data.menteeFeedback - data.publishedFeedback) : 0;
+}
+
+/** Quantos retornos ainda faltam para os resultados aparecerem. */
+export function missingForResults(data: Pick<ImpactData, "menteeFeedback" | "kMin">): number {
+  return Math.max(0, data.kMin - data.menteeFeedback);
+}

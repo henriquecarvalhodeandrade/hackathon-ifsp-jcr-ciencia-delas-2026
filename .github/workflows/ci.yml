@@ -1,0 +1,197 @@
+# Integração contínua da Artemis. Documentação: docs/07-setup-e-deploy.md §7.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Um novo push no mesmo branch (ou PR) cancela a execução anterior que ainda estiver rodando.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: App (formatação, lint, tipos, testes e build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Prettier
+        run: npx prettier --check .
+
+      - name: ESLint
+        run: npx eslint --max-warnings 0
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Testes unitários (Vitest)
+        run: npx vitest run
+
+      - name: Testes do script de deploy
+        run: node --test scripts/deploy/*.test.mjs
+
+      # Sem as variáveis do app (Supabase, IA, e-mail) de propósito: ele precisa compilar sem configuração.
+      - name: Build de produção
+        run: npx next build
+
+  database:
+    name: Banco (pgTAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      # As portas efêmeras do Linux (32768–60999) incluem as do Supabase local (54321–54329): enquanto o
+      # Docker baixa as imagens, uma conexão de saída pode ocupar a 54322 bem na hora em que o banco
+      # tenta usá-la ("address already in use", runs #19 e #21). Afasta a faixa efêmera dessas portas.
+      - name: Reservar as portas do Supabase
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 65535"
+
+      # Só o Postgres: aplica as migrations e os seeds do config.toml ([db.seed] sql_paths:
+      # supabase/seed.sql e depois supabase/seeds/*.sql).
+      - name: Subir o banco local
+        run: supabase db start
+
+      - name: Testes do banco (pgTAP)
+        run: supabase test db
+
+  e2e:
+    name: Jornada E2E (Playwright)
+    needs: app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      # As portas efêmeras do Linux (32768–60999) incluem as do Supabase local (54321–54329): enquanto o
+      # Docker baixa as imagens, uma conexão de saída pode ocupar a 54322 bem na hora em que o banco
+      # tenta usá-la ("address already in use", runs #19 e #21). Afasta a faixa efêmera dessas portas.
+      - name: Reservar as portas do Supabase
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 65535"
+
+      # Stack local completa para o app (Postgres com migrations e os seeds do config.toml — seed.sql e
+      # supabase/seeds/*.sql —, Auth, API, Storage, Realtime e Mailpit), sem o que a jornada não usa.
+      # Realtime fica: o cabeçalho das membras e as mensagens diretas abrem o WebSocket em toda página
+      # (sem ele, o navegador registra "WebSocket … 503" no console e a jornada acusa).
+      - name: Subir o Supabase local
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+
+      # As chaves são as da stack local recém-criada (não há segredo do GitHub envolvido). O site_url do
+      # Auth local é http://localhost:3000 (supabase/config.toml), por isso o app roda na porta 3000.
+      # MAILPIT_URL explícita: num build de produção, os e-mails do app só vão para o Mailpit com ela.
+      - name: Gerar o .env.local
+        run: |
+          source <(supabase status -o env 2>/dev/null | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY)=')
+          : "${API_URL:?supabase status não informou API_URL}"
+          : "${PUBLISHABLE_KEY:?supabase status não informou PUBLISHABLE_KEY}"
+          : "${SECRET_KEY:?supabase status não informou SECRET_KEY}"
+          {
+            echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
+            echo "CRON_SECRET=$(openssl rand -hex 32)"
+            echo "MAILPIT_URL=http://127.0.0.1:54324"
+          } > .env.local
+
+      - name: Build de produção
+        run: npx next build
+
+      # DEMO_MODE=true liga o /demo (entrar como persona fictícia), que o painel-demo.mjs testa. Só
+      # aqui e na apresentação: nunca num ambiente com membras de verdade (docs/14).
+      - name: Iniciar o app (porta 3000, modo demonstração)
+        env:
+          DEMO_MODE: "true"
+        run: |
+          nohup npx next start -p 3000 > "$RUNNER_TEMP/next-start.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -fs -o /dev/null http://localhost:3000; then
+              echo "App no ar em http://localhost:3000"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::O app não respondeu em http://localhost:3000 em 2 minutos."
+          cat "$RUNNER_TEMP/next-start.log"
+          exit 1
+
+      # Versão do Playwright fixada em package.json (devDependency); o Chromium e as bibliotecas do sistema
+      # vêm daqui.
+      - name: Instalar o Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Jornada E2E
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/jornada
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/journey.mjs
+
+      # Roteiros de cada funcionalidade (docs/14 a 17). Cada um apaga ou restaura o que cria.
+      - name: E2E — painel e modo demonstração
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/painel-demo
+        run: DEMO=1 BASE_URL=http://localhost:3000 node scripts/e2e/painel-demo.mjs
+
+      - name: E2E — reconhecimento da mentoria
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/reconhecimento
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/reconhecimento.mjs
+
+      - name: E2E — Pergunte a uma cientista
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/pergunte
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/pergunte.mjs
+
+      - name: E2E — afinidade de trajetória
+        env:
+          OUT_DIR: ${{ runner.temp }}/artemis-e2e/trajetoria
+        run: BASE_URL=http://localhost:3000 node scripts/e2e/trajetoria.mjs
+
+      - name: Log do servidor (se falhar)
+        if: failure()
+        run: tail -n 300 "$RUNNER_TEMP/next-start.log" || true
+
+      - name: Enviar capturas (se falhar)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-capturas-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/artemis-e2e
+            ${{ runner.temp }}/next-start.log
+          if-no-files-found: ignore
+          retention-days: 14
